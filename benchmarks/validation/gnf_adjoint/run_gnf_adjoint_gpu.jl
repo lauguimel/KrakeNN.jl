@@ -347,16 +347,13 @@ function main(args)
                 println("backend=", opts["backend"], " precision=Float64; Float32 operator=", opts["float32"])
                 println("start_utc=", start, " BLAS_threads=", BLAS.get_num_threads(), " Julia_threads=", Threads.nthreads())
                 if opts["backend"] == "cuda"
-                    @eval using CUDA
-                    Base.invokelatest(CUDA.functional) || error("CUDA.functional() is false")
-                    Base.invokelatest() do
-                        println("device=", CUDA.name(CUDA.device()), " CUDA_runtime=", CUDA.runtime_version())
-                        CUDA.allowscalar(false)
-                    end
+                    CUDA.functional() || error("CUDA.functional() is false")
+                    println("device=", CUDA.name(CUDA.device()), " CUDA_runtime=", CUDA.runtime_version())
+                    CUDA.allowscalar(false)
                 else
                     println("device=CPU CUDA_runtime=not applicable")
                 end
-                passed = Base.invokelatest(validate, opts, csv)
+                passed = validate(opts, csv)
             catch err
                 showerror(stderr, err, catch_backtrace()); println(stderr)
             finally
@@ -369,6 +366,9 @@ function main(args)
         end
     end
 end
+
+# Load CUDA at top level, before main runs, so its bindings are visible in main's world age.
+options(ARGS)["backend"] == "cuda" && @eval using CUDA
 
 exit(main(ARGS))
 
