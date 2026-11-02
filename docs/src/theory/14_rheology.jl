@@ -381,6 +381,9 @@
 # The driver `run_natural_convection_gnf_2d` assembles these steps for a
 # differentially heated cavity; see
 # [Generalised Newtonian natural convection](../users/benchmarks/gnf-natural-convection.md).
+# With `cavity_powerlaw`, the reference viscosity ``\nu_0`` is the nominal
+# viscosity ``K(\alpha/H^2)^{n-1}`` of Turan et al. (2011), so Ra and Pr follow
+# their power-law definitions.
 # For a model without thermal coupling (``a_T = 1``), the viscosity still
 # depends on ``\dot\gamma`` only, and temperature acts through the buoyancy
 # force alone.

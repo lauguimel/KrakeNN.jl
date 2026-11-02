@@ -42,8 +42,9 @@ using Test, Kraken
     end
 
     @testset "QUALITATIVE literature trend (no quantitative power-law claim)" begin
-        # Reference-viscosity Ra/Pr and the provisional diffusive shear scale.
-        # This checks only the qualitative increase of Nu with shear thinning.
+        # alpha/H^2 is the characteristic shear rate of Turan et al. (2011).
+        # Pr = 0.71 is outside their power-law data (Pr >= 10), so this check
+        # remains qualitative: Nu increases with shear thinning.
         results = map((0.8, 1.0, 1.2)) do n
             model = cavity_powerlaw(n; nu0, alpha=nu0/Pr, H=32,
                                      nu_min=1e-4, nu_max=1.0)
@@ -62,9 +63,28 @@ using Test, Kraken
         end
         @test results[1].Nu > results[2].Nu > results[3].Nu
         @info "QUALITATIVE Nu(0.8/1/1.2)" Nu=map(r -> r.Nu, results)
-        # TODO: Turan, Sachdeva, Chakraborty, Poole, JNNFM 166 (2011), 1049-1063,
-        # DOI 10.1016/j.jnnfm.2011.06.003. Tabulated Nu and the paper's power-law
-        # Ra/Pr definitions are unavailable; quantitative validation awaits both.
+        # Quantitative comparison: see the Turan et al. (2011) testset below.
+    end
+
+    @testset "Turan et al. (2011) power-law point, CPU" begin
+        Pr, nu0, N, Ra = 10.0, 0.3, 48, 1e3
+        model = cavity_powerlaw(0.6; nu0, alpha=nu0/Pr, H=N,
+                                 nu_min=1e-3, nu_max=2.0)
+        result = run_natural_convection_gnf_2d(; N, Ra, Pr, nu0, rheology=model,
+            max_steps=60000, check_every=1000, convergence_rtol=1e-5, min_steps=5000)
+        @test result.converged
+        @test result.clamped_fraction == 0.0
+        @test all(isfinite, result.Temp)
+        @test all(isfinite, result.ux)
+        @test all(isfinite, result.uy)
+        # Turan et al. (2011), Fig. 9a (p. 1059): Nu = 2.07 at Ra = 1e3,
+        # Pr = 10, n = 0.6; doi:10.1016/j.jnnfm.2011.06.003.
+        # Frozen gate from the reference's own uncertainty: figure reading
+        # +/-0.07 (3.4%) plus mesh-M2 uncertainty <= 0.35% (Table 2), rounded
+        # up to 4%. Measured 2026-11-02 on an Apple-silicon Mac, CPU Float64:
+        # Nu = 2.124 (+2.6%).
+        @test abs(result.Nu - 2.07) / 2.07 < 0.04
+        @info "GNF Turan point" Nu=result.Nu steps=result.steps clamped_fraction=result.clamped_fraction
     end
 
     @testset "Parsed thermal rheology reaches run_simulation" begin
