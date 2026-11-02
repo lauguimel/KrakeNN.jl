@@ -1,13 +1,30 @@
 # --- Generic simulation runner for .krk config files ---
 
+# `backend` defaults to this sentinel (never a real KernelAbstractions
+# backend) so `run_simulation` can tell "caller passed backend=..." apart
+# from "caller left it unset". Only in the latter case does a `.krk`
+# `Backend <name>` directive get to pick the backend — an explicit Julia
+# kwarg ALWAYS wins over the file (backward compatibility: existing calls
+# that pass `backend=...` keep behaving exactly as before).
+struct _UnspecifiedBackend end
+const _KRK_BACKEND_UNSPECIFIED = _UnspecifiedBackend()
 
 """
-    run_simulation(filename::String; backend=CPU(), T=Float64,
+    run_simulation(filename::String; backend=<unspecified>, T=Float64,
                    max_steps=nothing, kwargs...) -> NamedTuple
 
 Run an LBM simulation defined by a `.krk` configuration file.
 Keyword arguments override `Define` defaults for parametric studies.
 Pass `max_steps` to override the `Run N steps` directive (useful for tests).
+
+## Backend selection
+If `backend` is not passed, the backend is taken from the file's `Backend
+<cpu|cuda|metal>` directive (see `docs/src/krk/directives.md`); if the file
+has no `Backend` directive either, it defaults to `KernelAbstractions.CPU()`.
+Passing `backend=...` explicitly always overrides the file. Requesting
+`cuda`/`metal` when the corresponding package is not loaded/functional
+raises a clear `ArgumentError` naming the backend — it is never silently
+downgraded to CPU.
 
 Returns a NamedTuple with final fields on CPU: `(ρ, ux, uy, setup)`.
 If the setup contains `Sensitivity { ... }`, returns the
@@ -43,7 +60,7 @@ result = run_simulation("examples/rayleigh_benard.krk"; max_steps=100)
 ```
 """
 function run_simulation(filename::String;
-                        backend=KernelAbstractions.CPU(), T=Float64,
+                        backend=_KRK_BACKEND_UNSPECIFIED, T=Float64,
                         callback::Union{Nothing,Function}=nothing,
                         callback_every::Int=100,
                         max_steps::Union{Nothing,Int}=nothing, kwargs...)
@@ -69,10 +86,78 @@ function _override_max_steps(setup::SimulationSetup, new_max::Int)
         setup.modules, new_max,
         setup.outputs, setup.diagnostics, setup.refinements,
         setup.velocity_field, setup.rheology, setup.mesh, setup.units,
-        setup.collision, setup.wall_bc, setup.sensitivity)
+        setup.collision, setup.wall_bc, setup.sensitivity, setup.backend)
 end
 
 _krk_selector_symbol(sym::Symbol) = Symbol(lowercase(String(sym)))
+
+"""
+    _backend_from_krk_symbol(sym::Symbol) -> KernelAbstractions.Backend
+
+Resolve a `.krk` `Backend <name>` directive (`sym ∈ (:cpu, :cuda, :metal)`,
+already validated by `_parse_backend` at parse time) to a concrete
+KernelAbstractions backend object.
+
+CUDA/Metal are declared package dependencies of Kraken but are deliberately
+NOT `using`'d eagerly at module load (that stays a separate question — see
+the mission notes on the CUDA/Metal hard-dependency). Instead this function
+lazily loads the requested package and checks `<Package>.functional()`
+on demand: if the package fails to load, or reports no usable device, it
+raises a clear `ArgumentError` naming the backend. It NEVER falls back to
+CPU silently — a silent fallback is exactly the failure mode this exists
+to remove.
+"""
+function _backend_from_krk_symbol(sym::Symbol)
+    sym === :cpu && return KernelAbstractions.CPU()
+    sym === :cuda && return _require_functional_gpu_backend(
+        :cuda, Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"),
+        :CUDABackend)
+    sym === :metal && return _require_functional_gpu_backend(
+        :metal, Base.PkgId(Base.UUID("dde4c033-4e86-420c-a63e-0dd931031962"), "Metal"),
+        :MetalBackend)
+    throw(ArgumentError(
+        "Unknown backend '$sym' requested via .krk 'Backend' directive. " *
+        "Supported values: $(join(_KRK_KNOWN_BACKENDS, ", "))."))
+end
+
+function _require_functional_gpu_backend(name::Symbol, pkgid::Base.PkgId, backend_fn::Symbol)
+    local mod
+    try
+        mod = Base.require(pkgid)
+    catch err
+        throw(ArgumentError(
+            "Backend '$name' requested via .krk 'Backend' directive, but the " *
+            "$(pkgid.name) package could not be loaded ($(sprint(showerror, err))). " *
+            "$(pkgid.name) is already a Kraken dependency, but its runtime/driver " *
+            "must be available to actually use it. Use `Backend cpu` (or pass " *
+            "backend=KernelAbstractions.CPU() explicitly) instead."))
+    end
+    is_functional = try
+        Base.invokelatest(getfield(mod, :functional))
+    catch err
+        throw(ArgumentError(
+            "Backend '$name' requested via .krk 'Backend' directive, but calling " *
+            "$(pkgid.name).functional() failed ($(sprint(showerror, err))). This " *
+            "usually means no compatible $(pkgid.name) driver/runtime was found. " *
+            "Use `Backend cpu` instead."))
+    end
+    is_functional || throw(ArgumentError(
+        "Backend '$name' requested via .krk 'Backend' directive, but " *
+        "$(pkgid.name).functional() returned false — no usable device was " *
+        "detected on this machine. Use `Backend cpu` instead."))
+    return Base.invokelatest(getfield(mod, backend_fn))
+end
+
+"""Resolve the effective backend for a run: an explicit `backend=...` kwarg
+(anything but the `_KRK_BACKEND_UNSPECIFIED` sentinel) always wins; otherwise
+fall back to the `.krk` file's `Backend` directive (`setup.backend`), and
+finally to `KernelAbstractions.CPU()` (the historical default) if neither is
+present."""
+function _resolve_run_backend(setup::SimulationSetup, backend)
+    backend !== _KRK_BACKEND_UNSPECIFIED && return backend
+    setup.backend === nothing && return KernelAbstractions.CPU()
+    return _backend_from_krk_symbol(setup.backend)
+end
 
 function _normalize_collision_selector(sym::Symbol)
     mode = _krk_selector_symbol(sym)
@@ -112,7 +197,7 @@ function _setup_with_global_stl_libb(setup::SimulationSetup)
                            setup.outputs, setup.diagnostics, setup.refinements,
                            setup.velocity_field, setup.rheology, setup.mesh,
                            setup.units, setup.collision, :libb,
-                           setup.sensitivity)
+                           setup.sensitivity, setup.backend)
 end
 
 function _ensure_generic_trt_supported!(setup::SimulationSetup, has_body_force::Bool,
@@ -131,19 +216,28 @@ function _ensure_generic_trt_supported!(setup::SimulationSetup, has_body_force::
 end
 
 """
-    run_simulation(setup::SimulationSetup; backend=CPU(), T=Float64,
+    run_simulation(setup::SimulationSetup; backend=<unspecified>, T=Float64,
                    callback=nothing, callback_every=100)
 
 Run an LBM simulation from a parsed `SimulationSetup`.
+
+## Backend selection
+If `backend` is not passed, the backend is taken from `setup.backend` (set by
+a `.krk` `Backend <cpu|cuda|metal>` directive); if that is also unset, it
+defaults to `KernelAbstractions.CPU()`. Passing `backend=...` explicitly
+always overrides `setup.backend`. See `_backend_from_krk_symbol` for the
+clear-error-on-non-functional-backend behavior.
 
 If `callback` is provided, it is called every `callback_every` steps as
 `callback(step, state)` where `state` is a NamedTuple `(; rho, ux, uy)` of
 CPU arrays. Useful for live monitoring or custom post-processing.
 """
 function run_simulation(setup::SimulationSetup;
-                        backend=KernelAbstractions.CPU(), T=Float64,
+                        backend=_KRK_BACKEND_UNSPECIFIED, T=Float64,
                         callback::Union{Nothing,Function}=nothing,
                         callback_every::Int=100)
+    backend = _resolve_run_backend(setup, backend)
+
     # --- Sanity checks (tau, Mach, CFL) ---
     sanity_check(setup)
 

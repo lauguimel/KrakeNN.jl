@@ -10,7 +10,7 @@ Apple Metal backends. Kraken.jl provides a compact kernel core (D2Q9, D3Q19), a
 declarative `.krk` configuration DSL, patch-based grid refinement, and
 spatial boundary conditions — all behind a small, hackable API.
 
-## Scope (v0.2.0)
+## Scope (v0.3.0)
 
 - Single-phase LBM in 2D and 3D (BGK and MRT collisions)
 - Thermal flows via double-distribution (DDF) coupling
@@ -23,7 +23,7 @@ spatial boundary conditions — all behind a small, hackable API.
 
 Multiphase flows and the broader non-Newtonian rheology family are present in
 the source tree but remain experimental and are not part of the validated
-v0.2.0 surface.
+v0.3.0 surface.
 
 For a complete, up-to-date feature matrix — with status (✓/~/✗), links to
 theory pages, examples, and API — see the
@@ -48,31 +48,43 @@ Run a 2D lid-driven cavity from a `.krk` configuration file:
 ```julia
 using Kraken
 
-# Load a parametric configuration
-cfg = Kraken.load_krk("examples/configs/cavity_2d.krk")
+# Parse the .krk file into a SimulationSetup
+setup = load_kraken("examples/cavity.krk")
 
-# Run the simulation (CPU by default; set backend=:cuda or :metal for GPU)
-sol = Kraken.run(cfg; backend = :cpu)
+# Run it (CPU by default; a `Backend cuda`/`Backend metal` line in the .krk
+# file, or an explicit `backend=CUDABackend()`/`MetalBackend()` kwarg, moves
+# it to a GPU)
+result = run_simulation(setup)
 
-# Inspect the final velocity field
-ux, uy = sol.u[:, :, 1], sol.u[:, :, 2]
+ux, uy = result.ux, result.uy
 ```
 
-Or build a case directly from Julia:
+Output (`examples/cavity.krk`, 128×128, Re = 100, CPU, 60 000 steps):
+
+```
+max |u| = 0.10000000000000006   mean |u| = 0.01975436420203213
+```
+
+Or build a case directly from Julia, without the `.krk` DSL:
 
 ```julia
 using Kraken
 
-grid   = Kraken.Grid2D(Nx = 256, Ny = 256)
-params = Kraken.LBMParams(nu = 1e-3, u_lid = 0.1)
-bcs    = Kraken.cavity_bcs(grid)
+config = LBMConfig(D2Q9(); Nx=32, Ny=32, ν=0.1, u_lid=0.1, max_steps=100)
+result = run_cavity_2d(config)
 
-sol = Kraken.simulate(grid, params, bcs; nsteps = 10_000, backend = :cpu)
+ux, uy = result.ux, result.uy
 ```
 
-See `docs/` and the `examples/` directory for more cases (Poiseuille,
-Couette, Taylor–Green, cylinder flow, Rayleigh–Bénard, Hagen–Poiseuille,
-3D cavity, and grid-refinement demos).
+Output:
+
+```
+max |ux| = 0.1000000000000001
+```
+
+See `docs/src/getting_started.md` and the `examples/` directory for more
+cases (Poiseuille, Couette, Taylor–Green, cylinder flow, Rayleigh–Bénard,
+Hagen–Poiseuille, 3D cavity, and grid-refinement demos).
 
 ## Features
 
@@ -104,7 +116,7 @@ If you use Kraken.jl in academic work, please cite:
   title   = {Kraken.jl: a GPU-portable Lattice Boltzmann framework in Julia},
   year    = {2026},
   url     = {https://github.com/lauguimel/Kraken.jl},
-  version = {0.2.0},
+  version = {0.3.0},
 }
 ```
 
