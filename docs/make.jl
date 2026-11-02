@@ -196,6 +196,7 @@ makedocs(;
             "Viscoelastic cylinder (Oldroyd-B)" => "users/benchmarks/viscoelastic-cylinder.md",
             "Viscoelastic constitutive models" => "users/benchmarks/ve-constitutive-models.md",
             "Viscoelastic Poiseuille (FVFD 3D)" => "users/benchmarks/ve3d-poiseuille-convergence.md",
+            "Generalised-Newtonian channel (3D)" => "users/benchmarks/gnf3d-channel-convergence.md",
             "Steady shape sensitivity (AD)" => "users/benchmarks/ad-shape-sensitivity.md",
             "Steady shape sensitivity — viscoelastic (AD)" => "users/benchmarks/ad-shape-sensitivity-viscoelastic.md",
             "GPU certification" => "users/benchmarks/gpu-certification.md",

@@ -1,11 +1,24 @@
 # Planar GNF channels: host geometry lowering and backend-generic stepping.
 
+"""
+    _gnf_axis_3d(axis) -> Int
+
+Map `:x`, `:y`, `:z` to the array dimension 1, 2, 3. Any other symbol raises
+`ArgumentError`.
+"""
 function _gnf_axis_3d(axis::Symbol)
     d = findfirst(==(axis), (:x, :y, :z))
     isnothing(d) && throw(ArgumentError("axis must be :x, :y, or :z"))
     return d
 end
 
+"""
+    _gnf_profile_3d(profile, positions, T, name; default=zero(T)) -> Vector{T}
+
+Evaluate a wall-normal profile at the fluid-node `positions`. `profile` may be
+`nothing` (use `default`), a scalar, a length-`N` vector, or a function of the
+distance from the lower wall. Non-finite values raise `ArgumentError`.
+"""
 function _gnf_profile_3d(profile, positions, ::Type{T}, name;
                          default=zero(T)) where {T}
     values = if isnothing(profile)
@@ -39,6 +52,12 @@ function _wrap_gnf_periodic_3d!(a, periodic_axes)
     return a
 end
 
+"""
+    _gnf_backend_copy_3d(backend, a)
+
+Return a copy of host array `a` allocated on `backend` with the same element
+type and size.
+"""
 function _gnf_backend_copy_3d(backend, a)
     b = KernelAbstractions.allocate(backend, eltype(a), size(a)...)
     copyto!(b, a)
@@ -179,6 +198,12 @@ function _step_gnf_channel_3d!(s, f_out, f_in)
     return nothing
 end
 
+"""
+    _gnf_mean_profile_3d(a, interior, wall_dim) -> Vector
+
+Average field `a` over the two transverse directions, restricted to the
+`interior` index ranges, leaving one value per wall-normal node.
+"""
 function _gnf_mean_profile_3d(a, interior, wall_dim)
     transverse = Tuple(d for d in 1:3 if d != wall_dim)
     active = view(a, interior...)
