@@ -231,6 +231,8 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_twophase_rheology.jl")
     include("test_postprocess.jl")
     include("test_rheology.jl")
+    include("rheology/gnf_cell_test.jl")   # steady GNF forward (per-cell functions, driver)
+    include("ad/gnf_adjoint_test.jl")      # steady GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
     # --- 3D viscoelastic tier (FVFD/FD transport + log-conformation, four
@@ -288,6 +290,7 @@ include("platform/weakdeps_metadata_test.jl")
                 include("ad/test_ad_sensitivity.jl")
                 include("ad/test_ad_ve_sensitivity.jl")
                 include("ad/test_ad_ve_fd_check.jl")
+                include("ad/gnf_adjoint_enzyme_test.jl")   # T4: GNF VJP vs Enzyme
             else
                 @info "Skipping AD steady-sensitivity tests (Enzyme extension not loadable in this environment)"
             end

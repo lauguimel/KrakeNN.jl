@@ -1,0 +1,22 @@
+#!/bin/bash -l
+#PBS -N gnf_adj_gpu
+#PBS -l select=1:ncpus=4:ngpus=1:mem=32GB:gpu_id=A100
+#PBS -l walltime=02:00:00
+#PBS -j oe
+#PBS -m n
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR:?PBS_O_WORKDIR is required}"
+
+# Override these variables with qsub -v; prepare the environment beforehand.
+JL="${JL:-julia}"
+PROJECT="${PROJECT:-.}"
+OUT="${OUT:-benchmarks/validation/gnf_adjoint/results}"
+export JULIA_CUDA_USE_COMPAT=false
+
+nvidia-smi || { echo "ERROR: GPU not available"; exit 1; }
+"$JL" --project="$PROJECT" -e 'using CUDA; CUDA.functional() || error("CUDA not functional")' \
+    || { echo "ERROR: CUDA pre-flight failed"; exit 1; }
+
+exec "$JL" --project="$PROJECT" benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.jl \
+    --backend=cuda --out="$OUT"
