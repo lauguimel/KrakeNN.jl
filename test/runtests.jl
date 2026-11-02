@@ -102,6 +102,7 @@ function run_incns_testset()
         include("analytical/incns_manifold.jl")   # fast (~4 s CPU): stays non-heavy
         include("analytical/incns_momentum_advection_order.jl")
         include("analytical/scalar_transport_heated_channel.jl")
+        include("analytical/scalar_transport_advection_order.jl")
 
         # Heavy validations (long CPU runs: Ghia cavities, MG MMS up to 512²) —
         # opt in via KRAKEN_TEST_HEAVY=true.
@@ -292,6 +293,18 @@ include("platform/weakdeps_metadata_test.jl")
                 @info "Skipping AD steady-sensitivity tests (Enzyme extension not loadable in this environment)"
             end
         end
+    end
+
+    # Left-out modules: test files that exist but were never wired into the
+    # default run (conservative-tree AMR, multiblock extensions, SLBM + LI-BB,
+    # Gmsh drag, AMR-D publication checks). They are run only on request:
+    #   KRAKEN_TEST_EXPERIMENTAL=1 julia --project test/runtests.jl
+    # Their status is not guaranteed green; see the tracking issue before
+    # promoting one into the default list above.
+    if get(ENV, "KRAKEN_TEST_EXPERIMENTAL", "0") == "1"
+        include("experimental_tests.jl")
+    else
+        @info "Skipping experimental test modules (set KRAKEN_TEST_EXPERIMENTAL=1 to run)"
     end
 
     @testset "Kraken.Units" begin
