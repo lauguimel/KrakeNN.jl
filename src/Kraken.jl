@@ -83,6 +83,9 @@ include("kernels/aa_bgk_2d.jl")
 include("kernels/persistent_bgk_2d.jl")
 include("kernels/advect_prescribed_2d.jl")
 include("kernels/collide_rheology_2d.jl")
+include("rheology/gnf_cell.jl")
+include("kernels/collide_gnf_cell_2d.jl")
+include("kernels/stream_transpose_2d.jl")
 include("kernels/collide_twophase_rheology_2d.jl")
 include("kernels/viscoelastic_2d.jl")
 
@@ -169,6 +172,7 @@ include("drivers/ehd_ec.jl")
 include("drivers/axisymmetric.jl")
 include("drivers/multiphase.jl")
 include("drivers/rheology.jl")
+include("drivers/gnf_periodic_steady.jl")
 include("drivers/viscoelastic_spec.jl")
 include("drivers/viscoelastic.jl")
 # --- 3D viscoelastic kernels (need OldroydB/LogConfOldroydB from
@@ -198,6 +202,11 @@ include("ad/ad_adjoint.jl")
 include("ad/ad_geometry.jl")
 include("ad/ad_api.jl")
 include("ad/ad_ve_geometry.jl")
+include("ad/gnf_adjoint.jl")       # steady GNF adjoint (Enzyme-free, any backend)
+include("ad/gnf_adjoint_operator.jl")
+include("ad/gnf_adjoint_gmres.jl")
+include("ad/gnf_adjoint_gradient.jl")
+include("ad/gnf_adjoint_solvers.jl")
 
 # Phase 2a platform residual/VJP seam depends on AD param types and step maps.
 include("platform/residual.jl")
@@ -659,6 +668,20 @@ export effective_viscosity, effective_viscosity_thermal, thermal_shift_factor
 export strain_rate_magnitude_2d, strain_rate_magnitude_3d
 export collide_rheology_2d!, collide_rheology_guo_2d!, collide_rheology_thermal_2d!
 export collide_twophase_rheology_2d!
+# Steady GNF (per-cell pure functions, split/fused kernels, periodic-x driver)
+export gnf_moments_cell, gnf_feq_cell, gnf_strain_rate_cell, gnf_collide_cell
+export gnf_viscosity, gnf_cell_update
+export gnf_strain_rate_2d!, closure_eval!, collide_gnf_cell_2d!, collide_gnf_fused_2d!
+export gnf_macroscopic_post_2d!, gnf_step!, gnf_rest_state, run_gnf_periodic_steady
+# Steady GNF adjoint (local blocks, JVP/VJP, gauge-bordered GMRES, parameter gradient)
+export stream_periodic_x_wall_y_transpose_2d!
+export GNFLinearisation, GNFStepOperator, GNFBorderedAdjoint, GNFVelocityObs
+export gnf_linearise, gnf_active_mask, gnf_post_moments, gnf_jvp!, gnf_vjp!, gnf_gmres!
+export gnf_obs_values, gnf_obs_objective, gnf_obs_rhs, gnf_adjoint_solve
+export gnf_parameter_gradient, gnf_steady_gradient, gnf_power_iteration, gnf_adjoint_series
+export gnf_pack_state, gnf_unpack_state, gnf_step_state
+export gnf_steady_adjoint, gnf_obs_grad_u, gnf_velocity_rhs, gnf_nu_sensitivity
+export GNFKStepAdjoint, gnf_adjoint_fixed_point, gnf_adjoint_kstep_solve, gnf_adjoint_power!, gnf_tangent_power!
 
 # Viscoelastic
 export eigen_sym2x2, mat_exp_sym2x2, mat_log_sym2x2, decompose_velocity_gradient
