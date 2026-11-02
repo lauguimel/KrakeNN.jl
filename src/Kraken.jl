@@ -160,6 +160,7 @@ include("kernels/enzyme_rules.jl")
 include("drivers/basic.jl")
 include("drivers/cylinder_libb.jl")
 include("drivers/thermal.jl")
+include("drivers/natconv_gnf_2d.jl")
 include("drivers/ehd_poisson.jl")
 include("drivers/ehd_phi_ddf.jl")
 include("drivers/ehd.jl")
@@ -341,6 +342,7 @@ export apply_fixed_temp_south_2d!, apply_fixed_temp_north_2d!
 export apply_fixed_temp_west_2d!, apply_fixed_temp_east_2d!
 export apply_fixed_temp_2d!
 export run_rayleigh_benard_2d, run_natural_convection_2d, run_natural_convection_refined_2d
+export run_natural_convection_gnf_2d, gnf_reference_scales, cavity_powerlaw
 export run_natural_convection_3d
 export run_electroconvection_2d
 export ECState, ECSolution
