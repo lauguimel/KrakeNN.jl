@@ -1,10 +1,42 @@
 """
     gnf_reference_scales(; Ra, Pr, nu0, H, T_hot, T_cold)
 
-Compute cavity scales using the reference kinematic viscosity `nu0`:
-`alpha = nu0/Pr`, `beta_g = Ra*nu0*alpha/((T_hot-T_cold)*H^3)`.
-These reference-viscosity Ra/Pr definitions are independent of the local
-constitutive viscosity and are isolated here for future physical definitions.
+Compute the thermal scales of a differentially heated cavity from the
+Rayleigh and Prandtl numbers, both defined with the reference kinematic
+viscosity `nu0` (not with a shear rate):
+
+```math
+\\mathrm{Pr} = \\frac{\\nu_0}{\\alpha}, \\qquad
+\\mathrm{Ra} = \\frac{\\beta g\\,\\Delta T\\,H^3}{\\nu_0\\,\\alpha}
+```
+
+so that `alpha = nu0/Pr` and `beta_g = Ra*nu0*alpha/((T_hot-T_cold)*H^3)`,
+where `beta_g` is the product ``\\beta g`` in lattice units. These
+definitions do not depend on the local constitutive viscosity. For a
+non-Newtonian fluid they are a convention, not the published power-law
+definition, which has not yet been implemented.
+
+Args:
+    Ra: Rayleigh number based on `nu0`.
+    Pr: Prandtl number based on `nu0`.
+    nu0: Reference kinematic viscosity (lattice units), positive.
+    H: Cavity height (lattice units), positive.
+    T_hot: Hot wall temperature.
+    T_cold: Cold wall temperature; must differ from `T_hot`.
+
+Returns:
+    NamedTuple `(alpha, beta_g, T_ref, delta_T)` with
+    `T_ref = (T_hot + T_cold)/2` and `delta_T = T_hot - T_cold`.
+
+Throws `ArgumentError` if `nu0`, `Pr` or `H` is not positive, or if
+`T_hot == T_cold`.
+
+Examples:
+```julia
+scales = gnf_reference_scales(; Ra=1e4, Pr=0.71, nu0=0.05, H=32.0,
+                              T_hot=1.0, T_cold=0.0)
+scales.alpha   # nu0/Pr
+```
 """
 function gnf_reference_scales(; Ra, Pr, nu0, H, T_hot, T_cold)
     nu0 > 0 && Pr > 0 && H > 0 || throw(ArgumentError("nu0, Pr and H must be positive"))
@@ -18,10 +50,37 @@ end
 """
     cavity_powerlaw(n; nu0=0.05, alpha, H, nu_min=1e-4, nu_max=1.0)
 
-Construct a power law with `K = nu0*(alpha/H^2)^(1-n)`. The diffusive shear
-scale `alpha/H^2` is a placeholder pending a published power-law Ra/Pr
-definition; this helper does not implement a quantitative literature mapping.
+Construct a [`PowerLaw`](@ref) model whose viscosity equals `nu0` at the
+diffusive shear rate ``\\alpha/H^2``:
+
+```math
+K = \\nu_0\\left(\\frac{\\alpha}{H^2}\\right)^{1-n}, \\qquad
+\\nu(\\dot\\gamma) = K\\,\\dot\\gamma^{\\,n-1}
+```
+
+The shear scale ``\\alpha/H^2`` is provisional, a placeholder pending the
+published power-law Ra/Pr definition. This helper does not implement a
+quantitative literature mapping, and it has been validated on CPU only.
 The floating-point type of `nu0` determines the model parameter type.
+
+Args:
+    n: Power-law index (`n < 1` shear-thinning, `n > 1` shear-thickening).
+    nu0: Viscosity at shear rate `alpha/H^2` (lattice units), positive.
+    alpha: Thermal diffusivity (lattice units), positive; typically
+        `gnf_reference_scales(...).alpha`.
+    H: Cavity height (lattice units), positive.
+    nu_min: Lower viscosity cutoff.
+    nu_max: Upper viscosity cutoff; `0 < nu_min <= nu_max` is required.
+
+Returns:
+    A `PowerLaw(K, n; nu_min, nu_max)`.
+
+Examples:
+```julia
+scales = gnf_reference_scales(; Ra=1e4, Pr=0.71, nu0=0.05, H=32.0,
+                              T_hot=1.0, T_cold=0.0)
+model = cavity_powerlaw(0.8; nu0=0.05, alpha=scales.alpha, H=32)
+```
 """
 function cavity_powerlaw(n; nu0=0.05, alpha, H, nu_min=1e-4, nu_max=1.0)
     T = typeof(float(nu0))
@@ -78,16 +137,35 @@ end
         FT=Float64, check_every=0, convergence_rtol=1e-6, min_steps=0)
 
 Run a differentially heated D2Q9 cavity with generalized Newtonian viscosity.
-Ra and Pr use the reference viscosity `nu0`, through `gnf_reference_scales`.
-West/east temperatures are fixed; top/bottom are adiabatic; all walls are
-no-slip. Thermal advection uses the pre-collision Guo velocity `j/rho+F/(2rho)`.
+Ra and Pr use the reference viscosity `nu0`, through [`gnf_reference_scales`](@ref);
+the local viscosity of `rheology` changes the flow but not the definition of
+Ra and Pr. West/east temperatures are fixed; top/bottom are adiabatic; all
+walls are no-slip. Thermal advection uses the pre-collision Guo velocity
+`j/rho+F/(2rho)`. Each step streams both populations, computes the
+temperature from the thermal populations, applies the Boussinesq force, then
+calls `collide_rheology_thermal_2d!` for the viscosity-dependent collision.
+
+Validated on CPU in Float64 only (`test/test_natconv_gnf.jl`). No GPU run and
+no quantitative comparison with the power-law literature exist yet.
 
 Args:
+    N: Number of nodes per side of the square cavity (at least 3).
+    Ra: Rayleigh number based on `nu0`.
+    Pr: Prandtl number based on `nu0`.
     rheology: GeneralizedNewtonian model whose floating parameters, including
         those in its thermal coupling, have type `FT`.
+    nu0: Reference kinematic viscosity (lattice units), also the initial
+        viscosity of every node.
+    T_hot: West wall temperature.
+    T_cold: East wall temperature.
+    max_steps: Maximum number of time steps.
+    backend: KernelAbstractions backend.
+    FT: Floating-point type of all fields.
     check_every: Positive interval enables Nu-drift stopping after three
         consecutive relative changes below `convergence_rtol`, after `min_steps`.
         Zero disables convergence checks and executes exactly `max_steps`.
+    convergence_rtol: Relative Nu change threshold for the stopping rule.
+    min_steps: Step count before which convergence is not accepted.
 
 Returns:
     NamedTuple of CPU arrays. `ux`, `uy` and `rho` are the final step's
@@ -96,6 +174,19 @@ Returns:
     by the last collision. `clamped_fraction` counts the final PowerLaw nodes
     at either cutoff divided by all N*N fluid nodes, not time-accumulated;
     models without explicit clamps report zero. `converged` concerns Nu only.
+    `Nu` is the hot-wall Nusselt number.
+
+Examples:
+```julia
+using Kraken
+scales = gnf_reference_scales(; Ra=1e4, Pr=0.71, nu0=0.05, H=32.0,
+                              T_hot=1.0, T_cold=0.0)
+model = cavity_powerlaw(0.8; nu0=0.05, alpha=scales.alpha, H=32)
+result = run_natural_convection_gnf_2d(; N=32, Ra=1e4, Pr=0.71, nu0=0.05,
+    rheology=model, max_steps=8000, check_every=1000,
+    convergence_rtol=1e-5, min_steps=5000)
+result.Nu, result.converged
+```
 """
 function run_natural_convection_gnf_2d(; N=64, Ra=1e4, Pr=0.71,
         rheology::GeneralizedNewtonian, nu0=0.05, T_hot=1.0, T_cold=0.0,

@@ -354,5 +354,35 @@
 #
 # For thermal coupling, the variant `effective_viscosity_thermal` is used,
 # which applies the shift factor ``a_T`` before evaluating the model.
+#
+# ### Thermally coupled collision
+#
+# When the flow populations ``f_q`` are coupled to a thermal
+# double-distribution field ``g_q`` (see
+# [thermal DDF](08_thermal_ddf.md)), the kernel
+# `collide_rheology_thermal_2d!(f, is_solid, rheology, tau_field, Fx, Fy, Temp)`
+# is called after streaming. At each fluid node:
+#
+# 1. The temperature is the zeroth moment of the thermal populations,
+#    ``T = \sum_q g_q``, stored in `Temp` by the streaming step.
+# 2. The Boussinesq force ``F_y = \beta g\,(T - T_\text{ref})``
+#    (``F_x = 0``) enters the velocity as the Guo half-force term,
+#    ``\mathbf{u} = (\sum_q \mathbf{c}_q f_q + \mathbf{F}/2)/\rho``.
+# 3. The shear rate ``\dot\gamma`` is evaluated from the non-equilibrium
+#    stress, using the relaxation time of the previous step.
+# 4. `effective_viscosity_thermal(model, gamma_dot, T)` multiplies the
+#    model's parameters by ``a_T(T)``, then evaluates the model and applies
+#    the viscosity bounds of the model, if any.
+# 5. ``\omega = 1/(3\nu + 1/2)`` and ``\tau = 1/\omega`` is stored in
+#    `tau_field` for the next step.
+# 6. BGK collision with Guo forcing, using this ``\omega`` and the factor
+#    ``1 - \omega/2`` on the force term.
+#
+# The driver `run_natural_convection_gnf_2d` assembles these steps for a
+# differentially heated cavity; see
+# [Generalised Newtonian natural convection](../users/benchmarks/gnf-natural-convection.md).
+# For a model without thermal coupling (``a_T = 1``), the viscosity still
+# depends on ``\dot\gamma`` only, and temperature acts through the buoyancy
+# force alone.
 
 nothing  # suppress REPL output
