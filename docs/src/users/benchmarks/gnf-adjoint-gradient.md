@@ -1,4 +1,4 @@
-# GNF Adjoint Gradient (Steady, CPU)
+# GNF Adjoint Gradient (Steady)
 
 Kraken can compute the gradient of an objective of the converged steady velocity of
 a generalised-Newtonian (GNF) lattice Boltzmann flow with respect to the parameters
@@ -48,9 +48,9 @@ Solvers, selected by the `solver` keyword of `gnf_steady_adjoint` and
 
 The tests ran on CPU, Float64 (macOS arm64, Julia 1.12.5, 2026-11-02). The CPU/GPU
 parity testset (`G CPU/GPU parity`) is skipped when no CUDA device is available and
-was skipped in that run. A GPU run script exists at
-`benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.jl`; it has not been run.
-Nothing on this page was run on a GPU.
+was skipped in that run. The same checks were then run on one NVIDIA A100 with the
+script `benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.jl`; see "GPU results"
+below. The numbers in "Measured agreement" are the CPU ones.
 
 ## Example
 
@@ -165,14 +165,41 @@ on the same adjoint state (relative difference 7.3e-14 for `:fixed_point`,
 1.0e-12 for `:kstep` with K = 101, against a bordered-GMRES reference at tolerance
 1e-12).
 
+## GPU results
+
+Source: `benchmarks/validation/gnf_adjoint/results/gnf_adjoint_gpu.csv` (and
+`gnf_adjoint_gpu.log`), produced on
+2026-11-02 by `benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.jl` on
+`CUDABackend()`: NVIDIA A100-SXM4-40GB, Float64, Julia 1.12.5, CUDA.jl 5.11.3, driver
+610.57.4. The run exited 0 and all gated checks passed. The code that ran is identical
+to the branch commit `12fd5d3ba` (checked file by file); provenance details are in the
+README of that directory. The case is the 32×16 channel of the CPU tests.
+
+- **GPU against CPU operators.** The Jacobian-vector and transposed products on the
+  device differ from the CPU ones by a relative 1.2e-16 and 8.7e-17 (bound 1e-14). The
+  adjoint solution at tolerance 1e-10 differs by a relative 6.2e-14 (bound 1e-8).
+- **Gradient against finite differences.** Absolute differences 9.4e-10 (ln η∞),
+  3.7e-11 (ln k), 7.1e-08 (n) and 2.0e-09 (a), against gate bounds between 2.1e-2 and
+  6.2e-2. The gate is the same loose one as on CPU, and the best step is again
+  chosen per parameter after the fact (h = 1e-5 for all four).
+- **GPU gradient against CPU gradient** (informational, no gate): relative differences
+  between 5.9e-13 and 9.1e-13.
+- **Float32 operator** (informational, no gate): with Float32 operator products the
+  solver reached tolerance 1e-5 and the gradient differs from the Float64 one by a
+  relative 1.5e-7 to 1.7e-7.
+
+What this does not show: only this one problem size, on one A100, in one run (no H100,
+no repeat); no timing or speed-up claim; Float32 has no gate and no Float32 finite
+difference check was made; only the default solver was run on the GPU.
+
 ## Not yet verified
 
-- No GPU run. The CPU/GPU parity testset is skipped without a CUDA device, and the
-  GPU run script has not been run.
-- Float32 is not tested.
+- GPU scope: one A100 run on the 32×16 case (see "GPU results"). The CPU/GPU parity
+  testset in the test suite is still skipped without a CUDA device.
+- Float32 is informational only (operator products, no gate).
 - The Enzyme cross-check runs in no CI step yet; it runs only when selected with
   `KRAKEN_ONLY=ad/gnf_adjoint_enzyme_test.jl`.
-- Only the 32×16 and 16×8 test grids are covered.
+- Only the 32×16 and 16×8 test grids are covered (the GPU run: 32×16).
 - Only the Carreau–Yasuda viscosity law is covered.
 - Only 2D, `x`-periodic, body-force-driven flow is covered.
 - Forward-solve distances in T5. The test labels the three forward levels

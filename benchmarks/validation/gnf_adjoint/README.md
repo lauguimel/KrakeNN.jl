@@ -84,9 +84,61 @@ The log mirrors stdout/stderr and records commit, dirty-status line count,
 hostname, Julia version, backend/device, CUDA runtime, precision, start/end
 times and elapsed time per check. Preserve both files together when citing a run.
 
+## GPU evidence
+
+Files: `results/gnf_adjoint_gpu.csv` and `results/gnf_adjoint_gpu.log`, copied
+unchanged from the Aqua output directory (originally
+`gnf_adjoint_gpu_cuda_20261102_173836.{csv,log}`, renamed to stable names). The
+last line of the log holds the absolute cluster path of the CSV
+(`CSV=/home/...`); it was left as written. The scheduler log of the job is not
+archived (it holds the job environment).
+
+| Item | Value |
+| --- | --- |
+| Code | branch `feat/gnf-adjoint`, commit `12fd5d3ba`. The cluster copy is not a git checkout (the log says `git_commit=unknown`); a checksum comparison (`rsync -n -rc`) of `src/`, `ext/`, `test/` and `benchmarks/` against the commit, excluding `results/` and `out/`, listed no differing file |
+| Scheduler job | `27544976.aqua`, exit status 0, node `gpu0n009`, 4 CPUs, 32 GB, 1 GPU |
+| Run | started 2026-11-02 17:38:36 UTC, 76.4 s in the script; log ends with `Gated checks: PASS` |
+| GPU | NVIDIA A100-SXM4-40GB (sm_80), 39.5 GiB available |
+| Driver / CUDA | driver 610.57.4 (CUDA 13.3); CUDA runtime 13.2.0 |
+| Julia / packages | Julia 1.12.5 (Linux x86_64), CUDA.jl 5.11.3, `JULIA_CUDA_USE_COMPAT=false` |
+| Precision | Float64 for all gated checks; Float32 operator for S only |
+
+What the CSV shows (case 32x16, as in `test/ad/gnf_adjoint_test.jl`):
+
+- **P, gated.** JVP relative difference between CPU and device operators
+  1.23e-16, VJP 8.66e-17 (bound 1e-14). Adjoint solves at tolerance `1e-10`
+  (214 iterations on both backends) differ relatively by 6.25e-14 (bound 1e-8).
+- **F, gated.** Forward chain 1880 / 383 / 383 steps, K = 383; Newton distances
+  3.7e-10 / 1.3e-10 / 4.9e-11; Mach 0.1077 (< 0.15); viscosity ratio 2.55 (> 2).
+- **A, gated.** Adjoint gradient (193 iterations, relative residual 8.26e-9)
+  against central finite differences, best h = 1e-5 for all four parameters:
+  absolute differences 9.44e-10 (ln η∞), 3.70e-11 (ln k), 7.10e-08 (n),
+  1.96e-09 (a), against bounds 2.11e-2, 2.60e-2, 6.20e-2, 2.09e-2.
+- **C, informational.** Device gradient against the CPU operator on the same
+  state: relative differences 5.9e-13 to 9.1e-13 per parameter, 7.4e-13 on the
+  gradient norm.
+- **S, informational.** Float32 operator products reached GMRES tolerance `1e-5`
+  (152 iterations, relative residual 9.09e-6); the gradient differs from Float64
+  by a relative 1.47e-7 to 1.72e-7 per parameter, 1.63e-7 on the norm.
+
+Not shown by this run: one problem size only (32x16); one run on one A100
+(no H100, no repeat); no timing claim (the per-check wall times in the log
+include compilation and setup and are not a performance measurement); Float32 is
+informational, with no gate and no Float32 finite-difference check; the script
+passes no `solver` keyword, so only the default solver was exercised (the
+`:gmres` and `:fixed_point` options were not run on the GPU).
+
+Command run by the job script, from the code directory:
+
+```bash
+export JULIA_CUDA_USE_COMPAT=false
+julia --project=. benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.jl --backend=cuda --out=<output directory>
+```
+
 ## Status
 
-GPU run not yet performed.
+GPU run done on 2026-11-02 (job `27544976.aqua`, A100, exit 0, all gated checks
+passed); see "GPU evidence".
 CPU smoke run done on 2026-11-02 (macOS arm64, Julia 1.12.5): exit 0,
 all nine executed gated checks passed; P skipped. The four A gradients,
 best h values and bounds match the T5 criterion lines at their printed

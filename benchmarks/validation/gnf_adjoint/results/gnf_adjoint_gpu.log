@@ -1,0 +1,63 @@
+Provenance: git_commit=unknown
+git_status_short_lines=unknown hostname=gpu0n009
+Julia=1.12.5 platform=Linux x86_64
+backend=cuda precision=Float64; Float32 operator=yes
+start_utc=2026-11-02T17:38:36.592 BLAS_threads=4 Julia_threads=1
+device=NVIDIA A100-SXM4-40GB CUDA_runtime=13.2.0
+Checks: check | parameter | value | reference | abs_err | rel_err | bound | pass
+  P | JVP | 2662.9387442674706 | 2662.9387442674706 | 3.2694675678154e-13 | 1.227766720077061e-16 | 1.0e-14 | true
+  P | VJP | 2828.444616224472 | 2828.444616224472 | 2.449335691370988e-13 | 8.659655831056948e-17 | 1.0e-14 | true
+  P CPU GMRES: tol 1e-10 converged=true relres=9.625157e-11 iters=214
+  P device GMRES: tol 1e-10 converged=true relres=9.588651e-11 iters=214
+  P | adjoint solve | 5422.729511465719 | 5422.729511465668 | 3.388035124351873e-10 | 6.247840902239925e-14 | 1.0e-8 | true
+  P wall 36.731 s
+  F forward levels: steps 1880/383/383 (K = 383, rho_1 = 0.988036) ; dist_est 8.9e-11/1.0e-10/4.9e-11 ; Newton distance 3.7e-10/1.3e-10/4.9e-11 (GMRES it 123/139/166)
+  F | K | 383 |  |  |  |  | informational
+  F | level 1 nominal distance | 1.0e-10 |  |  |  |  | informational
+  F | level 1 steps | 1880 |  |  |  |  | informational
+  F | level 1 contraction | 0.9880358852213199 |  |  |  |  | informational
+  F | level 1 dist_est | 8.893507338293171e-11 |  |  |  |  | informational
+  F | level 1 Newton distance | 3.705732567745528e-10 |  |  |  |  | informational
+  F | level 1 Newton GMRES iters | 123 |  |  |  |  | informational
+  F | level 2 nominal distance | 1.0e-12 |  |  |  |  | informational
+  F | level 2 steps | 383 |  |  |  |  | informational
+  F | level 2 contraction | 0.9964110282279294 |  |  |  |  | informational
+  F | level 2 dist_est | 9.962657427693942e-11 |  |  |  |  | informational
+  F | level 2 Newton distance | 1.342652431052987e-10 |  |  |  |  | informational
+  F | level 2 Newton GMRES iters | 139 |  |  |  |  | informational
+  F | level 3 nominal distance | 1.0e-14 |  |  |  |  | informational
+  F | level 3 steps | 383 |  |  |  |  | informational
+  F | level 3 contraction | 0.9973574257218709 |  |  |  |  | informational
+  F | level 3 dist_est | 4.9139842830348395e-11 |  |  |  |  | informational
+  F | level 3 Newton distance | 4.8729621070225854e-11 |  |  |  |  | informational
+  F | level 3 Newton GMRES iters | 166 |  |  |  |  | informational
+  F | level 1 converged | true | true |  |  |  | true
+  F | level 1 Newton gate | 3.705732567745528e-10 |  |  |  | 1.0e-9 | true
+  F | finest Newton gate | 4.8729621070225854e-11 |  |  |  | 3.705732567745528e-10 | true
+  F | Mach (< bound) | 0.1077012347374384 |  |  |  | 0.15 | true
+  F | viscosity ratio (> bound) | 2.553651147227758 |  |  |  | 2 | true
+  F wall 14.519 s
+  A GMRES: tol 1e-08 converged=true relres=8.260373e-09 iters=193
+  A criterion ln eta_inf: adj -3.836337e-01  DF(h=1e-05) -3.836337e-01  |diff| 9.44e-10  bound 2.11e-02  ok
+  A criterion ln k: adj 5.189978e+00  DF(h=1e-05) 5.189978e+00  |diff| 3.70e-11  bound 2.60e-02  ok
+  A criterion n: adj -4.119560e+01  DF(h=1e-05) -4.119560e+01  |diff| 7.10e-08  bound 6.20e-02  ok
+  A criterion a: adj -1.721468e-01  DF(h=1e-05) -1.721468e-01  |diff| 1.96e-09  bound 2.09e-02  ok
+  A wall 5.376 s
+  C informational GMRES: tol 1e-08 converged=true relres=8.283829e-09 iters=193
+  C | ln eta_inf | -0.38363374417422064 | -0.3836337441745157 | 2.9504176879413535e-13 | 7.690714731807334e-13 |  | informational
+  C | ln k | 5.1899775571219084 | 5.189977557124993 | 3.084643651618535e-12 | 5.943462409358249e-13 |  | informational
+  C | n | -41.19559958715663 | -41.1955995871874 | 3.077360588576994e-11 | 7.470119671553732e-13 |  | informational
+  C | a | -0.1721467958067359 | -0.17214679580657993 | 1.5595857938421887e-13 | 9.059627200929736e-13 |  | informational
+  C | gradient norm | 41.52336814081613 | 41.52336814084705 | 3.0929617171797996e-11 | 7.448725514482567e-13 |  | informational
+  C wall 0.410 s
+  S informational Float32 operator GMRES: tol 1e-05 converged=true relres=9.089846e-06 iters=152
+  S | ln eta_inf | -0.3836338100677889 | -0.38363374417422064 | 6.589356826847137e-8 | 1.7176165879335928e-7 |  | informational
+  S | ln k | 5.18997832255345 | 5.1899775571219084 | 7.654315412608526e-7 | 1.4748263028815892e-7 |  | informational
+  S | n | -41.195606313246216 | -41.19559958715663 | 6.726089587516526e-6 | 1.6327204009462916e-7 |  | informational
+  S | a | -0.172146821816829 | -0.1721467958067359 | 2.6010093107098342e-8 | 1.510925195279214e-7 |  | informational
+  S | gradient norm | 41.5233749102001 | 41.52336814081613 | 6.769873342311345e-6 | 1.6303767361436121e-7 |  | informational
+  S wall 3.634 s
+end_utc=2026-11-02T17:39:52.925
+total_wall_seconds=76.361
+Gated checks: PASS
+CSV=~/kraken_gnf_adjoint/out/gnf_adjoint_gpu_cuda_20261102_173836.csv LOG=~/kraken_gnf_adjoint/out/gnf_adjoint_gpu_cuda_20261102_173836.log
