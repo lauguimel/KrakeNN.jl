@@ -56,11 +56,14 @@ end
     _gnf_backend_copy_3d(backend, a)
 
 Return a copy of host array `a` allocated on `backend` with the same element
-type and size.
+type and size. A `BitArray` is first expanded to a dense `Array{Bool}`: a
+bit-packed source has no bulk transfer path to a device array and would fall
+back to scalar indexing.
 """
 function _gnf_backend_copy_3d(backend, a)
-    b = KernelAbstractions.allocate(backend, eltype(a), size(a)...)
-    copyto!(b, a)
+    host = a isa BitArray ? Array{Bool}(a) : a
+    b = KernelAbstractions.allocate(backend, eltype(host), size(host)...)
+    copyto!(b, host)
     return b
 end
 

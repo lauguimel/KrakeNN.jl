@@ -115,3 +115,14 @@ end
                                   ref.rheology.eta_inf, ref.rheology.eta_0)
     end
 end
+
+@testset "GNF3D backend copy never hands a BitArray to the device" begin
+    # A BitArray has no bulk device transfer; on CUDA it fell back to scalar
+    # indexing. The copy must expand it to a dense Bool array first.
+    mask = falses(3, 4, 5)
+    mask[2, 2, 2] = true
+    copied = Kraken._gnf_backend_copy_3d(KernelAbstractions.CPU(), mask)
+    @test copied isa Array{Bool,3}
+    @test copied == mask
+    @test count(copied) == 1
+end
