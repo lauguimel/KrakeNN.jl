@@ -132,8 +132,8 @@ export solve_incns_simple, solve_incns_cavity, solve_incns_cavity_mg,
        solve_incns_projection, solve_incns_manifold, manifold_full_cell_mask,
        solve_scalar_transport
 # Linear-solve seam (factorize-once)
-export lin_factorize, lin_solve!, LinearSolveCache, LinearSolveBackend,
-       CPUBackendTag, CUDABackendTag
+export lin_factorize, lin_solve!, lin_refactorize!, lin_supports_transpose,
+       LinearSolveCache, LinearSolveBackend, CPUBackendTag, CUDABackendTag
 # LinearSolve.jl / cuDSS front-ends (ext-backed; see [weakdeps])
 export PoissonLinearSolve, solve_poisson_direct
 # Elliptic (Poisson) services
