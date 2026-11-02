@@ -1,0 +1,17 @@
+#!/bin/bash -l
+#PBS -N natconv_turan
+#PBS -l select=1:ncpus=4:ngpus=1:mem=32GB:host=gpu0n009
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#PBS -m n
+
+# The host pin fixes the GPU; gpu0n001 must be avoided.
+cd "$PBS_O_WORKDIR" || exit 1
+export JULIA_BIN=$HOME/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/bin/julia
+export JULIA_DEPOT_PATH=${KRAKEN_DEPOT:-$PBS_O_WORKDIR/depot}
+export JULIA_CUDA_USE_COMPAT=false
+
+nvidia-smi || exit 1
+"$JULIA_BIN" --project=. -e 'using CUDA; CUDA.versioninfo(); CUDA.functional() || error("CUDA not functional")' || exit 1
+"$JULIA_BIN" --project=. benchmarks/validation/natconv_gnf/run_turan_comparison.jl \
+    --output-dir="$PBS_O_WORKDIR/benchmarks/validation/natconv_gnf/results"

@@ -12,9 +12,10 @@ viscosity `nu0` (not with a shear rate):
 
 so that `alpha = nu0/Pr` and `beta_g = Ra*nu0*alpha/((T_hot-T_cold)*H^3)`,
 where `beta_g` is the product ``\\beta g`` in lattice units. These
-definitions do not depend on the local constitutive viscosity. For a
-non-Newtonian fluid they are a convention, not the published power-law
-definition, which has not yet been implemented.
+definitions do not depend on the local constitutive viscosity. For a power-law
+fluid built with [`cavity_powerlaw`](@ref), `nu0` is the nominal viscosity of
+Turan et al. (2011, doi:10.1016/j.jnnfm.2011.06.003, Eq. 5), and Ra and Pr are
+their Eq. 6 definitions.
 
 Args:
     Ra: Rayleigh number based on `nu0`.
@@ -58,9 +59,19 @@ K = \\nu_0\\left(\\frac{\\alpha}{H^2}\\right)^{1-n}, \\qquad
 \\nu(\\dot\\gamma) = K\\,\\dot\\gamma^{\\,n-1}
 ```
 
-The shear scale ``\\alpha/H^2`` is provisional, a placeholder pending the
-published power-law Ra/Pr definition. This helper does not implement a
-quantitative literature mapping, and it has been validated on CPU only.
+``\\alpha/H^2`` is the characteristic shear rate of Turan, Sachdeva,
+Chakraborty and Poole (2011, doi:10.1016/j.jnnfm.2011.06.003, Eq. 5), so
+`nu0` is their nominal viscosity and, with ``\\mathrm{Pr} = \\nu_0/\\alpha`` and
+``\\mathrm{Ra} = \\beta g\\,\\Delta T\\,H^3/(\\nu_0\\alpha)``,
+
+```math
+\\mathrm{Pr} = K\\,\\alpha^{n-2} H^{2-2n}, \\qquad
+\\mathrm{Ra} = \\frac{\\beta g\\,\\Delta T\\,H^{2n+1}}{K\\,\\alpha^{n}},
+```
+
+which are their Eq. 6 definitions (`K` here is the kinematic consistency, their
+``K/\\rho``). Unlike the paper, `PowerLaw` clips the viscosity to
+`[nu_min, nu_max]`. Compared with the paper on CPU at coarse grids only.
 The floating-point type of `nu0` determines the model parameter type.
 
 Args:
@@ -145,8 +156,10 @@ walls are no-slip. Thermal advection uses the pre-collision Guo velocity
 temperature from the thermal populations, applies the Boussinesq force, then
 calls `collide_rheology_thermal_2d!` for the viscosity-dependent collision.
 
-Validated on CPU in Float64 only (`test/test_natconv_gnf.jl`). No GPU run and
-no quantitative comparison with the power-law literature exist yet.
+Validated on CPU in Float64 only (`test/test_natconv_gnf.jl`), including one
+power-law point against Turan et al. (2011) at N = 48. The thermal walls sit
+on the first and last nodes while Ra and Nu use `H = N`, so a pure-conduction
+cavity reports Nu ≈ N/(N-1). No GPU run yet.
 
 Args:
     N: Number of nodes per side of the square cavity (at least 3).
