@@ -26,7 +26,8 @@ julia --project benchmarks/validation/gnf3d/run_gnf3d_gpu.jl \
 Use an allocated NVIDIA A100 or H100 on QUT Aqua; its scheduler is PBS Pro.
 This directory does not submit jobs. The script logs CUDA hardware/software
 information and warms each model/precision kernel before measuring runs.
-No GPU run or GPU parity result is included with this harness.
+GPU run pending: the first attempt failed on a scalar-indexing error in the
+driver setup (fixed, not yet re-run). No GPU result is included with this harness.
 
 Outputs are `gnf3d_order.csv` and `gnf3d.log`. CSV columns are
 `law,q_w,N,H,FT,err_L2,err_Linf,p_observed,steps,wall_s,MLUPS`.

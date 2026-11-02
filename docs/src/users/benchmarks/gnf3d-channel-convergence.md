@@ -5,7 +5,7 @@ solution is known for a shear-rate-dependent viscosity. This page documents the 
 Kraken's 3D generalised-Newtonian (GNF) lattice-Boltzmann path against that exact solution:
 the observed order of convergence is 2 for the two Carreau cases and for the shear-thinning
 power law, and between 1.93 and 1.95 for the shear-thickening power law (CPU, Float64,
-N = 16 → 64). The GPU run of the same cases has not been done.
+N = 16 → 64). The GPU run of the same cases is pending.
 
 ## The case
 
@@ -85,9 +85,10 @@ GNF step is compared with the existing Newtonian step). Neither is a convergence
 
 ## Not yet verified
 
-- **GPU.** No GPU run exists. The script `benchmarks/validation/gnf3d/run_gnf3d_gpu.jl`
-  repeats these cases on `CUDABackend()` up to N = 256 and adds a Float32 row; it has not been
-  run. Until it is, nothing on this page is a GPU result, and no throughput is claimed.
+- **GPU.** GPU run pending. The script `benchmarks/validation/gnf3d/run_gnf3d_gpu.jl`
+  repeats these cases on `CUDABackend()` up to N = 256 and adds a Float32 row. The first
+  attempt on an A100 stopped in the setup with a scalar-indexing error (a bit-packed mask
+  copied to the device); that is fixed, and the script has not been re-run. Until it is, nothing on this page is a GPU result, and no throughput is claimed.
 - **`.krk` route.** 3D GNF is available from Julia only (`run_gnf_channel_3d`). The `.krk`
   dispatch is not yet wired.
 - **Float32.** Only the Float64 CPU orders are established.
