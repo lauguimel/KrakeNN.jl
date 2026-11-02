@@ -70,12 +70,12 @@ Compute the shear rate magnitude from non-equilibrium distributions (D3Q19).
     q=2:  (1,0,0)   q=3:  (-1,0,0)
     q=4:  (0,1,0)   q=5:  (0,-1,0)
     q=6:  (0,0,1)   q=7:  (0,0,-1)
-    q=8:  (1,1,0)   q=9:  (-1,-1,0)
-    q=10: (1,-1,0)  q=11: (-1,1,0)
-    q=12: (1,0,1)   q=13: (-1,0,-1)
-    q=14: (1,0,-1)  q=15: (-1,0,1)
-    q=16: (0,1,1)   q=17: (0,-1,-1)
-    q=18: (0,1,-1)  q=19: (0,-1,1)
+    q=8:  (1,1,0)   q=9:  (-1,1,0)
+    q=10: (1,-1,0)  q=11: (-1,-1,0)
+    q=12: (1,0,1)   q=13: (-1,0,1)
+    q=14: (1,0,-1)  q=15: (-1,0,-1)
+    q=16: (0,1,1)   q=17: (0,-1,1)
+    q=18: (0,1,-1)  q=19: (0,-1,-1)
 """
 @inline function strain_rate_magnitude_3d(
     f1, f2, f3, f4, f5, f6, f7, f8, f9, f10,
@@ -84,8 +84,6 @@ Compute the shear rate magnitude from non-equilibrium distributions (D3Q19).
     feq11, feq12, feq13, feq14, feq15, feq16, feq17, feq18, feq19,
     rho, tau
 )
-    T = typeof(rho)
-
     fneq2 = f2 - feq2; fneq3 = f3 - feq3
     fneq4 = f4 - feq4; fneq5 = f5 - feq5
     fneq6 = f6 - feq6; fneq7 = f7 - feq7
@@ -106,16 +104,30 @@ Compute the shear rate magnitude from non-equilibrium distributions (D3Q19).
     Pi_zz = fneq6 + fneq7 + fneq12 + fneq13 + fneq14 + fneq15 + fneq16 + fneq17 + fneq18 + fneq19
 
     # Π_xy = Σ fneq · cx · cy
-    # q=8: (+1)(+1)=+1, q=9: (-1)(-1)=+1, q=10: (+1)(-1)=-1, q=11: (-1)(+1)=-1
-    Pi_xy = fneq8 + fneq9 - fneq10 - fneq11
+    # q=8,11 have equal signs; q=9,10 have opposite signs.
+    Pi_xy = fneq8 - fneq9 - fneq10 + fneq11
 
     # Π_xz = Σ fneq · cx · cz
-    # q=12: (+1)(+1)=+1, q=13: (-1)(-1)=+1, q=14: (+1)(-1)=-1, q=15: (-1)(+1)=-1
-    Pi_xz = fneq12 + fneq13 - fneq14 - fneq15
+    # q=12,15 have equal signs; q=13,14 have opposite signs.
+    Pi_xz = fneq12 - fneq13 - fneq14 + fneq15
 
     # Π_yz = Σ fneq · cy · cz
-    # q=16: (+1)(+1)=+1, q=17: (-1)(-1)=+1, q=18: (+1)(-1)=-1, q=19: (-1)(+1)=-1
-    Pi_yz = fneq16 + fneq17 - fneq18 - fneq19
+    # q=16,19 have equal signs; q=17,18 have opposite signs.
+    Pi_yz = fneq16 - fneq17 - fneq18 + fneq19
+
+    return strain_rate_from_pi_3d(Pi_xx, Pi_yy, Pi_zz, Pi_xy, Pi_xz, Pi_yz, rho, tau)
+end
+
+"""
+    strain_rate_from_pi_3d(Pi_xx, Pi_yy, Pi_zz, Pi_xy, Pi_xz, Pi_yz, rho, tau)
+
+Compute `sqrt(2S:S)` from the six independent non-equilibrium stress moments,
+using `S = -3Pi / (2rho*tau)`. For Guo forcing, callers must supply moments
+corrected by `Pi = Pi_neq + (F ⊗ u_star + u_star ⊗ F)/2`, where `u_star`
+includes the half-force velocity shift. `tau` is the lagged even relaxation time.
+"""
+@inline function strain_rate_from_pi_3d(Pi_xx, Pi_yy, Pi_zz, Pi_xy, Pi_xz, Pi_yz, rho, tau)
+    T = typeof(rho)
 
     inv_denom = -T(3) / (T(2) * rho * tau)
     S_xx = Pi_xx * inv_denom
