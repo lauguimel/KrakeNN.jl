@@ -68,6 +68,7 @@ function run_incns_testset()
 
         # Solve services: linear-solve seam + elliptic (Poisson) MMS receipts.
         include("analytical/linear_solve_nonsym.jl")
+        include("analytical/linear_solve_refactor_transpose.jl")   # C0: refactorize / transpose / multi-RHS
         include("analytical/poisson_mms.jl")
         include("analytical/poisson_embedded_mms.jl")
         include("analytical/poisson_embedded_fvfd_mms.jl")
@@ -91,6 +92,9 @@ function run_incns_testset()
         # cuDSS GPU direct path (weakdep ext) — self-gated on CUDA.functional()
         # inside the file; skips cleanly on CPU-only boxes.
         include("analytical/poisson_cudss_gpu.jl")
+        # C0 cuDSS contract (refactorize, transpose gate, multi-RHS, zero
+        # allocation) — same self-gating; KRAKEN_REQUIRE_GPU=1 makes a skip fail.
+        include("analytical/linear_solve_cudss_c0_gpu.jl")
 
         # FVFD velocity-operator trio (grad/div/laplacian + embedded variants).
         include("analytical/incns_grad_div_laplacian_mms.jl")
