@@ -26,8 +26,7 @@ julia --project benchmarks/validation/gnf3d/run_gnf3d_gpu.jl \
 Use an allocated NVIDIA A100 or H100 on QUT Aqua; its scheduler is PBS Pro.
 This directory does not submit jobs. The script logs CUDA hardware/software
 information and warms each model/precision kernel before measuring runs.
-GPU run pending: the first attempt failed on a scalar-indexing error in the
-driver setup (fixed, not yet re-run). No GPU result is included with this harness.
+The measured GPU result is in `results/` and described under "GPU evidence" below.
 
 Outputs are `gnf3d_order.csv` and `gnf3d.log`. CSV columns are
 `law,q_w,N,H,FT,err_L2,err_Linf,p_observed,steps,wall_s,MLUPS`.
@@ -41,6 +40,41 @@ and finite-field checks. Float64 uses relative velocity-change tolerance
 velocities. Checks occur every 200 steps. The single Float32 row has no
 observed-order claim. Every actual validation row must converge; failed rows
 remain in the output and the process exits unsuccessfully after all cases.
+
+## GPU evidence
+
+Files: `results/gnf3d_order.csv` (16 rows) and `results/gnf3d.log`, copied
+unchanged from the Aqua output directory. The last line of `gnf3d.log` holds
+the absolute path of the CSV on the cluster home directory (`csv=/home/...`);
+it was left as written.
+
+| Item | Value |
+| --- | --- |
+| Code | branch `feat/gnf-3d`, commit `6517b1d92`; `src/` and `benchmarks/validation/gnf3d/` copied to the cluster by rsync, checksum comparison against the commit listed no differing file |
+| Scheduler job | `27544762.aqua`, exit status 0, 1 node (`gpu0n009`), 4 CPUs, 32 GB |
+| Walltime used | 00:12:22 (12 min); script log started 2026-11-02 15:01 UTC |
+| GPU | NVIDIA A100-SXM4-40GB (sm_80), 39.5 GiB available |
+| Driver / CUDA | driver 610.57.4 (CUDA 13.3); CUDA runtime 13.2 (artifact), compiler 13.3 |
+| Julia / packages | Julia 1.12.5, CUDA.jl 5.11.3, KernelAbstractions 0.9.45, `JULIA_CUDA_USE_COMPAT=false` |
+| Precision | Float64 for the 15 convergence rows; Float32 for the last row |
+| Outcome | `rows_written=true validation_failures=0` |
+
+Command run by the job script, from the code directory:
+
+```bash
+export JULIA_CUDA_USE_COMPAT=false
+julia --project=. benchmarks/validation/gnf3d/run_gnf3d_gpu.jl --output-dir=<output directory>
+```
+
+Notes on reading the CSV:
+
+- `power_thin` stops at N = 128, as designed (see "Known reference-validity
+  limit"); the other laws run to N = 256.
+- The Float32 row (Carreau, q_w = 0.5, N = 128) is a run-through check with the
+  looser steady tolerance 2e-4 (error 1.1e-2). It is not a convergence result.
+- The `MLUPS` column is not a performance measurement: the channel domain is
+  small, and timing includes setup and profile transfer. Do not quote it as
+  throughput.
 
 ## Known reference-validity limit
 

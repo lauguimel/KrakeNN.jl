@@ -5,7 +5,8 @@ solution is known for a shear-rate-dependent viscosity. This page documents the 
 Kraken's 3D generalised-Newtonian (GNF) lattice-Boltzmann path against that exact solution:
 the observed order of convergence is 2 for the two Carreau cases and for the shear-thinning
 power law, and between 1.93 and 1.95 for the shear-thickening power law (CPU, Float64,
-N = 16 → 64). The GPU run of the same cases is pending.
+N = 16 → 64). The same cases on an A100 GPU (Float64, N = 32 → 256) give an observed order
+of 1.95 to 2.00 between adjacent resolutions.
 
 ## The case
 
@@ -83,15 +84,46 @@ Companion tests in `test/analytical/`: `gnf3d_strain_rate.jl` (the strain-rate e
 including the pure-shear sign fix) and `gnf3d_parity.jl` (with a constant viscosity, the
 GNF step is compared with the existing Newtonian step). Neither is a convergence study.
 
+## GPU results
+
+Source: `benchmarks/validation/gnf3d/results/gnf3d_order.csv` (and `gnf3d.log`), produced
+by `benchmarks/validation/gnf3d/run_gnf3d_gpu.jl` on `CUDABackend()`: NVIDIA A100-SXM4-40GB,
+Float64, Julia 1.12.5, CUDA.jl 5.11.3, driver 610.57.4. Code: branch `feat/gnf-3d`, commit
+`6517b1d92`. The sweep finished with `validation_failures=0`; every row converged to a
+relative velocity-change tolerance of 10⁻¹⁰. Provenance details are in the README of that
+directory. Relative L2 velocity error (order computed from the gaps `H`, as above):
+
+| Case | N = 32 | N = 64 | N = 128 | N = 256 |
+|---|---|---|---|---|
+| Carreau, `q_w = 0.5` | 1.158 × 10⁻³ | 2.896 × 10⁻⁴ | 7.241 × 10⁻⁵ | 1.814 × 10⁻⁵ |
+| order | | 1.9999 | 1.9998 | 1.9972 |
+| Carreau, `q_w = 0.3` | 1.729 × 10⁻³ | 4.282 × 10⁻⁴ | 1.065 × 10⁻⁴ | 2.654 × 10⁻⁵ |
+| order | | 1.9952 | 1.9977 | 2.0009 |
+| Power law, `n = 0.7` | 6.856 × 10⁻⁴ | 1.714 × 10⁻⁴ | 4.285 × 10⁻⁵ | not run |
+| order | | 2.0002 | 1.9998 | |
+| Power law, `n = 1.5` | 7.823 × 10⁻⁴ | 2.025 × 10⁻⁴ | 5.197 × 10⁻⁵ | 1.324 × 10⁻⁵ |
+| order | | 1.9499 | 1.9622 | 1.9731 |
+
+The N = 64 errors agree with the CPU values in the table above to the digits shown. The
+power law `n = 0.7` sweep stops at N = 128 (see "Power-law range" below).
+
+Three points on reading the CSV:
+
+- The Float32 row (Carreau, `q_w = 0.5`, N = 128) is a run-through check with a looser
+  steady tolerance (2 × 10⁻⁴) and an error of 1.1 × 10⁻². It is not a convergence result,
+  and no Float32 order is claimed.
+- The `MLUPS` column of the CSV is not a performance measurement: the channel domain is
+  small, and the timing includes setup and the profile transfer. No throughput is claimed.
+- A single GPU, a single run: nothing here tests run-to-run variation or the H100.
+
 ## Not yet verified
 
-- **GPU.** GPU run pending. The script `benchmarks/validation/gnf3d/run_gnf3d_gpu.jl`
-  repeats these cases on `CUDABackend()` up to N = 256 and adds a Float32 row. The first
-  attempt on an A100 stopped in the setup with a scalar-indexing error (a bit-packed mask
-  copied to the device); that is fixed, and the script has not been re-run. Until it is, nothing on this page is a GPU result, and no throughput is claimed.
+- **GPU scope.** The GPU sweep is one A100 run in Float64 (see above). Not covered: H100,
+  repeated runs, a CPU/GPU parity gate, and any throughput measurement.
 - **`.krk` route.** 3D GNF is available from Julia only (`run_gnf_channel_3d`). The `.krk`
   dispatch is not yet wired.
-- **Float32.** Only the Float64 CPU orders are established.
+- **Float32.** Only the Float64 orders (CPU and A100) are established; the single Float32
+  GPU row is a run-through check, not an order.
 - **Limits of the implementation.** Isothermal only (a thermal coupling raises an error).
   Supported viscosity laws: Newtonian, `PowerLaw`, `CarreauYasuda`, `Cross`; yield-stress
   models are not supported. Zou–He open faces are limited to flow along `x`, without body
