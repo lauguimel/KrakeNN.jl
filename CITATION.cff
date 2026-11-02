@@ -18,8 +18,8 @@ authors:
 repository-code: "https://github.com/lauguimel/Kraken.jl"
 url: "https://lauguimel.github.io/Kraken.jl/stable/"
 license: MIT
-version: 0.5.0
-date-released: "2026-09-24"
+version: 0.5.1
+date-released: "2026-10-23"
 keywords:
   - lattice Boltzmann
   - computational fluid dynamics
@@ -28,5 +28,5 @@ keywords:
   - viscoelastic
   - multiphysics
 # Concept DOI: always resolves to the most recent archived release.
-# Version-specific DOI for v0.4.0 is 10.5281/zenodo.22747127
+# Version-specific DOI for v0.5.1 is 10.5281/zenodo.23598327
 doi: "10.5281/zenodo.22747126"
