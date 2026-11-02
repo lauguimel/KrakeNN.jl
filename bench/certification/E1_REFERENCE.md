@@ -8,13 +8,14 @@ BGK D2Q9 solver in **Float64**; this page tells you what "good" means.
 ## 1. Roofline ceiling (primary, self-contained)
 
 LBM is memory-bandwidth bound. For a D2Q9 BGK step in F64 the dominant traffic
-per lattice update is reading + writing the 19 distribution-related values
-(q=9 populations in, q=9 out, plus the density/aux access amortised), i.e.
-**2 × 19 × sizeof(Float64) = 304 bytes/update**. Hence:
+per lattice update is reading + writing the q=9 populations (9 in, 9 out), i.e.
+**2 × 9 × sizeof(Float64) = 144 bytes/update**. (An earlier version of this file used
+304 bytes, which is the D3Q19 traffic, 2 × 19 × 8; that overstated the byte count
+and understated the ceiling by a factor 2.1.) Hence:
 
 ```
-max_updates_per_s = peak_BW / (2 * 19 * sizeof(Float64))
-                  = peak_BW / 304
+max_updates_per_s = peak_BW / (2 * 9 * sizeof(Float64))
+                  = peak_BW / 144
 MLUPS_ceiling     = max_updates_per_s / 1e6
 ```
 
@@ -22,8 +23,9 @@ Plugging in vendor peak HBM bandwidths:
 
 | GPU            | Memory | Peak BW    | F64 roofline MLUPS |
 |----------------|--------|------------|--------------------|
-| **H100**       | HBM3   | ~3.35 TB/s | **~11 020 MLUPS**  |
-| **A100-80GB**  | HBM2e  | ~2.0 TB/s  | **~6 579 MLUPS**   |
+| **H100**       | HBM3   | ~3.35 TB/s | **~23 264 MLUPS**  |
+| **A100-80GB**  | HBM2e  | ~2.039 TB/s | **~14 160 MLUPS** |
+| **A100-40GB**  | HBM2e  | ~1.555 TB/s | **~10 799 MLUPS** |
 
 These are hard upper bounds; no F64 D2Q9 kernel can exceed them.
 
@@ -54,7 +56,8 @@ The certification compares the measured **Kraken CUDA-F64 MLUPS** against:
    corroboration.
 
 **Pass = ratio ≥ 0.5** of the roofline ceiling (i.e. Kraken is within 2× of the
-memory-bandwidth limit for its GPU). On an H100 that means ≥ ~5 510 MLUPS; on an
-A100-80GB ≥ ~3 290 MLUPS. Achieving ≥ 0.5 of roofline also lands Kraken in the
-same neighbourhood as the Palabos F64 figure, confirming the implementation is
-competitive with an established production LBM code.
+memory-bandwidth limit for its GPU). On an H100 that means ≥ ~11 630 MLUPS; on an
+A100-40GB ≥ ~5 400 MLUPS; on an A100-80GB ≥ ~7 080 MLUPS. The measured Kraken run
+(3461 MLUPS on an A100-40GB) is 0.32 of the ceiling and does not meet this gate. The
+Palabos figure is D3Q19, which moves about twice the bytes of D2Q9, so it is context,
+not a like-for-like comparison.

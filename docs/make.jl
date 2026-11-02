@@ -257,6 +257,8 @@ makedocs(;
                 "theory/09_axisymmetric.md",
                 "theory/10_limitations.md",
                 "theory/12_mrt.md",
+                "theory/14_rheology.md",
+                "theory/15_viscoelastic.md",
                 "theory/18_grid_refinement.md",
                 "theory/19_spatial_bcs.md",
             ],

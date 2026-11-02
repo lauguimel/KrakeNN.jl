@@ -220,6 +220,10 @@
 #
 # ### Log-conformation formulation
 #
+# `LogConfFormulation()` is the default of the `OldroydB`, `FENEP` and
+# `Saramito` constructors; pass `formulation=StressFormulation()` to evolve
+# the stress directly.  See the next page for which driver uses which model.
+#
 # At high Weissenberg numbers (``\mathrm{Wi} = \lambda\,\dot{\gamma} \gg 1``),
 # the conformation tensor can lose positive-definiteness, causing numerical
 # blow-up.  The **log-conformation** approach (Fattal & Kupferman, 2004)
@@ -259,10 +263,14 @@
 # ### Collision kernel
 #
 # The rheological collision kernel computes the local viscosity and
-# relaxation rate at each node:
+# relaxation rate at each node.  It accepts generalized Newtonian models
+# only; `tau_field` stores the relaxation time of the previous step.
+# Viscoelastic models use the separate drivers of the next page.
+# Variants with a Guo body force (`collide_rheology_guo_2d!`) and with a
+# temperature field (`collide_rheology_thermal_2d!`) also exist:
 #
 # ```julia
-# collide_rheology_2d!(f, is_solid, model::AbstractRheology)
+# collide_rheology_2d!(f, is_solid, model::GeneralizedNewtonian, tau_field)
 # ```
 #
 # The algorithm at each node is:

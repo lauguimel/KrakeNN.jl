@@ -21,11 +21,14 @@ Palabos, OpenLB, waLBerla, TCLB, and Sailfish is maintained in
 
 ## Key takeaways
 
-1. **GPU throughput is competitive.** Kraken.jl reaches ~7 700 MLUPs (BGK
-   D2Q9) on a single H100 with the baseline kernel, and ~24 000 MLUPs with
-   the AA-pattern + Float32 variant. Published single-GPU numbers for mature
-   C/C++ codes (Sailfish, TCLB) on comparable hardware range from
-   5 000–30 000 MLUPs depending on collision model and precision.
+1. **GPU throughput: no sourced Kraken number on this page.** Earlier drafts quoted
+   two throughput figures for a single H100 (a baseline kernel and an AA-pattern +
+   Float32 variant). No script or log in the repository backs either figure, so both
+   were removed. The one
+   committed CUDA measurement of the D2Q9 BGK solver is 3461 MLUPS in Float64 at
+   `N = 2048` on an A100-40GB, 0.32 of that GPU's bandwidth ceiling (see
+   [GPU certification](../users/benchmarks/gpu-certification.md)). Comparisons with
+   other codes are therefore left out until a sourced run on the same hardware exists.
 
 2. **Code size.** Kraken.jl achieves these numbers in roughly 5 000 lines of
    Julia (solver core), compared to 50 000+ lines typical of C++ LBM
