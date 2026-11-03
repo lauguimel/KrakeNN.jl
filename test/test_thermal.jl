@@ -142,6 +142,172 @@ using Kraken
         end
     end
 
+    @testset "Adjacent Dirichlet faces: corner and edge slots flipped once" begin
+        # Reference built from the lattice velocities alone: a slot whose link
+        # comes from outside the box through one or more Dirichlet faces gets
+        # g = -g0 + 2 w_q T_link, with T_link the mean of the temperatures of
+        # the Dirichlet faces it crosses; every other slot is unchanged.
+        function _expected_fixed_temp(g0, lattice, temps)
+            D = ndims(g0) - 1
+            dims = size(g0)[1:D]
+            c = D == 2 ? (Kraken.velocities_x(lattice), Kraken.velocities_y(lattice)) :
+                         (Kraken.velocities_x(lattice), Kraken.velocities_y(lattice),
+                          Kraken.velocities_z(lattice))
+            w = Kraken.weights(lattice)
+            faces = ((:west, 1, true), (:east, 1, false), (:south, 2, true),
+                     (:north, 2, false), (:bottom, 3, true), (:top, 3, false))
+            g = copy(g0)
+            for q in axes(g0, D + 1), I in CartesianIndices(dims)
+                T_crossed = Float64[]
+                for (face, d, low) in faces
+                    d <= D || continue
+                    T_face = get(temps, face, nothing)
+                    T_face === nothing && continue
+                    src = I[d] - c[d][q]
+                    (low ? src < 1 : src > dims[d]) && push!(T_crossed, T_face)
+                end
+                isempty(T_crossed) && continue
+                g[I, q] = -g0[I, q] + 2 * w[q] * sum(T_crossed) / length(T_crossed)
+            end
+            return g
+        end
+
+        @testset "2D kernels against the reference" begin
+            Nx, Ny = 5, 4
+            g0 = rand(Float64, Nx, Ny, 9)
+            per_face = Dict(
+                :west  => (g, t) -> apply_fixed_temp_west_2d!(g, t, Ny),
+                :east  => (g, t) -> apply_fixed_temp_east_2d!(g, t, Nx, Ny),
+                :south => (g, t) -> apply_fixed_temp_south_2d!(g, t, Nx),
+                :north => (g, t) -> apply_fixed_temp_north_2d!(g, t, Nx, Ny))
+            for (face, t) in ((:west, 0.9), (:east, 0.1), (:south, 0.7), (:north, 0.3))
+                g_one = copy(g0)
+                per_face[face](g_one, t)
+                g_all = copy(g0)
+                apply_fixed_temp_2d!(g_all, Nx, Ny; NamedTuple{(face,)}((t,))...)
+                @test g_all == g_one
+                @test maximum(abs.(g_all .- _expected_fixed_temp(g0, D2Q9(), Dict(face => t)))) < 1e-15
+            end
+            for temps in ((; west=0.9, east=0.1, south=0.7, north=0.3),
+                          (; west=0.9, south=0.7),
+                          (; east=0.1, north=0.3),
+                          (; west=0.9, north=0.3, east=0.1))
+                g = copy(g0)
+                apply_fixed_temp_2d!(g, Nx, Ny; temps...)
+                g_ref = _expected_fixed_temp(g0, D2Q9(), Dict(pairs(temps)))
+                @test maximum(abs.(g .- g_ref)) < 1e-15
+            end
+            # The four corner slots with all faces Dirichlet: mean temperature.
+            g = copy(g0)
+            apply_fixed_temp_2d!(g, Nx, Ny; west=0.9, east=0.1, south=0.7, north=0.3)
+            @test g[1, 1, 6]   ≈ -g0[1, 1, 6]   + (0.9 + 0.7) / 36 atol=1e-15
+            @test g[1, Ny, 9]  ≈ -g0[1, Ny, 9]  + (0.9 + 0.3) / 36 atol=1e-15
+            @test g[Nx, 1, 7]  ≈ -g0[Nx, 1, 7]  + (0.1 + 0.7) / 36 atol=1e-15
+            @test g[Nx, Ny, 8] ≈ -g0[Nx, Ny, 8] + (0.1 + 0.3) / 36 atol=1e-15
+        end
+
+        @testset "3D kernels against the reference" begin
+            Nx, Ny, Nz = 4, 5, 3
+            g0 = rand(Float64, Nx, Ny, Nz, 19)
+            per_face = Dict(
+                :west   => (g, t) -> apply_fixed_temp_west_3d!(g, t, Ny, Nz),
+                :east   => (g, t) -> apply_fixed_temp_east_3d!(g, t, Nx, Ny, Nz),
+                :south  => (g, t) -> apply_fixed_temp_south_3d!(g, t, Nx, Nz),
+                :north  => (g, t) -> apply_fixed_temp_north_3d!(g, t, Nx, Ny, Nz),
+                :bottom => (g, t) -> apply_fixed_temp_bottom_3d!(g, t, Nx, Ny),
+                :top    => (g, t) -> apply_fixed_temp_top_3d!(g, t, Nx, Ny, Nz))
+            all_temps = (; west=0.9, east=0.1, south=0.7, north=0.3, bottom=0.6, top=0.2)
+            for face in keys(all_temps)
+                t = all_temps[face]
+                g_one = copy(g0)
+                per_face[face](g_one, t)
+                g_all = copy(g0)
+                apply_fixed_temp_3d!(g_all, Nx, Ny, Nz; NamedTuple{(face,)}((t,))...)
+                @test g_all == g_one
+                @test maximum(abs.(g_all .- _expected_fixed_temp(g0, D3Q19(), Dict(face => t)))) < 1e-15
+            end
+            for temps in (all_temps,
+                          (; west=0.9, south=0.7, top=0.2),
+                          (; east=0.1, north=0.3, bottom=0.6),
+                          (; south=0.7, bottom=0.6, top=0.2))
+                g = copy(g0)
+                apply_fixed_temp_3d!(g, Nx, Ny, Nz; temps...)
+                g_ref = _expected_fixed_temp(g0, D3Q19(), Dict(pairs(temps)))
+                @test maximum(abs.(g .- g_ref)) < 1e-15
+            end
+        end
+
+        T_w, T_c = 0.8, 0.2
+        ω_T = 1.0 / (3.0 * 0.1 + 0.5)   # α = 0.1
+
+        @testset "2D square, hot west and south, cold east and north" begin
+            # Pure conduction (buoyancy off, u = 0) with the library streaming
+            # kernel. Swapping x and y maps the boundary conditions onto
+            # themselves, so the steady field is symmetric about the diagonal
+            # and, by the maximum principle, lies between the wall temperatures.
+            N = 12
+            w = Kraken.weights(D2Q9())
+            g_in = zeros(Float64, N, N, 9)
+            for q in 1:9
+                g_in[:, :, q] .= w[q] * 0.5
+            end
+            g_out = copy(g_in)
+            u0 = zeros(Float64, N, N)
+            Temp = zeros(Float64, N, N)
+            Temp_prev = zeros(Float64, N, N)
+            for step in 1:6000
+                stream_2d!(g_out, g_in, N, N)
+                apply_fixed_temp_2d!(g_out, N, N; west=T_w, south=T_w, east=T_c, north=T_c)
+                collide_thermal_2d!(g_out, u0, u0, ω_T)
+                g_in, g_out = g_out, g_in
+            end
+            compute_temperature_2d!(Temp_prev, g_in)
+            stream_2d!(g_out, g_in, N, N)
+            apply_fixed_temp_2d!(g_out, N, N; west=T_w, south=T_w, east=T_c, north=T_c)
+            collide_thermal_2d!(g_out, u0, u0, ω_T)
+            compute_temperature_2d!(Temp, g_out)
+            @test maximum(abs.(Temp .- Temp_prev)) < 1e-13          # steady
+            @test maximum(abs.(Temp .- permutedims(Temp))) < 1e-13  # diagonal symmetry
+            @test minimum(Temp) >= T_c - 1e-13
+            @test maximum(Temp) <= T_w + 1e-13
+            @test Temp[1, N] ≈ 0.5 * (T_w + T_c) atol=1e-13           # off-diagonal corners
+        end
+
+        @testset "3D cube, hot west, south and bottom, cold east, north and top" begin
+            # Each swap of two axes maps the boundary conditions onto
+            # themselves; the twelve edges are all shared by two Dirichlet faces.
+            N = 6
+            w = Kraken.weights(D3Q19())
+            g_in = zeros(Float64, N, N, N, 19)
+            for q in 1:19
+                g_in[:, :, :, q] .= w[q] * 0.5
+            end
+            g_out = copy(g_in)
+            u0 = zeros(Float64, N, N, N)
+            Temp = zeros(Float64, N, N, N)
+            Temp_prev = zeros(Float64, N, N, N)
+            bc!(g) = apply_fixed_temp_3d!(g, N, N, N; west=T_w, south=T_w, bottom=T_w,
+                                          east=T_c, north=T_c, top=T_c)
+            for step in 1:3000
+                stream_3d!(g_out, g_in, N, N, N)
+                bc!(g_out)
+                collide_thermal_3d!(g_out, u0, u0, u0, ω_T)
+                g_in, g_out = g_out, g_in
+            end
+            compute_temperature_3d!(Temp_prev, g_in)
+            stream_3d!(g_out, g_in, N, N, N)
+            bc!(g_out)
+            collide_thermal_3d!(g_out, u0, u0, u0, ω_T)
+            compute_temperature_3d!(Temp, g_out)
+            @test maximum(abs.(Temp .- Temp_prev)) < 1e-13
+            @test maximum(abs.(Temp .- permutedims(Temp, (2, 1, 3)))) < 1e-13
+            @test maximum(abs.(Temp .- permutedims(Temp, (3, 2, 1)))) < 1e-13
+            @test maximum(abs.(Temp .- permutedims(Temp, (1, 3, 2)))) < 1e-13
+            @test minimum(Temp) >= T_c - 1e-13
+            @test maximum(Temp) <= T_w + 1e-13
+        end
+    end
+
     @testset "Pure conduction in the cavity drivers (Ra = 0)" begin
         # Hot west and cold east half-way walls, adiabatic bounce-back on the
         # other walls. The profile is not linear to round-off here: bounce-back

@@ -59,6 +59,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   patch touches; their pure-conduction Nu moves from 1.29–1.31 to 1.26–1.30, and that
   separate refined-wall defect stays open. The published GPU benchmark rows were
   measured with the former walls and are flagged as such.
+- **Adjacent thermal Dirichlet faces flip each corner slot once** (#97). With two
+  Dirichlet faces sharing a corner (an edge in 3D), which the refined `.krk` drivers
+  allow, the per-face kernels flipped the diagonal slot that crosses both walls once per
+  face. New exported `apply_fixed_temp_2d!` and `apply_fixed_temp_3d!` apply several
+  faces in one call and flip it once, with the mean of the two wall temperatures
+  (x-faces apply it, then y-faces; z-faces never). The refined 2D/3D drivers and the
+  patch builders (`build_patch_thermal_bcs_3d`) use them; one face alone is
+  bit-identical to before. A conduction square with hot west and south and cold east
+  and north is now symmetric about the diagonal to 4·10⁻¹⁶ (8·10⁻² before).
+- **AD Nusselt QoI uses the actual wall distance and cavity width** (#97). `nu_pure`
+  reads the hot-wall fraction `δ = q_hot` and `L = Nx − 1 + q_hot + q_cold` from the
+  cut-link fractions and uses the one-sided gradient for a wall at distance `δ`;
+  `nu_driver` takes `q_hot` and `L`. At the shape-sensitivity case (`N = 16`,
+  `Ra = 10³`, `L = 16.2`) `dNu/dL` goes from −0.067 (width held at `N`) to
+  +1.44·10⁻³, adjoint and finite difference within 1.0·10⁻³. The cut-link thermal wall
+  is exact only at `q = 0.5`: in pure conduction `Nu − 1` falls by 8·10⁻³ per unit of
+  cold-wall fraction (`q` from 0.3 to 0.9), while moving that wall by a whole cell at
+  fixed `q` changes `Nu` by +1.74·10⁻² at `Ra = 10³`. That cut-link error stays open.
 - The 0.3.0 entry "GPU-validated (parity ≤1.6e-12)" for the cuDSS solve and the matching
   line of `docs/agent/solve-linear-implication.md` now carry a correction note (#61): the
   loading path of that July run is not recorded. Same note as in 0.5.1.

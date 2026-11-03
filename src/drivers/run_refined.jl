@@ -162,28 +162,30 @@ function _run_refined(setup::SimulationSetup;
         # step, post-stream, in the coarse step. `thermal_bc_patched_fns` holds
         # the faces touched by a patch: their coarse wall cells are restored and
         # restricted, so they get one more call after restriction (see
-        # thermal_bc_coarse_fn).
+        # thermal_bc_coarse_fn). Both apply all their faces in one call, so a
+        # corner shared by two Dirichlet faces is flipped once (corner rule of
+        # `apply_fixed_temp_2d!`, taken from the full set of Dirichlet faces).
         _touches_patch(face) = any(patches) do p
             face == :west  ? first(p.parent_i_range) == 1 :
             face == :east  ? last(p.parent_i_range) == Nx :
             face == :south ? first(p.parent_j_range) == 1 :
                              last(p.parent_j_range) == Ny
         end
-        for (face, T_val) in thermal_face_bcs
-            fn = if face == :south
-                (g, nx, ny) -> apply_fixed_temp_south_2d!(g, T_val, nx)
-            elseif face == :north
-                (g, nx, ny) -> apply_fixed_temp_north_2d!(g, T_val, nx, ny)
-            elseif face == :west
-                (g, nx, ny) -> apply_fixed_temp_west_2d!(g, T_val, ny)
-            elseif face == :east
-                (g, nx, ny) -> apply_fixed_temp_east_2d!(g, T_val, nx, ny)
-            else
-                nothing
+        thermal_temps = _fixed_temp_set_2d(thermal_face_bcs)
+        thermal_faces = Tuple(f for f in _FIXED_TEMP_FACES_2D
+                              if haskey(thermal_face_bcs, f))
+        patched_faces = Tuple(f for f in thermal_faces if _touches_patch(f))
+        if !isempty(thermal_faces)
+            let tt = thermal_temps, tf = thermal_faces
+                push!(thermal_bc_face_fns,
+                      (g, nx, ny) -> _apply_fixed_temp_faces_2d!(g, nx, ny, tt, tf))
             end
-            fn === nothing && continue
-            push!(thermal_bc_face_fns, fn)
-            _touches_patch(face) && push!(thermal_bc_patched_fns, fn)
+        end
+        if !isempty(patched_faces)
+            let tt = thermal_temps, pf = patched_faces
+                push!(thermal_bc_patched_fns,
+                      (g, nx, ny) -> _apply_fixed_temp_faces_2d!(g, nx, ny, tt, pf))
+            end
         end
     end
 

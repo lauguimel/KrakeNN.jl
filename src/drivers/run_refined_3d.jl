@@ -163,7 +163,9 @@ function _run_refined_3d(setup::SimulationSetup;
         # step, post-stream, in the coarse step. `thermal_bc_patched_fns` holds
         # the faces touched by a patch: their coarse wall cells are restored and
         # restricted, so they get one more call after restriction (see
-        # thermal_bc_coarse_fn).
+        # thermal_bc_coarse_fn). Both apply all their faces in one call, so an
+        # edge shared by two Dirichlet faces is flipped once (edge rule of
+        # `apply_fixed_temp_3d!`, taken from the full set of Dirichlet faces).
         _touches_patch(face) = any(patches) do p
             face == :west   ? first(p.parent_i_range) == 1 :
             face == :east   ? last(p.parent_i_range) == Nx :
@@ -172,25 +174,21 @@ function _run_refined_3d(setup::SimulationSetup;
             face == :bottom ? first(p.parent_k_range) == 1 :
                               last(p.parent_k_range) == Nz
         end
-        for (face, T_val) in thermal_face_bcs
-            fn = if face == :south
-                (g, nx, ny, nz) -> apply_fixed_temp_south_3d!(g, T_val, nx, nz)
-            elseif face == :north
-                (g, nx, ny, nz) -> apply_fixed_temp_north_3d!(g, T_val, nx, ny, nz)
-            elseif face == :west
-                (g, nx, ny, nz) -> apply_fixed_temp_west_3d!(g, T_val, ny, nz)
-            elseif face == :east
-                (g, nx, ny, nz) -> apply_fixed_temp_east_3d!(g, T_val, nx, ny, nz)
-            elseif face == :bottom
-                (g, nx, ny, nz) -> apply_fixed_temp_bottom_3d!(g, T_val, nx, ny)
-            elseif face == :top
-                (g, nx, ny, nz) -> apply_fixed_temp_top_3d!(g, T_val, nx, ny, nz)
-            else
-                nothing
+        thermal_temps = _fixed_temp_set_3d(thermal_face_bcs)
+        thermal_faces = Tuple(f for f in _FIXED_TEMP_FACES_3D
+                              if haskey(thermal_face_bcs, f))
+        patched_faces = Tuple(f for f in thermal_faces if _touches_patch(f))
+        if !isempty(thermal_faces)
+            let tt = thermal_temps, tf = thermal_faces
+                push!(thermal_bc_face_fns,
+                      (g, nx, ny, nz) -> _apply_fixed_temp_faces_3d!(g, nx, ny, nz, tt, tf))
             end
-            fn === nothing && continue
-            push!(thermal_bc_face_fns, fn)
-            _touches_patch(face) && push!(thermal_bc_patched_fns, fn)
+        end
+        if !isempty(patched_faces)
+            let tt = thermal_temps, pf = patched_faces
+                push!(thermal_bc_patched_fns,
+                      (g, nx, ny, nz) -> _apply_fixed_temp_faces_3d!(g, nx, ny, nz, tt, pf))
+            end
         end
     end
 
@@ -379,10 +377,12 @@ function _build_patch_thermal_bcs(patches::Vector{RefinementPatch{T}},
         end
     end
 
+    # One closure per patch applies all the Dirichlet faces the patch touches
+    # in a single `apply_fixed_temp_2d!`-style call, so a patch in a corner
+    # of two Dirichlet faces flips the corner slot once.
     patch_bcs = Dict{Int, Function}()
     for (pidx, patch) in enumerate(patches)
-        closures = Function[]
-
+        touched = Dict{Symbol, T}()
         for (face, condition) in [
             (:west,  Float64(patch.x_min) <= tol),
             (:east,  Float64(patch.x_max) >= Lx - tol),
@@ -392,34 +392,17 @@ function _build_patch_thermal_bcs(patches::Vector{RefinementPatch{T}},
             condition || continue
             T_val = get(thermal_face_bcs, face, nothing)
             T_val === nothing && continue
-            cl = _make_patch_thermal_bc(face, T_val)
-            push!(closures, cl)
+            touched[face] = T_val
         end
 
-        if !isempty(closures)
-            let cls = closures
-                patch_bcs[pidx] = (g, Nx_p, Ny_p) -> begin
-                    for cl in cls
-                        cl(g, Nx_p, Ny_p)
-                    end
-                end
+        if !isempty(touched)
+            let tt = _fixed_temp_set_2d(touched), tf = _FIXED_TEMP_FACES_2D
+                patch_bcs[pidx] = (g, Nx_p, Ny_p) ->
+                    _apply_fixed_temp_faces_2d!(g, Nx_p, Ny_p, tt, tf)
             end
         end
     end
     return patch_bcs
-end
-
-"""Create a thermal BC closure for one face of a patch (anti-bounce-back Dirichlet)."""
-function _make_patch_thermal_bc(face::Symbol, T_val)
-    if face == :south
-        return (g, Nx_p, Ny_p) -> apply_fixed_temp_south_2d!(g, T_val, Nx_p)
-    elseif face == :north
-        return (g, Nx_p, Ny_p) -> apply_fixed_temp_north_2d!(g, T_val, Nx_p, Ny_p)
-    elseif face == :west
-        return (g, Nx_p, Ny_p) -> apply_fixed_temp_west_2d!(g, T_val, Ny_p)
-    elseif face == :east
-        return (g, Nx_p, Ny_p) -> apply_fixed_temp_east_2d!(g, T_val, Nx_p, Ny_p)
-    end
 end
 
 """Compute Nusselt number from the finest patch touching a heated wall."""

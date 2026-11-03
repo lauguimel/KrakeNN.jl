@@ -123,16 +123,61 @@ function moving_cut_cotangent_norm(dqw, dq_dL)
     return sqrt(s)
 end
 
-# Hot-wall Nusselt number with the formula of `run_natural_convection_2d`:
-# the hot wall is half-way (q_hot = 0.5, the default of
-# `ad_cavity_wall_geometry`), and the second-order one-sided gradient goes
-# through the wall value and the first two nodes,
-# dT/dx|wall = (-8 T_hot + 9 T_1 - T_2) / 3.
-function nu_driver(w, p::ADNatconvParams)
+# Second-order one-sided wall gradient for a hot wall at distance `delta` from
+# the first node, with nodes at `delta` and `delta + 1` (quadratic through
+# (0, T_w), (delta, T_1), (delta + 1, T_2)), times the cavity width `L`:
+#   dT/dn|wall = -(2 delta + 1)/(delta (delta + 1)) T_w
+#                + (delta + 1)/delta T_1 - delta/(delta + 1) T_2,
+#   Nu_row = -L dT/dn|wall / delta_T.
+# delta = 1/2 gives (-8 T_w + 9 T_1 - T_2)/3, the formula of
+# `run_natural_convection_2d`, where L = N.
+@inline function _nu_hot_wall_row(T1, T2, T_hot, delta, L, delta_T)
+    c_w = -(2.0 * delta + 1.0) / (delta * (delta + 1.0))
+    c_1 = (delta + 1.0) / delta
+    c_2 = -delta / (delta + 1.0)
+    return -L * (c_w * T_hot + c_1 * T1 + c_2 * T2) / delta_T
+end
+
+"""
+    nu_driver(w, p::ADNatconvParams; q_hot=0.5, L=p.Nx)
+
+Hot-wall Nusselt number of the thermal state `w`, averaged over rows
+`2:Ny-1`, for a hot wall at distance `q_hot` from the first node and a cavity
+of width `L` (lattice units). The defaults (`q_hot = 0.5`, `L = Nx`) give the
+formula of `run_natural_convection_2d`. `nu_pure` evaluates the same formula
+with `q_hot` and `L` read from the cut-link fractions, so that it is
+differentiable with respect to the wall positions.
+"""
+function nu_driver(w, p::ADNatconvParams; q_hot::Real=0.5,
+                   L::Real=Float64(p.Nx))
     Nx = p.Nx
     Ny = p.Ny
     goff = ad_thermal_nlat(p)
-    H = Float64(Nx)
+    delta_T = p.T_hot - p.T_cold
+    delta = Float64(q_hot)
+    L_f = Float64(L)
+    s = 0.0
+    @inbounds for j in 2:(Ny - 1)
+        T1 = 0.0
+        T2 = 0.0
+        for q in 1:9
+            T1 += ad_thermal_readpop(w, goff, 1, j, q, Nx, Ny)
+            T2 += ad_thermal_readpop(w, goff, 2, j, q, Nx, Ny)
+        end
+        s += _nu_hot_wall_row(T1, T2, p.T_hot, delta, L_f, delta_T)
+    end
+    return s / (Ny - 2)
+end
+
+# Nusselt QoI of the AD chain. Row j reads the hot-wall fraction
+# q_wall[1, j, 4] and the cold-wall fraction q_wall[Nx, j, 2] (the layout of
+# `ad_cavity_wall_geometry`), so the cavity width L = Nx - 1 + q_hot + q_cold
+# and the wall distance in the gradient both carry the wall-position
+# dependence that the explicit term dNu/dq_wall needs.
+function nu_pure(w, q_wall, p::ADNatconvParams)
+    Nx = p.Nx
+    Ny = p.Ny
+    goff = ad_thermal_nlat(p)
     delta_T = p.T_hot - p.T_cold
     s = 0.0
     @inbounds for j in 2:(Ny - 1)
@@ -142,17 +187,11 @@ function nu_driver(w, p::ADNatconvParams)
             T1 += ad_thermal_readpop(w, goff, 1, j, q, Nx, Ny)
             T2 += ad_thermal_readpop(w, goff, 2, j, q, Nx, Ny)
         end
-        s += -H * (-8.0 * p.T_hot + 9.0 * T1 - T2) / 3.0 / delta_T
+        delta = q_wall[1, j, 4]
+        L = Float64(Nx - 1) + delta + q_wall[Nx, j, 2]
+        s += _nu_hot_wall_row(T1, T2, p.T_hot, delta, L, delta_T)
     end
     return s / (Ny - 2)
-end
-
-function nu_pure(w, q_wall, p::ADNatconvParams)
-    z = 0.0
-    @inbounds for idx in eachindex(q_wall)
-        z += 0.0 * q_wall[idx]
-    end
-    return nu_driver(w, p) + z
 end
 
 function ad_thermal_lambda_dot_G_value(w_star, lambda, q_flow, q_therm,

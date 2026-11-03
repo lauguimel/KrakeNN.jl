@@ -95,6 +95,13 @@ use bounce-back, which adds a small second-order departure along the
 side walls (``\mathrm{Nu} - 1 \approx 3\times10^{-4}`` at ``N = 16``,
 ``5\times10^{-6}`` at ``N = 32``).
 
+Where two Dirichlet walls meet at a corner (an edge in 3D), the diagonal
+population whose link crosses both walls is an unknown of both, and
+applying the two walls one after the other would flip it twice.
+`apply_fixed_temp_2d!` and `apply_fixed_temp_3d!` apply several faces in
+one call and flip it once, with the mean of the two wall temperatures: the
+link midpoint is the corner point, where both walls meet.
+
 The wall heat flux uses a second-order one-sided gradient through the wall
 value and the first two nodes (at distances ``1/2`` and ``3/2`` from the wall):
 
@@ -162,6 +169,7 @@ Available thermal kernels:
 | `compute_temperature_2d!` | Recover ``T = \sum_q g_q`` |
 | `apply_fixed_temp_south_2d!` | Anti-bounce-back at south wall |
 | `apply_fixed_temp_north_2d!` | Anti-bounce-back at north wall |
+| `apply_fixed_temp_2d!` | Anti-bounce-back on several faces, corners flipped once |
 | `collide_boussinesq_2d!` | Momentum collision + buoyancy force |
 | `collide_boussinesq_vt_2d!` | Same, with ``\nu(T)`` coupling |
 
