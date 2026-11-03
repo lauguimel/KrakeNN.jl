@@ -66,6 +66,7 @@ minimal — use with caution.
 | Boussinesq buoyancy | ✓ | ✓ | in development | ✓ | auto when hot/cold BCs set | [Rayleigh-Bénard](examples/08_rayleigh_benard.md) |
 | Heat conduction (pure) | ✓ | ✓ | — | ✓ | ✓ | [Heat conduction](examples/07_heat_conduction.md) |
 | Natural convection (cavity) | ✓ | ✓ | in development | ✓ | ✓ | driver `run_natural_convection_2d/3d` |
+| Natural convection, generalised Newtonian (power law, Carreau-Yasuda…) | ✓ | ✗ | ✗ | ✓ (one A100, Float64) | ✓ | [GNF natural convection](users/benchmarks/gnf-natural-convection.md); driver `run_natural_convection_gnf_2d` |
 | ν(T) Arrhenius (kernel) | ✓ | ✗ | ✗ | ✓ | ✗ | code: `collide_boussinesq_vt_2d!` |
 | ν(T) modified Arrhenius (Rc) | ✓ | ✗ | ✗ | ✓ | ✗ | driver via `Rc` keyword |
 | α(T), κ(T) variable diffusivity | ✗ | ✗ | — | — | ✗ | not implemented |
@@ -190,8 +191,8 @@ Beyond Oldroyd-B (the validated viscoelastic model), the models below are
 column means the collision kernel is KernelAbstractions-based, which does not imply a
 GPU test. "Thermal coupling" is the shift of the model parameters with temperature
 (`thermal_shift_factor`); it is implemented for the generalised-Newtonian models only,
-and no driver calls the thermal rheology kernel yet (`collide_rheology_thermal_2d!` is
-exported but unused), so it is not reachable from `.krk` or from a driver.
+and only one driver calls the thermal rheology kernel (`collide_rheology_thermal_2d!`,
+via `run_natural_convection_gnf_2d`, 2D natural convection, reachable from `.krk`).
 
 | Model | 2D | 3D | GPU | Thermal coupling |
 |---|:-:|:-:|:-:|:-:|

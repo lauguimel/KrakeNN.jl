@@ -6,7 +6,7 @@ wall, adiabatic top and bottom, no-slip walls. Driver
 `run_natural_convection_gnf_2d`, which couples the thermal double-distribution
 D2Q9 solver of the [Newtonian cavity](thermal-natural-convection.md) to the
 shear-rate-dependent collision of the rheology chapter of the theory section
-(`docs/src/theory/14_rheology.jl`, not in the published navigation).
+([rheology theory page](../../theory/14_rheology.md)).
 
 > **Status: CPU-validated, N ≤ 96; GPU run at N = 64, 128 and 256.** The
 > Newtonian limit, one De Vahl Davis point and two power-law points of Turan et
