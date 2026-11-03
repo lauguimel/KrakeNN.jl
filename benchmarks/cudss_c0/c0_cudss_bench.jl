@@ -38,6 +38,10 @@ timed(f) = (CUDA.synchronize(); t = time(); f(); CUDA.synchronize(); time() - t)
 median_ms(f; n = 5) = (f(); 1e3 * median([timed(f) for _ in 1:n]))
 relerr(x, xref) = norm(Array(x) - xref) / norm(xref)
 verdict(e, tol = 1e-10) = e <= tol ? "ok" : "FAILED"
+# A2 is ill-conditioned: judge the GPU against UMFPACK's own forward error
+# on A2 (one iterative-refinement step), not against a fixed 1e-10.
+verdict_ref(e, eref) = verdict(e, max(10eref, 1e-12))
+refstep(F, M, x, b) = norm(F \ (b - M * x)) / norm(x)
 
 function build(op::Symbol, N::Int)
     op === :ehd && return Kraken._ehd_poisson_matrix(N, N, :neumann)
@@ -62,6 +66,8 @@ function run_case(op::Symbol, N::Int)
     Fc2 = lu(A2)
     x2_ref = Fc2 \ b
     x2T_ref = transpose(Fc2) \ b
+    u2 = refstep(Fc2, A2, x2_ref, b)
+    u2T = refstep(transpose(Fc2), transpose(A2), x2T_ref, b)
     Fc = nothing; Fc2 = nothing
     @printf("  CPU UMFPACK lu: %.2f s\n", t_cpu)
 
@@ -110,17 +116,18 @@ function run_case(op::Symbol, N::Int)
     v2 = ext._CUDSS_GPU_MAT(A2).nzVal
     t_rd = median_ms(() -> (copyto!(cache.A.nzVal, v2); lin_refactorize!(cache)); n = 3)
     lin_solve!(xd, cache, bd); e_r = relerr(xd, x2_ref)
-    @printf("  refactorize (device values): %8.1f ms  rel err vs lu(A2) = %.1e  %s\n",
-            t_rd, e_r, verdict(e_r))
+    @printf("  refactorize (device values): %8.1f ms  rel err vs lu(A2) = %.1e  (UMFPACK own err %.1e)  %s\n",
+            t_rd, e_r, u2, verdict_ref(e_r, u2))
     if HAS_T
         lin_solve!(xd, cache, bd; transpose = true); e_rt = relerr(xd, x2T_ref)
-        @printf("  Aᵀ after refactorize        : rel err = %.1e  %s\n", e_rt, verdict(e_rt))
+        @printf("  Aᵀ after refactorize        : rel err = %.1e  (UMFPACK own err %.1e)  %s\n",
+                e_rt, u2T, verdict_ref(e_rt, u2T))
     end
     copyto!(cache.A.nzVal, v1); lin_refactorize!(cache)
     t_rh = timed(() -> lin_refactorize!(cache, A2))
     lin_solve!(xd, cache, bd); e_rh = relerr(xd, x2_ref)
-    @printf("  refactorize (host CSC upload): %6.1f ms  rel err = %.1e  %s\n",
-            1e3t_rh, e_rh, verdict(e_rh))
+    @printf("  refactorize (host CSC upload): %6.1f ms  rel err = %.1e  (UMFPACK own err %.1e)  %s\n",
+            1e3t_rh, e_rh, u2, verdict_ref(e_rh, u2))
 
     # reduced R11 contract
     println("  R11 iter | CUDA.@allocated B (refactorize + solve [+ Aᵀ] + 4 RHS) | device free GiB")

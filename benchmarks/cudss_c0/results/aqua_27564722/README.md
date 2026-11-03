@@ -29,6 +29,10 @@ Logs were stripped of user paths (`~`) and the project id (`<RPID>`).
   refinement step), is 3.7e-10 at 512² and 3.3e-9 at 1024² for conv-diff —
   the same size as the GPU differences (3.9e-10, 5.1e-9). The same check
   was not run for the EHD operator (1.0e-10 to 1.2e-10 at 1024²).
+  These `FAILED` lines come from the old fixed threshold. The bench now
+  judges refactorize lines against UMFPACK's own error on the same matrix
+  (pass if err ≤ max(10·err_umfpack, 1e-12), both printed); this log was
+  not re-run with it.
 - EHD bitwise difference: the C0 solve calls the same `ldiv!` on the same
   factorization as the base; only the RHS copy and the solution buffer
   changed. The cause of the bit differences (cuDSS or EHD kernel
