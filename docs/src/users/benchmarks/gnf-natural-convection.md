@@ -8,11 +8,11 @@ D2Q9 solver of the [Newtonian cavity](thermal-natural-convection.md) to the
 shear-rate-dependent collision of the rheology chapter of the theory section
 (`docs/src/theory/14_rheology.jl`, not in the published navigation).
 
-> **Status: CPU-validated at coarse grids only.** The Newtonian limit, one
-> De Vahl Davis point and one power-law point of Turan et al. (2011) are checked
-> quantitatively. Five power-law cases of that paper were run on CPU at N ≤ 64
-> as a check of the parameter mapping; the GPU comparison on finer grids is
-> prepared and pending (see [Not yet verified](#Not-yet-verified)).
+> **Status: CPU-validated, N ≤ 96.** The Newtonian limit, one De Vahl Davis
+> point and two power-law points of Turan et al. (2011) are checked by the unit
+> test. Eight power-law cases of that paper were run on CPU at N = 32 to 96; the
+> GPU comparison on N = 64, 128 and 256 is prepared and pending (see
+> [Not yet verified](#Not-yet-verified)).
 
 ## Definitions
 
@@ -66,9 +66,11 @@ expressions with ``L = H``. Their shear-rate invariant
 
 `nu0` has no counterpart in the paper: once Ra, Pr and ``n`` are fixed, it only
 sets the lattice time step. Two runs with different `nu0` must give the same Nu;
-measured on CPU: Ra = 10⁴, ``n`` = 1, N = 32, Nu = 2.529 (`nu0` = 0.05) and 2.537
-(`nu0` = 0.1); Ra = 10³, ``n`` = 0.6, N = 48, Nu = 2.122 (`nu0` = 0.15) and 2.124
-(`nu0` = 0.3).
+measured on CPU at N = 64, Ra = 10³, ``n`` = 0.6: Nu = 1.9931 (`nu0` = 0.3) and
+1.9914 (`nu0` = 0.1), a 0.08 % difference. This holds only while the relaxation
+time stays moderate: at Ra = 10⁴, ``n`` = 1.4, `nu0` = 0.3 lets the viscosity near
+the walls reach 1.69 (relaxation time 5.6) and gives Nu = 1.431, against 1.368
+with `nu0` = 0.1 (see the comparison below).
 
 What differs from the paper, apart from the method (they solve the steady
 equations with a finite-volume code on a 100 × 100 non-uniform mesh):
@@ -78,16 +80,17 @@ equations with a finite-volume code on a 100 × 100 non-uniform mesh):
   the paper ``T_C``. The difference is a uniform body force, balanced by pressure;
 - `PowerLaw` clips the viscosity to `[nu_min, nu_max]`, the paper does not. The
   result reports `clamped_fraction`; it was 0 in every case below;
-- the Dirichlet thermal walls sit on the first and last nodes, while the no-slip
-  walls are half-way and Ra and Nu use ``H = N``. A conduction-only cavity therefore
-  reports Nu ≈ N/(N − 1) instead of 1 (measured 1.036 at N = 32, Ra = 10). This
-  offset of order 1/N is shared with the Newtonian driver;
+- the fixed-temperature walls are half-way anti-bounce-back walls, half a lattice
+  spacing outside the first and last nodes, at the same place as the no-slip
+  walls; Ra, Pr and Nu use the cavity width ``H = N``, and Nu is the mean of a
+  second-order one-sided wall gradient. These are the walls and the Nu formula of
+  the Newtonian driver;
 - the paper's power-law data are for Pr ≥ 10; Pr = 0.71 is used here only for the
   Newtonian benchmark.
 
 ## Run it on CPU
 
-This runs in about ten seconds per index on a laptop CPU (N = 32, Ra = 10⁴,
+This runs in about two seconds per index on a laptop CPU (N = 32, Ra = 10⁴,
 Pr = 0.71):
 
 ```julia
@@ -108,9 +111,9 @@ end
 Output measured when this page was written (CPU, Float64):
 
 ```
-n=0.8 Nu=3.496 steps=8000 converged=true clamped=0.0
-n=1.0 Nu=2.492 steps=8000 converged=true clamped=0.0
-n=1.2 Nu=1.822 steps=8000 converged=true clamped=0.0
+n=0.8 Nu=3.057 steps=8000 converged=true clamped=0.0
+n=1.0 Nu=2.26 steps=8000 converged=true clamped=0.0
+n=1.2 Nu=1.699 steps=8000 converged=true clamped=0.0
 ```
 
 Pr = 0.71 lies outside the power-law data of Turan et al. (2011), so these values
@@ -121,7 +124,7 @@ Pr, nu0, N = 10.0, 0.3, 48
 model = cavity_powerlaw(0.6; nu0, alpha=nu0/Pr, H=N, nu_min=1e-3, nu_max=2.0)
 r = run_natural_convection_gnf_2d(; N, Ra=1e3, Pr, nu0, rheology=model,
     max_steps=60000, check_every=1000, convergence_rtol=1e-5, min_steps=5000)
-r.Nu   # 2.124 measured; the paper gives 2.07 (Fig. 9a)
+r.Nu   # 1.993 measured; the paper gives 2.07 ± 0.07 (Fig. 9a), see below
 ```
 
 The result is a `NamedTuple` with `Nu`, `Temp`, `ux`, `uy`, `rho`, the viscosity
@@ -145,56 +148,86 @@ Run 3000 steps
 ```
 
 Parsed with `parse_kraken` and run with `run_simulation(setup)`, this snippet ran on
-CPU and returned `Nu = 1.129` after 3000 steps. In this route `K` is the value you
+CPU and returned `Nu = 1.045` after 3000 steps. In this route `K` is the value you
 write in the block; the `cavity_powerlaw` scaling is not applied, so Ra and Pr
 follow the Turan definitions only if you write ``K = \nu_0(\alpha/H^2)^{1-n}``
 yourself.
 
-## Comparison with Turan et al. (2011), CPU, coarse grids
+## Comparison with Turan et al. (2011), CPU
 
 Pr = 10. Paper values are read from their figures (no table gives them), with the
 reading uncertainty in brackets; page numbers are journal pages. Kraken: CPU,
 Float64, `nu_min = 1e-3`, `nu_max = 2.0`, stopping after three successive
-1000-step Nu changes below 1e-5; every run converged with `clamped_fraction = 0`.
+1000-step relative Nu changes below 1e-6 (1e-5 for N = 32 and 48 at Ra = 10⁴,
+the settings of the unit test). Every run listed converged and had no node at a
+viscosity cutoff, unless stated.
 
 | Ra | ``n`` | Paper Nu (source) | N | `nu0` | Kraken Nu | Kraken − paper |
 |---|---|---|---|---|---|---|
-| 10³ | 0.6 | 2.07 (± 0.07, Fig. 9a, p. 1059) | 32 | 0.1 | 2.191 | +5.8 % |
-| | | | 48 | 0.3 | 2.124 | +2.6 % |
-| | | | 64 | 0.2 | 2.088 | +0.9 % |
-| 10⁴ | 0.6 | 5.40 (± 0.02, Fig. 10, p. 1060) | 32 | 0.1 | 6.715 | +24.4 % |
-| | | | 64 | 0.2 | 6.037 | +11.8 % |
-| 10⁴ | 0.8 | 3.38 (± 0.02, Fig. 10, p. 1060) | 32 | 0.1 | 3.933 | +16.4 % |
-| | | | 64 | 0.2 | 3.609 | +6.8 % |
-| 10⁴ | 1.0 | 2.29 (± 0.015, Figs. 10–11) | 32 | 0.1 | 2.537 | +10.8 % |
-| | | | 64 | 0.2 | 2.399 | +4.8 % |
-| 10⁴ | 1.8 | 1.10 (± 0.01, Fig. 11, p. 1061) | 32 | 0.02 | 1.146 | +4.2 % |
+| 10³ | 0.6 | 2.07 (± 0.07, Fig. 9a, p. 1059) | 48 | 0.3 | 1.9933 | −3.7 % |
+| | | | 64 | 0.3 | 1.9931 | −3.7 % |
+| | | | 64 | 0.1 | 1.9914 | −3.8 % |
+| | | | 96 | 0.3 | 1.9923 | −3.8 % |
+| 10³ | 1.0 | 1.14 (± 0.02, Fig. 9b, p. 1059) | 64 | 0.3 | 1.1201 | −1.7 % |
+| 10³ | 1.8 | 1.01 (± 0.005, Fig. 9c, p. 1059) | 64 | 0.05 | 1.0088 | −0.1 % |
+| 10⁴ | 0.6 | 5.40 (± 0.02, Fig. 10, p. 1060) | 32 | 0.3 | 5.2934 | −2.0 % |
+| | | | 48 | 0.3 | 5.3487 | −1.0 % |
+| | | | 64 | 0.3 | 5.3678 | −0.6 % |
+| | | | 96 | 0.3 | 5.3796 | −0.4 % |
+| | | | extrapolated (64, 96) | | 5.389 | −0.2 % |
+| 10⁴ | 0.8 | 3.38 (± 0.02, Fig. 10, p. 1060) | 64 | 0.3 | 3.3564 | −0.7 % |
+| 10⁴ | 1.0 | 2.29 (± 0.015, Figs. 10–11) | 64 | 0.3 | 2.2980 | +0.3 % |
+| 10⁴ | 1.4 | 1.36 (± 0.01, Fig. 11, p. 1061) | 64 | 0.3 | 1.4305 | +5.2 % |
+| | | | 64 | 0.1 | 1.3676 | +0.6 % |
+| 10⁴ | 1.8 | 1.10 (± 0.01, Fig. 11, p. 1061) | 64 | 0.1 | 1.113, not converged, 22 % of nodes at `nu_max` | not usable |
+| | | | 64 | 0.05 | 1.088, not converged (see below) | −1.1 % |
+
+The extrapolated row assumes an error in 1/N²: at fixed `nu0` the grid error and
+the compressibility error of the lattice both scale that way. The measured ratio
+of successive differences (N = 32, 48, 64) is 2.90, against 2.86 for an exact
+1/N² error. The pairs (32, 48) and (48, 64) extrapolate to 5.393 and 5.392.
 
 Reading of the table:
 
-- Every Kraken value is above the paper and the gap shrinks when N doubles, by a
-  factor 2.1 to 2.4 at Ra = 10⁴. This is what a grid error looks like; a wrong
-  Ra/Pr mapping would leave an ``n``-dependent gap that does not shrink. These
-  grids are too coarse to separate the two completely, which is the purpose of
-  the GPU comparison.
-- The thinner boundary layers of the shear-thinning fluid need finer grids: at
-  N = 64 the gap is 4.8 % for ``n`` = 1 and 11.8 % for ``n`` = 0.6.
-- For ``n`` = 1.8, `nu0` must be small. With `nu0` = 0.1 the viscosity near the walls
-  reaches 1.44 (relaxation time 4.8) and Nu = 1.196 (+8.8 %); with `nu0` = 0.02 it
-  stays below 0.32 and Nu = 1.146. The BGK wall error grows with the relaxation
-  time, and a shear-thickening fluid has its largest viscosity at the walls.
+- At Ra = 10⁴, for ``n`` = 0.6 to 1.4 (``n`` = 1.4 with `nu0` = 0.1), Kraken
+  agrees with the paper within 0.7 % on a 64² grid, and within 0.2 % after
+  extrapolation for ``n`` = 0.6. The same
+  mapping of Ra and Pr is used at every point, so this rules out a mismatch of
+  definitions between Kraken and the paper.
+- At Ra = 10³, ``n`` = 0.6, Kraken is 3.7 % below the paper value, just outside
+  its reading uncertainty. This gap is not a grid error: Nu changes by 0.05 %
+  from N = 48 to N = 96 and by 0.08 % when `nu0` is divided by 3. Its origin is
+  not measured. What is known: Fig. 9a has a 0 to 40 axis, so its reading is
+  coarse; the same figure gives 5.44 at Ra = 10⁴ where Fig. 10 gives 5.40; and
+  for ``n`` = 1 it gives 1.14, 2 % above the Newtonian value of Kraken at Pr = 10
+  (1.120), whereas changing Pr from 0.71 to 10 moves Kraken's Nu by only 0.14 %
+  and De Vahl Davis gives 1.117 at Pr = 0.71. The gap is therefore likely a
+  reading or plotting offset of Fig. 9 at Ra = 10³ (inferred, not proved). A real
+  difference between the two solutions at Ra = 10³ cannot be excluded without
+  tabulated values.
+- For a shear-thickening fluid the viscosity is largest at the walls, where the
+  shear is largest, and the BGK wall error grows with the relaxation time. With
+  `nu0` = 0.3, ``n`` = 1.4 reaches a wall viscosity of 1.69 and Nu is 5.2 % high;
+  with `nu0` = 0.1 the viscosity stays below 0.58 and the gap falls to 0.6 %.
+  For ``n`` = 1.8, `nu0` = 0.3 and 0.1 put 84 % and 22 % of the nodes at the
+  `nu_max` cutoff at Ra = 10⁴ and give no usable result. With `nu0` = 0.05,
+  Ra = 10³ converges 0.1 % below the paper (0.1 % of the nodes at `nu_min`),
+  while Ra = 10⁴ is still drifting after 1.5 million steps (1.8 diffusion times,
+  last relative change 1.8e-5 per 1000 steps), with 0.1 % of the nodes at
+  `nu_max`, and stands 1.1 % below the paper.
 
 ## What was validated
 
 All checks are in `test/test_natconv_gnf.jl` (CPU, Float64), run on the date of
-this page; all 41 assertions passed.
+this page; all 52 assertions passed (76 s).
 
 | Check (testset) | Measured | Gate |
 |---|---|---|
-| ``n = 1`` against the Newtonian driver `run_natural_convection_2d`, N = 64, Ra = 10³ ("Newtonian limit and De Vahl Davis") | Nu = 1.1423 for both, relative gap 3.9e-16 | gap < 1 % |
-| Nu against De Vahl Davis (1983), Nu = 1.118, same case | Nu = 1.1423, i.e. +2.2 % | < 10 % (same frozen gate as `test_thermal.jl`) |
-| Nu against the power-law index, N = 32, Ra = 10⁴, Pr = 0.71 ("QUALITATIVE literature trend") | Nu = 3.496 / 2.492 / 1.822 for ``n`` = 0.8 / 1.0 / 1.2 | Nu(0.8) > Nu(1.0) > Nu(1.2); Nu drift < 1e-5 over three successive 1000-step checks; clamped fraction < 1 % (measured 0.0) |
-| Turan et al. (2011), Ra = 10³, Pr = 10, ``n`` = 0.6, N = 48 ("Turan et al. (2011) power-law point, CPU") | Nu = 2.124, +2.6 % against 2.07 | < 4 %: the reference's own uncertainty (figure reading ± 0.07, plus their mesh uncertainty ≤ 0.35 %); converged; clamped fraction 0 |
+| ``n = 1`` against the Newtonian driver `run_natural_convection_2d`, N = 64, Ra = 10³ ("Newtonian limit and De Vahl Davis") | Nu = 1.1185 for both, relative gap 0 (4.0e-16 after 60 000 steps) | gap < 1e-6 |
+| Nu against De Vahl Davis (1983), Nu = 1.118, same case | +0.05 % | < 0.5 % (same frozen gate as `test_thermal.jl`) |
+| Nu against the power-law index, N = 32, Ra = 10⁴, Pr = 0.71 ("QUALITATIVE literature trend") | Nu = 3.057 / 2.260 / 1.699 for ``n`` = 0.8 / 1.0 / 1.2 | Nu(0.8) > Nu(1.0) > Nu(1.2); Nu drift < 1e-5 over three successive 1000-step checks; clamped fraction < 1 % (measured 0.0) |
+| Turan et al. (2011), Ra = 10⁴, Pr = 10, ``n`` = 0.6, N = 32 and 48 extrapolated in 1/N² ("Turan et al. (2011) power-law points, CPU") | Nu = 5.393, −0.13 % against 5.40 | < 1 %: the reference's own uncertainty (figure reading ± 0.02, i.e. 0.37 %, plus their mesh uncertainty ≤ 0.35 %), rounded up; converged; clamped fraction 0 |
+| Same testset, Ra = 10³, ``n`` = 0.6, N = 48 | Nu = 1.9933 (−3.7 % against 2.07) | within 0.1 % of Kraken's own converged value 1.99332 (regression gate); the gap to the paper is documented above, not gated |
 | Carreau-Yasuda, N = 8, 5 steps ("Carreau-Yasuda cavity API") | finite fields, viscosity between ``\eta_\infty`` and ``\eta_0`` | smoke test only |
 | `.krk` case reaches the driver ("Parsed thermal rheology reaches run_simulation") | `power_law` block routed, 5 steps, finite fields | smoke test only |
 
@@ -202,30 +235,35 @@ Reading of the table:
 
 - The ``n = 1`` row shows that the new driver and the Newtonian driver solve the
   same discrete problem; it does not validate the non-Newtonian physics.
-- The De Vahl Davis row is a 2.2 % agreement on a 64² mesh at Ra = 10³, of which
-  about 1.6 % is the N/(N − 1) thermal-wall offset described above (estimated,
-  not separated by a run). The Newtonian benchmark page reaches 0.79 % on a 192²
-  mesh for the Newtonian driver.
+- The De Vahl Davis row is a 0.05 % agreement on a 64² mesh at Ra = 10³; at
+  Ra = 10⁴ the same comparison (not in the test) gives 2.2535 against 2.238,
+  +0.7 %.
 - The trend row says that shear-thinning raises the heat transfer and
   shear-thickening lowers it, as expected physically; Pr = 0.71 has no published
   power-law counterpart.
-- The Turan row is the one quantitative power-law check. Its 4 % gate is set by
-  the precision of the published value, not by Kraken's error.
+- The two Turan rows split the comparison on purpose. At Ra = 10⁴ the figure
+  is read to 0.4 % and Kraken agrees with it, so the test gates Kraken against
+  the paper with a 1 % gate set by the paper's precision. At Ra = 10³ a gate
+  against 2.07 would have to be at least 4 %, which would mostly test the
+  reading of a figure and would let a 3 % change of Kraken's solution pass
+  unseen; the test therefore freezes Kraken's own converged value, so that any
+  change of the discrete solution fails, and the 3.7 % gap stays documented.
 
 ## Not yet verified
 
 - **No GPU run.** The comparison with Turan et al. (2011) on N = 64, 128 and 256
-  (the five cases of the table above, CUDA Float64) is prepared in
-  `benchmarks/validation/natconv_gnf/run_turan_comparison.jl` and has not been
-  executed. The older qualitative sweep at Pr = 0.71 (`run_natconv_gnf.jl`) is
-  not run either.
-- **Grid convergence** is not shown: the CPU comparison stops at N = 64.
+  (six cases: ``n`` = 0.6, 1 and 1.8 at Ra = 10³ and 10⁴, CUDA Float64) is
+  prepared in `benchmarks/validation/natconv_gnf/run_turan_comparison.jl` and has
+  not been executed. The older qualitative sweep at Pr = 0.71
+  (`run_natconv_gnf.jl`) is not run either.
+- **The Ra = 10³ gap** of −3.7 % for ``n`` = 0.6 is explained by inference only.
+- **Shear-thickening fluids** were run at N = 64 only, and need a small `nu0`;
+  ``n`` = 1.8 at Ra = 10⁴ did not reach a steady state on CPU.
 - **Ra = 10⁵ and 10⁶** are not compared, nor Table 2 of the paper (Ra = 10⁶,
   Pr = 100, the only tabulated Nu values), which needs a thermal relaxation time
   within 0.01 of 1/2 and about 10⁷ steps at N = 512.
 - **Pr dependence** is not checked: all power-law comparisons use Pr = 10.
 - **Float32** was not tested.
-- The thermal-wall offset of order 1/N is documented, not corrected.
 
 ## References
 

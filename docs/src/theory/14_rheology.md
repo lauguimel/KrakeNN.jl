@@ -315,6 +315,9 @@ is called after streaming. At each fluid node:
 The driver `run_natural_convection_gnf_2d` assembles these steps for a
 differentially heated cavity; see
 [Generalised Newtonian natural convection](../users/benchmarks/gnf-natural-convection.md).
+Its fixed-temperature walls are the half-way anti-bounce-back of the Newtonian
+cavity (see [thermal DDF](08_thermal_ddf.md)), at the same place as the no-slip
+walls, so Ra, Pr and Nu use the cavity width ``H = N``.
 With `cavity_powerlaw`, the reference viscosity ``\nu_0`` is the nominal
 viscosity ``K(\alpha/H^2)^{n-1}`` of Turan et al. (2011), so Ra and Pr follow
 their power-law definitions.
