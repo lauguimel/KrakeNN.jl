@@ -154,32 +154,67 @@ function compute_temperature_3d!(Temp, g)
     kernel!(Temp, g; ndrange=(Nx, Ny, Nz))
 end
 
-# --- Fixed temperature BCs (anti-bounce-back Dirichlet, D3Q19) ---
+# --- Fixed temperature BCs (half-way anti-bounce-back Dirichlet, D3Q19) ---
 #
-# At a wall, unknown populations (pointing into domain) are set via:
-#   g_q = -g_q_opp + 2 * w_q * T_wall
+# The wall sits half a lattice spacing outside the boundary node (x = 0.5 and
+# x = Nx + 0.5 for west/east, likewise in y and z), where the half-way no-slip
+# walls of the flow sit. These kernels act on the post-stream array of
+# `stream_3d!`, whose bounce-back has already put the post-collision value
+# g*_opp(x_b, t) into each unknown slot q (pointing into the domain):
+#   g_q(x_b, t+1) = -g*_opp(x_b, t) + 2 w_q T_wall,
+# i.e. a sign flip of that slot plus the wall term. Not idempotent: call once
+# per step, after streaming and before collision.
+#
+# Edges. Along an edge, the diagonal slot whose link leaves the domain through
+# two faces (e.g. slot 8 = (+x,+y) at the nodes i = 1, j = 1) is a
+# wall-crossing slot of both faces. When both faces are Dirichlet it must be
+# flipped once, not once per face. Rule: x-faces (west, east) apply their edge
+# slots, y-faces (south, north) apply their edges with z-faces and leave their
+# edges with x-faces alone, z-faces (bottom, top) leave all their edge slots
+# alone; the face that applies an edge slot uses the mean of the two wall
+# temperatures (the link midpoint lies on the edge, where both walls meet).
+# D3Q19 has no (±1,±1,±1) link, so no slot crosses three faces. Each face
+# kernel takes, for its four edge slots, the edge temperature and a skip flag;
+# the per-face functions pass the single-face values (own temperature, no
+# skip), and `apply_fixed_temp_3d!` sets them from the full set of Dirichlet
+# faces.
 
-# West wall (i=1): unknown pops with cx>0 → {2, 8, 10, 12, 14}
-@kernel function apply_fixed_temp_west_3d_kernel!(g, T_wall)
+# Anti-bounce-back of one slot `gq` with doubled weight `w2`. An edge slot
+# (`on_edge`) is left unchanged when `skip` is set and otherwise uses the edge
+# temperature `T_edge`; every other slot uses the face temperature.
+@inline function _abb_slot_3d(gq, w2, T_face, on_edge, T_edge, skip)
+    T_link = ifelse(on_edge, T_edge, T_face)
+    return ifelse(on_edge & skip, gq, -gq + w2 * T_link)
+end
+
+# West wall (i=1, wall at x = 0.5): unknown pops with cx>0 → {2, 8, 10, 12, 14}
+# Edge slots: 8 at j = 1 (south), 10 at j = Ny (north), 12 at k = 1 (bottom),
+# 14 at k = Nz (top).
+@kernel function apply_fixed_temp_west_3d_kernel!(g, T_wall, Ny, Nz, T_e, skip_e)
     j, k = @index(Global, NTuple)
     i = 1
     @inbounds begin
         TT = eltype(g)
-        wa = TT(2) * TT(1.0/18.0) * T_wall
-        we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,2]  = -g[i,j,k,3]  + wa   # opp: 3 (-x)
-        g[i,j,k,8]  = -g[i,j,k,11] + we   # opp: 11 (-x,-y)
-        g[i,j,k,10] = -g[i,j,k,9]  + we   # opp: 9 (-x,+y)
-        g[i,j,k,12] = -g[i,j,k,15] + we   # opp: 15 (-x,-z)
-        g[i,j,k,14] = -g[i,j,k,13] + we   # opp: 13 (-x,+z)
+        wa = TT(2) * TT(1.0/18.0)
+        we = TT(2) * TT(1.0/36.0)
+        g[i,j,k,2]  = -g[i,j,k,2] + wa * T_wall   # bounced from 3 (-x)
+        g[i,j,k,8]  = _abb_slot_3d(g[i,j,k,8],  we, T_wall, j == 1,  T_e[1], skip_e[1])  # from 11 (-x,-y)
+        g[i,j,k,10] = _abb_slot_3d(g[i,j,k,10], we, T_wall, j == Ny, T_e[2], skip_e[2])  # from 9 (-x,+y)
+        g[i,j,k,12] = _abb_slot_3d(g[i,j,k,12], we, T_wall, k == 1,  T_e[3], skip_e[3])  # from 15 (-x,-z)
+        g[i,j,k,14] = _abb_slot_3d(g[i,j,k,14], we, T_wall, k == Nz, T_e[4], skip_e[4])  # from 13 (-x,+z)
     end
 end
 
 """
     apply_fixed_temp_west_3d!(g, T_wall, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the west face by half-way anti-bounce-back: the
+wall sits at x = 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first). For Dirichlet temperatures on two faces that share an edge,
+use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
 using Kraken
@@ -188,32 +223,46 @@ methods(Kraken.apply_fixed_temp_west_3d!)
 ```
 """
 function apply_fixed_temp_west_3d!(g, T_wall, Ny, Nz)
-    backend = KernelAbstractions.get_backend(g)
-    kernel! = apply_fixed_temp_west_3d_kernel!(backend)
-    kernel!(g, eltype(g)(T_wall); ndrange=(Ny, Nz))
+    TT = eltype(g)
+    t = TT(T_wall)
+    return _fixed_temp_west_3d!(g, t, Ny, Nz, (t, t, t, t),
+                                (false, false, false, false))
 end
 
-# East wall (i=Nx): unknown pops with cx<0 → {3, 9, 11, 13, 15}
-@kernel function apply_fixed_temp_east_3d_kernel!(g, T_wall, Nx)
+function _fixed_temp_west_3d!(g, T_wall, Ny, Nz, T_e, skip_e)
+    backend = KernelAbstractions.get_backend(g)
+    kernel! = apply_fixed_temp_west_3d_kernel!(backend)
+    kernel!(g, T_wall, Ny, Nz, T_e, skip_e; ndrange=(Ny, Nz))
+end
+
+# East wall (i=Nx, wall at x = Nx + 0.5): unknown pops with cx<0 → {3, 9, 11, 13, 15}
+# Edge slots: 9 at j = 1 (south), 11 at j = Ny (north), 13 at k = 1 (bottom),
+# 15 at k = Nz (top).
+@kernel function apply_fixed_temp_east_3d_kernel!(g, T_wall, Nx, Ny, Nz, T_e, skip_e)
     j, k = @index(Global, NTuple)
     i = Nx
     @inbounds begin
         TT = eltype(g)
-        wa = TT(2) * TT(1.0/18.0) * T_wall
-        we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,3]  = -g[i,j,k,2]  + wa   # opp: 2 (+x)
-        g[i,j,k,9]  = -g[i,j,k,10] + we   # opp: 10 (+x,-y)
-        g[i,j,k,11] = -g[i,j,k,8]  + we   # opp: 8 (+x,+y)
-        g[i,j,k,13] = -g[i,j,k,14] + we   # opp: 14 (+x,-z)
-        g[i,j,k,15] = -g[i,j,k,12] + we   # opp: 12 (+x,+z)
+        wa = TT(2) * TT(1.0/18.0)
+        we = TT(2) * TT(1.0/36.0)
+        g[i,j,k,3]  = -g[i,j,k,3] + wa * T_wall   # bounced from 2 (+x)
+        g[i,j,k,9]  = _abb_slot_3d(g[i,j,k,9],  we, T_wall, j == 1,  T_e[1], skip_e[1])  # from 10 (+x,-y)
+        g[i,j,k,11] = _abb_slot_3d(g[i,j,k,11], we, T_wall, j == Ny, T_e[2], skip_e[2])  # from 8 (+x,+y)
+        g[i,j,k,13] = _abb_slot_3d(g[i,j,k,13], we, T_wall, k == 1,  T_e[3], skip_e[3])  # from 14 (+x,-z)
+        g[i,j,k,15] = _abb_slot_3d(g[i,j,k,15], we, T_wall, k == Nz, T_e[4], skip_e[4])  # from 12 (+x,+z)
     end
 end
 
 """
     apply_fixed_temp_east_3d!(g, T_wall, Nx, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the east face by half-way anti-bounce-back: the
+wall sits at x = Nx + 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first). For Dirichlet temperatures on two faces that share an edge,
+use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
 using Kraken
@@ -222,32 +271,46 @@ methods(Kraken.apply_fixed_temp_east_3d!)
 ```
 """
 function apply_fixed_temp_east_3d!(g, T_wall, Nx, Ny, Nz)
-    backend = KernelAbstractions.get_backend(g)
-    kernel! = apply_fixed_temp_east_3d_kernel!(backend)
-    kernel!(g, eltype(g)(T_wall), Nx; ndrange=(Ny, Nz))
+    TT = eltype(g)
+    t = TT(T_wall)
+    return _fixed_temp_east_3d!(g, t, Nx, Ny, Nz, (t, t, t, t),
+                                (false, false, false, false))
 end
 
-# South wall (j=1): unknown pops with cy>0 → {4, 8, 9, 16, 18}
-@kernel function apply_fixed_temp_south_3d_kernel!(g, T_wall)
+function _fixed_temp_east_3d!(g, T_wall, Nx, Ny, Nz, T_e, skip_e)
+    backend = KernelAbstractions.get_backend(g)
+    kernel! = apply_fixed_temp_east_3d_kernel!(backend)
+    kernel!(g, T_wall, Nx, Ny, Nz, T_e, skip_e; ndrange=(Ny, Nz))
+end
+
+# South wall (j=1, wall at y = 0.5): unknown pops with cy>0 → {4, 8, 9, 16, 18}
+# Edge slots: 8 at i = 1 (west), 9 at i = Nx (east), 16 at k = 1 (bottom),
+# 18 at k = Nz (top).
+@kernel function apply_fixed_temp_south_3d_kernel!(g, T_wall, Nx, Nz, T_e, skip_e)
     i, k = @index(Global, NTuple)
     j = 1
     @inbounds begin
         TT = eltype(g)
-        wa = TT(2) * TT(1.0/18.0) * T_wall
-        we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,4]  = -g[i,j,k,5]  + wa   # opp: 5 (-y)
-        g[i,j,k,8]  = -g[i,j,k,11] + we   # opp: 11 (-x,-y)
-        g[i,j,k,9]  = -g[i,j,k,10] + we   # opp: 10 (+x,-y)
-        g[i,j,k,16] = -g[i,j,k,19] + we   # opp: 19 (-y,-z)
-        g[i,j,k,18] = -g[i,j,k,17] + we   # opp: 17 (-y,+z)
+        wa = TT(2) * TT(1.0/18.0)
+        we = TT(2) * TT(1.0/36.0)
+        g[i,j,k,4]  = -g[i,j,k,4] + wa * T_wall   # bounced from 5 (-y)
+        g[i,j,k,8]  = _abb_slot_3d(g[i,j,k,8],  we, T_wall, i == 1,  T_e[1], skip_e[1])  # from 11 (-x,-y)
+        g[i,j,k,9]  = _abb_slot_3d(g[i,j,k,9],  we, T_wall, i == Nx, T_e[2], skip_e[2])  # from 10 (+x,-y)
+        g[i,j,k,16] = _abb_slot_3d(g[i,j,k,16], we, T_wall, k == 1,  T_e[3], skip_e[3])  # from 19 (-y,-z)
+        g[i,j,k,18] = _abb_slot_3d(g[i,j,k,18], we, T_wall, k == Nz, T_e[4], skip_e[4])  # from 17 (-y,+z)
     end
 end
 
 """
     apply_fixed_temp_south_3d!(g, T_wall, Nx, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the south face by half-way anti-bounce-back: the
+wall sits at y = 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first). For Dirichlet temperatures on two faces that share an edge,
+use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
 using Kraken
@@ -256,32 +319,46 @@ methods(Kraken.apply_fixed_temp_south_3d!)
 ```
 """
 function apply_fixed_temp_south_3d!(g, T_wall, Nx, Nz)
-    backend = KernelAbstractions.get_backend(g)
-    kernel! = apply_fixed_temp_south_3d_kernel!(backend)
-    kernel!(g, eltype(g)(T_wall); ndrange=(Nx, Nz))
+    TT = eltype(g)
+    t = TT(T_wall)
+    return _fixed_temp_south_3d!(g, t, Nx, Nz, (t, t, t, t),
+                                 (false, false, false, false))
 end
 
-# North wall (j=Ny): unknown pops with cy<0 → {5, 10, 11, 17, 19}
-@kernel function apply_fixed_temp_north_3d_kernel!(g, T_wall, Ny)
+function _fixed_temp_south_3d!(g, T_wall, Nx, Nz, T_e, skip_e)
+    backend = KernelAbstractions.get_backend(g)
+    kernel! = apply_fixed_temp_south_3d_kernel!(backend)
+    kernel!(g, T_wall, Nx, Nz, T_e, skip_e; ndrange=(Nx, Nz))
+end
+
+# North wall (j=Ny, wall at y = Ny + 0.5): unknown pops with cy<0 → {5, 10, 11, 17, 19}
+# Edge slots: 10 at i = 1 (west), 11 at i = Nx (east), 17 at k = 1 (bottom),
+# 19 at k = Nz (top).
+@kernel function apply_fixed_temp_north_3d_kernel!(g, T_wall, Nx, Ny, Nz, T_e, skip_e)
     i, k = @index(Global, NTuple)
     j = Ny
     @inbounds begin
         TT = eltype(g)
-        wa = TT(2) * TT(1.0/18.0) * T_wall
-        we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,5]  = -g[i,j,k,4]  + wa   # opp: 4 (+y)
-        g[i,j,k,10] = -g[i,j,k,9]  + we   # opp: 9 (-x,+y)
-        g[i,j,k,11] = -g[i,j,k,8]  + we   # opp: 8 (+x,+y)
-        g[i,j,k,17] = -g[i,j,k,18] + we   # opp: 18 (+y,-z)
-        g[i,j,k,19] = -g[i,j,k,16] + we   # opp: 16 (+y,+z)
+        wa = TT(2) * TT(1.0/18.0)
+        we = TT(2) * TT(1.0/36.0)
+        g[i,j,k,5]  = -g[i,j,k,5] + wa * T_wall   # bounced from 4 (+y)
+        g[i,j,k,10] = _abb_slot_3d(g[i,j,k,10], we, T_wall, i == 1,  T_e[1], skip_e[1])  # from 9 (-x,+y)
+        g[i,j,k,11] = _abb_slot_3d(g[i,j,k,11], we, T_wall, i == Nx, T_e[2], skip_e[2])  # from 8 (+x,+y)
+        g[i,j,k,17] = _abb_slot_3d(g[i,j,k,17], we, T_wall, k == 1,  T_e[3], skip_e[3])  # from 18 (+y,-z)
+        g[i,j,k,19] = _abb_slot_3d(g[i,j,k,19], we, T_wall, k == Nz, T_e[4], skip_e[4])  # from 16 (+y,+z)
     end
 end
 
 """
     apply_fixed_temp_north_3d!(g, T_wall, Nx, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the north face by half-way anti-bounce-back: the
+wall sits at y = Ny + 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first). For Dirichlet temperatures on two faces that share an edge,
+use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
 using Kraken
@@ -290,32 +367,46 @@ methods(Kraken.apply_fixed_temp_north_3d!)
 ```
 """
 function apply_fixed_temp_north_3d!(g, T_wall, Nx, Ny, Nz)
-    backend = KernelAbstractions.get_backend(g)
-    kernel! = apply_fixed_temp_north_3d_kernel!(backend)
-    kernel!(g, eltype(g)(T_wall), Ny; ndrange=(Nx, Nz))
+    TT = eltype(g)
+    t = TT(T_wall)
+    return _fixed_temp_north_3d!(g, t, Nx, Ny, Nz, (t, t, t, t),
+                                 (false, false, false, false))
 end
 
-# Bottom wall (k=1): unknown pops with cz>0 → {6, 12, 13, 16, 17}
-@kernel function apply_fixed_temp_bottom_3d_kernel!(g, T_wall)
+function _fixed_temp_north_3d!(g, T_wall, Nx, Ny, Nz, T_e, skip_e)
+    backend = KernelAbstractions.get_backend(g)
+    kernel! = apply_fixed_temp_north_3d_kernel!(backend)
+    kernel!(g, T_wall, Nx, Ny, Nz, T_e, skip_e; ndrange=(Nx, Nz))
+end
+
+# Bottom wall (k=1, wall at z = 0.5): unknown pops with cz>0 → {6, 12, 13, 16, 17}
+# Edge slots: 12 at i = 1 (west), 13 at i = Nx (east), 16 at j = 1 (south),
+# 17 at j = Ny (north).
+@kernel function apply_fixed_temp_bottom_3d_kernel!(g, T_wall, Nx, Ny, T_e, skip_e)
     i, j = @index(Global, NTuple)
     k = 1
     @inbounds begin
         TT = eltype(g)
-        wa = TT(2) * TT(1.0/18.0) * T_wall
-        we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,6]  = -g[i,j,k,7]  + wa   # opp: 7 (-z)
-        g[i,j,k,12] = -g[i,j,k,15] + we   # opp: 15 (-x,-z)
-        g[i,j,k,13] = -g[i,j,k,14] + we   # opp: 14 (+x,-z)
-        g[i,j,k,16] = -g[i,j,k,19] + we   # opp: 19 (-y,-z)
-        g[i,j,k,17] = -g[i,j,k,18] + we   # opp: 18 (+y,-z)
+        wa = TT(2) * TT(1.0/18.0)
+        we = TT(2) * TT(1.0/36.0)
+        g[i,j,k,6]  = -g[i,j,k,6] + wa * T_wall   # bounced from 7 (-z)
+        g[i,j,k,12] = _abb_slot_3d(g[i,j,k,12], we, T_wall, i == 1,  T_e[1], skip_e[1])  # from 15 (-x,-z)
+        g[i,j,k,13] = _abb_slot_3d(g[i,j,k,13], we, T_wall, i == Nx, T_e[2], skip_e[2])  # from 14 (+x,-z)
+        g[i,j,k,16] = _abb_slot_3d(g[i,j,k,16], we, T_wall, j == 1,  T_e[3], skip_e[3])  # from 19 (-y,-z)
+        g[i,j,k,17] = _abb_slot_3d(g[i,j,k,17], we, T_wall, j == Ny, T_e[4], skip_e[4])  # from 18 (+y,-z)
     end
 end
 
 """
     apply_fixed_temp_bottom_3d!(g, T_wall, Nx, Ny)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the bottom face by half-way anti-bounce-back: the
+wall sits at z = 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first). For Dirichlet temperatures on two faces that share an edge,
+use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
 using Kraken
@@ -324,32 +415,46 @@ methods(Kraken.apply_fixed_temp_bottom_3d!)
 ```
 """
 function apply_fixed_temp_bottom_3d!(g, T_wall, Nx, Ny)
-    backend = KernelAbstractions.get_backend(g)
-    kernel! = apply_fixed_temp_bottom_3d_kernel!(backend)
-    kernel!(g, eltype(g)(T_wall); ndrange=(Nx, Ny))
+    TT = eltype(g)
+    t = TT(T_wall)
+    return _fixed_temp_bottom_3d!(g, t, Nx, Ny, (t, t, t, t),
+                                  (false, false, false, false))
 end
 
-# Top wall (k=Nz): unknown pops with cz<0 → {7, 14, 15, 18, 19}
-@kernel function apply_fixed_temp_top_3d_kernel!(g, T_wall, Nz)
+function _fixed_temp_bottom_3d!(g, T_wall, Nx, Ny, T_e, skip_e)
+    backend = KernelAbstractions.get_backend(g)
+    kernel! = apply_fixed_temp_bottom_3d_kernel!(backend)
+    kernel!(g, T_wall, Nx, Ny, T_e, skip_e; ndrange=(Nx, Ny))
+end
+
+# Top wall (k=Nz, wall at z = Nz + 0.5): unknown pops with cz<0 → {7, 14, 15, 18, 19}
+# Edge slots: 14 at i = 1 (west), 15 at i = Nx (east), 18 at j = 1 (south),
+# 19 at j = Ny (north).
+@kernel function apply_fixed_temp_top_3d_kernel!(g, T_wall, Nx, Ny, Nz, T_e, skip_e)
     i, j = @index(Global, NTuple)
     k = Nz
     @inbounds begin
         TT = eltype(g)
-        wa = TT(2) * TT(1.0/18.0) * T_wall
-        we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,7]  = -g[i,j,k,6]  + wa   # opp: 6 (+z)
-        g[i,j,k,14] = -g[i,j,k,13] + we   # opp: 13 (-x,+z)
-        g[i,j,k,15] = -g[i,j,k,12] + we   # opp: 12 (+x,+z)
-        g[i,j,k,18] = -g[i,j,k,17] + we   # opp: 17 (-y,+z)
-        g[i,j,k,19] = -g[i,j,k,16] + we   # opp: 16 (+y,+z)
+        wa = TT(2) * TT(1.0/18.0)
+        we = TT(2) * TT(1.0/36.0)
+        g[i,j,k,7]  = -g[i,j,k,7] + wa * T_wall   # bounced from 6 (+z)
+        g[i,j,k,14] = _abb_slot_3d(g[i,j,k,14], we, T_wall, i == 1,  T_e[1], skip_e[1])  # from 13 (-x,+z)
+        g[i,j,k,15] = _abb_slot_3d(g[i,j,k,15], we, T_wall, i == Nx, T_e[2], skip_e[2])  # from 12 (+x,+z)
+        g[i,j,k,18] = _abb_slot_3d(g[i,j,k,18], we, T_wall, j == 1,  T_e[3], skip_e[3])  # from 17 (-y,+z)
+        g[i,j,k,19] = _abb_slot_3d(g[i,j,k,19], we, T_wall, j == Ny, T_e[4], skip_e[4])  # from 16 (+y,+z)
     end
 end
 
 """
     apply_fixed_temp_top_3d!(g, T_wall, Nx, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the top face by half-way anti-bounce-back: the
+wall sits at z = Nz + 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first). For Dirichlet temperatures on two faces that share an edge,
+use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
 using Kraken
@@ -358,9 +463,92 @@ methods(Kraken.apply_fixed_temp_top_3d!)
 ```
 """
 function apply_fixed_temp_top_3d!(g, T_wall, Nx, Ny, Nz)
+    TT = eltype(g)
+    t = TT(T_wall)
+    return _fixed_temp_top_3d!(g, t, Nx, Ny, Nz, (t, t, t, t),
+                               (false, false, false, false))
+end
+
+function _fixed_temp_top_3d!(g, T_wall, Nx, Ny, Nz, T_e, skip_e)
     backend = KernelAbstractions.get_backend(g)
     kernel! = apply_fixed_temp_top_3d_kernel!(backend)
-    kernel!(g, eltype(g)(T_wall), Nz; ndrange=(Nx, Ny))
+    kernel!(g, T_wall, Nx, Ny, Nz, T_e, skip_e; ndrange=(Nx, Ny))
+end
+
+# --- Several Dirichlet faces at once (edge rule) ---
+
+const _FIXED_TEMP_FACES_3D = (:west, :east, :south, :north, :bottom, :top)
+
+# Face temperatures of a `Dict{Symbol}` (missing faces are `nothing`), in the
+# form `_apply_fixed_temp_faces_3d!` takes.
+_fixed_temp_set_3d(d::AbstractDict) =
+    (; west=get(d, :west, nothing), east=get(d, :east, nothing),
+       south=get(d, :south, nothing), north=get(d, :north, nothing),
+       bottom=get(d, :bottom, nothing), top=get(d, :top, nothing))
+
+# Apply the Dirichlet faces listed in `faces` (a subset of the non-`nothing`
+# entries of `temps`), with edge temperatures and ownership taken from the full
+# set `temps = (; west, east, south, north, bottom, top)`. `run_refined_3d`
+# uses the subset form for its second call on the faces touched by a patch.
+# `_corner_temp` (thermal_2d.jl) gives the mean of two wall temperatures.
+function _apply_fixed_temp_faces_3d!(g, Nx, Ny, Nz, temps::NamedTuple, faces)
+    TT = eltype(g)
+    Tw, Te, Ts, Tn = temps.west, temps.east, temps.south, temps.north
+    Tb, Tt = temps.bottom, temps.top
+    hw, he, hs, hn = Tw !== nothing, Te !== nothing, Ts !== nothing, Tn !== nothing
+    hb, ht = Tb !== nothing, Tt !== nothing
+    none = (false, false, false, false)
+    for face in faces
+        if face === :west && hw
+            T_e = (_corner_temp(TT, Tw, Ts), _corner_temp(TT, Tw, Tn),
+                   _corner_temp(TT, Tw, Tb), _corner_temp(TT, Tw, Tt))
+            _fixed_temp_west_3d!(g, TT(Tw), Ny, Nz, T_e, none)
+        elseif face === :east && he
+            T_e = (_corner_temp(TT, Te, Ts), _corner_temp(TT, Te, Tn),
+                   _corner_temp(TT, Te, Tb), _corner_temp(TT, Te, Tt))
+            _fixed_temp_east_3d!(g, TT(Te), Nx, Ny, Nz, T_e, none)
+        elseif face === :south && hs
+            T_e = (TT(Ts), TT(Ts), _corner_temp(TT, Ts, Tb), _corner_temp(TT, Ts, Tt))
+            _fixed_temp_south_3d!(g, TT(Ts), Nx, Nz, T_e, (hw, he, false, false))
+        elseif face === :north && hn
+            T_e = (TT(Tn), TT(Tn), _corner_temp(TT, Tn, Tb), _corner_temp(TT, Tn, Tt))
+            _fixed_temp_north_3d!(g, TT(Tn), Nx, Ny, Nz, T_e, (hw, he, false, false))
+        elseif face === :bottom && hb
+            t = TT(Tb)
+            _fixed_temp_bottom_3d!(g, t, Nx, Ny, (t, t, t, t), (hw, he, hs, hn))
+        elseif face === :top && ht
+            t = TT(Tt)
+            _fixed_temp_top_3d!(g, t, Nx, Ny, Nz, (t, t, t, t), (hw, he, hs, hn))
+        end
+    end
+    return g
+end
+
+"""
+    apply_fixed_temp_3d!(g, Nx, Ny, Nz; west=nothing, east=nothing,
+                         south=nothing, north=nothing,
+                         bottom=nothing, top=nothing)
+
+Fixed temperatures on several faces at once by half-way anti-bounce-back
+(see `apply_fixed_temp_west_3d!` for a single face). A face is Dirichlet when
+its keyword is a number. Where two Dirichlet faces share an edge, the diagonal
+slot whose link crosses both walls is flipped once, with the mean of the two
+wall temperatures; one face alone gives the same result as its per-face
+function. `g` must be the post-stream array of `stream_3d!`; call once per
+step, after streaming and before collision.
+
+```julia
+using Kraken
+
+g = zeros(Float64, 6, 6, 6, 19)
+apply_fixed_temp_3d!(g, 6, 6, 6; west=1.0, south=1.0, east=0.0, north=0.0)
+```
+"""
+function apply_fixed_temp_3d!(g, Nx, Ny, Nz; west=nothing, east=nothing,
+                              south=nothing, north=nothing,
+                              bottom=nothing, top=nothing)
+    temps = (; west, east, south, north, bottom, top)
+    return _apply_fixed_temp_faces_3d!(g, Nx, Ny, Nz, temps, _FIXED_TEMP_FACES_3D)
 end
 
 # --- BGK collision with per-node Boussinesq body force (Guo scheme, D3Q19) ---

@@ -339,6 +339,7 @@ export CutLinkList, CutLinkList3D, build_cut_link_list_2d, build_cut_link_list_3
 export collide_thermal_2d!, compute_temperature_2d!
 export apply_fixed_temp_south_2d!, apply_fixed_temp_north_2d!
 export apply_fixed_temp_west_2d!, apply_fixed_temp_east_2d!
+export apply_fixed_temp_2d!
 export run_rayleigh_benard_2d, run_natural_convection_2d, run_natural_convection_refined_2d
 export run_natural_convection_3d
 export run_electroconvection_2d
@@ -350,6 +351,7 @@ export collide_thermal_3d!, compute_temperature_3d!, collide_boussinesq_3d!
 export apply_fixed_temp_west_3d!, apply_fixed_temp_east_3d!
 export apply_fixed_temp_south_3d!, apply_fixed_temp_north_3d!
 export apply_fixed_temp_bottom_3d!, apply_fixed_temp_top_3d!
+export apply_fixed_temp_3d!
 export fused_bgk_step!, aa_even_step!, aa_odd_step!
 export fused_trt_step!, trt_rates
 export fused_trt_libb_step!, fused_trt_libb_v2_step!, fused_trt_libb_v2_hermite_step!, fused_trt_libb_v2_guo_field_step!, fused_trt_libb_v2_step_3d!, precompute_q_wall_cylinder

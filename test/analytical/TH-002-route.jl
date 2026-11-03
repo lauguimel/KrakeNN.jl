@@ -67,14 +67,19 @@ end
         profile = [sum(Temp[i, :]) / Ny for i in 1:Nx]
 
         # Analytical reference: steady 1D conduction between two fixed-temperature
-        # faces is linear, T(x) = T_hot + (T_cold - T_hot)·(i-1)/(Nx-1) on the
-        # node grid. Measured 2026-09-14 on CPU Float64: max deviation 2.1e-4.
-        analytic = [0.8 + (0.2 - 0.8) * (i - 1) / (Nx - 1) for i in 1:Nx]
-        @test maximum(abs.(profile .- analytic)) < 1e-3
+        # walls is linear. The walls are half-way, at x = 0.5 and x = Nx + 0.5
+        # with node i at x = i, so T_i = T_hot + (T_cold - T_hot)·(i - 0.5)/Nx.
+        # Measured 2026-11-03 on CPU Float64: max deviation 1.2e-4, set by the
+        # adiabatic south/north walls (the on-node walls used before gave
+        # 2.5e-2 against this profile).
+        analytic = [0.8 + (0.2 - 0.8) * (i - 0.5) / Nx for i in 1:Nx]
+        @test maximum(abs.(profile .- analytic)) < 5e-4
 
-        # Face values are the ones the file asked for, to round-off.
-        @test isapprox(profile[1], 0.8; atol=1e-12, rtol=0)
-        @test isapprox(profile[end], 0.2; atol=1e-12, rtol=0)
+        # Wall values are the ones the file asked for: the linear extrapolation
+        # of the first two nodes to the half-way wall. Measured 6.9e-5 on both
+        # walls (2.8e-2 with the former on-node walls).
+        @test abs(1.5 * profile[1] - 0.5 * profile[2] - 0.8) < 2e-4
+        @test abs(1.5 * profile[end] - 0.5 * profile[end-1] - 0.2) < 2e-4
 
         # Ra ≈ 0: buoyancy must not drive any flow. Measured max|uy| ≈ 4e-15.
         @test maximum(abs, result.uy) < 1e-10
@@ -119,11 +124,12 @@ Run $(steps) steps
         end
 
         # Gate: the lattice introduces an O(k²) discretisation bias on the
-        # measured diffusivity. Measured 2026-09-14 on CPU Float64:
-        # α = 0.02 → 0.02043 (+2.2 %), α = 0.05 → 0.05097 (+1.9 %).
+        # measured diffusivity. Measured 2026-11-03 on CPU Float64 with the
+        # half-way walls: α = 0.02 → 0.020136 (+0.68 %), α = 0.05 → 0.050266
+        # (+0.53 %); the former on-node walls gave +2.2 % and +1.9 %.
         for alpha in (0.02, 0.05)
             measured = _decay_alpha(alpha)
-            @test abs(measured / alpha - 1) < 0.05
+            @test abs(measured / alpha - 1) < 0.02
         end
     end
 
