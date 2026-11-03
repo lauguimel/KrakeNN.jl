@@ -128,13 +128,16 @@ T_cold = 0.0
 We extract the temperature along a vertical line at mid-domain and compare
 it to the expected linear profile.
 
+The thermal walls sit half-way between the boundary nodes and the missing
+neighbours, at ``j = 1/2`` and ``j = N_y + 1/2``, so the channel height is
+``H = N_y`` and node ``j`` lies at distance ``j - 1/2`` from the hot wall.
+
 ```julia
 Ny = size(Temp, 2)
-H  = Ny - 1
-j_fluid = 2:Ny-1
-y_phys  = [(j - 1.5) / H for j in j_fluid]   # normalised [0, 1]
+H  = Ny
+y_phys  = [(j - 0.5) / H for j in 1:Ny]      # normalised distance to the hot wall
 T_ana   = [T_hot - (T_hot - T_cold) * y for y in y_phys]
-T_num   = [Temp[64, j] for j in j_fluid]      # mid-column
+T_num   = [Temp[64, j] for j in 1:Ny]        # mid-column
 ```
 
 The numerical points fall exactly on the analytical line, confirming that

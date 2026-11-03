@@ -181,9 +181,6 @@ makedocs(;
             "Geometry / STL" => [
                 "Sphere drag 3D" => "users/tutorials/sphere-drag-3d.md",
             ],
-            "Grid refinement" => [
-                "Refined cavity" => "examples/20_grid_refinement_cavity.md",
-            ],
             "Configuration (.krk)" => [
                 "KRK config" => "examples/10_krk_config.md",
             ],
@@ -199,6 +196,7 @@ makedocs(;
             "Generalised-Newtonian channel (3D)" => "users/benchmarks/gnf3d-channel-convergence.md",
             "Steady shape sensitivity (AD)" => "users/benchmarks/ad-shape-sensitivity.md",
             "Steady shape sensitivity — viscoelastic (AD)" => "users/benchmarks/ad-shape-sensitivity-viscoelastic.md",
+            "GNF adjoint gradient" => "users/benchmarks/gnf-adjoint-gradient.md",
             "GPU certification" => "users/benchmarks/gpu-certification.md",
             "Electroconvection (EHD)" => "users/benchmarks/electroconvection.md",
             "Performance" => "benchmarks/performance.md",
@@ -238,12 +236,11 @@ makedocs(;
                 "api/boundary.md",
                 "api/macroscopic.md",
                 "api/drivers.md",
-                "api/refinement.md",
                 "api/io.md",
                 "api/postprocess.md",
                 "api/config.md",
             ],
-            # v0.2.0 scope: single-phase LBM (2D/3D), thermal, grid refinement,
+            # v0.2.0 scope: single-phase LBM (2D/3D), thermal,
             # spatial BCs, .krk DSL. Out-of-scope pages (phasefield, VOF/PLIC,
             # rheology, viscoelastic, Shan-Chen, species) are excluded here.
             "Theory" => [
@@ -260,7 +257,6 @@ makedocs(;
                 "theory/12_mrt.md",
                 "theory/14_rheology.md",
                 "theory/15_viscoelastic.md",
-                "theory/18_grid_refinement.md",
                 "theory/19_spatial_bcs.md",
             ],
             # The one page carrying a @bibliography block. Without it every
@@ -280,7 +276,6 @@ makedocs(;
 # Keep the v0.2 navigation strict while preserving hidden pages that visible
 # pages link to, so Vitepress dead-link checks stay useful.
 const VITEPRESS_KEEP_HIDDEN = Set{String}([
-    "benchmarks/refinement_showcase.md",
     "benchmarks/mlups_cpu_gpu.md",
 ])
 

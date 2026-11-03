@@ -140,6 +140,9 @@ Refine <name> { region = [x0, y0, x1, y1], ratio = 2, parent = <name> }
 Declare a nested refinement patch over an axis-aligned box. `ratio` defaults
 to `2`; `parent` defaults to `""` (the base grid).
 
+!!! warning "Under development"
+    Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set. This keyword is kept for reference only.
+
 **Example**
 
 ```krk

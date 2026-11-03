@@ -75,6 +75,46 @@ g_{\bar{q}} = -g_q^{\star} + 2 \, w_q \, T_w
 This is the thermal analogue of the standard bounce-back for velocity and
 achieves second-order accuracy for the Dirichlet condition.
 
+Here ``g_q^{\star}`` is the post-collision population of the boundary node
+that leaves towards the wall, and the rule is applied once per time step,
+after streaming and before collision. The wall then sits half-way between
+the boundary node and the missing neighbour, exactly where the no-slip
+bounce-back wall of the flow sits. With nodes ``i = 1, \dots, N`` at
+``x = i`` (lattice units), the thermal walls are at ``x = 1/2`` and
+``x = N + 1/2``, so a cavity of ``N`` nodes has height ``H = N`` for both
+the flow and the temperature. In pure conduction the steady profile is
+linear between the two walls,
+
+```math
+T_i = T_{\mathrm{hot}} - (T_{\mathrm{hot}} - T_{\mathrm{cold}})\,\frac{i - 1/2}{N},
+```
+
+and between two such walls with periodic side boundaries the scheme
+reproduces it to round-off. In a closed cavity the adiabatic side walls
+use bounce-back, which adds a small second-order departure along the
+side walls (``\mathrm{Nu} - 1 \approx 3\times10^{-4}`` at ``N = 16``,
+``5\times10^{-6}`` at ``N = 32``).
+
+Where two Dirichlet walls meet at a corner (an edge in 3D), the diagonal
+population whose link crosses both walls is an unknown of both, and
+applying the two walls one after the other would flip it twice.
+`apply_fixed_temp_2d!` and `apply_fixed_temp_3d!` apply several faces in
+one call and flip it once, with the mean of the two wall temperatures: the
+link midpoint is the corner point, where both walls meet.
+
+The wall heat flux uses a second-order one-sided gradient through the wall
+value and the first two nodes (at distances ``1/2`` and ``3/2`` from the wall):
+
+```math
+\left.\frac{\partial T}{\partial n}\right|_{\mathrm{wall}}
+= \frac{-8\,T_w + 9\,T_1 - T_2}{3\,\Delta x},
+\qquad
+\mathrm{Nu} = -\frac{H}{\Delta T}\left.\frac{\partial T}{\partial n}\right|_{\mathrm{wall}} .
+```
+
+This formula is exact for a linear profile, so a linear conduction
+profile gives ``\mathrm{Nu} = 1`` to round-off.
+
 ## Boussinesq coupling
 
 For natural convection, temperature drives the flow through buoyancy.
@@ -129,6 +169,7 @@ Available thermal kernels:
 | `compute_temperature_2d!` | Recover ``T = \sum_q g_q`` |
 | `apply_fixed_temp_south_2d!` | Anti-bounce-back at south wall |
 | `apply_fixed_temp_north_2d!` | Anti-bounce-back at north wall |
+| `apply_fixed_temp_2d!` | Anti-bounce-back on several faces, corners flipped once |
 | `collide_boussinesq_2d!` | Momentum collision + buoyancy force |
 | `collide_boussinesq_vt_2d!` | Same, with ``\nu(T)`` coupling |
 

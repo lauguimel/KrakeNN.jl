@@ -1096,7 +1096,10 @@ function _run_thermal_antidrift()
                                            tol=1e-10,
                                            max_steps=120_000)
     nu_pure = Kraken.nu_pure(base.w_star, base.q_wall, base.params)
-    nu_driver = Kraken.nu_driver(base.w_star, base.params)
+    # The AD QoI reads the wall distance and the cavity width from q_wall;
+    # the scalar formula must give the same value for the same geometry.
+    nu_driver = Kraken.nu_driver(base.w_star, base.params;
+                                 q_hot=base.q_hot, L=base.L)
     return (; N, base, nu_pure, nu_driver,
             delta=abs(nu_pure - nu_driver),
             rel=_relerr(nu_pure, nu_driver))

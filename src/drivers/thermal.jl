@@ -75,15 +75,19 @@ function run_rayleigh_benard_2d(; Nx=128, Ny=32, Ra=2000.0, Pr=1.0,
     g_cpu = zeros(FT, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx
         if orientation === :vertical
-            # Linear profile from T_hot (j=1) to T_cold (j=Ny) + small perturbation
-            # (the perturbation seeds the convective instability).
-            T_init = FT(T_hot - ΔT * (j - 1) / (Ny - 1))
+            # Linear profile from T_hot at the south wall to T_cold at the
+            # north wall. Both walls are half-way (y = 0.5 and y = Ny + 0.5
+            # with node j at y = j), so node j is j - 0.5 spacings from the
+            # hot wall and the conduction gap is H = Ny. The perturbation
+            # seeds the convective instability.
+            T_init = FT(T_hot - ΔT * (j - 0.5) / Ny)
             T_init += FT(0.01 * ΔT) * sin(FT(2π * i / Nx)) * sin(FT(π * j / Ny))
         else
-            # Linear profile from T_hot (i=1) to T_cold (i=Nx). The differentially
+            # Linear profile from T_hot at the west wall (x = 0.5) to T_cold at
+            # the east wall (x = Nx + 0.5), node i at x = i. The differentially
             # heated cavity needs no seed, so none is added: a conduction run
             # then starts from the exact steady profile.
-            T_init = FT(T_hot - ΔT * (i - 1) / (Nx - 1))
+            T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)
         end
         for q in 1:9
             g_cpu[i, j, q] = FT(w[q]) * T_init
@@ -145,7 +149,11 @@ end
 
 Natural convection in a square cavity: hot left wall, cold right wall,
 adiabatic top/bottom. Boussinesq approximation with optional
-temperature-dependent viscosity via modified Arrhenius law.
+temperature-dependent viscosity via modified Arrhenius law. All walls are
+half-way (half a lattice spacing outside the first and last nodes), so the
+thermal and fluid cavities share the width H = N. The returned `Nu` is the
+hot-wall average over rows `2:N-1` of the second-order one-sided gradient
+through the wall value and the first two nodes.
 
 Ra = β·g·ΔT·H³/(ν·α), Pr = ν/α, Rc = η_max/η_min (rheological contrast).
 For Rc=1: constant viscosity. For Rc>1: ν(T) = ν_ref·exp(α_visc·(T - T_ref)).
@@ -179,7 +187,8 @@ function run_natural_convection_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
     ρ, ux, uy = state.ρ, state.ux, state.uy
     is_solid = state.is_solid
 
-    # Thermal populations: horizontal linear profile T(x)
+    # Thermal populations: horizontal linear profile T(x) between the half-way
+    # walls at x = 0.5 (T_hot) and x = Nx + 0.5 (T_cold), node i at x = i.
     g_in  = KernelAbstractions.zeros(backend, FT, Nx, Ny, 9)
     g_out = KernelAbstractions.zeros(backend, FT, Nx, Ny, 9)
     Temp  = KernelAbstractions.zeros(backend, FT, Nx, Ny)
@@ -187,7 +196,7 @@ function run_natural_convection_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
     w = weights(D2Q9())
     g_cpu = zeros(FT, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT * (i - 1) / (Nx - 1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)
         T_init += FT(0.01 * ΔT) * sin(FT(2π * i / Nx)) * sin(FT(π * j / Ny))
         for q in 1:9
             g_cpu[i, j, q] = FT(w[q]) * T_init
@@ -213,12 +222,14 @@ function run_natural_convection_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
     compute_macroscopic_2d!(ρ, ux, uy, f_in)
     compute_temperature_2d!(Temp, g_in)
 
-    # Compute Nusselt number at hot wall (second-order forward FD)
+    # Nusselt number at the hot wall (x = 0.5). Second-order one-sided gradient
+    # through the wall value and the first two nodes (0.5 and 1.5 lattice
+    # spacings from the wall): dT/dx|wall = (-8 T_w + 9 T_1 - T_2) / (3 dx).
     T_cpu = Array(Temp)
     dx = FT(1.0)  # lattice spacing
     Nu_local = zeros(FT, Ny)
     for j in 2:Ny-1
-        Nu_local[j] = -H * (-3*T_cpu[1,j] + 4*T_cpu[2,j] - T_cpu[3,j]) / (2*dx) / FT(ΔT)
+        Nu_local[j] = -H * (-8*FT(T_hot) + 9*T_cpu[1,j] - T_cpu[2,j]) / (3*dx) / FT(ΔT)
     end
     Nu = sum(Nu_local[2:end-1]) / (Ny - 2)
 
@@ -238,8 +249,8 @@ Natural convection in a square cavity with patch refinement near the hot (west)
 and cold (east) walls. Patches cover `wall_fraction` of the domain width on
 each side, refined by `ratio` (default 2:1).
 
-Same physics as run_natural_convection_2d but with better boundary layer
-resolution at lower total cost.
+Same physics as run_natural_convection_2d. Grid refinement is under
+development and not validated (refined thermal walls are not half-way, issue #98).
 """
 function run_natural_convection_refined_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
                                              T_hot=1.0, T_cold=0.0, max_steps=50000,
@@ -276,7 +287,7 @@ function run_natural_convection_refined_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
     w = weights(D2Q9())
     g_cpu = zeros(FT, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT * (i - 1) / (Nx - 1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)
         T_init += FT(0.01 * ΔT) * sin(FT(2π * i / Nx)) * sin(FT(π * j / Ny))
         for q in 1:9
             g_cpu[i, j, q] = FT(w[q]) * T_init
@@ -368,16 +379,22 @@ function run_natural_convection_refined_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
             FT(T_hot), FT(T_cold))
     end
 
-    # Coarse BC re-application after restriction (patches overwrite wall cells)
+    # Coarse BC re-application after restriction (patches overwrite wall cells).
+    # The patch-covered coarse wall cells are restored and then restricted, so
+    # the post-stream wall condition of the fused coarse step does not survive
+    # there; this post-collision call is how the wall temperature reaches the
+    # coarse cells that feed the patch ghost layers. It is not a half-way wall
+    # for those cells (known refined-wall defect, issue #97). The kernel flips
+    # the sign of the incoming slots, so it must be called exactly once here.
     bc_coarse = (f, g, Te, nx, ny) -> begin
-        # Thermal: Dirichlet at hot/cold walls
-        apply_fixed_temp_west_2d!(g, T_hot, ny)
-        apply_fixed_temp_east_2d!(g, T_cold, nx, ny)
         # Flow: bounce-back all walls
         apply_bounce_back_wall_2d!(f, nx, ny, :south)
         apply_bounce_back_wall_2d!(f, nx, ny, :north)
         apply_bounce_back_wall_2d!(f, nx, ny, :west)
         apply_bounce_back_wall_2d!(f, nx, ny, :east)
+        # Thermal: Dirichlet at hot/cold walls (single call, see above)
+        apply_fixed_temp_west_2d!(g, T_hot, ny)
+        apply_fixed_temp_east_2d!(g, T_cold, nx, ny)
     end
 
     # --- Time loop ---
@@ -428,9 +445,10 @@ end
                                 T_hot=1.0, T_cold=0.0, max_steps=10000,
                                 backend, FT)
 
-Natural convection in a cube: hot west wall (x=0), cold east wall (x=N),
-adiabatic on all other faces. D3Q19 lattice with Boussinesq forcing in the
-y-direction (gravity pointing -y).
+Natural convection in a cube: hot west wall, cold east wall, adiabatic on all
+other faces. All walls are half-way (half a lattice spacing outside the first
+and last nodes), so the cavity width is H = N for both flow and heat. D3Q19
+lattice with Boussinesq forcing in the y-direction (gravity pointing -y).
 
 Reference: Fusegi et al. (1991) — Ra=1e3 → Nu≈1.085, Ra=1e4 → Nu≈2.10.
 """
@@ -464,8 +482,10 @@ function run_natural_convection_3d(; N=32, Ra=1e3, Pr=0.71,
 
     w = weights(D3Q19())
     g_cpu = zeros(FT, Nx, Ny, Nz, 19)
+    # Linear profile between the half-way walls at x = 0.5 (T_hot) and
+    # x = Nx + 0.5 (T_cold), node i at x = i.
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT * (i - 1) / (Nx - 1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)
         for q in 1:19
             g_cpu[i, j, k, q] = FT(w[q]) * T_init
         end
@@ -501,11 +521,12 @@ function run_natural_convection_3d(; N=32, Ra=1e3, Pr=0.71,
     compute_macroscopic_3d!(ρ, ux, uy, uz, f_in)
     compute_temperature_3d!(Temp, g_in)
 
-    # Nusselt at hot wall (x=0): Nu = -H * dT/dx / ΔT (2nd-order FD)
+    # Nusselt at the hot wall (x = 0.5): Nu = -H * dT/dx / ΔT, with the
+    # second-order one-sided gradient dT/dx|wall = (-8 T_w + 9 T_1 - T_2) / 3.
     T_cpu = Array(Temp)
     Nu_arr = zeros(FT, Ny, Nz)
     for k in 1:Nz, j in 1:Ny
-        dTdx = (-3*T_cpu[1,j,k] + 4*T_cpu[2,j,k] - T_cpu[3,j,k]) / FT(2)
+        dTdx = (-8*FT(T_hot) + 9*T_cpu[1,j,k] - T_cpu[2,j,k]) / FT(3)
         Nu_arr[j, k] = -H * dTdx / FT(ΔT)
     end
     # Average excluding edge rows

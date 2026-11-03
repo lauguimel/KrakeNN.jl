@@ -74,7 +74,7 @@ before the main parse and are documented under [Presets](@ref) and
 | `Boundary`    | many         | a domain-face boundary condition                   |
 | `Initial`     | ≤ 1          | initial field expressions (`ux`, `uy`, `C`, …)     |
 | `Velocity`    | ≤ 1          | frozen velocity field (advection-only module)      |
-| `Refine`      | many         | a patch-based 2:1 grid-refinement region           |
+| `Refine`      | many         | under development, not validated (grid refinement)  |
 | `Rheology`    | many         | non-Newtonian / viscoelastic constitutive model    |
 | `Setup`       | 1            | extra driver helper key/values                     |
 | `Run`         | exactly 1    | number of time steps                               |
@@ -211,11 +211,9 @@ Initial { ux = 0.05*sin(2*pi*x)*cos(2*pi*y) uy = -0.05*cos(2*pi*x)*sin(2*pi*y) }
 ### `Refine`
 
 `Refine <name> { region = [x0, y0, x1, y1] (or 6 coords in 3D), ratio = 2, parent = base, [criterion options] }`
-— a patch-based, 2:1 nested refinement region with Filippova–Hänel rescaling at
-the coarse–fine interface for second-order accuracy. Only a `balance = 1` (2:1)
-ratio is supported. Optional adaptive-criterion keys (`update_every`, `pad`,
-`max_growth`, `shrink_margin`) drive dynamic patches. Works for 2D/3D, isothermal
-and thermal.
+— a patch-based, 2:1 nested refinement region. Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set. The keyword is
+parsed, but results obtained with it must not be relied on; see
+[Limitations](../theory/10_limitations.md).
 
 ```
 Refine corner_patch {

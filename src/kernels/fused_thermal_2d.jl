@@ -25,23 +25,31 @@ using KernelAbstractions
 end
 
 # --- Thermal BCs: anti-bounce-back for Dirichlet (west/east), bounce-back elsewhere ---
+#
+# Half-way anti-bounce-back: the Dirichlet walls sit at x = 0.5 and x = Nx + 0.5,
+# the same place as the half-way no-slip walls of the flow, so the thermal and
+# fluid cavities share the width H = Nx. `stream_pull_node` has already put
+# the bounced post-collision value g*_opp(x_b) into each wall-crossing slot;
+# anti-bounce-back flips its sign and adds the wall term:
+#   g_q(x_b, t+1) = -g*_opp(x_b, t) + 2 w_q T_wall.
+# Diagonals crossing a corner take the west/east Dirichlet rule.
 
 @inline function apply_thermal_bc_cavity(gp, i, j, Nx, Ny, T_hot, T_cold)
     T = typeof(T_hot)
     g1, g2, g3, g4, g5, g6, g7, g8, g9 = gp
 
-    # West wall (i=1): fixed T_hot — unknown populations pointing east: 2, 6, 9
+    # West wall (x = 0.5): fixed T_hot — unknown populations pointing east: 2, 6, 9
     if i == 1
-        g2 = -g4 + T(2) * T(1.0/9.0)  * T_hot
-        g6 = -g8 + T(2) * T(1.0/36.0) * T_hot
-        g9 = -g7 + T(2) * T(1.0/36.0) * T_hot
+        g2 = -g2 + T(2) * T(1.0/9.0)  * T_hot
+        g6 = -g6 + T(2) * T(1.0/36.0) * T_hot
+        g9 = -g9 + T(2) * T(1.0/36.0) * T_hot
     end
 
-    # East wall (i=Nx): fixed T_cold — unknown populations pointing west: 4, 7, 8
+    # East wall (x = Nx + 0.5): fixed T_cold — unknown populations pointing west: 4, 7, 8
     if i == Nx
-        g4 = -g2 + T(2) * T(1.0/9.0)  * T_cold
-        g7 = -g9 + T(2) * T(1.0/36.0) * T_cold
-        g8 = -g6 + T(2) * T(1.0/36.0) * T_cold
+        g4 = -g4 + T(2) * T(1.0/9.0)  * T_cold
+        g7 = -g7 + T(2) * T(1.0/36.0) * T_cold
+        g8 = -g8 + T(2) * T(1.0/36.0) * T_cold
     end
 
     # Top/bottom: adiabatic (bounce-back already handled by stream_pull_node)

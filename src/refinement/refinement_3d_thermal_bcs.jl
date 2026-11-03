@@ -333,19 +333,6 @@ function build_patch_thermal_bcs_3d(patches::Vector{RefinementPatch3D{T}},
                                      temp_bcs::Dict{Symbol, <:Real}) where T
     tol = Lx / Nx * 0.01
 
-    # Map face symbol to apply function — each BC has a different signature:
-    #   west:   (g, T_wall, Ny, Nz)        east:   (g, T_wall, Nx, Ny, Nz)
-    #   south:  (g, T_wall, Nx, Nz)        north:  (g, T_wall, Nx, Ny, Nz)
-    #   bottom: (g, T_wall, Nx, Ny)        top:    (g, T_wall, Nx, Ny, Nz)
-    face_fns = Dict{Symbol, Function}(
-        :west   => (g, Nx_p, Ny_p, Nz_p, Tw) -> apply_fixed_temp_west_3d!(g, Tw, Ny_p, Nz_p),
-        :east   => (g, Nx_p, Ny_p, Nz_p, Tw) -> apply_fixed_temp_east_3d!(g, Tw, Nx_p, Ny_p, Nz_p),
-        :south  => (g, Nx_p, Ny_p, Nz_p, Tw) -> apply_fixed_temp_south_3d!(g, Tw, Nx_p, Nz_p),
-        :north  => (g, Nx_p, Ny_p, Nz_p, Tw) -> apply_fixed_temp_north_3d!(g, Tw, Nx_p, Ny_p, Nz_p),
-        :bottom => (g, Nx_p, Ny_p, Nz_p, Tw) -> apply_fixed_temp_bottom_3d!(g, Tw, Nx_p, Ny_p),
-        :top    => (g, Nx_p, Ny_p, Nz_p, Tw) -> apply_fixed_temp_top_3d!(g, Tw, Nx_p, Ny_p, Nz_p),
-    )
-
     face_checks = [
         (:west,   p -> Float64(p.x_min) <= tol),
         (:east,   p -> Float64(p.x_max) >= Lx - tol),
@@ -355,25 +342,22 @@ function build_patch_thermal_bcs_3d(patches::Vector{RefinementPatch3D{T}},
         (:top,    p -> Float64(p.z_max) >= Lz - tol),
     ]
 
+    # One closure per patch applies all the Dirichlet faces the patch touches
+    # in a single `apply_fixed_temp_3d!`-style call, so a patch along an edge
+    # of two Dirichlet faces flips the edge slots once.
     patch_bcs = Dict{Int, Function}()
     for (pidx, patch) in enumerate(patches)
-        closures = Function[]
-
+        touched = Dict{Symbol, T}()
         for (face, check_fn) in face_checks
             check_fn(patch) || continue
             haskey(temp_bcs, face) || continue
-            let f_sym = face, Tw = T(temp_bcs[face]), fn = face_fns[face]
-                push!(closures, (g, Nx_p, Ny_p, Nz_p) -> fn(g, Nx_p, Ny_p, Nz_p, Tw))
-            end
+            touched[face] = T(temp_bcs[face])
         end
 
-        if !isempty(closures)
-            let cls = closures
-                patch_bcs[pidx] = (g, Nx_p, Ny_p, Nz_p) -> begin
-                    for cl in cls
-                        cl(g, Nx_p, Ny_p, Nz_p)
-                    end
-                end
+        if !isempty(touched)
+            let tt = _fixed_temp_set_3d(touched), tf = _FIXED_TEMP_FACES_3D
+                patch_bcs[pidx] = (g, Nx_p, Ny_p, Nz_p) ->
+                    _apply_fixed_temp_faces_3d!(g, Nx_p, Ny_p, Nz_p, tt, tf)
             end
         end
     end
