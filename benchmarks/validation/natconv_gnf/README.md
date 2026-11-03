@@ -84,7 +84,49 @@ qsub -P <project-code> -v JULIA_BIN="$JULIA_BIN" benchmarks/validation/natconv_g
 ```
 
 The job pins host gpu0n009; avoid gpu0n001. Submission is left to the user.
-No GPU results have been produced for this comparison.
+
+### GPU results
+
+Job on one A100 (CUDA, Float64, Julia 1.12.5) from commit 1c70037 (kept reachable by the
+tag `archive/gnf-thermal-turan-gpu`), 20 min walltime. Files in `results/`: `turan_comparison.csv` and `.log`,
+`thermal_ref_3d_gpu.log`, and `turan_gpu_job.log` (the PBS job log, with user,
+path, host and project lines removed).
+
+Nu Kraken and signed gap to the Turan value (figure reading; the uncertainty is
+in the CSV column `Nu_paper_source`). `nu0` = 0.3, except 0.05 for n = 1.8.
+
+| Ra | n | Paper Nu | N = 64 | N = 128 | N = 256 | Converged |
+|---|---|---|---|---|---|---|
+| 10³ | 0.6 | 2.07 | 1.9931 (−3.7 %) | 1.9917 (−3.8 %) | 1.9905 (−3.8 %) | yes |
+| 10³ | 1.0 | 1.14 | 1.1201 (−1.7 %) | 1.1186 (−1.9 %) | 1.1181 (−1.9 %) | yes |
+| 10³ | 1.8 | 1.01 | 1.0089 (−0.1 %) | 1.0087 (−0.1 %) | 1.0087 (−0.1 %) | yes |
+| 10⁴ | 0.6 | 5.40 | 5.3678 (−0.6 %) | 5.3828 (−0.3 %) | 5.3840 (−0.3 %) | yes |
+| 10⁴ | 1.0 | 2.29 | 2.2980 (+0.4 %) | 2.2824 (−0.3 %) | 2.2774 (−0.5 %) | yes |
+| 10⁴ | 1.8 | 1.10 | 1.0880 (−1.1 %) | 1.0714 (−2.6 %) | 1.0645 (−3.2 %) | no |
+
+- Ra = 10³, n = 0.6: 1.993 / 1.992 / 1.991 against 2.07 (−3.7 % to −3.8 %).
+  Nu changes by 0.13 % from N = 64 to 256, as little as on CPU, so the gap is not a grid
+  error. The paper value is read from a figure (± 0.07).
+- Ra = 10⁴, n = 0.6 and n = 1.0: within 0.6 % of the paper at every N.
+- Ra = 10³, n = 1.8: within 0.13 %.
+- Ra = 10⁴, n = 1.8 is not a validated point. It stopped at the step limit
+  without converging (last Nu change 4.0e-5 at N = 64, 4.2e-6 at N = 128,
+  1.7e-6 at N = 256), and the viscosity sits at its upper bound `nu_max` = 2.0 on
+  0.2 %, 5.9 % and 8.0 % of the nodes. The table values are listed only for
+  completeness.
+- At N = 64 the GPU and CPU values agree to 2e-5 or better in Nu (for example
+  1.99308 on both for Ra = 10³, n = 0.6; the largest difference is 1.00883
+  on CPU against 1.00885 on GPU for Ra = 10³, n = 1.8, which stopped at
+  different step counts). The CPU values are quoted to five decimals.
+- The job script returns status 1 on purpose: the Ra = 10⁴, n = 1.8 rows are
+  not converged and the 3D refined check fails. The job ended with exit
+  status 1 for these two reasons, after writing all rows.
+
+The 3D refined thermal check (`benchmarks/validate_thermal_ref_3d_gpu.jl`)
+reproduces on GPU the defect seen on CPU (conduction error 3.5e-2 against a 0.02
+gate; refined coarse Nu 7.12 against 1.085); grid refinement is under development
+and not validated (issue #98).
+
 
 Table 2 (Ra = 1e6, Pr = 100) is not included: at Pr = 100 the thermal
 relaxation time is within 0.01 of 1/2, and N = 512 needs of the order of

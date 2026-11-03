@@ -8,11 +8,12 @@ D2Q9 solver of the [Newtonian cavity](thermal-natural-convection.md) to the
 shear-rate-dependent collision of the rheology chapter of the theory section
 (`docs/src/theory/14_rheology.jl`, not in the published navigation).
 
-> **Status: CPU-validated, N ≤ 96.** The Newtonian limit, one De Vahl Davis
-> point and two power-law points of Turan et al. (2011) are checked by the unit
-> test. Eight power-law cases of that paper were run on CPU at N = 32 to 96; the
-> GPU comparison on N = 64, 128 and 256 is prepared and pending (see
-> [Not yet verified](#Not-yet-verified)).
+> **Status: CPU-validated, N ≤ 96; GPU run at N = 64, 128 and 256.** The
+> Newtonian limit, one De Vahl Davis point and two power-law points of Turan et
+> al. (2011) are checked by the unit test. Eight power-law cases of that paper
+> were run on CPU at N = 32 to 96, and the six Pr = 10 cases on one A100 at
+> N = 64, 128 and 256 (see [the GPU comparison](#Comparison-with-Turan-et-al.-(2011),-GPU)).
+> One of the six, Ra = 10⁴ with ``n`` = 1.8, is not converged.
 
 ## Definitions
 
@@ -216,6 +217,46 @@ Reading of the table:
   last relative change 1.8e-5 per 1000 steps), with 0.1 % of the nodes at
   `nu_max`, and stands 1.1 % below the paper.
 
+## Comparison with Turan et al. (2011), GPU
+
+Same cases and paper values as above, run on one A100 (CUDA, Float64, Julia
+1.12.5) at N = 64, 128 and 256 from commit 1c70037 (tag `archive/gnf-thermal-turan-gpu`); the 20-minute job is archived
+in `benchmarks/validation/natconv_gnf/results/`. `nu0` is 0.3, except 0.05 for
+``n`` = 1.8. Each cell is Kraken Nu and its signed gap to the paper value; the
+paper values are figure readings with the uncertainty given in the CPU table.
+
+| Ra | ``n`` | Paper Nu | N = 64 | N = 128 | N = 256 | Converged |
+|---|---|---|---|---|---|---|
+| 10³ | 0.6 | 2.07 | 1.9931 (−3.7 %) | 1.9917 (−3.8 %) | 1.9905 (−3.8 %) | yes |
+| 10³ | 1.0 | 1.14 | 1.1201 (−1.7 %) | 1.1186 (−1.9 %) | 1.1181 (−1.9 %) | yes |
+| 10³ | 1.8 | 1.01 | 1.0089 (−0.1 %) | 1.0087 (−0.1 %) | 1.0087 (−0.1 %) | yes |
+| 10⁴ | 0.6 | 5.40 | 5.3678 (−0.6 %) | 5.3828 (−0.3 %) | 5.3840 (−0.3 %) | yes |
+| 10⁴ | 1.0 | 2.29 | 2.2980 (+0.4 %) | 2.2824 (−0.3 %) | 2.2774 (−0.5 %) | yes |
+| 10⁴ | 1.8 | 1.10 | 1.0880 (−1.1 %) | 1.0714 (−2.6 %) | 1.0645 (−3.2 %) | no |
+
+- Ra = 10³, ``n`` = 0.6: 1.993 / 1.992 / 1.991 against 2.07 (−3.7 % to −3.8 %).
+  Nu changes by 0.13 % from N = 64 to 256, as little as on CPU, so the gap is not a grid
+  error. The paper value is read from a figure (± 0.07).
+- Ra = 10⁴, ``n`` = 0.6 and ``n`` = 1.0: within 0.6 % of the paper at every N.
+- Ra = 10³, ``n`` = 1.8: within 0.13 %.
+- Ra = 10⁴, ``n`` = 1.8 is not a validated point. It stopped at the step limit
+  without converging (last Nu change 4.0e-5 at N = 64, 4.2e-6 at N = 128,
+  1.7e-6 at N = 256), and the viscosity sits at its upper bound `nu_max` = 2.0 on
+  0.2 %, 5.9 % and 8.0 % of the nodes. The table values are listed only for
+  completeness.
+- At N = 64 the GPU and CPU values agree to 2e-5 or better in Nu (for example
+  1.99308 on both for Ra = 10³, ``n`` = 0.6; the largest difference is 1.00883
+  on CPU against 1.00885 on GPU for Ra = 10³, ``n`` = 1.8, which stopped at
+  different step counts). The CPU values are quoted to five decimals.
+- The job script returns status 1 on purpose: the Ra = 10⁴, ``n`` = 1.8 rows are
+  not converged and the 3D refined check fails. The job ended with exit
+  status 1 for these two reasons, after writing all rows.
+
+The 3D refined thermal check (`benchmarks/validate_thermal_ref_3d_gpu.jl`)
+reproduces on GPU the defect seen on CPU (conduction error 3.5e-2 against a 0.02
+gate; refined coarse Nu 7.12 against 1.085); grid refinement is under development
+and not validated (issue #98).
+
 ## What was validated
 
 All checks are in `test/test_natconv_gnf.jl` (CPU, Float64), run on the date of
@@ -251,14 +292,12 @@ Reading of the table:
 
 ## Not yet verified
 
-- **No GPU run.** The comparison with Turan et al. (2011) on N = 64, 128 and 256
-  (six cases: ``n`` = 0.6, 1 and 1.8 at Ra = 10³ and 10⁴, CUDA Float64) is
-  prepared in `benchmarks/validation/natconv_gnf/run_turan_comparison.jl` and has
-  not been executed. The older qualitative sweep at Pr = 0.71
-  (`run_natconv_gnf.jl`) is not run either.
+- **GPU coverage.** The six cases were run on one A100 only. Ra = 10⁴ with
+  ``n`` = 1.8 did not converge at any N, so it has no validated value. The older
+  qualitative sweep at Pr = 0.71 (`run_natconv_gnf.jl`) is not run.
 - **The Ra = 10³ gap** of −3.7 % for ``n`` = 0.6 is explained by inference only.
-- **Shear-thickening fluids** were run at N = 64 only, and need a small `nu0`;
-  ``n`` = 1.8 at Ra = 10⁴ did not reach a steady state on CPU.
+- **Shear-thickening fluids** need a small `nu0`; ``n`` = 1.8 at Ra = 10⁴ did
+  not reach a steady state on CPU (N = 64) or on GPU (N = 64 to 256).
 - **Ra = 10⁵ and 10⁶** are not compared, nor Table 2 of the paper (Ra = 10⁶,
   Pr = 100, the only tabulated Nu values), which needs a thermal relaxation time
   within 0.01 of 1/2 and about 10⁷ steps at N = 512.
