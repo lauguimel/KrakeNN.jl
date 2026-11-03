@@ -198,6 +198,7 @@ makedocs(;
             "Viscoelastic Poiseuille (FVFD 3D)" => "users/benchmarks/ve3d-poiseuille-convergence.md",
             "Steady shape sensitivity (AD)" => "users/benchmarks/ad-shape-sensitivity.md",
             "Steady shape sensitivity — viscoelastic (AD)" => "users/benchmarks/ad-shape-sensitivity-viscoelastic.md",
+            "GNF adjoint gradient" => "users/benchmarks/gnf-adjoint-gradient.md",
             "GPU certification" => "users/benchmarks/gpu-certification.md",
             "Electroconvection (EHD)" => "users/benchmarks/electroconvection.md",
             "Performance" => "benchmarks/performance.md",

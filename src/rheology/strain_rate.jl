@@ -61,6 +61,40 @@ with the relation S_αβ = -Π^neq_αβ / (2ρcs²τ).
 end
 
 """
+    strain_rate_invariant_2d(f1,...,f9, feq1,...,feq9, rho, tau) → I1 = S:S
+
+Invariant `S:S = S_xx² + S_yy² + 2·S_xy²` of the strain-rate tensor (D2Q9),
+computed with the same operations in the same order as
+`strain_rate_magnitude_2d`, so that `sqrt(2 * I1)` equals its result bit for
+bit. Unlike `γ̇ = √(2 S:S)`, `I1` is a polynomial in the populations: its
+derivative is finite where `S = 0`, which a closure written in `I1` keeps
+(the square root has an infinite derivative at 0, and ForwardDiff then
+returns NaN).
+"""
+@inline function strain_rate_invariant_2d(
+    f1, f2, f3, f4, f5, f6, f7, f8, f9,
+    feq1, feq2, feq3, feq4, feq5, feq6, feq7, feq8, feq9,
+    rho, tau
+)
+    T = typeof(rho)
+
+    fneq1 = f1 - feq1; fneq2 = f2 - feq2; fneq3 = f3 - feq3
+    fneq4 = f4 - feq4; fneq5 = f5 - feq5; fneq6 = f6 - feq6
+    fneq7 = f7 - feq7; fneq8 = f8 - feq8; fneq9 = f9 - feq9
+
+    Pi_xx = fneq2 + fneq4 + fneq6 + fneq7 + fneq8 + fneq9
+    Pi_yy = fneq3 + fneq5 + fneq6 + fneq7 + fneq8 + fneq9
+    Pi_xy = fneq6 - fneq7 + fneq8 - fneq9
+
+    inv_denom = -one(T) / (T(2) * rho * T(1.0/3.0) * tau)
+    S_xx = Pi_xx * inv_denom
+    S_yy = Pi_yy * inv_denom
+    S_xy = Pi_xy * inv_denom
+
+    return S_xx * S_xx + S_yy * S_yy + T(2) * S_xy * S_xy
+end
+
+"""
     strain_rate_magnitude_3d(f1,...,f19, feq1,...,feq19, rho, tau) → γ̇
 
 Compute the shear rate magnitude from non-equilibrium distributions (D3Q19).

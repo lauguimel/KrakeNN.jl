@@ -136,3 +136,9 @@ jobs:
           KRAKEN_ONLY: ad/test_ad_ve_fd_check.jl
         with:
           check_bounds: auto
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: ad/gnf_adjoint_enzyme_test.jl
+        with:
+          check_bounds: auto
