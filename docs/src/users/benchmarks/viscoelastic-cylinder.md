@@ -62,8 +62,19 @@ integrator measures the drag. Driver `run_viscoelastic_logfv_cylinder_coupled_2d
   26763246/47/48, 2026-10-14).
 
 **RheoTool `rheoFoam` (FVM reference).** OpenFOAM-9 base, `Cylinder/Oldroyd-BLog`
-tutorial mesh, 2-core MPI to steady state at `t = 20`, matched `β = 0.59`, `Re = 1`,
-`D/H = 0.5`.
+tutorial mesh, matched `β = 0.59`, `Re = 1`, `D/H = 0.5`.
+
+*Provenance of the reference runs.* An earlier version of this page stated "2-core MPI
+to steady state at `t = 20`". The `rheoFoam` logs that exist (branch tag
+`archive/dev-viscoelastic-2026-09`, `bench/rheotool/cylinder_wi*/log.rheoFoam`) show
+something different: a **single process** (`nProcs : 1`), run in a local Docker
+container, with end time `t = 6` (`Wi = 0.05, 0.1, 0.2, 0.3`) or `t = 10` (`Wi = 0.5, 1.0`).
+Only the shortened-domain run `cylinder_wi1.0_shrunk15R` reaches `t = 20`. The `Cd`
+histories used for the `β = 0.59` comparison (`m8_refs/*.csv`) have no log in the
+repository, so the number of cores and the end time of those runs are not documented.
+Until the reference runs are repeated with their logs kept, read the comparison as
+"agreement with the stored `Cd` values", and do not read it as agreement with a run
+verified to be steady.
 
 **Reference.** M. A. Alves, P. J. Oliveira, F. T. Pinho (2001), *The flow of
 viscoelastic fluids past a cylinder: finite-volume high-resolution methods*,

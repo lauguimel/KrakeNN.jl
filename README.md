@@ -10,20 +10,20 @@ Apple Metal backends. Kraken.jl provides a compact kernel core (D2Q9, D3Q19), a
 declarative `.krk` configuration DSL, patch-based grid refinement, and
 spatial boundary conditions — all behind a small, hackable API.
 
-## Scope (v0.3.0)
+## Scope
 
-- Single-phase LBM in 2D and 3D (BGK and MRT collisions)
+- Single-phase LBM in 2D and 3D (BGK; MRT in 2D; TRT, see the capabilities matrix for where)
 - Thermal flows via double-distribution (DDF) coupling
 - Patch-based nested grid refinement (Filippova–Hänel rescaling)
 - Spatial boundary conditions (Zou–He, bounce-back, periodic, outflow)
 - `.krk` configuration DSL for parametric runs
 - GPU-portable kernels via `KernelAbstractions.jl` (CPU / CUDA / Metal)
-- Viscoelastic Oldroyd-B (log-conformation) — validated to <1% vs RheoTool on the confined cylinder
+- Viscoelastic Oldroyd-B (log-conformation) — drag within 1% of stored RheoTool values on the confined cylinder at Wi ≤ 1 (see the cylinder page for the provenance of those references)
 - Physical ↔ lattice unit-conversion module; STL / analytical immersed-boundary geometry
 
 Multiphase flows and the broader non-Newtonian rheology family are present in
 the source tree but remain experimental and are not part of the validated
-v0.3.0 surface.
+surface.
 
 For a complete, up-to-date feature matrix — with status (✓/~/✗), links to
 theory pages, examples, and API — see the
@@ -43,44 +43,52 @@ For GPU execution, also add the backend of your choice (`CUDA.jl` or
 
 ## Quickstart
 
-Run a 2D lid-driven cavity from a `.krk` configuration file:
+From a clone of the repository (`git clone https://github.com/lauguimel/Kraken.jl`),
+run `examples/quickstart.jl` on CPU. It runs a lid-driven cavity from the
+`examples/cavity.krk` configuration file, then the same kind of case built from
+Julia, and stops with an error if the flow is not finite. CI runs this exact file.
+
+```bash
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+julia --project=. examples/quickstart.jl
+```
 
 ```julia
+# Kraken.jl quickstart: the README shows this file verbatim and CI runs it on CPU.
+# From a clone of the repository:
+#
+#     julia --project=. examples/quickstart.jl
 using Kraken
 
-# Parse the .krk file into a SimulationSetup
-setup = load_kraken("examples/cavity.krk")
+# 1. Run a lid-driven cavity described by a .krk configuration file.
+#    `max_steps` overrides the file's `Run 60000 steps` so the script finishes
+#    in a few seconds on a laptop CPU.
+krk_file = joinpath(@__DIR__, "cavity.krk")
+result = run_simulation(krk_file; max_steps = 2000)
+println("krk cavity : max |ux| = ", maximum(abs, result.ux))
 
-# Run it (CPU by default; a `Backend cuda`/`Backend metal` line in the .krk
-# file, or an explicit `backend=CUDABackend()`/`MetalBackend()` kwarg, moves
-# it to a GPU)
-result = run_simulation(setup)
+# 2. The same kind of case built from Julia, without the .krk file.
+config = LBMConfig(D2Q9(); Nx = 32, Ny = 32, ν = 0.1, u_lid = 0.1, max_steps = 100)
+cavity = run_cavity_2d(config)
+println("julia cavity: max |ux| = ", maximum(abs, cavity.ux))
 
-ux, uy = result.ux, result.uy
+# Sanity checks: the script fails (non-zero exit) if the flow blew up.
+@assert all(isfinite, result.ux) && all(isfinite, result.uy)
+@assert all(isfinite, cavity.ux) && all(isfinite, cavity.uy)
+@assert maximum(abs, cavity.ux) > 0
+println("quickstart OK")
 ```
 
-Output (`examples/cavity.krk`, 128×128, Re = 100, CPU, 60 000 steps):
+Expected output (about 20 s the first time, most of it compilation):
 
 ```
-max |u| = 0.10000000000000006   mean |u| = 0.01975436420203213
+krk cavity : max |ux| = 0.10000000000000012
+julia cavity: max |ux| = 0.1000000000000001
+quickstart OK
 ```
 
-Or build a case directly from Julia, without the `.krk` DSL:
-
-```julia
-using Kraken
-
-config = LBMConfig(D2Q9(); Nx=32, Ny=32, ν=0.1, u_lid=0.1, max_steps=100)
-result = run_cavity_2d(config)
-
-ux, uy = result.ux, result.uy
-```
-
-Output:
-
-```
-max |ux| = 0.1000000000000001
-```
+To use a GPU, add a `Backend cuda` (or `Backend metal`) line to the `.krk` file, or
+pass `backend = CUDABackend()` to `run_simulation`.
 
 See `docs/src/getting_started.md` and the `examples/` directory for more
 cases (Poiseuille, Couette, Taylor–Green, cylinder flow, Rayleigh–Bénard,
