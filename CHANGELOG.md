@@ -36,6 +36,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   Opt-in analytic diagnostics use wall-node coordinates (`y_mapping=:wall_nodes`),
   not the legacy interior half-link mapping; their errors are not directly
   comparable across closures. This does not establish complete EHD validation.
+- 3D generalised-Newtonian (GNF) flow on D3Q19 with TRT collision, linearly
+  interpolated bounce-back walls and Guo forcing: `run_gnf_channel_3d` and the fused
+  step `fused_trt_gnf_libb_guo_field_step_3d!`. Supports `PowerLaw`, `CarreauYasuda`
+  and `Cross` (and Newtonian), isothermal only, Julia API only (no `.krk` keyword yet).
+  On planar channels against an independent analytical reference the observed order is
+  1.93 to 2.00 on CPU Float64 (N = 16, 32, 64) and 1.95 to 2.001 on an A100 (CUDA
+  Float64, N = 32 to 256, archived in `benchmarks/validation/gnf3d/results/`; the code
+  that ran is kept reachable by the tag `archive/gnf3d-gpu-sweep`). Float32 was only
+  run through on the GPU, not validated. See
+  `docs/src/users/benchmarks/gnf3d-channel-convergence.md`.
 
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.
@@ -98,6 +108,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   is exact only at `q = 0.5`: in pure conduction `Nu − 1` falls by 8·10⁻³ per unit of
   cold-wall fraction (`q` from 0.3 to 0.9), while moving that wall by a whole cell at
   fixed `q` changes `Nu` by +1.74·10⁻² at `Ra = 10³`. That cut-link error stays open.
+- `strain_rate_magnitude_3d` used a D3Q19 velocity ordering that is not the one of the
+  lattice tables, so the off-diagonal sums `Π_xy`, `Π_xz`, `Π_yz` had wrong signs and a
+  pure shear in any plane returned a zero strain rate. The sums now follow the lattice;
+  the final contraction moved to the new `strain_rate_from_pi_3d`. Any 3D result computed
+  with the old function (exported, so user code can call it) was wrong when
+  off-diagonal stress was present. Inside this repository, no `src/` driver, test or
+  benchmark called it before the 3D GNF path, so no previously published Kraken result
+  changes; it affects only external callers.
 - The 0.3.0 entry "GPU-validated (parity ≤1.6e-12)" for the cuDSS solve and the matching
   line of `docs/agent/solve-linear-implication.md` now carry a correction note (#61): the
   loading path of that July run is not recorded. Same note as in 0.5.1.
