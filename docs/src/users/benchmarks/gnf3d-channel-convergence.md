@@ -89,7 +89,10 @@ GNF step is compared with the existing Newtonian step). Neither is a convergence
 Source: `benchmarks/validation/gnf3d/results/gnf3d_order.csv` (and `gnf3d.log`), produced
 by `benchmarks/validation/gnf3d/run_gnf3d_gpu.jl` on `CUDABackend()`: NVIDIA A100-SXM4-40GB,
 Float64, Julia 1.12.5, CUDA.jl 5.11.3, driver 610.57.4. Code: branch `feat/gnf-3d`, commit
-`6517b1d92`. The sweep finished with `validation_failures=0`; every row converged to a
+`6517b1d92`, kept reachable by the tag `archive/gnf3d-gpu-sweep`. The branch was later
+rebased onto `dev/platform` `660b8e871`, whose only source changes (the `.krk` `Backend`
+directive in `src/io/krk/directives.jl`, `src/io/krk/parser.jl` and
+`src/simulation_runner.jl`) are not used by this script. The sweep finished with `validation_failures=0`; every row converged to a
 relative velocity-change tolerance of 10⁻¹⁰. Provenance details are in the README of that
 directory. Relative L2 velocity error (order computed from the gaps `H`, as above):
 

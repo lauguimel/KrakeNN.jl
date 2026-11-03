@@ -44,9 +44,14 @@ remain in the output and the process exits unsuccessfully after all cases.
 ## GPU evidence
 
 Files: `results/gnf3d_order.csv` (16 rows) and `results/gnf3d.log`, copied
-unchanged from the Aqua output directory. The last line of `gnf3d.log` holds
-the absolute path of the CSV on the cluster home directory (`csv=/home/...`);
-it was left as written.
+from the Aqua output directory. Only the last line of `gnf3d.log` was edited: the
+absolute cluster path of the CSV was shortened to `~/kraken_gnf3d/out/gnf3d_order.csv`.
+
+Rebase note: the sweep ran on commit `6517b1d92`, which is kept reachable by the
+annotated tag `archive/gnf3d-gpu-sweep`. The branch was later rebased onto
+`dev/platform` `660b8e871`, whose only source changes (the `.krk` `Backend` directive in
+`src/io/krk/directives.jl`, `src/io/krk/parser.jl` and `src/simulation_runner.jl`) are
+not used by this script.
 
 | Item | Value |
 | --- | --- |

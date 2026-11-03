@@ -228,14 +228,24 @@ exported but unused), so it is not reachable from `.krk` or from a driver.
 | Model | 2D | 3D | GPU | Thermal coupling |
 |---|:-:|:-:|:-:|:-:|
 | Newtonian | ✓ | ✓ | ✓ | kernel only (no driver) |
-| Power-law | ✓ | ✗ | ✓ | kernel only (no driver) |
-| Carreau-Yasuda | ✓ | ✗ | ✓ | kernel only (no driver) |
-| Cross | ✓ | ✗ | ✓ | kernel only (no driver) |
+| Power-law | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
+| Carreau-Yasuda | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
+| Cross | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
 | Bingham (Papanastasiou) | ✓ | ✗ | ✓ | kernel only (no driver) |
 | Herschel–Bulkley | ✓ | ✗ | ✓ | kernel only (no driver) |
 | Oldroyd-B (log-conf) | ✓ | ✓ (FVFD) | ✓ | ✗ |
 | FENE-P | ✓ | ✓ (FVFD) | ✓ | ✗ |
 | Saramito (EVP) | model type and `.krk` parsing only | ✗ | ✗ (no solver kernel) | ✗ |
+
+**3D generalised-Newtonian (Julia API only).** `run_gnf_channel_3d` (D3Q19 TRT, LI-BB
+walls, Guo forcing; Power-law, Carreau-Yasuda, Cross) is isothermal, has no `.krk`
+keyword yet, and is verified against an exact planar-channel solution on CPU Float64
+(`test/analytical/gnf3d_channel_order.jl`, observed order 1.93 to 2.00) and on an A100
+(Float64, N = 32 to 256, order 1.95 to 2.001, archived sweep, not a test). With a
+constant viscosity it equals the Newtonian step (`test/analytical/gnf3d_parity.jl`); the
+strain-rate estimate is in `test/analytical/gnf3d_strain_rate.jl`. Bingham and
+Herschel-Bulkley have no 3D path. See
+[3D GNF channel](users/benchmarks/gnf3d-channel-convergence.md).
 
 **3D viscoelastic (since v0.5.0).** Oldroyd-B, FENE-P, Giesekus and PTT (linear and
 exponential) run in 3D in log-conformation form on the FVFD path only
