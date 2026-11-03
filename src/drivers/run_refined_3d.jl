@@ -3,7 +3,7 @@
 # 3D refined runner (D3Q19 + Refine blocks)
 # =========================================================================
 
-"""Dispatch grid-refined cases for D3Q19 (3D)."""
+"""Dispatch grid-refined cases for D3Q19 (3D). Grid refinement is under development and not validated."""
 function _run_refined_3d(setup::SimulationSetup;
                           backend=KernelAbstractions.CPU(), T=Float64,
                           callback::Union{Nothing,Function}=nothing,

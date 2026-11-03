@@ -38,6 +38,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   comparable across closures. This does not establish complete EHD validation.
 
 ### Changed
+- Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.
 - Jiachen Zhao (Queensland University of Technology) joins the authors, second position, in `CITATION.cff`, `Project.toml` and the BibTeX entries of the README and the documentation home page. `CITATION.cff` now carries the ORCIDs of J. Zhao and E. Sauret.
 - Electroconvection `.krk` cases now apply paired `Boundary west wall` / `Boundary east wall` as stationary no-slip sidewalls instead of ignoring them; omitted sides retain free slip. Explicit non-lateral `Boundary` declarations are rejected because electrode/plate conditions are built into this driver.
 - Documentation numbers re-measured after the TRT Guo forcing fix (#67), same settings

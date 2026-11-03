@@ -1,4 +1,6 @@
-# Grid refinement
+# Grid refinement (under development)
+
+Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set. This page is not listed in the navigation and is kept for reference only.
 
 Kraken supports patch-based nested refinement (2:1 ratio) with
 Filippova-Hänel distribution rescaling across levels. A

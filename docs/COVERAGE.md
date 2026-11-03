@@ -23,7 +23,7 @@ Last updated: 2026-04-03
 | 15 | Viscoelastic | `viscoelastic_2d.jl` | `theory/15_viscoelastic` | Done |
 | 16 | Shan-Chen | `multiphase_2d.jl` | `theory/16_shan_chen` | Done |
 | 17 | Species transport | `species_2d.jl` | `theory/17_species` | Done |
-| 18 | Grid refinement | `refinement/*.jl` | `theory/18_grid_refinement` | Done |
+| 18 | Grid refinement | `refinement/*.jl` | `theory/18_grid_refinement` | Under development (not validated, unlisted) |
 | 19 | Spatial BCs | `boundary_spatial_2d.jl` | `theory/19_spatial_bcs` | Done |
 
 ## Examples
@@ -49,7 +49,7 @@ Last updated: 2026-04-03
 | 17 | Rheology Poiseuille | `collide_rheology_2d.jl` | `examples/17_poiseuille_rheology` | Done |
 | 18 | Shan-Chen spinodal | `multiphase_2d.jl` | `examples/18_shan_chen_spinodal` | Done |
 | 19 | Species diffusion | `species_2d.jl` | `examples/19_species_diffusion` | Done |
-| 20 | Grid refinement cavity | `refinement/*.jl` | `examples/20_grid_refinement_cavity` | Done |
+| 20 | Grid refinement cavity | `refinement/*.jl` | `examples/20_grid_refinement_cavity` | Under development (not validated, unlisted) |
 | 21 | Viscoelastic channel | `viscoelastic_2d.jl` | `examples/21_viscoelastic_channel` | Done |
 
 ## Benchmarks

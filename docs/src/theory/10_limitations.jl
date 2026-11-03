@@ -148,16 +148,26 @@ u_bad = 0.3
 #     Ma < 0.1 constraint and the stability limit on ``\omega`` to choose
 #     the lattice velocity and viscosity.
 #
-# ## No adaptive mesh refinement
+# ## Grid refinement (under development)
 #
 # Standard LBM requires a **uniform Cartesian grid**. Unlike finite volume or
 # finite element methods, there is no straightforward way to locally refine the
 # mesh near walls or features of interest. Multi-block and adaptive approaches
 # exist but break the simplicity that makes LBM attractive.
 #
-# Solution-adaptive mesh refinement (AMR) is not implemented. Kraken.jl does,
-# however, ship static patch-based grid refinement (Filippova--Hänel rescaling,
-# 2D full / 3D partial) --- see [Grid refinement](18_grid_refinement.md).
+# **Grid refinement (patch and conservative AMR) is under development and not
+# validated; it is not part of the supported feature set.** Two families of code
+# exist in the repository, with their tests, for development purposes:
+#
+# - Filippova--Hänel patch refinement (nested patches with rescaling at the
+#   coarse/fine interface, `.krk` keyword `Refine`). Patch-refined thermal walls
+#   are not half-way: in pure conduction, where the exact Nusselt number is 1.0,
+#   the patch-refined runs give Nu of about 1.3 (see issue #98).
+# - Conservative-tree AMR. Its drag coefficient is off by a factor between 1.06
+#   and 5.6 against the reference.
+#
+# Until these are fixed and validated, do not use refinement for results. For
+# local resolution, use a finer uniform grid.
 #
 # ## Limited to low-Mach flows
 #

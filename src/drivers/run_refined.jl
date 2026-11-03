@@ -2,6 +2,8 @@
 """Dispatch grid-refined cases (2D and 3D).
 
 Handles both D2Q9 and D3Q19 lattices with isothermal and thermal modules.
+
+Grid refinement is under development and not validated.
 """
 function _run_refined(setup::SimulationSetup;
                       backend=KernelAbstractions.CPU(), T=Float64,
