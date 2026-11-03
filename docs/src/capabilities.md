@@ -230,6 +230,7 @@ exported but unused), so it is not reachable from `.krk` or from a driver.
 | Newtonian | ✓ | ✓ | ✓ | kernel only (no driver) |
 | Power-law | ✓ | ✗ | ✓ | kernel only (no driver) |
 | Carreau-Yasuda | ✓ | ✗ | ✓ | kernel only (no driver) |
+| Carreau-Yasuda steady adjoint (`gnf_steady_gradient`; tests `test/ad/gnf_adjoint_test.jl`, `test/ad/gnf_adjoint_enzyme_test.jl`; one A100, Float64, run archived under `benchmarks/validation/gnf_adjoint/results/`) | ✓ | ✗ | ✓ (one A100) | — |
 | Cross | ✓ | ✗ | ✓ | kernel only (no driver) |
 | Bingham (Papanastasiou) | ✓ | ✗ | ✓ | kernel only (no driver) |
 | Herschel–Bulkley | ✓ | ✗ | ✓ | kernel only (no driver) |

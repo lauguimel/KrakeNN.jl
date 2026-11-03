@@ -172,8 +172,11 @@ Source: `benchmarks/validation/gnf_adjoint/results/gnf_adjoint_gpu.csv` (and
 2026-11-02 by `benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.jl` on
 `CUDABackend()`: NVIDIA A100-SXM4-40GB, Float64, Julia 1.12.5, CUDA.jl 5.11.3, driver
 610.57.4. The run exited 0 and all gated checks passed. The code that ran is identical
-to the branch commit `12fd5d3ba` (checked file by file); provenance details are in the
-README of that directory. The case is the 32×16 channel of the CPU tests.
+to the branch commit `12fd5d3ba` (checked file by file), which is kept reachable by the
+tag `archive/gnf-adjoint-gpu-check`. The branch was later rebased onto `dev/platform`
+660b8e871; the only source changes that brought in (the `.krk` `Backend` directive, in
+`src/io/krk/directives.jl`, `src/io/krk/parser.jl` and `src/simulation_runner.jl`) are
+not used by this script. Provenance details are in the README of that directory. The case is the 32×16 channel of the CPU tests.
 
 - **GPU against CPU operators.** The Jacobian-vector and transposed products on the
   device differ from the CPU ones by a relative 1.2e-16 and 8.7e-17 (bound 1e-14). The

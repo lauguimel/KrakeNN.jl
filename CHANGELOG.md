@@ -6,6 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Steady discrete adjoint of the generalised-Newtonian (GNF) lattice Boltzmann step:
+  `gnf_steady_gradient` returns the objective `J = ½ Σ (value − target)²` of the
+  converged steady velocity (`GNFVelocityObs`) and its gradient with respect to the
+  four Carreau–Yasuda viscosity-law parameters `(ln η∞*, ln k*, n, a)`;
+  `gnf_steady_adjoint` accepts any cotangent on the lattice velocity. The fixed point
+  comes from the new `run_gnf_periodic_steady` driver. The adjoint is the transposed
+  linearisation of Kraken's own step at the fixed point (local blocks by ForwardDiff
+  on the host, hand-written KernelAbstractions products, mass mode removed by
+  bordering); it does not use Enzyme. Default solver `:kstep` (GMRES on the K-step
+  system, K = 1001); `:gmres` and `:fixed_point` are selectable. Scope: 2D D2Q9,
+  periodic in x, body-force driven, Carreau–Yasuda law only. Verified on CPU and on one A100 (Float64), on 32×16 and 16×8 grids (GPU: 32×16
+  only). On CPU the gradient agrees with central finite differences of J to 7.1e-08
+  or better in absolute value (the gate is far looser), the Jacobian-vector product
+  agrees with central differences of the real step, and the transposed product
+  agrees with Enzyme to 3.6e-16 relative (the Enzyme comparison runs in its own CI
+  step, `test/ad/gnf_adjoint_enzyme_test.jl`). On the A100 the device products match
+  the CPU ones to 1.2e-16 relative and the gradient matches finite differences to
+  7.1e-08 or better; the Float32 operator is informational only. The in-suite
+  CPU/GPU parity test is skipped without CUDA. See
+  `users/benchmarks/gnf-adjoint-gradient.md`.
 - Experimental hydrostatic `injector_closure=:static_moment` Julia keyword and
   `.krk` `Physics injector_closure = static_moment` selector (#73, #78).
   The opt-in normal-moment reconstruction preserves the outgoing charge aggregate

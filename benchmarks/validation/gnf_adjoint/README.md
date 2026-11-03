@@ -87,15 +87,15 @@ times and elapsed time per check. Preserve both files together when citing a run
 ## GPU evidence
 
 Files: `results/gnf_adjoint_gpu.csv` and `results/gnf_adjoint_gpu.log`, copied
-unchanged from the Aqua output directory (originally
+from the Aqua output directory (originally
 `gnf_adjoint_gpu_cuda_20261102_173836.{csv,log}`, renamed to stable names). The
-last line of the log holds the absolute cluster path of the CSV
-(`CSV=/home/...`); it was left as written. The scheduler log of the job is not
+only edit is on the last line of the log (`CSV=... LOG=...`), where the absolute
+cluster home path was replaced by `~`. The scheduler log of the job is not
 archived (it holds the job environment).
 
 | Item | Value |
 | --- | --- |
-| Code | branch `feat/gnf-adjoint`, commit `12fd5d3ba`. The cluster copy is not a git checkout (the log says `git_commit=unknown`); a checksum comparison (`rsync -n -rc`) of `src/`, `ext/`, `test/` and `benchmarks/` against the commit, excluding `results/` and `out/`, listed no differing file |
+| Code | branch `feat/gnf-adjoint`, commit `12fd5d3ba`, kept reachable by the tag `archive/gnf-adjoint-gpu-check`. The branch was later rebased onto `dev/platform` 660b8e871; the only source changes that brought in (the `.krk` `Backend` directive, in `src/io/krk/directives.jl`, `src/io/krk/parser.jl` and `src/simulation_runner.jl`) are not used by this script. The cluster copy is not a git checkout (the log says `git_commit=unknown`); a checksum comparison (`rsync -n -rc`) of `src/`, `ext/`, `test/` and `benchmarks/` against the commit, excluding `results/` and `out/`, listed no differing file |
 | Scheduler job | `27544976.aqua`, exit status 0, node `gpu0n009`, 4 CPUs, 32 GB, 1 GPU |
 | Run | started 2026-11-02 17:38:36 UTC, 76.4 s in the script; log ends with `Gated checks: PASS` |
 | GPU | NVIDIA A100-SXM4-40GB (sm_80), 39.5 GiB available |
