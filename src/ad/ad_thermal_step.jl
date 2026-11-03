@@ -82,11 +82,18 @@ end
     return (T(temp_wall) - (one(T) - q) * temp_here) / q
 end
 
-@inline function ad_dirichlet_cutlink_pop(g_out, temp_here, temp_wall,
+# Cut-link anti-bounce-back for a Dirichlet wall at fraction `q_wall_link` of
+# the link from the boundary node. `g_bounced` is the post-collision population
+# that left the boundary node towards the wall, which the bounce-back pull has
+# already placed in the unknown slot. The wall term interpolates the
+# temperature linearly to the link midpoint, T_mid = (temp_here + ghost) / 2,
+# so q = 0.5 reduces to the half-way rule of the fused kernel,
+# g_q = -g*_opp + 2 w_q T_wall.
+@inline function ad_dirichlet_cutlink_pop(g_bounced, temp_here, temp_wall,
                                           q_wall_link, weight)
-    T = typeof(g_out)
+    T = typeof(g_bounced)
     ghost = ad_dirichlet_cutlink_ghost(temp_here, temp_wall, q_wall_link)
-    return -g_out + T(weight) * (temp_here + ghost)
+    return -g_bounced + T(weight) * (temp_here + ghost)
 end
 
 function ad_initial_thermal_w(p::ADNatconvParams, L::Real, q_hot::Real)
@@ -164,20 +171,24 @@ end
                                           T_hot, T_cold,
                                           g1, g2, g3, g4, g5, g6, g7, g8, g9)
     temp_here = g1 + g2 + g3 + g4 + g5 + g6 + g7 + g8 + g9
+    # After the bounce-back pull, each unknown slot (2, 6, 9 at the west wall;
+    # 4, 7, 8 at the east wall) holds the bounced post-collision value of its
+    # opposite direction, which is the population the cut-link rule reflects.
+    # q_therm is indexed by the outgoing (wall-facing) direction.
     if i == 1
-        g2 = ad_dirichlet_cutlink_pop(g4, temp_here, T_hot,
+        g2 = ad_dirichlet_cutlink_pop(g2, temp_here, T_hot,
                                       q_therm[1, j, 4], 1.0 / 9.0)
-        g6 = ad_dirichlet_cutlink_pop(g8, temp_here, T_hot,
+        g6 = ad_dirichlet_cutlink_pop(g6, temp_here, T_hot,
                                       q_therm[1, j, 8], 1.0 / 36.0)
-        g9 = ad_dirichlet_cutlink_pop(g7, temp_here, T_hot,
+        g9 = ad_dirichlet_cutlink_pop(g9, temp_here, T_hot,
                                       q_therm[1, j, 7], 1.0 / 36.0)
     end
     if i == Nx
-        g4 = ad_dirichlet_cutlink_pop(g2, temp_here, T_cold,
+        g4 = ad_dirichlet_cutlink_pop(g4, temp_here, T_cold,
                                       q_therm[Nx, j, 2], 1.0 / 9.0)
-        g7 = ad_dirichlet_cutlink_pop(g9, temp_here, T_cold,
+        g7 = ad_dirichlet_cutlink_pop(g7, temp_here, T_cold,
                                       q_therm[Nx, j, 9], 1.0 / 36.0)
-        g8 = ad_dirichlet_cutlink_pop(g6, temp_here, T_cold,
+        g8 = ad_dirichlet_cutlink_pop(g8, temp_here, T_cold,
                                       q_therm[Nx, j, 6], 1.0 / 36.0)
     end
     return g1, g2, g3, g4, g5, g6, g7, g8, g9

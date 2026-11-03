@@ -33,7 +33,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
 
     g_cpu = zeros(FT, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT * (i-1) / (Nx-1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)   # half-way walls at x = 0.5, Nx + 0.5
         for q in 1:19; g_cpu[i,j,k,q] = FT(w[q]) * T_init; end
     end
     copyto!(g_in, g_cpu); copyto!(g_out, g_cpu)
@@ -71,9 +71,11 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
         collide_thermal_3d!(go, ux, uy, uz, ω_T)
         collide_3d!(fo, is_solid, ω_f)
     end
+    # Post-restriction thermal call on the patched (west) face only: the
+    # half-way kernel flips the incoming slots, so the unpatched east wall,
+    # already set post-stream in `fused`, must not get a second call.
     bc_c = (f, g, Te, nx, ny, nz) -> begin
         apply_fixed_temp_west_3d!(g, T_hot, ny, nz)
-        apply_fixed_temp_east_3d!(g, T_cold, nx, ny, nz)
     end
 
     t0 = time()
@@ -90,7 +92,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
     T_cpu = Array(Temp)
     jm = N÷2; km = N÷2
     T_line = T_cpu[:, jm, km]
-    T_exact = [FT(T_hot - ΔT*(i-1)/(Nx-1)) for i in 1:Nx]
+    T_exact = [FT(T_hot - ΔT * (i - 0.5) / Nx) for i in 1:Nx]
     max_err = maximum(abs.(T_line .- T_exact))
     ux_max = maximum(abs, Array(ux))
     @printf("  %d steps in %.1fs (%.0f steps/s)\n", nsteps, dt, nsteps/dt)
@@ -112,7 +114,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
 
     g_cpu2 = zeros(FT, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT*(i-1)/(Nx-1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)   # half-way walls at x = 0.5, Nx + 0.5
         for q in 1:19; g_cpu2[i,j,k,q] = FT(w[q]) * T_init; end
     end
     copyto!(g_in2, g_cpu2); copyto!(g_out2, g_cpu2)
@@ -155,6 +157,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
         collide_thermal_3d!(go, ux2, uy2, uz2, ω_T)
         collide_boussinesq_3d!(fo, Te, is_solid2, ω_f, β_g, T_ref)
     end
+    # Both walls carry a patch here, so both get the post-restriction call.
     bc_c2 = (f, g, Te, nx, ny, nz) -> begin
         apply_fixed_temp_west_3d!(g, T_hot, ny, nz)
         apply_fixed_temp_east_3d!(g, T_cold, nx, ny, nz)
@@ -200,11 +203,12 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
     end
     Nu_fine = sum(Nu_arr[2:end-1, 2:end-1]) / max((Ny_f-2)*(Nz_f-2), 1)
 
-    # Nu from coarse grid
+    # Nu from coarse grid: second-order one-sided gradient through the
+    # half-way wall value and the first two nodes.
     T_c = Array(Temp2)
     Nu_c_arr = zeros(FT, Ny, Nz)
     for k in 1:Nz, j in 1:Ny
-        dTdx = (-3*T_c[1,j,k] + 4*T_c[2,j,k] - T_c[3,j,k]) / FT(2)
+        dTdx = (-8*T_hot + 9*T_c[1,j,k] - T_c[2,j,k]) / FT(3)
         Nu_c_arr[j, k] = -L * dTdx / ΔT
     end
     Nu_coarse = sum(Nu_c_arr[2:end-1, 2:end-1]) / max((Ny-2)*(Nz-2), 1)

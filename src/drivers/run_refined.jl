@@ -80,6 +80,7 @@ function _run_refined(setup::SimulationSetup;
     ω_T = T(0); β_g_val = T(0); T_ref_buoy = T(0)
     bc_thermal_patch_fns = nothing
     thermal_bc_face_fns = Function[]
+    thermal_bc_patched_fns = Function[]
 
     if is_thermal
         params = setup.physics.params
@@ -127,13 +128,13 @@ function _run_refined(setup::SimulationSetup;
         for (face, tv) in thermal_face_bcs
             tv ≈ T_hot && (hot_face = face)
         end
+        # Dirichlet walls are half-way: node i is i - 0.5 spacings from the
+        # west wall and the gap between opposite walls is Nx (Ny).
         for j in 1:Ny, i in 1:Nx
             t_frac = if hot_face in (:west, :east)
-                T(hot_face == :west ? (i - 1) / max(Nx - 1, 1) :
-                                      (Nx - i) / max(Nx - 1, 1))
+                T(hot_face == :west ? (i - 0.5) / Nx : (Nx - i + 0.5) / Nx)
             else  # south/north
-                T(hot_face == :south ? (j - 1) / max(Ny - 1, 1) :
-                                       (Ny - j) / max(Ny - 1, 1))
+                T(hot_face == :south ? (j - 0.5) / Ny : (Ny - j + 0.5) / Ny)
             end
             T_init = T_hot - (T_hot - T_cold) * t_frac
             for q in 1:9
@@ -157,17 +158,32 @@ function _run_refined(setup::SimulationSetup;
         # Build thermal patch BCs (fixed-T on faces touching domain walls)
         bc_thermal_patch_fns = _build_patch_thermal_bcs(patches, setup, T)
 
-        # Build coarse thermal BC closures
+        # Build coarse thermal BC closures. `thermal_bc_face_fns` runs once per
+        # step, post-stream, in the coarse step. `thermal_bc_patched_fns` holds
+        # the faces touched by a patch: their coarse wall cells are restored and
+        # restricted, so they get one more call after restriction (see
+        # thermal_bc_coarse_fn).
+        _touches_patch(face) = any(patches) do p
+            face == :west  ? first(p.parent_i_range) == 1 :
+            face == :east  ? last(p.parent_i_range) == Nx :
+            face == :south ? first(p.parent_j_range) == 1 :
+                             last(p.parent_j_range) == Ny
+        end
         for (face, T_val) in thermal_face_bcs
-            if face == :south
-                push!(thermal_bc_face_fns, (g, nx, ny) -> apply_fixed_temp_south_2d!(g, T_val, nx))
+            fn = if face == :south
+                (g, nx, ny) -> apply_fixed_temp_south_2d!(g, T_val, nx)
             elseif face == :north
-                push!(thermal_bc_face_fns, (g, nx, ny) -> apply_fixed_temp_north_2d!(g, T_val, nx, ny))
+                (g, nx, ny) -> apply_fixed_temp_north_2d!(g, T_val, nx, ny)
             elseif face == :west
-                push!(thermal_bc_face_fns, (g, nx, ny) -> apply_fixed_temp_west_2d!(g, T_val, ny))
+                (g, nx, ny) -> apply_fixed_temp_west_2d!(g, T_val, ny)
             elseif face == :east
-                push!(thermal_bc_face_fns, (g, nx, ny) -> apply_fixed_temp_east_2d!(g, T_val, nx, ny))
+                (g, nx, ny) -> apply_fixed_temp_east_2d!(g, T_val, nx, ny)
+            else
+                nothing
             end
+            fn === nothing && continue
+            push!(thermal_bc_face_fns, fn)
+            _touches_patch(face) && push!(thermal_bc_patched_fns, fn)
         end
     end
 
@@ -217,7 +233,8 @@ function _run_refined(setup::SimulationSetup;
 
         let sfn=stream_fn!, bch=bc_handlers, d_=dom, dx_=dx, dy_=dy,
             ρ_=ρ, ux_=ux, uy_=uy, is_s=is_solid, ω_=ω, ωT_=ω_T,
-            βg_=β_g_val, Tref_=T_ref_buoy, tbcfns=thermal_bc_face_fns, T_=T,
+            βg_=β_g_val, Tref_=T_ref_buoy, tbcfns=thermal_bc_face_fns,
+            tbcfns_patched=thermal_bc_patched_fns, T_=T,
             wf=wall_faces, Nx_=Nx, Ny_=Ny
 
             thermal_fused_step_fn = (f_o, f_i, g_o, g_i, Te, nx, ny) -> begin
@@ -242,7 +259,13 @@ function _run_refined(setup::SimulationSetup;
                 end
                 _apply_boundary_conditions!(f, bch, 0, nx, ny,
                     Float64(dx_), Float64(dy_), d_, T_)
-                for bfn in tbcfns
+                # Thermal Dirichlet re-application after restriction, on the
+                # faces touched by a patch only: this is how the wall
+                # temperature reaches the patch-covered coarse wall cells
+                # (known refined-wall defect, issue #97). The kernel flips the
+                # sign of the incoming slots, so a face untouched by any patch
+                # must not get this second call.
+                for bfn in tbcfns_patched
                     bfn(g, nx, ny)
                 end
             end
@@ -287,9 +310,7 @@ function _run_refined(setup::SimulationSetup;
                                     Float64(dx), Float64(dy), dom, T)
         compute_macroscopic_2d!(ρ, ux, uy, f_in)
         if is_thermal
-            for bfn in thermal_bc_face_fns
-                bfn(g_in, Nx, Ny)
-            end
+            # Thermal walls were already re-applied once in thermal_bc_coarse_fn.
             compute_temperature_2d!(Temp, g_in)
         end
 

@@ -154,12 +154,19 @@ function compute_temperature_3d!(Temp, g)
     kernel!(Temp, g; ndrange=(Nx, Ny, Nz))
 end
 
-# --- Fixed temperature BCs (anti-bounce-back Dirichlet, D3Q19) ---
+# --- Fixed temperature BCs (half-way anti-bounce-back Dirichlet, D3Q19) ---
 #
-# At a wall, unknown populations (pointing into domain) are set via:
-#   g_q = -g_q_opp + 2 * w_q * T_wall
+# The wall sits half a lattice spacing outside the boundary node (x = 0.5 and
+# x = Nx + 0.5 for west/east, likewise in y and z), where the half-way no-slip
+# walls of the flow sit. These kernels act on the post-stream array of
+# `stream_3d!`, whose bounce-back has already put the post-collision value
+# g*_opp(x_b, t) into each unknown slot q (pointing into the domain):
+#   g_q(x_b, t+1) = -g*_opp(x_b, t) + 2 w_q T_wall,
+# i.e. a sign flip of that slot plus the wall term. Not idempotent: call once
+# per step, after streaming and before collision, and do not call two
+# Dirichlet faces that share an edge (the edge diagonal would flip twice).
 
-# West wall (i=1): unknown pops with cx>0 → {2, 8, 10, 12, 14}
+# West wall (i=1, wall at x = 0.5): unknown pops with cx>0 → {2, 8, 10, 12, 14}
 @kernel function apply_fixed_temp_west_3d_kernel!(g, T_wall)
     j, k = @index(Global, NTuple)
     i = 1
@@ -167,19 +174,23 @@ end
         TT = eltype(g)
         wa = TT(2) * TT(1.0/18.0) * T_wall
         we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,2]  = -g[i,j,k,3]  + wa   # opp: 3 (-x)
-        g[i,j,k,8]  = -g[i,j,k,11] + we   # opp: 11 (-x,-y)
-        g[i,j,k,10] = -g[i,j,k,9]  + we   # opp: 9 (-x,+y)
-        g[i,j,k,12] = -g[i,j,k,15] + we   # opp: 15 (-x,-z)
-        g[i,j,k,14] = -g[i,j,k,13] + we   # opp: 13 (-x,+z)
+        g[i,j,k,2]  = -g[i,j,k,2]  + wa   # bounced from 3 (-x)
+        g[i,j,k,8]  = -g[i,j,k,8]  + we   # bounced from 11 (-x,-y)
+        g[i,j,k,10] = -g[i,j,k,10] + we   # bounced from 9 (-x,+y)
+        g[i,j,k,12] = -g[i,j,k,12] + we   # bounced from 15 (-x,-z)
+        g[i,j,k,14] = -g[i,j,k,14] + we   # bounced from 13 (-x,+z)
     end
 end
 
 """
     apply_fixed_temp_west_3d!(g, T_wall, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the west face by half-way anti-bounce-back: the
+wall sits at x = 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -193,7 +204,7 @@ function apply_fixed_temp_west_3d!(g, T_wall, Ny, Nz)
     kernel!(g, eltype(g)(T_wall); ndrange=(Ny, Nz))
 end
 
-# East wall (i=Nx): unknown pops with cx<0 → {3, 9, 11, 13, 15}
+# East wall (i=Nx, wall at x = Nx + 0.5): unknown pops with cx<0 → {3, 9, 11, 13, 15}
 @kernel function apply_fixed_temp_east_3d_kernel!(g, T_wall, Nx)
     j, k = @index(Global, NTuple)
     i = Nx
@@ -201,19 +212,23 @@ end
         TT = eltype(g)
         wa = TT(2) * TT(1.0/18.0) * T_wall
         we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,3]  = -g[i,j,k,2]  + wa   # opp: 2 (+x)
-        g[i,j,k,9]  = -g[i,j,k,10] + we   # opp: 10 (+x,-y)
-        g[i,j,k,11] = -g[i,j,k,8]  + we   # opp: 8 (+x,+y)
-        g[i,j,k,13] = -g[i,j,k,14] + we   # opp: 14 (+x,-z)
-        g[i,j,k,15] = -g[i,j,k,12] + we   # opp: 12 (+x,+z)
+        g[i,j,k,3]  = -g[i,j,k,3]  + wa   # bounced from 2 (+x)
+        g[i,j,k,9]  = -g[i,j,k,9]  + we   # bounced from 10 (+x,-y)
+        g[i,j,k,11] = -g[i,j,k,11] + we   # bounced from 8 (+x,+y)
+        g[i,j,k,13] = -g[i,j,k,13] + we   # bounced from 14 (+x,-z)
+        g[i,j,k,15] = -g[i,j,k,15] + we   # bounced from 12 (+x,+z)
     end
 end
 
 """
     apply_fixed_temp_east_3d!(g, T_wall, Nx, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the east face by half-way anti-bounce-back: the
+wall sits at x = Nx + 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -227,7 +242,7 @@ function apply_fixed_temp_east_3d!(g, T_wall, Nx, Ny, Nz)
     kernel!(g, eltype(g)(T_wall), Nx; ndrange=(Ny, Nz))
 end
 
-# South wall (j=1): unknown pops with cy>0 → {4, 8, 9, 16, 18}
+# South wall (j=1, wall at y = 0.5): unknown pops with cy>0 → {4, 8, 9, 16, 18}
 @kernel function apply_fixed_temp_south_3d_kernel!(g, T_wall)
     i, k = @index(Global, NTuple)
     j = 1
@@ -235,19 +250,23 @@ end
         TT = eltype(g)
         wa = TT(2) * TT(1.0/18.0) * T_wall
         we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,4]  = -g[i,j,k,5]  + wa   # opp: 5 (-y)
-        g[i,j,k,8]  = -g[i,j,k,11] + we   # opp: 11 (-x,-y)
-        g[i,j,k,9]  = -g[i,j,k,10] + we   # opp: 10 (+x,-y)
-        g[i,j,k,16] = -g[i,j,k,19] + we   # opp: 19 (-y,-z)
-        g[i,j,k,18] = -g[i,j,k,17] + we   # opp: 17 (-y,+z)
+        g[i,j,k,4]  = -g[i,j,k,4]  + wa   # bounced from 5 (-y)
+        g[i,j,k,8]  = -g[i,j,k,8]  + we   # bounced from 11 (-x,-y)
+        g[i,j,k,9]  = -g[i,j,k,9]  + we   # bounced from 10 (+x,-y)
+        g[i,j,k,16] = -g[i,j,k,16] + we   # bounced from 19 (-y,-z)
+        g[i,j,k,18] = -g[i,j,k,18] + we   # bounced from 17 (-y,+z)
     end
 end
 
 """
     apply_fixed_temp_south_3d!(g, T_wall, Nx, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the south face by half-way anti-bounce-back: the
+wall sits at y = 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -261,7 +280,7 @@ function apply_fixed_temp_south_3d!(g, T_wall, Nx, Nz)
     kernel!(g, eltype(g)(T_wall); ndrange=(Nx, Nz))
 end
 
-# North wall (j=Ny): unknown pops with cy<0 → {5, 10, 11, 17, 19}
+# North wall (j=Ny, wall at y = Ny + 0.5): unknown pops with cy<0 → {5, 10, 11, 17, 19}
 @kernel function apply_fixed_temp_north_3d_kernel!(g, T_wall, Ny)
     i, k = @index(Global, NTuple)
     j = Ny
@@ -269,19 +288,23 @@ end
         TT = eltype(g)
         wa = TT(2) * TT(1.0/18.0) * T_wall
         we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,5]  = -g[i,j,k,4]  + wa   # opp: 4 (+y)
-        g[i,j,k,10] = -g[i,j,k,9]  + we   # opp: 9 (-x,+y)
-        g[i,j,k,11] = -g[i,j,k,8]  + we   # opp: 8 (+x,+y)
-        g[i,j,k,17] = -g[i,j,k,18] + we   # opp: 18 (+y,-z)
-        g[i,j,k,19] = -g[i,j,k,16] + we   # opp: 16 (+y,+z)
+        g[i,j,k,5]  = -g[i,j,k,5]  + wa   # bounced from 4 (+y)
+        g[i,j,k,10] = -g[i,j,k,10] + we   # bounced from 9 (-x,+y)
+        g[i,j,k,11] = -g[i,j,k,11] + we   # bounced from 8 (+x,+y)
+        g[i,j,k,17] = -g[i,j,k,17] + we   # bounced from 18 (+y,-z)
+        g[i,j,k,19] = -g[i,j,k,19] + we   # bounced from 16 (+y,+z)
     end
 end
 
 """
     apply_fixed_temp_north_3d!(g, T_wall, Nx, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the north face by half-way anti-bounce-back: the
+wall sits at y = Ny + 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -295,7 +318,7 @@ function apply_fixed_temp_north_3d!(g, T_wall, Nx, Ny, Nz)
     kernel!(g, eltype(g)(T_wall), Ny; ndrange=(Nx, Nz))
 end
 
-# Bottom wall (k=1): unknown pops with cz>0 → {6, 12, 13, 16, 17}
+# Bottom wall (k=1, wall at z = 0.5): unknown pops with cz>0 → {6, 12, 13, 16, 17}
 @kernel function apply_fixed_temp_bottom_3d_kernel!(g, T_wall)
     i, j = @index(Global, NTuple)
     k = 1
@@ -303,19 +326,23 @@ end
         TT = eltype(g)
         wa = TT(2) * TT(1.0/18.0) * T_wall
         we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,6]  = -g[i,j,k,7]  + wa   # opp: 7 (-z)
-        g[i,j,k,12] = -g[i,j,k,15] + we   # opp: 15 (-x,-z)
-        g[i,j,k,13] = -g[i,j,k,14] + we   # opp: 14 (+x,-z)
-        g[i,j,k,16] = -g[i,j,k,19] + we   # opp: 19 (-y,-z)
-        g[i,j,k,17] = -g[i,j,k,18] + we   # opp: 18 (+y,-z)
+        g[i,j,k,6]  = -g[i,j,k,6]  + wa   # bounced from 7 (-z)
+        g[i,j,k,12] = -g[i,j,k,12] + we   # bounced from 15 (-x,-z)
+        g[i,j,k,13] = -g[i,j,k,13] + we   # bounced from 14 (+x,-z)
+        g[i,j,k,16] = -g[i,j,k,16] + we   # bounced from 19 (-y,-z)
+        g[i,j,k,17] = -g[i,j,k,17] + we   # bounced from 18 (+y,-z)
     end
 end
 
 """
     apply_fixed_temp_bottom_3d!(g, T_wall, Nx, Ny)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the bottom face by half-way anti-bounce-back: the
+wall sits at z = 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -329,7 +356,7 @@ function apply_fixed_temp_bottom_3d!(g, T_wall, Nx, Ny)
     kernel!(g, eltype(g)(T_wall); ndrange=(Nx, Ny))
 end
 
-# Top wall (k=Nz): unknown pops with cz<0 → {7, 14, 15, 18, 19}
+# Top wall (k=Nz, wall at z = Nz + 0.5): unknown pops with cz<0 → {7, 14, 15, 18, 19}
 @kernel function apply_fixed_temp_top_3d_kernel!(g, T_wall, Nz)
     i, j = @index(Global, NTuple)
     k = Nz
@@ -337,19 +364,23 @@ end
         TT = eltype(g)
         wa = TT(2) * TT(1.0/18.0) * T_wall
         we = TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,k,7]  = -g[i,j,k,6]  + wa   # opp: 6 (+z)
-        g[i,j,k,14] = -g[i,j,k,13] + we   # opp: 13 (-x,+z)
-        g[i,j,k,15] = -g[i,j,k,12] + we   # opp: 12 (+x,+z)
-        g[i,j,k,18] = -g[i,j,k,17] + we   # opp: 17 (-y,+z)
-        g[i,j,k,19] = -g[i,j,k,16] + we   # opp: 16 (+y,+z)
+        g[i,j,k,7]  = -g[i,j,k,7]  + wa   # bounced from 6 (+z)
+        g[i,j,k,14] = -g[i,j,k,14] + we   # bounced from 13 (-x,+z)
+        g[i,j,k,15] = -g[i,j,k,15] + we   # bounced from 12 (+x,+z)
+        g[i,j,k,18] = -g[i,j,k,18] + we   # bounced from 17 (-y,+z)
+        g[i,j,k,19] = -g[i,j,k,19] + we   # bounced from 16 (+y,+z)
     end
 end
 
 """
     apply_fixed_temp_top_3d!(g, T_wall, Nx, Ny, Nz)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the top face by half-way anti-bounce-back: the
+wall sits at z = Nz + 0.5, half a lattice spacing outside the boundary nodes,
+where the half-way no-slip wall of the flow sits. `g` must be the post-stream
+array of `stream_3d!`; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken

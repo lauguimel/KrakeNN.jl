@@ -123,6 +123,11 @@ function moving_cut_cotangent_norm(dqw, dq_dL)
     return sqrt(s)
 end
 
+# Hot-wall Nusselt number with the formula of `run_natural_convection_2d`:
+# the hot wall is half-way (q_hot = 0.5, the default of
+# `ad_cavity_wall_geometry`), and the second-order one-sided gradient goes
+# through the wall value and the first two nodes,
+# dT/dx|wall = (-8 T_hot + 9 T_1 - T_2) / 3.
 function nu_driver(w, p::ADNatconvParams)
     Nx = p.Nx
     Ny = p.Ny
@@ -133,13 +138,11 @@ function nu_driver(w, p::ADNatconvParams)
     @inbounds for j in 2:(Ny - 1)
         T1 = 0.0
         T2 = 0.0
-        T3 = 0.0
         for q in 1:9
             T1 += ad_thermal_readpop(w, goff, 1, j, q, Nx, Ny)
             T2 += ad_thermal_readpop(w, goff, 2, j, q, Nx, Ny)
-            T3 += ad_thermal_readpop(w, goff, 3, j, q, Nx, Ny)
         end
-        s += -H * (-3.0 * T1 + 4.0 * T2 - T3) / 2.0 / delta_T
+        s += -H * (-8.0 * p.T_hot + 9.0 * T1 - T2) / 3.0 / delta_T
     end
     return s / (Ny - 2)
 end

@@ -137,18 +137,29 @@ function compute_temperature_2d!(Temp, g)
     kernel!(Temp, g; ndrange=(Nx, Ny))
 end
 
-# --- Fixed temperature BC (anti-bounce-back for Dirichlet) ---
+# --- Fixed temperature BC (half-way anti-bounce-back for Dirichlet) ---
+#
+# The wall sits half a lattice spacing outside the boundary node (y = 0.5 for
+# the south face, y = Ny + 0.5 for the north face, x = 0.5 and x = Nx + 0.5 for
+# west/east), where the half-way no-slip walls of the flow sit. These kernels
+# act on the post-stream array of a bounce-back stream kernel (`stream_2d!`,
+# `stream_periodic_x_wall_y_2d!`): each wall-crossing slot already holds the
+# bounced post-collision value g*_opp(x_b, t), and anti-bounce-back sets
+#   g_q(x_b, t+1) = -g*_opp(x_b, t) + 2 w_q T_wall,
+# i.e. a sign flip of that slot plus the wall term. The update is not
+# idempotent: call it exactly once per time step, after streaming and before
+# collision, and do not call two Dirichlet faces that share a corner (the
+# diagonal slot at the corner node would be flipped twice).
 
 @kernel function apply_fixed_temp_south_2d_kernel!(g, T_wall)
     i = @index(Global)
     j = 1
     @inbounds begin
         TT = eltype(g)
-        # Anti-bounce-back: g_q(wall) = -g_opp(wall) + 2*w_q*T_wall
-        # For south wall (j=1), unknown populations pointing north: 3, 6, 7
-        g[i,j,3] = -g[i,j,5] + TT(2) * TT(1.0/9.0)  * T_wall
-        g[i,j,6] = -g[i,j,8] + TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,7] = -g[i,j,9] + TT(2) * TT(1.0/36.0) * T_wall
+        # South wall (y = 0.5), unknown populations pointing north: 3, 6, 7
+        g[i,j,3] = -g[i,j,3] + TT(2) * TT(1.0/9.0)  * T_wall
+        g[i,j,6] = -g[i,j,6] + TT(2) * TT(1.0/36.0) * T_wall
+        g[i,j,7] = -g[i,j,7] + TT(2) * TT(1.0/36.0) * T_wall
     end
 end
 
@@ -157,18 +168,22 @@ end
     j = Ny
     @inbounds begin
         TT = eltype(g)
-        # Unknown populations pointing south: 5, 8, 9
-        g[i,j,5] = -g[i,j,3] + TT(2) * TT(1.0/9.0)  * T_wall
-        g[i,j,8] = -g[i,j,6] + TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,9] = -g[i,j,7] + TT(2) * TT(1.0/36.0) * T_wall
+        # North wall (y = Ny + 0.5), unknown populations pointing south: 5, 8, 9
+        g[i,j,5] = -g[i,j,5] + TT(2) * TT(1.0/9.0)  * T_wall
+        g[i,j,8] = -g[i,j,8] + TT(2) * TT(1.0/36.0) * T_wall
+        g[i,j,9] = -g[i,j,9] + TT(2) * TT(1.0/36.0) * T_wall
     end
 end
 
 """
     apply_fixed_temp_south_2d!(g, T_wall, Nx)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the south face by half-way anti-bounce-back: the
+wall sits at y = 0.5, half a lattice spacing outside the boundary nodes, where
+the half-way no-slip wall of the flow sits. `g` must be the post-stream array of
+a bounce-back stream kernel; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -185,8 +200,12 @@ end
 """
     apply_fixed_temp_north_2d!(g, T_wall, Nx, Ny)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the north face by half-way anti-bounce-back: the
+wall sits at y = Ny + 0.5, half a lattice spacing outside the boundary nodes, where
+the half-way no-slip wall of the flow sits. `g` must be the post-stream array of
+a bounce-back stream kernel; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -207,10 +226,11 @@ end
     i = 1
     @inbounds begin
         TT = eltype(g)
-        # Unknown populations pointing east: 2 (+1,0), 6 (+1,+1), 9 (+1,-1)
-        g[i,j,2] = -g[i,j,4] + TT(2) * TT(1.0/9.0)  * T_wall
-        g[i,j,6] = -g[i,j,8] + TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,9] = -g[i,j,7] + TT(2) * TT(1.0/36.0) * T_wall
+        # West wall (x = 0.5), unknown populations pointing east:
+        # 2 (+1,0), 6 (+1,+1), 9 (+1,-1)
+        g[i,j,2] = -g[i,j,2] + TT(2) * TT(1.0/9.0)  * T_wall
+        g[i,j,6] = -g[i,j,6] + TT(2) * TT(1.0/36.0) * T_wall
+        g[i,j,9] = -g[i,j,9] + TT(2) * TT(1.0/36.0) * T_wall
     end
 end
 
@@ -219,18 +239,23 @@ end
     i = Nx
     @inbounds begin
         TT = eltype(g)
-        # Unknown populations pointing west: 4 (-1,0), 7 (-1,+1), 8 (-1,-1)
-        g[i,j,4] = -g[i,j,2] + TT(2) * TT(1.0/9.0)  * T_wall
-        g[i,j,7] = -g[i,j,9] + TT(2) * TT(1.0/36.0) * T_wall
-        g[i,j,8] = -g[i,j,6] + TT(2) * TT(1.0/36.0) * T_wall
+        # East wall (x = Nx + 0.5), unknown populations pointing west:
+        # 4 (-1,0), 7 (-1,+1), 8 (-1,-1)
+        g[i,j,4] = -g[i,j,4] + TT(2) * TT(1.0/9.0)  * T_wall
+        g[i,j,7] = -g[i,j,7] + TT(2) * TT(1.0/36.0) * T_wall
+        g[i,j,8] = -g[i,j,8] + TT(2) * TT(1.0/36.0) * T_wall
     end
 end
 
 """
     apply_fixed_temp_west_2d!(g, T_wall, Ny)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the west face by half-way anti-bounce-back: the
+wall sits at x = 0.5, half a lattice spacing outside the boundary nodes, where
+the half-way no-slip wall of the flow sits. `g` must be the post-stream array of
+a bounce-back stream kernel; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken
@@ -247,8 +272,12 @@ end
 """
     apply_fixed_temp_east_2d!(g, T_wall, Nx, Ny)
 
-Public function in the kernel-level LBM operation.
-See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
+Fixed temperature `T_wall` on the east face by half-way anti-bounce-back: the
+wall sits at x = Nx + 0.5, half a lattice spacing outside the boundary nodes, where
+the half-way no-slip wall of the flow sits. `g` must be the post-stream array of
+a bounce-back stream kernel; call once per step, after streaming and before
+collision (the update flips the sign of the bounced slots, so a second call
+undoes the first).
 
 ```julia
 using Kraken

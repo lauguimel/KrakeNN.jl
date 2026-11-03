@@ -42,6 +42,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   pre-fix values as the dated record of the M8 study.
 
 ### Fixed
+- **Thermal Dirichlet walls are half-way, like the no-slip walls** (#97). The
+  fixed-temperature kernels (`apply_fixed_temp_*_2d!`, `apply_fixed_temp_*_3d!`, the
+  fused natural-convection step) put the wall on the first and last nodes, so the
+  thermal cavity was `N − 1` wide while the flow cavity was `N` wide. They now apply
+  the half-way anti-bounce-back `g_q = −g_q + 2 w_q T_w` to the bounced slot, once per
+  step after streaming (calling it twice undoes it). The drivers start from the
+  half-way linear profile `T_i = T_hot − ΔT (i − ½)/N`, and `Nu` uses the second-order
+  wall gradient `(−8 T_w + 9 T_1 − T_2)/3` with `H = N` (AD mirror and AD Nusselt QoI
+  updated alike). CPU Float64, `N = 64`: `Ra = 10³` Nu 1.1423 → 1.1185 (+2.26 % →
+  +0.13 % vs de Vahl Davis 1.117), `Ra = 10⁴` 2.3585 → 2.2535 (+5.39 % → +0.69 %);
+  pure conduction Nu 1.072 → 1.0003 at `N = 16`. With periodic side walls the linear
+  profile and `Nu = 1` now hold to round-off; in a closed cavity the adiabatic
+  bounce-back walls leave a second-order departure (`Nu − 1 = 3.1·10⁻⁴` at `N = 16`).
+  Refined thermal drivers re-apply the kernel after restriction only on the faces a
+  patch touches; their pure-conduction Nu moves from 1.29–1.31 to 1.26–1.30, and that
+  separate refined-wall defect stays open. The published GPU benchmark rows were
+  measured with the former walls and are flagged as such.
 - The 0.3.0 entry "GPU-validated (parity ≤1.6e-12)" for the cuDSS solve and the matching
   line of `docs/agent/solve-linear-implication.md` now carry a correction note (#61): the
   loading path of that July run is not recorded. Same note as in 0.5.1.

@@ -162,7 +162,7 @@ umag = @. sqrt(ux^2 + uy^2)
 # The thinner the boundary layers, the higher the Nusselt number.
 
 T_avg  = [sum(Temp[:, j]) / Nx_dom for j in 1:Ny_dom]
-y_norm = [(j - 0.5) / (Ny_dom - 1) for j in 1:Ny_dom]
+y_norm = [(j - 0.5) / Ny_dom for j in 1:Ny_dom]   # walls at j = 1/2 and Ny_dom + 1/2
 T_lin  = [T_hot - (T_hot - T_cold) * y for y in y_norm]
 
 # The departure from the linear profile is the signature of convective heat
