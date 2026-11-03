@@ -62,15 +62,15 @@ minimal — use with caution.
 
 | Capability | 2D | 3D | Refined | GPU | .krk | Theory / Example |
 |---|:-:|:-:|:-:|:-:|:-:|---|
-| Passive scalar transport (DDF) | ✓ | ✓ | ~ 2D and 3D conduction only | ✓ | `Module thermal` | [08 thermal DDF](theory/08_thermal_ddf.md) |
-| Boussinesq buoyancy | ✓ | ✓ | ~ 2D only (§4) | ✓ | auto when hot/cold BCs set | [Rayleigh-Bénard](examples/08_rayleigh_benard.md) |
+| Passive scalar transport (DDF) | ✓ | ✓ | in development | ✓ | `Module thermal` | [08 thermal DDF](theory/08_thermal_ddf.md) |
+| Boussinesq buoyancy | ✓ | ✓ | in development | ✓ | auto when hot/cold BCs set | [Rayleigh-Bénard](examples/08_rayleigh_benard.md) |
 | Heat conduction (pure) | ✓ | ✓ | — | ✓ | ✓ | [Heat conduction](examples/07_heat_conduction.md) |
-| Natural convection (cavity) | ✓ | ✓ | ~ 2D only (3D refined diverges, §4) | ✓ | ✓ | driver `run_natural_convection_2d/3d` |
+| Natural convection (cavity) | ✓ | ✓ | in development | ✓ | ✓ | driver `run_natural_convection_2d/3d` |
 | ν(T) Arrhenius (kernel) | ✓ | ✗ | ✗ | ✓ | ✗ | code: `collide_boussinesq_vt_2d!` |
 | ν(T) modified Arrhenius (Rc) | ✓ | ✗ | ✗ | ✓ | ✗ | driver via `Rc` keyword |
 | α(T), κ(T) variable diffusivity | ✗ | ✗ | — | — | ✗ | not implemented |
-| Validation vs De Vahl Davis (Ra=1e3) | ✓ 1.4% | — | ✓ 1.4% | ✓ | — | Nu = 1.118 ref |
-| Validation vs Fusegi (3D Ra=1e3) | — | ~ 5% | pending AQUA | ✓ | — | Nu = 1.085 ref |
+| Validation vs De Vahl Davis (Ra=1e3) | ✓ 1.4% | — | in development | ✓ | — | Nu = 1.118 ref |
+| Validation vs Fusegi (3D Ra=1e3) | — | ~ 5% | in development | ✓ | — | Nu = 1.085 ref |
 
 **Limitations:**
 - ν(T) is wired at the **driver** level (`run_natural_convection_2d(; Rc=5)`)
@@ -81,45 +81,15 @@ minimal — use with caution.
   kernels — this requires a parser extension (not implemented).
 - Thermal BCs are scalar only; `T = sin(π*y)*t/T_max` is not supported yet.
 
-## 4. Grid refinement
+## 4. Grid refinement (under development)
 
-| Capability | 2D | 3D | Thermal | GPU | .krk | Theory / API |
-|---|:-:|:-:|:-:|:-:|:-:|---|
-| Filippova–Hanel patch-based refinement | ✓ | ✓ | ~ 2D only | ✓ | `Refine name { region, ratio }` | [18 grid refinement](theory/18_grid_refinement.md) |
-| Temporal sub-cycling (ratio 2, 4, …) | ✓ | ✓ | ~ 2D only | ✓ | auto | [refinement](api/refinement.md) |
-| Ghost-layer bilinear/trilinear prolongation | ✓ | ✓ | ~ 2D only | ✓ | — | [refinement](api/refinement.md) |
-| Block-average restriction (ratio²/ratio³) | ✓ | ✓ | ~ 2D only | ✓ | — | [refinement](api/refinement.md) |
-| Automatic τ rescaling on fine grid | ✓ | ✓ | ~ 2D only | ✓ | — | sanity check reports τ_fine |
-| Full-domain wall patches | ✓ | ✗ (natconv diverges; conduction only) | ✓ (conduction) | ✓ | ✓ | 3D natconv unstable, see note |
-| Cost-vs-accuracy win on integrated quantities (Nu, Cd) | ✗ | ✗ | ✗ | — | — | not demonstrated; see [refinement showcase](benchmarks/refinement_showcase.md) |
-| Unified .krk dispatch (no driver) | ✓ | ✓ | ~ 2D only | ✓ | ✓ | [Refine block](krk/directives.md) |
-| Multi-level (patch inside patch) | ✓ | ✓ | ~ | ~ | ✓ | parser supports, partially tested |
-| Geometry on fine patches | ✓ | ✓ | — | ✓ | ✓ | `_apply_patch_geometry!` |
-
-**Key design:** refinement has **no dedicated driver**. A `Refine {}` block
-in any .krk file routes automatically to `_run_refined` (2D) or
-`_run_refined_3d` (3D), which in turn dispatch the thermal branch when
-`Module thermal` is active.
-
-**Limitations (3D natconv refined — known issue):**
-
-AQUA H100 validation (2026-04-14, Ra=1e3, N=24 and N=32) shows:
-- **Pure conduction with full-domain wall patch: PASSES** (T error ≈ 0.012).
-- **Boussinesq natconv with full-domain wall patches: DIVERGES** to NaN
-  after ~2500–3500 sub-cycled steps on both N=24 and N=32.
-- **.krk dispatch (full-domain patches)**: stable but Nu ≈ 1.87 vs
-  Fusegi reference 1.085 (~72% over-prediction).
-
-Root cause: the FH f_neq interaction with Boussinesq coupling at the
-domain-boundary rows of 3D patches creates a feedback loop that 2D does
-not exhibit (D2Q9 has only 9 pops and 4-point bilinear stencil, while
-D3Q19 has 19 pops and 8-point trilinear stencil with 5 boundary faces).
-
-Workaround: use **partial-domain 3D thermal patches**
-(2–3-cell margin from non-thermal walls). The divergence is
-not fixed.
-
-2D full-domain wall patches work without issue (Nu err ~1.4%).
+Grid refinement (patch and conservative AMR) is under development and not
+validated; it is not part of the supported feature set. No refinement
+capability is listed as working here. The code and its tests remain in the
+repository for development purposes. The reasons it is not validated are
+given in [Limitations](theory/10_limitations.md).
+The `.krk` `Refine` keyword is parsed but is under development and not
+validated; see [directives](krk/directives.md).
 
 ## 5. Geometry and obstacles
 
@@ -157,9 +127,7 @@ automatically — covers the following:
 | Thermal τ_α = 3α + 0.5 | error/warn | same bounds as flow τ |
 | Prandtl number | warn | Pr < 0.1 or > 10 extreme for SRT thermal |
 | Rheology τ_min | warn | from `nu_min` in GNF models |
-| **Fine-grid τ (refinement)** | warn | Filippova-Hanel rescaled τ on each patch |
-| **Fine-grid τ_α (refinement)** | warn | thermal τ on fine grids (added in 3f05d79) |
-| **Fine-grid N/Re** | warn | boundary layer resolution on refined patch |
+| Fine-grid checks (refinement) | warn | under development, not validated |
 | Two-phase density/viscosity ratio | warn | code present, not part of the validated surface |
 
 - .krk: [Sanity checks](krk/sanity.md)
@@ -179,7 +147,7 @@ automatically — covers the following:
 | Boundary / Initial / Obstacle / Fluid / Velocity blocks | ✓ | [directives](krk/directives.md) |
 | Modules: `thermal`, `axisymmetric` | ✓ | [modules](krk/modules.md) |
 | Rheology block (GNF + VE parsing) | ✓ | [directives](krk/directives.md) |
-| Refine block (2D and 3D) | ✓ | [directives](krk/directives.md) |
+| `Refine` block | in development | [directives](krk/directives.md) |
 | Define user variables | ✓ | [expressions](krk/expressions.md) |
 | Expressions (math + `x, y, z, t`) | ✓ | [expressions](krk/expressions.md) |
 | **Greek letters** (ν/nu, ρ/rho, σ/sigma, τ/tau …) | ✓ | [aliases](krk/aliases.md) |
@@ -293,7 +261,7 @@ as validated:
 | lid-driven cavity 2D | BGK + wall BCs + velocity BC. [Example](examples/04_cavity_2d.md) |
 | flow past a cylinder | BGK + inlet parabolic BC + obstacle (`Obstacle { ... }`). [Example](examples/06_cylinder_2d.md) |
 | natural convection in a cavity | `Module thermal` + two `wall(T=...)` BCs. [Example](examples/08_rayleigh_benard.md) |
-| refine near a wall | add `Refine name { region=[...], ratio=2 }` block. [20](examples/20_grid_refinement_cavity.md) |
+| refine near a wall | not available: grid refinement is under development and not validated |
 | run on H100/A100 | `Backend cuda` in the `.krk` file, or `run_simulation(...; backend=CUDABackend())` |
 | vary the viscosity with temperature | call `run_natural_convection_2d(; Rc=10)` directly (not via .krk yet) |
 | use an STL geometry | `Obstacle body stl(file="geom.stl")` |

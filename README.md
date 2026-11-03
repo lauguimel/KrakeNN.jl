@@ -7,14 +7,13 @@
 A GPU-portable Lattice Boltzmann (LBM) framework written in Julia, targeting
 single-phase incompressible, thermal, and viscoelastic flows on CPU, CUDA, and
 Apple Metal backends. Kraken.jl provides a compact kernel core (D2Q9, D3Q19), a
-declarative `.krk` configuration DSL, patch-based grid refinement, and
+declarative `.krk` configuration DSL and
 spatial boundary conditions — all behind a small, hackable API.
 
 ## Scope
 
 - Single-phase LBM in 2D and 3D (BGK; MRT in 2D; TRT, see the capabilities matrix for where)
 - Thermal flows via double-distribution (DDF) coupling
-- Patch-based nested grid refinement (Filippova–Hänel rescaling)
 - Spatial boundary conditions (Zou–He, bounce-back, periodic, outflow)
 - `.krk` configuration DSL for parametric runs
 - GPU-portable kernels via `KernelAbstractions.jl` (CPU / CUDA / Metal)
@@ -24,6 +23,8 @@ spatial boundary conditions — all behind a small, hackable API.
 Multiphase flows and the broader non-Newtonian rheology family are present in
 the source tree but remain experimental and are not part of the validated
 surface.
+
+Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set.
 
 For a complete, up-to-date feature matrix — with status (✓/~/✗), links to
 theory pages, examples, and API — see the
@@ -92,18 +93,17 @@ pass `backend = CUDABackend()` to `run_simulation`.
 
 See `docs/src/getting_started.md` and the `examples/` directory for more
 cases (Poiseuille, Couette, Taylor–Green, cylinder flow, Rayleigh–Bénard,
-Hagen–Poiseuille, 3D cavity, and grid-refinement demos).
+Hagen–Poiseuille, and 3D cavity).
 
 ## Features
 
 - D2Q9 and D3Q19 lattices
 - BGK and MRT collision operators
 - Thermal coupling via double-distribution functions
-- Patch-based nested grid refinement with conservative rescaling
 - Declarative `.krk` DSL for reproducible parametric studies
 - GPU-portable kernels: single source, runs on CPU / CUDA / Metal
 - VTK output for ParaView post-processing
-- ~2000 unit tests covering kernels, BCs, refinement, and end-to-end drivers
+- ~2000 unit tests covering kernels, BCs, and end-to-end drivers
 
 ## Documentation
 

@@ -16,6 +16,8 @@ using Kraken
 
 Kraken.RefinementPatch3D
 ```
+
+Grid refinement is under development and not validated.
 """
 struct RefinementPatch3D{T}
     name::String
@@ -57,6 +59,8 @@ using Kraken
 
 Kraken.RefinedDomain3D
 ```
+
+Grid refinement is under development and not validated.
 """
 struct RefinedDomain3D{T}
     base_Nx::Int; base_Ny::Int; base_Nz::Int
@@ -76,6 +80,8 @@ using Kraken
 
 methods(Kraken.create_patch_3d)
 ```
+
+Grid refinement is under development and not validated.
 """
 function create_patch_3d(name::String, level::Int, ratio::Int,
                           region::NTuple{6, Float64},  # (x0, y0, z0, x1, y1, z1)
@@ -164,6 +170,8 @@ using Kraken
 
 methods(Kraken.create_refined_domain_3d)
 ```
+
+Grid refinement is under development and not validated.
 """
 function create_refined_domain_3d(Nx, Ny, Nz, dx, omega, patches)
     T = isempty(patches) ? Float64 : eltype(patches[1].dx)

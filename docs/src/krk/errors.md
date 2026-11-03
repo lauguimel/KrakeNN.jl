@@ -33,6 +33,8 @@ appended via `_suggest_name`.
 
 ## Refine errors
 
+Grid refinement is under development and not validated; these messages are listed for reference only.
+
 | Error message | Cause | Fix |
 |---------------|-------|-----|
 | `Missing name in Refine: ...` | `Refine { ... }` with no name | `Refine patch1 { region = [...] }` |

@@ -115,16 +115,10 @@ grid, avoiding a full 3D run.
 - Theory: [Axisymmetric LBM](theory/09_axisymmetric.md)
 - Examples: [Hagen–Poiseuille](examples/09_hagen_poiseuille.md)
 
-## Grid refinement
+## Grid refinement (under development)
 
-### Filippova–Hänel patches
-
-Nested rectangular patches at a 2× finer resolution, with population
-rescaling across the interface so viscosity stays consistent between
-coarse and fine levels.
-
-- Theory: [Grid refinement](theory/18_grid_refinement.md)
-- Examples: [.krk configuration](examples/10_krk_config.md)
+Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set.
+See [Limitations](theory/10_limitations.md).
 
 ## From 2D to 3D
 

@@ -238,8 +238,8 @@ Natural convection in a square cavity with patch refinement near the hot (west)
 and cold (east) walls. Patches cover `wall_fraction` of the domain width on
 each side, refined by `ratio` (default 2:1).
 
-Same physics as run_natural_convection_2d but with better boundary layer
-resolution at lower total cost.
+Same physics as run_natural_convection_2d. Grid refinement is under
+development and not validated (refined thermal walls are not half-way, issue #98).
 """
 function run_natural_convection_refined_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
                                              T_hot=1.0, T_cold=0.0, max_steps=50000,

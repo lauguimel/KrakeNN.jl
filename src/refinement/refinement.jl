@@ -34,6 +34,8 @@ any modification.
 - `rho, ux, uy`: macroscopic fields [Nx, Ny]
 - `is_solid`: obstacle mask [Nx, Ny]
 - `omega`: relaxation parameter (rescaled from parent)
+
+Grid refinement is under development and not validated.
 """
 struct RefinementPatch{T}
     name::String
@@ -70,6 +72,8 @@ end
     RefinedDomain{T}
 
 Multi-level domain with a base grid and nested refinement patches.
+
+Grid refinement is under development and not validated.
 """
 struct RefinedDomain{T}
     base_Nx::Int
@@ -136,6 +140,8 @@ Create a refinement patch from a physical region specification.
 - `parent_dx`: parent grid spacing
 - `parent_omega`: parent relaxation parameter
 - `n_ghost`: ghost layer width (default 2 for D2Q9)
+
+Grid refinement is under development and not validated.
 """
 function create_patch(name::String, level::Int, ratio::Int,
                       region::NTuple{4, Float64},
@@ -209,6 +215,8 @@ end
 
 Build a RefinedDomain from a base grid specification and a list of patches.
 Patches must be ordered by level (level 1 first, then level 2, etc.).
+
+Grid refinement is under development and not validated.
 """
 function create_refined_domain(base_Nx::Int, base_Ny::Int, base_dx::Real,
                                base_omega::Real,

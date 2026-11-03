@@ -31,7 +31,6 @@ scoped but not shipped.
 | Thermal | Stable | double-distribution / Boussinesq, 2D and 3D |
 | Viscoelastic | Stable | Oldroyd-B (2D, log-conformation) |
 | Boundary conditions | Stable | spatial, Zou-He, bounce-back, periodic |
-| Grid refinement | Stable | Filippova–Hänel (2D full, 3D partial) |
 | Geometry | Stable | STL + voxelization, embedded boundaries |
 | Units & DSL | Stable | units system; `.krk` DSL + CLI |
 | Backends | Stable | CPU, CUDA, Metal via KernelAbstractions |
@@ -41,10 +40,9 @@ scoped but not shipped.
 
 | Capability | Status | Notes |
 |---|---|---|
-| 3D thermal + refinement combined | Experimental | known divergence |
 | Generalised-Newtonian / other viscoelastic models | Experimental | power-law, Carreau, Cross, Bingham, Herschel–Bulkley, FENE-P, Saramito — 2D, beyond Oldroyd-B |
 | Outflow / Neumann / symmetry BCs | Experimental | partial |
-| Multi-level nested refinement patches | Experimental | parser supports, partially tested |
+| Grid refinement (patch and conservative AMR) | Under development | not validated; not part of the supported feature set |
 
 ### Planned — on the roadmap, NOT shipped
 
