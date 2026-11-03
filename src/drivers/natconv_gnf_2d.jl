@@ -71,7 +71,7 @@ Chakraborty and Poole (2011, doi:10.1016/j.jnnfm.2011.06.003, Eq. 5), so
 
 which are their Eq. 6 definitions (`K` here is the kinematic consistency, their
 ``K/\\rho``). Unlike the paper, `PowerLaw` clips the viscosity to
-`[nu_min, nu_max]`. Compared with the paper on CPU at coarse grids only.
+`[nu_min, nu_max]`. Compared with the paper on CPU up to N = 96.
 The floating-point type of `nu0` determines the model parameter type.
 
 Args:
@@ -103,6 +103,8 @@ end
 
 # Exterior-link bounce-back belongs to stream_pull_node. Every stored node is
 # fluid, including the wall-adjacent nodes: no second solid-node bounce-back.
+# apply_thermal_bc_cavity is the half-way anti-bounce-back of fused_natconv_step!
+# (walls at x = 0.5 and N + 0.5), applied once per step after streaming.
 @kernel function _natconv_gnf_transport!(f_out, @Const(f_in), g_out, @Const(g_in),
                                         Temp, rho, ux_field, uy_field, Fx, Fy,
                                         N, omega_T, beta_g, T_ref, T_hot, T_cold)
@@ -125,11 +127,14 @@ end
     end
 end
 
-function _gnf_hot_wall_nusselt(Temp, H, delta_T)
+# Hot wall at x = 0.5 (half-way), nodes 1 and 2 at 0.5 and 1.5 spacings from it:
+# second-order one-sided gradient dT/dx|wall = (-8 T_w + 9 T_1 - T_2)/3, as in
+# run_natural_convection_2d; rows 2:N-1 averaged.
+function _gnf_hot_wall_nusselt(Temp, H, T_hot, delta_T)
     T = eltype(Temp)
     total = zero(T)
     for j in 2:size(Temp, 2)-1
-        total += -H * (-3Temp[1,j] + 4Temp[2,j] - Temp[3,j]) / T(2) / delta_T
+        total += -H * (-8T_hot + 9Temp[1,j] - Temp[2,j]) / T(3) / delta_T
     end
     return total / (size(Temp, 2) - 2)
 end
@@ -156,10 +161,12 @@ walls are no-slip. Thermal advection uses the pre-collision Guo velocity
 temperature from the thermal populations, applies the Boussinesq force, then
 calls `collide_rheology_thermal_2d!` for the viscosity-dependent collision.
 
-Validated on CPU in Float64 only (`test/test_natconv_gnf.jl`), including one
-power-law point against Turan et al. (2011) at N = 48. The thermal walls sit
-on the first and last nodes while Ra and Nu use `H = N`, so a pure-conduction
-cavity reports Nu ≈ N/(N-1). No GPU run yet.
+The fixed-temperature walls are the half-way anti-bounce-back of
+[`run_natural_convection_2d`](@ref), at the same place as the no-slip walls, so
+Ra, Pr and Nu use the cavity width `H = N`; with `n = 1` both drivers give the
+same Nu to round-off. Validated on CPU in Float64 only (`test/test_natconv_gnf.jl`),
+including two power-law points against Turan et al. (2011) at Pr = 10. No GPU
+run yet.
 
 Args:
     N: Number of nodes per side of the square cavity (at least 3).
@@ -228,8 +235,10 @@ function run_natural_convection_gnf_2d(; N=64, Ra=1e4, Pr=0.71,
     fill!(tau_field, one(FT) / omega0)
     w = weights(D2Q9())
     g_cpu = zeros(FT, N, N, 9)
+    # Linear profile between the half-way walls at x = 0.5 (T_hot) and
+    # x = N + 0.5 (T_cold), node i at x = i, as in run_natural_convection_2d.
     for j in 1:N, i in 1:N
-        temperature = FT(T_hot - (T_hot - T_cold) * (i - 1) / (N - 1))
+        temperature = FT(T_hot - (T_hot - T_cold) * (i - 0.5) / N)
         temperature += FT(0.01 * (T_hot - T_cold)) * sin(FT(2π * i / N)) * sin(FT(π * j / N))
         for q in 1:9
             g_cpu[i,j,q] = FT(w[q]) * temperature
@@ -252,7 +261,7 @@ function run_natural_convection_gnf_2d(; N=64, Ra=1e4, Pr=0.71,
         steps = step
         if check_every > 0 && step % check_every == 0
             KernelAbstractions.synchronize(backend)
-            current_Nu = _gnf_hot_wall_nusselt(Array(Temp), FT(N), scales.delta_T)
+            current_Nu = _gnf_hot_wall_nusselt(Array(Temp), FT(N), FT(T_hot), scales.delta_T)
             Nu_drift = abs(current_Nu - previous_Nu) / max(abs(current_Nu), eps(FT))
             stable_checks = step >= min_steps && Nu_drift < convergence_rtol ? stable_checks + 1 : 0
             previous_Nu = current_Nu
@@ -267,7 +276,7 @@ function run_natural_convection_gnf_2d(; N=64, Ra=1e4, Pr=0.71,
     temperature = Array(Temp)
     tau = Array(tau_field)
     nu_field = (tau .- FT(0.5)) ./ FT(3)
-    Nu = _gnf_hot_wall_nusselt(temperature, FT(N), scales.delta_T)
+    Nu = _gnf_hot_wall_nusselt(temperature, FT(N), FT(T_hot), scales.delta_T)
     return (; Nu, Temp=temperature, ux=Array(state.ux), uy=Array(state.uy),
             rho=Array(state.ρ), ν_field=nu_field, nu_field, tau_field=tau, Ra, Pr, nu0=FT(nu0), rheology,
             alpha=scales.alpha, clamped_fraction=_gnf_clamped_fraction(rheology, tau),
