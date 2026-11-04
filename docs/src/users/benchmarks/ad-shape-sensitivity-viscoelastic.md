@@ -159,7 +159,8 @@ result.gradient
 ## Validation
 
 The standalone adjoint `dJ/dR` matches a central finite difference of the
-converged forward to **0.42%** (under the 1% target). The finite-difference
+converged forward to **0.63%** (under the 1% target; re-measured on 2026-10-12 after
+the TRT Guo forcing fix, #67, it was 0.42% before). The finite-difference
 reference rebuilds the matched geometry at `R ± h`, reconverges each forward
 tightly, and central-differences the inline polymeric drag at the perturbed
 converged states; it also asserts the cut-link topology (cut count and solid
@@ -170,13 +171,13 @@ count) is unchanged across `±h`.
 | C0 | one-step coupled VJP on the stacked `(f, psi)` state | Enzyme VJP matches the discrete step |
 | C1 | steady fixed-point adjoint on the coupled VE map | adjoint solve and finite-difference derivative agree |
 | C2 | per-channel `lambda^T (dG/dR)` against frozen-solid finite difference | analytic geometry seed validated through the operator |
-| C3 | confined-cylinder `d(Cd_polymer)/dR` | central finite difference agreement to `0.42%` |
+| C3 | confined-cylinder `d(Cd_polymer)/dR` | central finite difference agreement to `0.63%` |
 
 The single most important practical caveat is the forward tolerance. The net
-`d(Cd_polymer)/dR` is a roughly **20x catastrophic cancellation** between the
+`d(Cd_polymer)/dR` is a **catastrophic cancellation** between the
 explicit geometry partial and the implicit state response. The forward must
 reconverge to `fwd_tol=1e-13`; a looser `1e-11` patience floor poisons the
-finite-difference reference, blowing the agreement out to **22.6%**. The tight
+finite-difference reference, blowing the agreement out to **53.3%**. The tight
 floor is therefore the default in `ad_ve_forward_solve` and in the API.
 
 The validated envelope is `Wi <= 1` and `beta >= 0.5`. As with the Newtonian
@@ -194,7 +195,7 @@ cannot differentiate Kraken's LBM/FVFD cut-link operator with respect to `R`.
   `ArgumentError`.
 - `using Enzyme` is required before calling the API.
 - The forward must reach `fwd_tol=1e-13`. A looser floor silently poisons the
-  finite-difference cross-check (22.6% at `1e-11`) even when the adjoint itself
+  finite-difference cross-check (53.3% at `1e-11`) even when the adjoint itself
   is correct.
 - The derivative is a smooth-piece cut-link / cut-cell derivative; avoid radius
   values where a cut link or cut cell enters or leaves the mask when comparing to

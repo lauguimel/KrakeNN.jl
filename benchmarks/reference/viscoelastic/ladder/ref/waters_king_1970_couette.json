@@ -1,0 +1,45 @@
+{
+  "type": "analytic",
+  "source": "Waters & King (1970), Rheologica Acta 9(3) 345-355; closed-form transient Poiseuille for Oldroyd-B",
+  "provenance": {
+    "citation": "Waters, ND and King, MJ (1970), 'Unsteady flow of an elastico-viscous liquid', Rheologica Acta 9(3) 345-355, Springer",
+    "reference_implementation": "/Users/guillaume/Documents/Recherche/Codes CFD/basilisk/src/test/poiseuille-oldroydb.c lines 106-119",
+    "doi": "10.1007/BF01975414"
+  },
+  "convergence_verified": true,
+  "convergence_evidence": "cross-checked against Basilisk poiseuille-oldroydb.ref at three grid levels {16x16, 32x32, 64x64}; analytic curve sits within Basilisk scatter",
+  "formula": {
+    "U_of_Y_T": "1.5*(1 - Y^2) - 48 * Sum_{k=1}^{KF} sin(0.5*(1+Y)*n)/n^3 * exp(-0.5*alpha_n*T) * G(T)",
+    "n_def": "n_k = (2k-1) * pi",
+    "alpha_def": "alpha_n = 1 + 0.25 * beta * E * n^2",
+    "beta_complex_def": "beta_n = sqrt(alpha_n^2 - E * n^2)  (complex if alpha_n^2 < E * n^2)",
+    "gamma_def": "gamma_n = 1 - 0.25 * (2 - beta) * E * n^2",
+    "G_def": "G(T) = Re[ cosh(0.5*beta_n*T) + (gamma_n/beta_n) * sinh(0.5*beta_n*T) ]",
+    "E_def": "E = lambda * mu0 / (rho * h^2)  (elastic number)",
+    "T_def": "T = t / lambda",
+    "Y_def": "Y in [-1, 1] (h is the half-channel height)",
+    "U_def": "U = u_x / u_avg_steady where u_avg_steady = -(dp/dx) * h^2 / (3 * mu0)",
+    "scope": "Suddenly-applied pressure-gradient start-up between two no-slip walls",
+    "convention_notes": "beta is the SOLVENT viscosity ratio (= mus / mu0); a fluid with no polymer has beta=1 and reduces to Newtonian."
+  },
+  "parameters": {
+    "beta_solvent_ratio": "user input",
+    "E_elastic_number": "user input",
+    "KF_modes": 8,
+    "KF_modes_note": "Basilisk uses 8 modes; converged at single-precision tolerance for E ~ 1. For E larger, more modes needed."
+  },
+  "values": {
+    "steady_limit_at_Y_eq_0": 1.5,
+    "steady_profile_at_Y": "1.5 * (1 - Y^2)",
+    "validation_sample_at_E_1_beta_1_over_9_T_10": {
+      "Y_eq_0": 1.50387,
+      "source": "Basilisk poiseuille-oldroydb.ref row mesh_level=6 t=10"
+    }
+  },
+  "tolerance_pass_fail": {
+    "vs_analytic_at_64x64_t_in_0_to_10_max_abs": 0.005,
+    "convergence_order_in_dx": 1.8,
+    "rationale": "Basilisk reports L2 convergence between 16x16 and 64x64 around order 2"
+  },
+  "notes": "Couette start-up shares the same eigenvalue structure (alpha_n, beta_n). The inhomogeneous part differs and is not encoded here; this JSON serves Poiseuille; L2 (Couette) STUB will reference this entry for the eigenstructure and add the Couette-specific inhomogeneous coefficient."
+}

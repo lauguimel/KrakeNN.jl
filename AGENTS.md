@@ -7,25 +7,55 @@ Maintainer: Guillaume Maîtrejean (@lauguimel).
 
 ---
 
-## 1. Ownership — read this before editing anything
+## 1. Ownership and review — read this before editing anything
 
-| Directory | Owner | Contributors may |
+Everything enters through a pull request, including the maintainer's own work.
+`main` and `dev/platform` are protected: no direct push, at least one approving
+review, and no force-push. This is enforced by GitHub, not by goodwill.
+
+Contributors may propose changes anywhere in the repository, `src/` and `ext/`
+included. What is reserved is not the right to write the code, it is the right
+to merge it.
+
+| Path | Who must approve | Before you start |
 |---|---|---|
-| `src/` | maintainer only | **do not edit** |
-| `ext/` | maintainer only | **do not edit** |
-| `test/analytical/`, `test/reference/`, `test/platform/` | shared | add new files freely |
-| `benchmarks/`, `benchmarks/results/` | shared | add new files freely |
-| `docs/src/users/benchmarks/` | shared | add new pages |
-| `docs/src/theory/`, `docs/agent/`, `docs/spec/` | maintainer only | propose in an issue |
+| `src/`, `ext/` | maintainer, required by `.github/CODEOWNERS` | open an issue and get the approach agreed |
+| `docs/src/theory/`, `docs/agent/`, `docs/spec/` | maintainer | open an issue |
+| `test/`, `benchmarks/`, `docs/src/users/benchmarks/` | any reviewer | go ahead |
 
-**If you find a bug in `src/`: do not fix it.** Write a test that fails, place
-it under `test/analytical/`, and open a GitHub issue describing the symptom and
-pointing at the test. A failing test is the deliverable. A patch to `src/`
-submitted by a contributor will be closed.
+GitHub applies the `src/`/`ext/` rule automatically: a pull request touching
+those paths cannot be merged without the maintainer's explicit approval, and
+that approval is dismissed if new commits are pushed afterwards.
 
-Reason: `src/` carries the platform contract, the automatic-differentiation
-seam, and the GPU kernels. A local fix that works on one case routinely breaks
-three others that are not visible from where the bug appeared.
+### Before writing code that touches `src/`
+
+Open an issue first and wait for the approach to be agreed. Not for permission
+to be useful — to avoid building something that duplicates an existing seam or
+introduces a second way of doing what the platform already does. `src/` carries
+the platform contract, the automatic-differentiation seam and the GPU kernels;
+a fix that works on one case routinely breaks three others that are not visible
+from where the bug appeared. That risk is handled by review and by tests, not
+by keeping contributors out of the directory.
+
+### One pull request, one subject
+
+A pull request implements one issue. If it fixes a bug and also renames three
+functions and also adds a benchmark, it will be sent back to be split — not
+because the extra work is bad, but because a change nobody can finish reading
+is a change nobody can review honestly. Prefer several small pull requests over
+one large one; they merge faster.
+
+### Reporting a bug you are not fixing
+
+A failing test is a valid deliverable on its own. Write it, put it under
+`test/analytical/`, and open an issue pointing at it.
+
+Mark it `@test_broken`, not `@test`. Julia treats `@test_broken` as a known,
+documented failure: the suite stays green, so the test can be merged
+immediately instead of living in a stale branch, and the day the bug is fixed
+it reports `Unexpected Pass` — which forces whoever fixed it to promote the
+test back to `@test`. A deliberately failing `@test` cannot satisfy the
+green-suite gate below, so it has nowhere to go.
 
 ---
 
@@ -36,6 +66,9 @@ three others that are not visible from where the bug appeared.
 - One branch per unit of work, named after what it does:
   - validation case: `val/<case-id>` — e.g. `val/TH-001R`
   - bug report with a failing test: `bug/<short-name>`
+  - bug fix: `fix/<short-name>`
+  - new capability: `feat/<short-name>`
+  - build, CI or tooling: `ci/<short-name>`
 - Open a pull request into `dev/platform`. The maintainer reviews and merges.
 - Commit messages in English, conventional style: `test:`, `fix:`, `docs:`,
   `feat:`, `chore:`.
@@ -59,8 +92,33 @@ Environment gates (all default to off):
 | `KRAKEN_INCNS_ONLY=true` | runs only the incompressible Navier–Stokes and solver-services tier |
 | `KRAKEN_AD_ONLY=true` | runs only the automatic-differentiation tier |
 
-A pull request is not reviewable until `julia --project test/runtests.jl`
-passes locally on the branch. Say so explicitly in the pull request body.
+On Linux x86_64, run the five Enzyme-driven files (`platform/calibration_test.jl`,
+`platform/calibration_nufield_test.jl`, `ad/test_ad_sensitivity.jl`,
+`ad/test_ad_ve_sensitivity.jl`, `ad/test_ad_ve_fd_check.jl`) with production bounds checking,
+`Pkg.test(julia_args=["--check-bounds=auto"])`, one file at a time through
+`KRAKEN_ONLY`. Under the `Pkg.test` default `--check-bounds=yes`, Enzyme's
+reverse mode miscompiles them: segfault or LLVM crash on Linux, wrong gradient
+on macOS (#41). CI does exactly this in the `full` job.
+
+A pull request is not reviewable until the full suite passes on the final head
+of its branch. Pull requests into `main` or `dev/platform` automatically run
+only the `quick` tier: Julia 1.11 and 1.12, with the automatic-differentiation
+and 3D viscoelastic tiers skipped. Start the full suite yourself after your
+last push, in either of two ways:
+
+- on GitHub: `gh workflow run CI.yml --ref <your-branch>`, leaving the `only`
+  and `check_bounds` inputs at their defaults (this needs write access to the
+  repository; otherwise ask the maintainer to start it). The `full` job applies
+  the bounds-checking rule above to the Enzyme-driven files by itself;
+- locally, with the commands above and the same rule.
+
+A green dispatched run is enough; a local run is not required. A run started
+before your last push does not count for the new head. Post the run link in
+the pull request. The full suite also runs on every merge into `dev/platform`.
+
+State in the pull request body which gates you ran, on which backend and which
+precision. A known failure carried deliberately must be `@test_broken` and named
+as such in the body — see section 1.
 
 ---
 

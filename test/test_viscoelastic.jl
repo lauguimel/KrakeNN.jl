@@ -197,6 +197,20 @@ using Kraken
         N1_wall   = tau_p_xx[2, 3]     - tau_p_yy[2, 3]
         @info "Oldroyd-B: N1_center = $(round(N1_center, digits=8)), N1_wall = $(round(N1_wall, digits=8))"
         @test_broken N1_wall > N1_center   # log-conf kernel singular at Θ=0
-        @test N1_center ≈ 0.0 atol=abs(N1_wall)*0.2  # passes by accident (both ≈ 0)
+        # Assertion removed, not marked broken. It compared N1_center to zero
+        # with a tolerance derived from N1_wall — and N1_wall is itself noise
+        # here, so the tolerance was whatever the platform happened to produce.
+        # Measured 2026-09-15: CI (Linux x64, Julia 1.11.9) gave N1_wall =
+        # -1.28e-7, tolerance 2.6e-8, FAIL; macOS arm64 / 1.12.5 gave N1_wall =
+        # -1.18e-5, tolerance 2.4e-6, PASS. Same code, same inputs. The
+        # original comment already said it "passes by accident".
+        #
+        # @test_broken is wrong for this: it errors with Unexpected Pass on
+        # every platform where the coin lands the other way. A non-deterministic
+        # assertion has to be fixed or dropped, not marked known-broken.
+        #
+        # What it was reaching for — N1 positive at the wall, larger than at the
+        # centre — is already asserted above and already @test_broken, for the
+        # same Θ=0 singularity. Nothing is lost by removing the duplicate.
     end
 end

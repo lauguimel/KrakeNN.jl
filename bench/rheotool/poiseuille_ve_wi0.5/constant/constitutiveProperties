@@ -1,0 +1,38 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Website:  https://openfoam.org                  |
+|    \\/     M anipulation  | Version:  9                                     |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      constitutiveProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//
+// Matched to Kraken FVFD-3D viscoelastic Poiseuille:
+//   nu_total = 0.1, beta = 0.5  ->  etaS = etaP = 0.05  (rho = 1).
+//   Wi_wall = 0.5 at Kraken near-wall cell  ->  lambda = 215.053763
+//     (lambda = Wi_wall / gamma_wall, gamma_wall = Fx/(2 nu)(Ny-1) = 2.325e-3).
+//
+parameters
+{
+                type             Oldroyd-BLog;
+
+                rho              rho   [1 -3 0 0 0 0 0] 1.0;
+                etaS             etaS  [1 -1 -1 0 0 0 0] 0.05;
+                etaP             etaP  [1 -1 -1 0 0 0 0] 0.05;
+                lambda           lambda [0 0 1 0 0 0 0] 215.053763;
+
+                stabilization    coupling;
+}
+
+passiveScalarProperties
+{
+                solvePassiveScalar   no;
+                D                    D [ 0 2 -1 0 0 0 0 ] 1e-9;
+}
+
+// ************************************************************************* //

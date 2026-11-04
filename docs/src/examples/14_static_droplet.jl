@@ -85,15 +85,10 @@
 # Initial { C = 0.5*(1 - tanh((sqrt((x-N/2)^2 + (y-N/2)^2) - R) / 2)) }
 # Boundary x periodic
 # Boundary y periodic
-# Refine drop { region = [20, 20, 108, 108], ratio = 2 }
 # Run 5000 steps
 # ```
 #
-# The optional **`Refine`** block doubles the resolution in a rectangular
-# region around the droplet.  This improves the curvature computation where
-# it matters most (at the interface) without increasing the cost in the
-# far field.  For the convergence study below, we omit refinement to isolate
-# the effect of uniform grid resolution.
+# Every run below uses a uniform grid. Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set.
 #
 # ---
 #
@@ -178,11 +173,6 @@ end
 #   as the interface becomes better resolved.  The convergence rate is
 #   approximately second order for VOF (HF curvature) and slightly better for
 #   CLSVOF.
-#
-# - The **`Refine` block** in the `.krk` file (not used in this convergence
-#   study) can further improve curvature accuracy by locally doubling the
-#   resolution around the droplet, achieving the benefits of a finer grid
-#   without the full cost.
 #
 # ### Practical implications
 #

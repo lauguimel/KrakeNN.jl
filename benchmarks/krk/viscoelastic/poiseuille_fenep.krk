@@ -1,0 +1,20 @@
+# FENE-P 3D planar-Poiseuille coupled canary for the KRK-VE-3D dispatch.
+# The production driver (run_viscoelastic_fvfd_poiseuille_3d) drives a periodic
+# x/z, no-slip half-way bounce-back y-wall channel with a D3Q19 solvent at nu_s
+# and a polymer feedback F_poly = ∇·τ_p. The conformation state is advanced in
+# symmetric log form ψ = log(C). The FENE-P (Peterlin) closure caps the polymer
+# trace below L² = Lmax2 (finite extensibility), reducing the polymer stress /
+# N1 relative to Oldroyd-B at the same Weissenberg number. As Lmax2 → ∞ the
+# result recovers Oldroyd-B.
+#
+# beta = nu_s/(nu_s+nu_p) = 0.5, nu_total = 0.1, lambda = 10, Fx = 1e-5.
+Simulation poiseuille_fenep D3Q19
+
+Define Fx = 1e-5
+
+Domain L = 6 x 32 x 6  N = 6 x 32 x 6
+Physics Fx = Fx
+Rheology fene_p { nu_s = 0.05 nu_p = 0.05 lambda = 10 Lmax2 = 100 }
+Module viscoelastic
+
+Run 4000 steps

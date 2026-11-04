@@ -23,6 +23,14 @@ NO self-guard — never include it directly in `Kraken.jl`); seam names exported
 `linear_solve_cuda.jl` stays manual-load (bench scripts); package users get the
 SAME cuDSS seam through the `KrakenCUDSSExt` package extension instead.
 
+Activation requirement (#61): `KrakenCUDSSExt` loads only when `CUDSS` is loaded
+in the same session as `Kraken` (`using CUDA, CUDSS, Kraken`, in any order), AND the
+`CUDSS` weakdep UUID in `Project.toml` equals the registered one
+(`45b445bb-4962-46a0-9369-b4df9d0f772e`). From v0.3.0 until the fix the UUID was
+wrong, so the extension could not activate. Check with
+`Base.get_extension(Kraken, :KrakenCUDSSExt) !== nothing`; `test/platform/weakdeps_metadata_test.jl`
+guards the UUIDs offline and `test/analytical/poisson_cudss_gpu.jl` checks activation on GPU.
+
 Issue #8 adds two [weakdeps] package-extension backends behind the seam
 (ADR rule: no solver-backend dependency under plain `using Kraken`; precedent
 KrakenOptimExt): `KrakenLinearSolveExt` (trigger `LinearSolve`) backs the new
@@ -157,6 +165,11 @@ result vector per call; despite the `!` it does NOT mutate `b` or the cache
 
 - KrakenCUDSSExt validated on RTX A6000 (driver 535, CUDA 12.2 pin): Poisson MMS parity
   Linf 3.9e-14 (Dirichlet) / 1.6e-12 (Neumann pinned), 3/3 tests.
+  **Correction (2026-10, #61):** the loading path of this run was not recorded. With the
+  wrong CUDSS UUID declared until 0.5.1, plain `using CUDSS` could not activate the
+  extension, so these numbers may come from a manual include. Extension-path evidence:
+  Aqua job 26559033 (reported 2026-10-10), H100, 41/41 GPU assertions, no CPU fallback
+  (see the 0.5.1 changelog entry).
 - **Landmine (Julia 1.12.6, empirically bisected)**: KrakenCUDSSExt fails to precompile with
   "Package CUDSS … does not seem to be installed" whenever a SIBLING declared weakdep
   (Enzyme/CairoMakie/Optim) is NOT installed in the environment. KrakenLinearSolveExt is immune.

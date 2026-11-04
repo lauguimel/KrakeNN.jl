@@ -1,0 +1,11 @@
+# Oldroyd-B planar extension: RheoTool (rheoTestFoam) vs Kraken FVFD log-conf vs analytic fixed point.
+# Operating point: lambda=50, epsilon_dot=0.005 (lambda*eps_dot=0.25), beta=etaS/(etaS+etaP)=0.5.
+# Analytic OB planar-extension fixed point (2*lambda*eps_dot<1):
+#   C_xx = 1/(1-2*lambda*eps_dot) = 2.0 ; C_yy = 1/(1+2*lambda*eps_dot) = 2/3 ; C_zz = 1.
+# RheoTool C reconstructed from total extra-stress tauTotal = tau_p + etaS*(L+L^T-(2/3)trL*I),
+#   with L = eps_dot*diag(1,-1,0): C = I + (lambda/etaP)*(tauTotal - etaS*2*eps_dot*diag(1,-1,0)).
+# RheoTool run to steady state (t=2000=40*lambda, transient mode). Kraken at its 1000-step canary horizon.
+component,analytic,rheotool_steady,rel_err_rt,kraken_1000steps,rel_err_kr
+C_xx,2.0000000,2.0000000,0.000e+00,1.9999546,2.270e-05
+C_yy,0.6666667,0.6666667,5.000e-08,0.6666667,4.696e-14
+C_zz,1.0000000,1.0000000,0.000e+00,1.0000000,0.000e+00

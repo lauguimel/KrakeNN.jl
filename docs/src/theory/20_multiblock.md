@@ -15,7 +15,7 @@ LI-BB per block for curved-body closures on multi-block meshes.
 
 ## Data model
 
-Three types live in [src/multiblock/topology.jl](../../../src/multiblock/topology.jl):
+Three types live in [src/multiblock/topology.jl](https://github.com/lauguimel/Kraken.jl/blob/main/src/multiblock/topology.jl):
 
 - **`Block`** — an `id::Symbol`, a self-contained `CurvilinearMesh`,
   and a `NamedTuple` of four edge tags `(west, east, south, north)`.
@@ -31,7 +31,7 @@ Three types live in [src/multiblock/topology.jl](../../../src/multiblock/topolog
   lookup.
 
 Runtime state for one block lives in
-[src/multiblock/state.jl](../../../src/multiblock/state.jl):
+[src/multiblock/state.jl](https://github.com/lauguimel/Kraken.jl/blob/main/src/multiblock/state.jl):
 
 - **`BlockState2D`** — populations `f` + macroscopic fields
   (`ρ, ux, uy`) on an **extended grid** of size `(Nξ + 2·Ng, Nη + 2·Ng)`
@@ -50,7 +50,7 @@ Runtime state for one block lives in
 The design is deliberately **imperative and modular**: no macros, no
 hidden dispatch, everything is a plain struct + function a user can
 trace in a debugger. The fused-kernel DSL lives at the per-block
-inner-loop level ([src/kernels/dsl/](../../../src/kernels/dsl/)); this
+inner-loop level ([src/kernels/dsl/](https://github.com/lauguimel/Kraken.jl/tree/main/src/kernels/dsl)); this
 layer is purely for assembling blocks and coordinating their
 interfaces.
 
@@ -76,7 +76,7 @@ states = [allocate_block_state_2d(b; n_ghost=1) for b in mbm.blocks]
 
 ## Sanity invariants
 
-[src/multiblock/sanity.jl](../../../src/multiblock/sanity.jl) implements
+[src/multiblock/sanity.jl](https://github.com/lauguimel/Kraken.jl/blob/main/src/multiblock/sanity.jl) implements
 nine invariant families. They fire as `MultiBlockSanityIssue` records
 with a severity (`:error` / `:warning`), a short `code` symbol, a
 locating `(block_id, edge)` pair, and a human-readable message:
@@ -116,7 +116,7 @@ the step kernel reads from the ghost rows when its pull would cross
 the interface — no halfway-BB fallback fires on a physical
 interior-boundary cell, and the step at the interface column produces
 **bit-exact** the same populations as a single-block step would. The
-test [test_multiblock_canal.jl](../../../test/test_multiblock_canal.jl)
+test [test_multiblock_canal.jl](https://github.com/lauguimel/Kraken.jl/blob/main/test/test_multiblock_canal.jl)
 verifies this: after a one-step BGK on uniform-flow init, A's
 interior-east column `f_A_out[Nξ_A + Ng, :, :]` and B's
 interior-west column `f_B_out[Ng + 1, :, :]` are identical.
@@ -157,7 +157,7 @@ mbm, groups = load_gmsh_multiblock_2d("ogrid.geo";
 ```
 
 implemented in
-[src/multiblock/mesh_gmsh_multiblock.jl](../../../src/multiblock/mesh_gmsh_multiblock.jl).
+[src/multiblock/mesh_gmsh_multiblock.jl](https://github.com/lauguimel/Kraken.jl/blob/main/src/multiblock/mesh_gmsh_multiblock.jl).
 The loader walks every 2D physical surface, builds one `Block` per
 surface using the existing per-surface layout helpers
 (`:axis_aligned` for rectangles, `:topological` for O-grids with arc
@@ -193,20 +193,20 @@ before a simulation can run.
 
 ## MVP validation
 
-- [test/test_multiblock_topology.jl](../../../test/test_multiblock_topology.jl)
+- [test/test_multiblock_topology.jl](https://github.com/lauguimel/Kraken.jl/blob/main/test/test_multiblock_topology.jl)
   (31 tests) — data-model invariants + sanity check happy/failure paths.
-- [test/test_multiblock_exchange.jl](../../../test/test_multiblock_exchange.jl)
+- [test/test_multiblock_exchange.jl](https://github.com/lauguimel/Kraken.jl/blob/main/test/test_multiblock_exchange.jl)
   (163 tests) — `BlockState2D` allocator and `interior_f` view;
   ghost-fill correctness on W-E and S-N interfaces for `Ng = 1, 2`;
   away-from-edge interior untouched; swapped `from/to`; error paths
   (length mismatch, mixed `n_ghost`, unsupported same-normal pair).
-- [test/test_multiblock_canal.jl](../../../test/test_multiblock_canal.jl)
+- [test/test_multiblock_canal.jl](https://github.com/lauguimel/Kraken.jl/blob/main/test/test_multiblock_canal.jl)
   (10 tests) — 2-block BGK canal with ghost-layer pipeline: `u = 0`
   uniform preserved over 10 steps, `u = 0.05` step-1 interface
   columns bit-exact, 1000-step smoke run stays finite, and 20-step
   bit-exact match vs single-block once the physical-wall ghost fill
   is layered in.
-- [test/test_multiblock_gmsh.jl](../../../test/test_multiblock_gmsh.jl)
+- [test/test_multiblock_gmsh.jl](https://github.com/lauguimel/Kraken.jl/blob/main/test/test_multiblock_gmsh.jl)
   (44 tests) — gmsh loader on an on-the-fly 2-block canal (`.geo`
   with shared interior curve) and on a 4-block O-grid around a
   cylinder (`:topological` layout, four 90° quadrants between an

@@ -7,6 +7,11 @@ Manifest.toml
 *.jl.mem
 deps/build.log
 docs/build/
+# Vitepress npm dependencies. docs/make.jl runs `npm ci` from the tracked
+# docs/package.json + docs/package-lock.json itself, so this directory is
+# rebuilt on every docs build, locally and in CI. It was tracked between
+# 2026-09-14 and this commit (8210 files) by an accidental merge.
+docs/node_modules/
 
 # Local outputs and intermediate results
 output/
@@ -19,3 +24,6 @@ output/
 # (see benchmarks/results/ehd/README.md); promote a new one with `git add -f`.
 benchmarks/results/ehd/tc_sweep_*.csv
 benchmarks/results/ehd/tc_sweep_*.md
+
+# Local planning notes — never tracked
+.orchestrator/

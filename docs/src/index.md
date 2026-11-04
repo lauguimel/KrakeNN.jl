@@ -28,14 +28,11 @@ features:
     details: Canonical flows can be launched from declarative .krk files or direct Julia drivers.
     link: /examples/04_cavity_2d
   - title: Validated multiphysics
-    details: Cavity, thermal, sphere-drag, viscoelastic, and refinement checks are tracked in the v0.2 validation matrix.
+    details: Cavity, thermal, sphere-drag, and viscoelastic checks are tracked in the v0.2 validation matrix.
     link: /users/benchmarks/validation-matrix
   - title: GPU certification
     details: Backend checks document CPU, CUDA-class, and Apple Silicon execution paths.
     link: /users/benchmarks/gpu-certification
-  - title: Grid refinement
-    details: Nested patches and route-native validation are documented for v0.2 refinement workflows.
-    link: /examples/20_grid_refinement_cavity
 ---
 ```
 
@@ -96,11 +93,6 @@ krk cavity.krk
     <span class="kraken-cap-title">Viscoelastic</span>
     <span class="kraken-cap-sub">Oldroyd-B polymer stress, validated vs RheoTool</span>
   </a>
-  <a class="kraken-cap" href="/examples/20_grid_refinement_cavity">
-    <span class="kraken-cap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M3 12h18"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>
-    <span class="kraken-cap-title">Grid refinement</span>
-    <span class="kraken-cap-sub">Nested patches, Filippova–Hänel rescaling</span>
-  </a>
   <a class="kraken-cap" href="/capabilities#5-geometry-and-obstacles">
     <span class="kraken-cap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>
     <span class="kraken-cap-title">Complex geometry</span>
@@ -158,14 +150,19 @@ so GitHub's **"Cite this repository"** button (top-right of the
 
 ```bibtex
 @software{kraken_jl,
-  author  = {Maitrejean, Guillaume and Sauret, Emilie},
+  author  = {Maitrejean, Guillaume and Zhao, Jiachen and Sauret, Emilie},
   title   = {{Kraken.jl}},
   year    = {2026},
-  version = {0.2.0},
+  version = {0.6.0},
+  doi     = {10.5281/zenodo.22747126},
   url     = {https://github.com/lauguimel/Kraken.jl}
 }
 ```
 
-A citable **DOI** (Zenodo) will be added with the archived `v0.2.0` release —
-update the `doi` field in `CITATION.cff` and the `doi = {...}` line above once it
-is minted.
+Each release is archived on Zenodo under two DOIs. Use
+[`10.5281/zenodo.22747126`](https://doi.org/10.5281/zenodo.22747126) — the one
+above — to cite the software in general: it always resolves to the most recent
+archived release. Use the version-specific DOI instead when the exact code
+matters for reproducibility; for `v0.5.1` that is
+[`10.5281/zenodo.23598327`](https://doi.org/10.5281/zenodo.23598327), and each
+Zenodo record lists its own.

@@ -4,7 +4,7 @@ on:
     branches: [main, dev/v0.3-campaign, 'release/**']
     tags: ['v*']
   pull_request:
-    branches: [main, dev/v0.3-campaign]
+    branches: [main, dev/platform, dev/v0.3-campaign]
   workflow_dispatch:
 permissions:
   contents: write

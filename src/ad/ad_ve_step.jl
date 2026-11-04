@@ -301,27 +301,33 @@ function ad_ve_coupled_step!(w_out, w_in, g::ADVEEmbeddedGeom, q_wall::Array{Flo
         feq9 = ad_ve_feq(9, rho, ux_c, uy_c, usq)
         a = 0.5 * (sp + sm)
         b = 0.5 * (sp - sm)
-        guo_pref = 1.0 - sp / 2.0
+        # Split Guo source, bit mirror of CollideTRTDirectGuoField (bricks.jl):
+        # even part S⁺ at (1 - sp/2), odd part S⁻ = 3 w c·F at (1 - sm/2)
+        # (Silva 2020, doi:10.1016/j.compfluid.2020.104537). Checked against the
+        # brick in test/analytical/trt_guo_field_momentum.jl.
+        guo_even = 1.0 - sp / 2.0
+        guo_odd = 1.0 - sm / 2.0
+        uF = ux_c * fx + uy_c * fy
 
-        Sq1 = (4.0/9.0)  * ((-ux_c)*fx + (-uy_c)*fy) * 3.0
-        Sq2 = (1.0/9.0)  * ((1.0-ux_c)*fx + (-uy_c)*fy) * 3.0 + (1.0/9.0)*ux_c*fx*9.0
-        Sq3 = (1.0/9.0)  * ((-ux_c)*fx + (1.0-uy_c)*fy) * 3.0 + (1.0/9.0)*uy_c*fy*9.0
-        Sq4 = (1.0/9.0)  * ((-1.0-ux_c)*fx + (-uy_c)*fy) * 3.0 + (1.0/9.0)*ux_c*fx*9.0
-        Sq5 = (1.0/9.0)  * ((-ux_c)*fx + (-1.0-uy_c)*fy) * 3.0 + (1.0/9.0)*uy_c*fy*9.0
-        Sq6 = (1.0/36.0) * ((1.0-ux_c)*fx + (1.0-uy_c)*fy) * 3.0 + (1.0/36.0)*(ux_c+uy_c)*(fx+fy)*9.0
-        Sq7 = (1.0/36.0) * ((-1.0-ux_c)*fx + (1.0-uy_c)*fy) * 3.0 + (1.0/36.0)*(-ux_c+uy_c)*(-fx+fy)*9.0
-        Sq8 = (1.0/36.0) * ((-1.0-ux_c)*fx + (-1.0-uy_c)*fy) * 3.0 + (1.0/36.0)*(-ux_c-uy_c)*(-fx-fy)*9.0
-        Sq9 = (1.0/36.0) * ((1.0-ux_c)*fx + (-1.0-uy_c)*fy) * 3.0 + (1.0/36.0)*(ux_c-uy_c)*(fx-fy)*9.0
+        Sp1 = (4.0 / 9.0) * (-uF) * 3.0
+        Sp24 = (1.0 / 9.0) * (ux_c * fx * 9.0 - uF * 3.0)
+        Sm24 = (1.0 / 9.0) * fx * 3.0
+        Sp35 = (1.0 / 9.0) * (uy_c * fy * 9.0 - uF * 3.0)
+        Sm35 = (1.0 / 9.0) * fy * 3.0
+        Sp68 = (1.0 / 36.0) * ((ux_c + uy_c) * (fx + fy) * 9.0 - uF * 3.0)
+        Sm68 = (1.0 / 36.0) * (fx + fy) * 3.0
+        Sp79 = (1.0 / 36.0) * ((-ux_c + uy_c) * (-fx + fy) * 9.0 - uF * 3.0)
+        Sm79 = (1.0 / 36.0) * (-fx + fy) * 3.0
 
-        w_out[foff + ad_ve_fpop(i, j, 1, Nx, Ny)] = fp1 - sp*(fp1-feq1) + guo_pref*Sq1
-        w_out[foff + ad_ve_fpop(i, j, 2, Nx, Ny)] = fp2 - a*(fp2-feq2) - b*(fp4-feq4) + guo_pref*Sq2
-        w_out[foff + ad_ve_fpop(i, j, 4, Nx, Ny)] = fp4 - a*(fp4-feq4) - b*(fp2-feq2) + guo_pref*Sq4
-        w_out[foff + ad_ve_fpop(i, j, 3, Nx, Ny)] = fp3 - a*(fp3-feq3) - b*(fp5-feq5) + guo_pref*Sq3
-        w_out[foff + ad_ve_fpop(i, j, 5, Nx, Ny)] = fp5 - a*(fp5-feq5) - b*(fp3-feq3) + guo_pref*Sq5
-        w_out[foff + ad_ve_fpop(i, j, 6, Nx, Ny)] = fp6 - a*(fp6-feq6) - b*(fp8-feq8) + guo_pref*Sq6
-        w_out[foff + ad_ve_fpop(i, j, 8, Nx, Ny)] = fp8 - a*(fp8-feq8) - b*(fp6-feq6) + guo_pref*Sq8
-        w_out[foff + ad_ve_fpop(i, j, 7, Nx, Ny)] = fp7 - a*(fp7-feq7) - b*(fp9-feq9) + guo_pref*Sq7
-        w_out[foff + ad_ve_fpop(i, j, 9, Nx, Ny)] = fp9 - a*(fp9-feq9) - b*(fp7-feq7) + guo_pref*Sq9
+        w_out[foff + ad_ve_fpop(i, j, 1, Nx, Ny)] = fp1 - sp*(fp1-feq1) + guo_even*Sp1
+        w_out[foff + ad_ve_fpop(i, j, 2, Nx, Ny)] = fp2 - a*(fp2-feq2) - b*(fp4-feq4) + guo_even*Sp24 + guo_odd*Sm24
+        w_out[foff + ad_ve_fpop(i, j, 4, Nx, Ny)] = fp4 - a*(fp4-feq4) - b*(fp2-feq2) + guo_even*Sp24 - guo_odd*Sm24
+        w_out[foff + ad_ve_fpop(i, j, 3, Nx, Ny)] = fp3 - a*(fp3-feq3) - b*(fp5-feq5) + guo_even*Sp35 + guo_odd*Sm35
+        w_out[foff + ad_ve_fpop(i, j, 5, Nx, Ny)] = fp5 - a*(fp5-feq5) - b*(fp3-feq3) + guo_even*Sp35 - guo_odd*Sm35
+        w_out[foff + ad_ve_fpop(i, j, 6, Nx, Ny)] = fp6 - a*(fp6-feq6) - b*(fp8-feq8) + guo_even*Sp68 + guo_odd*Sm68
+        w_out[foff + ad_ve_fpop(i, j, 8, Nx, Ny)] = fp8 - a*(fp8-feq8) - b*(fp6-feq6) + guo_even*Sp68 - guo_odd*Sm68
+        w_out[foff + ad_ve_fpop(i, j, 7, Nx, Ny)] = fp7 - a*(fp7-feq7) - b*(fp9-feq9) + guo_even*Sp79 + guo_odd*Sm79
+        w_out[foff + ad_ve_fpop(i, j, 9, Nx, Ny)] = fp9 - a*(fp9-feq9) - b*(fp7-feq7) + guo_even*Sp79 - guo_odd*Sm79
     end
 
     # ============================================================

@@ -321,35 +321,42 @@ emit_code(::CollideTRTDirectGuoField) = quote
     feq9 = feq_2d(Val(9), ρ, ux, uy, usq)
     a = (s_plus + s_minus) * T(0.5)
     b = (s_plus - s_minus) * T(0.5)
-    guo_pref = one(T) - s_plus / T(2)
 
-    Sq1 = T(4.0 / 9.0) * ((-ux) * fx + (-uy) * fy) * T(3)
-    Sq2 = T(1.0 / 9.0) * ((one(T) - ux) * fx + (-uy) * fy) * T(3) +
-          T(1.0 / 9.0) * ux * fx * T(9)
-    Sq3 = T(1.0 / 9.0) * ((-ux) * fx + (one(T) - uy) * fy) * T(3) +
-          T(1.0 / 9.0) * uy * fy * T(9)
-    Sq4 = T(1.0 / 9.0) * ((-one(T) - ux) * fx + (-uy) * fy) * T(3) +
-          T(1.0 / 9.0) * ux * fx * T(9)
-    Sq5 = T(1.0 / 9.0) * ((-ux) * fx + (-one(T) - uy) * fy) * T(3) +
-          T(1.0 / 9.0) * uy * fy * T(9)
-    Sq6 = T(1.0 / 36.0) * ((one(T) - ux) * fx + (one(T) - uy) * fy) * T(3) +
-          T(1.0 / 36.0) * (ux + uy) * (fx + fy) * T(9)
-    Sq7 = T(1.0 / 36.0) * ((-one(T) - ux) * fx + (one(T) - uy) * fy) * T(3) +
-          T(1.0 / 36.0) * (-ux + uy) * (-fx + fy) * T(9)
-    Sq8 = T(1.0 / 36.0) * ((-one(T) - ux) * fx + (-one(T) - uy) * fy) * T(3) +
-          T(1.0 / 36.0) * (-ux - uy) * (-fx - fy) * T(9)
-    Sq9 = T(1.0 / 36.0) * ((one(T) - ux) * fx + (-one(T) - uy) * fy) * T(3) +
-          T(1.0 / 36.0) * (ux - uy) * (fx - fy) * T(9)
+    # Guo source S_q = w_q [3 (c_q - u)·F + 9 (c_q·u)(c_q·F)], split into its
+    # even part S⁺_q = w_q [9 (c_q·u)(c_q·F) - 3 u·F] (second moment u F + F u)
+    # and its odd part S⁻_q = 3 w_q c_q·F (first moment F). Each part is scaled
+    # by the Crank–Nicolson factor of the rate that relaxes it,
+    #   (1 - s_plus/2) S⁺_q + (1 - s_minus/2) S⁻_q,
+    # which is the TRT form of the MRT source (I - D/2) M S, D the diagonal
+    # matrix of relaxation rates (Silva 2020, Comput. Fluids 203, 104537,
+    # doi:10.1016/j.compfluid.2020.104537; Premnath, Pattison & Banerjee 2009,
+    # Phys. Rev. E 79, 026703, doi:10.1103/PhysRevE.79.026703). With the F/2
+    # shift of the equilibrium velocity above, the first moment gains exactly F
+    # per collision for any (s_plus, s_minus). A single (1 - s_plus/2) factor
+    # on the whole S_q injects (1 + (s_minus - s_plus)/2) F instead.
+    guo_even = one(T) - s_plus / T(2)
+    guo_odd = one(T) - s_minus / T(2)
+    uF = ux * fx + uy * fy
 
-    f_out[i, j, 1] = fp1 - s_plus * (fp1 - feq1) + guo_pref * Sq1
-    f_out[i, j, 2] = fp2 - a * (fp2 - feq2) - b * (fp4 - feq4) + guo_pref * Sq2
-    f_out[i, j, 4] = fp4 - a * (fp4 - feq4) - b * (fp2 - feq2) + guo_pref * Sq4
-    f_out[i, j, 3] = fp3 - a * (fp3 - feq3) - b * (fp5 - feq5) + guo_pref * Sq3
-    f_out[i, j, 5] = fp5 - a * (fp5 - feq5) - b * (fp3 - feq3) + guo_pref * Sq5
-    f_out[i, j, 6] = fp6 - a * (fp6 - feq6) - b * (fp8 - feq8) + guo_pref * Sq6
-    f_out[i, j, 8] = fp8 - a * (fp8 - feq8) - b * (fp6 - feq6) + guo_pref * Sq8
-    f_out[i, j, 7] = fp7 - a * (fp7 - feq7) - b * (fp9 - feq9) + guo_pref * Sq7
-    f_out[i, j, 9] = fp9 - a * (fp9 - feq9) - b * (fp7 - feq7) + guo_pref * Sq9
+    Sp1 = T(4.0 / 9.0) * (-uF) * T(3)
+    Sp24 = T(1.0 / 9.0) * (ux * fx * T(9) - uF * T(3))
+    Sm24 = T(1.0 / 9.0) * fx * T(3)
+    Sp35 = T(1.0 / 9.0) * (uy * fy * T(9) - uF * T(3))
+    Sm35 = T(1.0 / 9.0) * fy * T(3)
+    Sp68 = T(1.0 / 36.0) * ((ux + uy) * (fx + fy) * T(9) - uF * T(3))
+    Sm68 = T(1.0 / 36.0) * (fx + fy) * T(3)
+    Sp79 = T(1.0 / 36.0) * ((-ux + uy) * (-fx + fy) * T(9) - uF * T(3))
+    Sm79 = T(1.0 / 36.0) * (-fx + fy) * T(3)
+
+    f_out[i, j, 1] = fp1 - s_plus * (fp1 - feq1) + guo_even * Sp1
+    f_out[i, j, 2] = fp2 - a * (fp2 - feq2) - b * (fp4 - feq4) + guo_even * Sp24 + guo_odd * Sm24
+    f_out[i, j, 4] = fp4 - a * (fp4 - feq4) - b * (fp2 - feq2) + guo_even * Sp24 - guo_odd * Sm24
+    f_out[i, j, 3] = fp3 - a * (fp3 - feq3) - b * (fp5 - feq5) + guo_even * Sp35 + guo_odd * Sm35
+    f_out[i, j, 5] = fp5 - a * (fp5 - feq5) - b * (fp3 - feq3) + guo_even * Sp35 - guo_odd * Sm35
+    f_out[i, j, 6] = fp6 - a * (fp6 - feq6) - b * (fp8 - feq8) + guo_even * Sp68 + guo_odd * Sm68
+    f_out[i, j, 8] = fp8 - a * (fp8 - feq8) - b * (fp6 - feq6) + guo_even * Sp68 - guo_odd * Sm68
+    f_out[i, j, 7] = fp7 - a * (fp7 - feq7) - b * (fp9 - feq9) + guo_even * Sp79 + guo_odd * Sm79
+    f_out[i, j, 9] = fp9 - a * (fp9 - feq9) - b * (fp7 - feq7) + guo_even * Sp79 - guo_odd * Sm79
 end
 
 "TRT collision with Liu/Yu Hermite stress source written directly to f_out."

@@ -1,8 +1,22 @@
 using Test
 using Logging
 using Kraken
+using KernelAbstractions
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
+
+"""Best-effort local CUDA functional check for the Backend-directive tests
+below — mirrors what `_backend_from_krk_symbol` does, without depending on
+CUDA being `using`'d in this test file (it is a Kraken dependency but not
+eagerly loaded)."""
+function CUDA_functional_here()
+    try
+        mod = Base.require(Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"))
+        return Base.invokelatest(getfield(mod, :functional))
+    catch
+        return false
+    end
+end
 
 @testset "Simulation Runner (.krk)" begin
 
@@ -308,5 +322,81 @@ const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
         # sanity_check so that only the CairoMakie warning is matched.
         result = @test_logs (:warn, r"CairoMakie") min_level=Logging.Warn run_simulation(setup)
         @test !any(isnan, result.ρ)
+    end
+
+    @testset "Backend directive (T1)" begin
+        krk_text(backend_line) = """
+            Simulation backend_dispatch_test D2Q9
+            Domain L = 1 x 1  N = 8 x 8
+            Physics nu = 0.1
+            $backend_line
+            Boundary north velocity(ux = 0.1, uy = 0)
+            Boundary south wall
+            Boundary east  wall
+            Boundary west  wall
+            Run 5 steps
+        """
+
+        @testset "(a) explicit cpu backend in the file parses and runs" begin
+            setup = parse_kraken(krk_text("Backend cpu"))
+            @test setup.backend === :cpu
+            result = run_simulation(setup)
+            @test !any(isnan, result.ρ)
+        end
+
+        @testset "(a-bis) no Backend directive still defaults to CPU" begin
+            setup = parse_kraken(krk_text(""))
+            @test setup.backend === nothing
+            result = run_simulation(setup)
+            @test !any(isnan, result.ρ)
+        end
+
+        @testset "(b) unknown backend name raises a clear error at parse time" begin
+            err = try
+                parse_kraken(krk_text("Backend tpu"))
+                nothing
+            catch e
+                e
+            end
+            @test err isa ArgumentError
+            @test occursin("tpu", err.msg)
+        end
+
+        @testset "(c) explicit Julia kwarg overrides the file's Backend" begin
+            setup = parse_kraken(krk_text("Backend cuda"))
+            @test setup.backend === :cuda
+            # Explicit backend=CPU() must win over the file's `Backend cuda`,
+            # so this must run cleanly even though CUDA is not usable here.
+            result = run_simulation(setup; backend=KernelAbstractions.CPU())
+            @test !any(isnan, result.ρ)
+        end
+
+        @testset "requesting a non-functional GPU backend errors, never falls back to CPU" begin
+            setup = parse_kraken(krk_text("Backend cuda"))
+            # On a machine/CI runner without a functional CUDA device, this
+            # must raise a clear, actionable ArgumentError naming 'cuda' —
+            # NOT silently run on CPU. (If this ever runs on a CUDA-capable
+            # box, the same call would legitimately succeed on the GPU;
+            # either way it must never silently fall back to CPU.)
+            if !(CUDA_functional_here())
+                err = try
+                    run_simulation(setup)
+                    nothing
+                catch e
+                    e
+                end
+                @test err isa ArgumentError
+                @test occursin("cuda", err.msg)
+            end
+        end
+
+        @testset "the same Julia kwarg override behavior applies via run_simulation(filename; ...)" begin
+            path, io = mktemp()
+            write(io, krk_text("Backend cuda"))
+            close(io)
+            result = run_simulation(path; backend=KernelAbstractions.CPU(), max_steps=5)
+            @test !any(isnan, result.ρ)
+            rm(path; force=true)
+        end
     end
 end

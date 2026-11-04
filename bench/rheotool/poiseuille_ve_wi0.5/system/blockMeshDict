@@ -1,0 +1,93 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Website:  https://openfoam.org                  |
+|   \\  /    A nd           | Version:  9                                     |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//
+// Body-force-driven, fully-developed plane Poiseuille channel.
+// Match to Kraken FVFD-3D viscoelastic Poiseuille (Wi_wall~0.5, beta=0.5).
+// Geometry: 1 length unit == 1 lattice unit (LU).
+//   wall-to-wall gap H = Ny = 32 LU  ->  walls at y = +/- 16.
+//   streamwise length Lx = 8 (cyclic) ; spanwise thickness 2 (empty).
+//   Ny cells across the gap = 32 (matches Kraken Ny=32 cell centres at y=-15.5..15.5).
+//
+convertToMeters 1;
+
+vertices
+(
+ (0   -16 -1)
+ (8   -16 -1)
+ (8    16 -1)
+ (0    16 -1)
+ (0   -16  1)
+ (8   -16  1)
+ (8    16  1)
+ (0    16  1)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (8 32 1) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    inlet
+    {
+        type cyclic;
+        neighbourPatch outlet;
+        faces
+        (
+            (0 4 7 3)
+        );
+    }
+
+    outlet
+    {
+        type cyclic;
+        neighbourPatch inlet;
+        faces
+        (
+            (1 2 6 5)
+        );
+    }
+
+    walls
+    {
+        type wall;
+        faces
+        (
+            (0 1 5 4)   // y = -16
+            (3 7 6 2)   // y = +16
+        );
+    }
+
+    frontAndBack
+    {
+        type empty;
+        faces
+        (
+            (0 3 2 1)   // z = -1
+            (4 5 6 7)   // z = +1
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //

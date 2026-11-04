@@ -18,9 +18,13 @@ cudss_neumann_rhs(x, y)     = 2.0 * pi^2 * cos(pi * x) * cos(pi * y)
 
 @testset "Poisson cuDSS direct GPU (ext)" begin
     if !_CUDSS_GPU_OK
-        @info "Skipping cuDSS GPU Poisson test (CUDA+CUDSS not functional here)"
+        @info "Skipping cuDSS GPU Poisson test and KrakenCUDSSExt activation check (CUDA+CUDSS not loadable or CUDA not functional here)"
         @test_skip "cuDSS GPU direct path requires CUDA.functional() + CUDSS"
     else
+        # #61: with CUDA + CUDSS loaded the package extension must be active.
+        # (A wrong weakdep UUID in Project.toml leaves it silently inactive.)
+        @test Base.get_extension(Kraken, :KrakenCUDSSExt) !== nothing
+
         N = 64
 
         # Dirichlet: parity vs the CPU CHOLMOD seam on the SAME operator.

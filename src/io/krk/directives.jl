@@ -511,6 +511,29 @@ function _parse_module(line::String)
     return Symbol(tokens[2])
 end
 
+const _KRK_KNOWN_BACKENDS = (:cpu, :cuda, :metal)
+
+"""
+    _parse_backend(line::String) -> Symbol
+
+Parse: `Backend <cpu|cuda|metal>`
+
+Selects the compute backend for `run_simulation`. Only the backend *name* is
+validated here (fail fast at parse time on a typo); whether the named
+backend's package is actually functional (a GPU/driver present) is checked
+later, at run time, in `_backend_from_krk_symbol` (`src/simulation_runner.jl`)
+— it never falls back to CPU silently.
+"""
+function _parse_backend(line::String)
+    tokens = split(line)
+    length(tokens) < 2 && throw(ArgumentError("Backend needs a name: $line"))
+    name = Symbol(lowercase(tokens[2]))
+    name in _KRK_KNOWN_BACKENDS || throw(ArgumentError(
+        "Unknown backend '$(tokens[2])' in .krk 'Backend' directive. " *
+        "Supported values: $(join(_KRK_KNOWN_BACKENDS, ", "))."))
+    return name
+end
+
 """
 Parse: Rheology [phase] <model> { key = value ... }
 Examples:
@@ -541,7 +564,8 @@ function _parse_rheology(line::String, user_vars::Dict{Symbol,Any}=Dict{Symbol,A
 
     known_phases = (:liquid, :gas, :default)
     known_models = (:newtonian, :power_law, :carreau, :cross, :bingham,
-                    :herschel_bulkley, :oldroyd_b, :fene_p, :saramito)
+                    :herschel_bulkley, :oldroyd_b, :fene_p, :saramito,
+                    :giesekus, :ptt)
 
     if length(tokens) >= 3
         phase = Symbol(tokens[2])

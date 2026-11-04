@@ -3,6 +3,463 @@
 All notable changes to Kraken.jl will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.0] — 2026-11-04
+
+This release corrects a forcing defect that changed viscoelastic results, and repairs
+the repository front (quickstart, capability table, benchmark pages, test wiring). See
+the erratum below before reusing any viscoelastic number from 0.2.0 to 0.5.1.
+
+### Erratum — viscoelastic results before 0.6.0 (#67, #70)
+The TRT collision with a per-cell Guo force injected `g·F` per step instead of `F`,
+with `g = 1 + (s₋ − s₊)/2` (`g = 0.52` at `ν = 0.05`, `0.44` at `ν = 0.04`, `0.82` at
+`ν = 0.10`, `1.02` at `ν = 0.15`; source: #67 and PR #70). The defect was present from
+v0.2.0 to v0.5.1 on the 2D log-FV viscoelastic drivers, the 3D VE sphere and coupled
+planar-extension drivers, and the AD viscoelastic shape-sensitivity mirror. The BGK
+Guo kernels, the imposed-velocity planar extension and the Poiseuille drivers were not
+affected. Measured effect of the fix: Oldroyd-B confined cylinder vs RheoTool,
+`Cd` 129.92 / 118.68 / 119.24 → 129.95 / 118.92 / 119.49 at `Wi = 0.1 / 0.5 / 1`
+(`benchmarks/results/rheotool_compare/viscoelastic/kraken_cd_vs_wi.csv`, pre-fix values
+in its header), so the error against RheoTool goes from −0.40 / −0.86 / −0.96 % to
+−0.37 / −0.66 / −0.75 % (`error_norms.csv`): small shifts, still under 1 %. The `β = 0.3`
+case is no longer claimed within 1 %. The 3D VE sphere canary `Cd` at `Wi = 0.01` moves
+16.212 → 17.331 (+6.9 %), and the AD shape gradient `d(Cd_polymer)/dR` moves −1.6 %
+(#70); sensitivities with respect to `ν_s` and `Fx` move more (`ν_s` changes sign), see
+#67. No sphere number and none of those sensitivities was published. Results of your
+own that went through these paths with a nonzero force and `ν ≠ √3/12` should be rerun.
+
+### Added
+- Steady discrete adjoint of the generalised-Newtonian (GNF) lattice Boltzmann step (#100):
+  `gnf_steady_gradient` returns the objective `J = ½ Σ (value − target)²` of the
+  converged steady velocity (`GNFVelocityObs`) and its gradient with respect to the
+  four Carreau–Yasuda viscosity-law parameters `(ln η∞*, ln k*, n, a)`;
+  `gnf_steady_adjoint` accepts any cotangent on the lattice velocity. The fixed point
+  comes from the new `run_gnf_periodic_steady` driver. The adjoint is the transposed
+  linearisation of Kraken's own step at the fixed point (local blocks by ForwardDiff
+  on the host, hand-written KernelAbstractions products, mass mode removed by
+  bordering); it does not use Enzyme. Default solver `:kstep` (GMRES on the K-step
+  system, K = 1001); `:gmres` and `:fixed_point` are selectable. Scope: 2D D2Q9,
+  periodic in x, body-force driven, Carreau–Yasuda law only. Verified on CPU and on one A100 (Float64), on 32×16 and 16×8 grids (GPU: 32×16
+  only). On CPU the gradient agrees with central finite differences of J to 7.1e-08
+  or better in absolute value (the gate is far looser), the Jacobian-vector product
+  agrees with central differences of the real step, and the transposed product
+  agrees with Enzyme to 3.6e-16 relative (the Enzyme comparison runs in its own CI
+  step, `test/ad/gnf_adjoint_enzyme_test.jl`). On the A100 the device products match
+  the CPU ones to 1.2e-16 relative and the gradient matches finite differences to
+  7.1e-08 or better; the Float32 operator is informational only. The in-suite
+  CPU/GPU parity test is skipped without CUDA. See
+  `users/benchmarks/gnf-adjoint-gradient.md`.
+- `Backend <cpu|cuda|metal>` directive in `.krk` files, resolved by the simulation runner (#93).
+- `examples/quickstart.jl`, the exact script the README shows, run on CPU by a
+  `quickstart` CI job (#95).
+- Opt-in test tier `KRAKEN_TEST_EXPERIMENTAL=1` for 23 test files that were never wired
+  into the suite; the scalar advection order test now runs in the default suite (#94).
+- Electroconvection checkpoint and resume (#60): snapshot and restore of the completed-cycle
+  populations, force history and convergence scalars, with controlled updates of the
+  temperature parameter and rejection of incompatible or corrupt state. The opt-in moment
+  injector (above) is extended to the transient electroconvection driver and to the
+  checkpoint format, which moves to schema 2 (#79); a schema-1 file is migrated on read.
+- `test/analytical/ve3d_ext_velocity_readback.jl` and `ve3d_ext_zouhe_zplanes.jl` record two
+  defects of the coupled 3D extensional driver as `@test_broken` (#71; issues #68, #69, open):
+  it overwrites the collision velocity with a read-back of the post-collision populations,
+  and its Zou-He face rebuilds skip the first and last z planes although z is periodic.
+  Treat the coupled 3D extensional mode as not validated until they are fixed.
+- RheoTool reference data for the viscoelastic cavity (#57) and a regression test for the
+  field-stopping repair of #23 (#58).
+- Experimental hydrostatic `injector_closure=:static_moment` Julia keyword and
+  `.krk` `Physics injector_closure = static_moment` selector (#73, #78).
+  The opt-in normal-moment reconstruction preserves the outgoing charge aggregate
+  and enforces the flat injector charge. It is restricted to the periodic-x,
+  zero-fluid-velocity hydrostatic driver with regularized charge, direct Poisson,
+  Float64 and `delta_U=1`. The default `:nee`, collector and field operators are
+  unchanged; the option is rejected by the coupled EC driver and `ECState`.
+  Opt-in analytic diagnostics use wall-node coordinates (`y_mapping=:wall_nodes`),
+  not the legacy interior half-link mapping; their errors are not directly
+  comparable across closures. This does not establish complete EHD validation.
+- 3D generalised-Newtonian (GNF) flow on D3Q19 with TRT collision, linearly
+  interpolated bounce-back walls and Guo forcing (#101): `run_gnf_channel_3d` and the fused
+  step `fused_trt_gnf_libb_guo_field_step_3d!`. Supports `PowerLaw`, `CarreauYasuda`
+  and `Cross` (and Newtonian), isothermal only, Julia API only (no `.krk` keyword yet).
+  On planar channels against an independent analytical reference the observed order is
+  1.93 to 2.00 on CPU Float64 (N = 16, 32, 64) and 1.95 to 2.001 on an A100 (CUDA
+  Float64, N = 32 to 256, archived in `benchmarks/validation/gnf3d/results/`; the code
+  that ran is kept reachable by the tag `archive/gnf3d-gpu-sweep`). Float32 was only
+  run through on the GPU, not validated. See
+  `docs/src/users/benchmarks/gnf3d-channel-convergence.md`.
+- `run_natural_convection_gnf_2d`, `gnf_reference_scales` and `cavity_powerlaw` (#105):
+  differentially heated D2Q9 cavity for generalised Newtonian fluids, driving
+  `collide_rheology_thermal_2d!` with the thermal double-distribution populations.
+  Ra and Pr are defined with the reference kinematic viscosity `nu0`; with
+  `cavity_powerlaw` they are the power-law definitions of Turan et al. (2011).
+  A `.krk` `natural_convection` case with a non-Newtonian `Rheology` block now
+  routes to this driver. Thermal walls half-way, as in the Newtonian driver
+  (H = N). 2D only, Float64. n = 1 reproduces the Newtonian driver to round-off
+  (Nu = 1.1185 at N = 64, Ra = 1e3; de Vahl Davis hot-wall value 1.117, +0.13 %). Against Turan et al.
+  (Pr = 10, figure readings) on CPU: Nu = 5.393 vs 5.40 at Ra = 1e4, n = 0.6
+  (N = 32/48 extrapolated). On one A100 (CUDA Float64, N = 64/128/256): Ra = 1e4,
+  n = 0.6 and 1.0 within 0.6 % at every N; Ra = 1e3, n = 1.8 within 0.13 %;
+  Ra = 1e3, n = 1.0 gives 1.12 vs 1.14 (-1.7 % to -1.9 %, paper value read to ±0.02);
+  Ra = 1e3, n = 0.6 gives 1.99 vs 2.07 (-3.8 %), grid-converged and the same on CPU,
+  gap documented and not explained; Ra = 1e4, n = 1.8 did not converge and is not a
+  validated point. GPU and CPU agree at N = 64 to 2e-5 in Nu. Results in
+  `benchmarks/validation/natconv_gnf/results/`; the code that ran is kept reachable
+  by the tag `archive/gnf-thermal-turan-gpu`. No 3D, no grid refinement. See
+  `docs/src/users/benchmarks/gnf-natural-convection.md`.
+
+### Changed
+- Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature (#103).
+- CI builds the documentation on pull requests into `dev/platform` with a pinned Vitepress npm tree (#81); the contributor guide states the full-suite gate as CI actually runs it (#59).
+- Capability table (`docs/src/capabilities.md`) (#96) now lists MRT, TRT, the `bin/kraken` CLI,
+  Saramito, thermal VE/GNF, 3D outlet, refined 3D thermal and the Metal/CUDA backends.
+  The H100 throughput figures, which no script or log backs, are removed. The GPU
+  certification page said 0.68 of the bandwidth ceiling (PASS) using the 304 bytes of
+  D3Q19; a D2Q9 Float64 update moves 144 bytes, so 3461 MLUPS on an A100-40GB is 0.32 of
+  the ceiling, below the 0.5 gate. The viscoelastic cylinder page now states what the
+  archived rheoFoam logs show (serial runs, end time 6 or 10) instead of 2-core MPI to
+  t = 20.
+- Documentation statements corrected against the code: the VE cylinder wall is a linearly
+  interpolated (Bouzidi) bounce-back with the analytic cut-link distance, only the channel
+  walls are half-way; the VE cylinder page no longer says the residual gap to RheoTool is
+  discretisation (the grid extrapolation of the R = 30 and 50 values sits +0.7 % or -0.2 %
+  from the single RheoTool value, for a first- or second-order error); the FENE-P Oldroyd-B
+  limit is checked at `L² = 1e8` to 1e-3, not byte-identical; coupled 3D planar extension is
+  not validated (#68, #69 open); the buoyancy force has no density factor; GNF thermal
+  coupling has a driver; the De Vahl Davis comparison uses the hot-wall values (Nu₀ = 1.117,
+  2.238, 4.509; the cavity average is 1.118, 2.243, 4.519) and the old "1.4 %" is +0.13 %;
+  in `.krk` files natural-convection and Rayleigh-Bénard cases do not read the wall `T`
+  values and do not switch buoyancy on from them; the GNF adjoint Enzyme check has its own
+  CI step; the GNF thermal page lists the non-zero fractions of nodes at a viscosity bound
+  in the A100 sweep; the GPU certification README uses 144 bytes per D2Q9 update; the
+  Guo (2002) Boussinesq, Schäfer-Turek and Krüger entries of `docs/refs.bib`.
+- Electroconvection `.krk` cases (#37) now apply paired `Boundary west wall` / `Boundary east wall` as stationary no-slip sidewalls instead of ignoring them; omitted sides retain free slip. Explicit non-lateral `Boundary` declarations are rejected because electrode/plate conditions are built into this driver.
+- Documentation numbers re-measured after the TRT Guo forcing fix (#67), same settings
+  as before (Aqua A100, CUDA Float64; post-fix source `edbc20916`, jobs 26763246/47/48,
+  26766115, 26766116/17; pre-fix control `249146d4d`, job 26763249, reproduces the
+  published 119.2410). Oldroyd-B confined cylinder vs RheoTool (`R = 50`, `β = 0.59`):
+  `Cd` 129.92 / 118.68 / 119.24 → 129.95 / 118.92 / 119.49 and error −0.40 / −0.86 /
+  −0.96 % → −0.37 / −0.66 / −0.75 % at `Wi = 0.1 / 0.5 / 1`; still under 1 %. `Wi = 1`
+  convergence −6.2 / −1.9 / −0.96 % → −6.1 / −1.7 / −0.75 % at `R = 10 / 30 / 50`.
+  `β = 0.3` is no longer described as within 1 %: −1.33 % at `Wi = 0.5` (−1.77 % before
+  the fix) and +1.24 % at `Wi = 1`, where the RheoTool reference is not steady at
+  `t = 20`. High-`Wi` `Cd` at `Wi = 3`: 141.8 / 116.3 → 131.6 / 118.4 (`R = 50 / 30`),
+  still NaN-free to `Wi = 10`. Wake-`N1` ratios 0.770 / 0.704 / 0.890 / 1.437 → 0.771 /
+  0.705 / 0.894 / 1.448. AD viscoelastic shape sensitivity: adjoint vs finite difference
+  0.42 % → 0.63 %, the `fwd_tol = 1e-11` counter-example 22.6 % → 53.3 %, and the "~20×"
+  cancellation ratio, which the runs do not measure, is removed. Pages:
+  `viscoelastic-cylinder` (benchmark and tutorial), `validation-matrix`,
+  `ad-shape-sensitivity-viscoelastic`, `docs/agent/ad-ve-implication.md`, and the
+  `benchmarks/results/rheotool_compare/viscoelastic/` README, `kraken_cd_vs_wi.csv` and
+  `error_norms.csv`, and `comparison.png` (and its copy `viscoelastic-cylinder.png`),
+  regenerated from the post-fix `kraken_cd_vs_wi.csv`. `m8_refs/*.csv` keep the
+  pre-fix values as the dated record of the M8 study.
+
+### Fixed
+- **Thermal Dirichlet walls are half-way, like the no-slip walls** (#97, PR #102). The
+  fixed-temperature kernels (`apply_fixed_temp_*_2d!`, `apply_fixed_temp_*_3d!`, the
+  fused natural-convection step) put the wall on the first and last nodes, so the
+  thermal cavity was `N − 1` wide while the flow cavity was `N` wide. They now apply
+  the half-way anti-bounce-back `g_q = −g_q + 2 w_q T_w` to the bounced slot, once per
+  step after streaming (calling it twice undoes it). The drivers start from the
+  half-way linear profile `T_i = T_hot − ΔT (i − ½)/N`, and `Nu` uses the second-order
+  wall gradient `(−8 T_w + 9 T_1 − T_2)/3` with `H = N` (AD mirror and AD Nusselt QoI
+  updated alike). CPU Float64, `N = 64`: `Ra = 10³` Nu 1.1423 → 1.1185 (+2.26 % →
+  +0.13 % vs de Vahl Davis 1.117), `Ra = 10⁴` 2.3585 → 2.2535 (+5.39 % → +0.69 %);
+  pure conduction Nu 1.072 → 1.0003 at `N = 16`. With periodic side walls the linear
+  profile and `Nu = 1` now hold to round-off; in a closed cavity the adiabatic
+  bounce-back walls leave a second-order departure (`Nu − 1 = 3.1·10⁻⁴` at `N = 16`).
+  Refined thermal drivers re-apply the kernel after restriction only on the faces a
+  patch touches; their pure-conduction Nu moves from 1.29–1.31 to 1.26–1.30, and that
+  separate refined-wall defect stays open. The published GPU benchmark rows were
+  measured with the former walls and are flagged as such.
+- **Adjacent thermal Dirichlet faces flip each corner slot once** (#97). With two
+  Dirichlet faces sharing a corner (an edge in 3D), which the refined `.krk` drivers
+  allow, the per-face kernels flipped the diagonal slot that crosses both walls once per
+  face. New exported `apply_fixed_temp_2d!` and `apply_fixed_temp_3d!` apply several
+  faces in one call and flip it once, with the mean of the two wall temperatures
+  (x-faces apply it, then y-faces; z-faces never). The refined 2D/3D drivers and the
+  patch builders (`build_patch_thermal_bcs_3d`) use them; one face alone is
+  bit-identical to before. A conduction square with hot west and south and cold east
+  and north is now symmetric about the diagonal to 4·10⁻¹⁶ (8·10⁻² before).
+- **AD Nusselt QoI uses the actual wall distance and cavity width** (#97). `nu_pure`
+  reads the hot-wall fraction `δ = q_hot` and `L = Nx − 1 + q_hot + q_cold` from the
+  cut-link fractions and uses the one-sided gradient for a wall at distance `δ`;
+  `nu_driver` takes `q_hot` and `L`. At the shape-sensitivity case (`N = 16`,
+  `Ra = 10³`, `L = 16.2`) `dNu/dL` goes from −0.067 (width held at `N`) to
+  +1.44·10⁻³, adjoint and finite difference within 1.0·10⁻³. The cut-link thermal wall
+  is exact only at `q = 0.5`: in pure conduction `Nu − 1` falls by 8·10⁻³ per unit of
+  cold-wall fraction (`q` from 0.3 to 0.9), while moving that wall by a whole cell at
+  fixed `q` changes `Nu` by +1.74·10⁻² at `Ra = 10³`. That cut-link error stays open.
+- `strain_rate_magnitude_3d` used a D3Q19 velocity ordering that is not the one of the
+  lattice tables, so the off-diagonal sums `Π_xy`, `Π_xz`, `Π_yz` had wrong signs and a
+  pure shear in any plane returned a zero strain rate. The sums now follow the lattice;
+  the final contraction moved to the new `strain_rate_from_pi_3d`. Any 3D result computed
+  with the old function (exported, so user code can call it) was wrong when
+  off-diagonal stress was present. Inside this repository, no `src/` driver, test or
+  benchmark called it before the 3D GNF path, so no previously published Kraken result
+  changes; it affects only external callers.
+- **TRT Guo forcing injects exactly `F` per step** (#67). The TRT collision
+  bricks with a per-cell Guo force (`CollideTRTDirectGuoField`,
+  `CollideTRTDirectGuoField_3D`) scaled the whole Guo source by `1 − s₊/2`. The odd
+  part of the source, which carries the momentum, relaxes at `s₋`, so each step added
+  `g·F` with `g = 1 + (s₋ − s₊)/2` instead of `F`. At the default `Λ = 3/16`, `g = 1`
+  only at `ν = √3/12 ≈ 0.144`; `g = 0.52` at `ν = 0.05`, `0.44` at `ν = 0.04`, `0.82`
+  at `ν = 0.10`, `1.02` at `ν = 0.15`. The source is now split: even part
+  `w[9(c·u)(c·F) − 3u·F]` at `1 − s₊/2`, odd part `3w c·F` at `1 − s₋/2` (TRT form of
+  the MRT forcing, Silva 2020, doi:10.1016/j.compfluid.2020.104537). Affected paths:
+  `fused_trt_libb_v2_guo_field_step!` (2D log-FV coupled step behind the cylinder,
+  BFS, contraction and square-channel coupled drivers, and the passive BFS precursor;
+  all three `wall_bc` variants), `fused_trt_libb_v2_guo_field_step_3d!` (VE sphere and
+  coupled planar-extension drivers), and the AD mirror `ad_ve_coupled_step!`. The BGK
+  Guo kernels were correct and are unchanged. New analytic tests in
+  `test/analytical/trt_guo_field_momentum.jl` check the even and odd parts separately
+  for five `(s₊, s₋)` pairs in 2D and 3D, Float64 and Float32, the SRT limit against the
+  BGK Guo kernels, and the AD mirror against the 2D brick. The coupled planar-extension
+  test moves from 0.83 % to 0.18 % on `C_xx` against the nominal strain rate (the
+  coupled flow now runs 0.72 % above it, down from 1.41 %). Published numbers
+  affected: see the documentation entry under Changed above.
+- **Corrected the 0.5.0 notes** (#52). The four log-conformation closures run on the
+  FVFD path only; the LBM-CDE drivers (sphere, Couette, Poiseuille) accept Oldroyd-B
+  only, in direct conformation form. Couette and LBM-CDE Poiseuille are not reachable
+  from `.krk`, the planar extension is reachable in imposed-velocity mode only, and the
+  Oldroyd-B sphere driver is not validated against a viscoelastic reference. Several
+  figures were misstated: the FVFD near-wall and velocity errors per resolution, the
+  planar-extension `C_yy` error and the cause of its 0.39 % `C_xx` gap, the number of
+  `@test_broken` (13, not 22) and of files over 700 lines (13, not 8), and `L² → ∞`
+  "byte-for-byte". The LBM-CDE Poiseuille error is now listed as a known issue of this
+  release rather than as a changed result. `docs/src/capabilities.md` §9 now lists the
+  3D viscoelastic models instead of reporting rheology as 2D-only, and
+  `docs/src/users/benchmarks/ve3d-poiseuille-convergence.md` states the velocity error
+  per resolution.
+- **3D FVFD advection is second order next to a periodic z face** (#54). The
+  MUSCL-Superbee operator fell back to first-order upwind within two cells of the z
+  faces even when z is periodic, i.e. everywhere in a thin quasi-2D box. The 0.5.0
+  planar-extension canary moves from 0.39 % to 0.0023 % on `C_xx` (the 0.5.0 notes
+  attributed the 0.39 % to slow relaxation; it was this fallback), and the FENE-P
+  canary now matches its transcendental fixed point to 1e-5. The coupled
+  planar-extension test moves from 0.06 % to 0.83 % on `C_xx` against the nominal
+  strain rate (gate 1 %): the coupled flow runs 1.4 % above the nominal rate, which
+  the old fallback happened to offset; against the measured rate it is -0.59 %.
+  *These coupled values were measured before the TRT Guo forcing fix above, which
+  brings them to 0.18 %, 0.72 % and -0.54 %.*
+- `compute_polymeric_force_3d!` takes `wall_x` / `wall_z`, giving x and z walls the
+  second-order one-sided difference the y walls use (a clamped stencil returned half
+  the derivative there). Faces that are neither periodic nor walls keep the clamp.
+- `logfv_max_grad_norm_3d` reduces on the arrays' device instead of copying nine
+  fields to the host every step.
+- **The adaptive DDF potential solve also stops on the electric field** (#23). With
+  `phi_scheme = :lbm` and no `phi_substeps`, the solve stopped once `phi` changed by at
+  most `phi_tol` over one iteration, but `E` is rebuilt from the first moment of the
+  populations, which relaxes on its own: a cold start could return an unconverged field
+  (`E*` errors of 1.5e-5 to 3.9e-3 on the ES-002 capacitors at the electroconvection
+  check cadence, 0.25 to 0.5 at the hydrostatic one; relative error 0.29 on the first
+  potential solve of the default hydrostatic run). A check now also requires the field
+  change to be at most the new keyword `field_tol` (default `1e-4`, independent of
+  `phi_tol`) of `run_electroconvection_2d`, `init_state(ECState; ...)` and
+  `run_ehd_hydrostatic_2d`: the change of `E` since the previous check, relative to
+  `max(max|E|, E_ref)`, with `E_ref = |phi_bottom − phi_top|/(Ny − 1)` the applied field
+  (`1/(Ny − 1)` in all public drivers). The applied field is a minimum scale: it applies
+  while `E` is below it everywhere, as at the first checks of a cold start, where `E`
+  starts at 0. A `floatmin` guard avoids a division by zero when the plates are at the
+  same potential and the field is zero. Measured at every accepting check: `max|E| / E_ref`
+  is 1.484 to 1.495 in the default hydrostatic run and in 60x96 electroconvection over
+  20 cycles (Float64 and Float32), 0.99999999994 to 1.0043 on the ES-002 capacitors; at
+  each of these acceptances the change relative to `max|E|` alone also met `field_tol`.
+  It is a Julia keyword only, not a `.krk` one. Checks run every 8 iterations in the
+  electroconvection solver and after every iteration in the hydrostatic driver
+  (`src/drivers/ehd_phi_ddf.jl`). `field_tol = Inf` restores the previous rule bit for
+  bit and is meant for non-regression comparisons only.
+  Cost on CPU, Float64: the default 60x96 electroconvection run takes 80, 64, 24, 40, 24,
+  32, 24, 24, 16, 16, 8, 8 potential iterations over its first 12 cycles (8 each before;
+  0.028 s instead of 0.010 s for those cycles), then 8 per cycle (measured up to cycle
+  18). On small grids the extra iterations persist: 112 per cycle at cycles 7 to 11 on
+  8x12, 48 to 144 at the last cycle of 23- to 30-cycle runs on 16x24 (8 before). The
+  default hydrostatic run takes 1.00 s instead of 0.88 s, with the same `err_E` (0.76 %).
+  Consequences: results on this path change (the worked example of
+  `docs/src/users/simulation-state-checkpoints.md` was regenerated); a negative or `NaN`
+  `field_tol`, and on the adaptive path a `phi_max_iter` that is not an integral value of
+  at least 1, are now an `ArgumentError` at entry (`phi_max_iter < 1` used to skip the
+  solve silently); when `phi` converged but `E` did not, the non-convergence error also
+  gives the last relative field change. `field_tol` is part of the EC checkpoint
+  identity (`src/drivers/ehd_ec_checkpoint.jl`): a restore with a different or missing
+  `field_tol` is refused, and `Inf` round-trips.
+- *Known limits of the #23 repair.* `field_tol` bounds a change between checks, not the
+  error of `E`. Once the slow diffusive mode of the pseudo-time iteration dominates, the
+  relative error is about `κ * field_tol`, `κ ≈ (Ny - 1)^2 / (m * gamma * π^2)` with `m`
+  the check cadence: about 5, 22 and 380 on 8x12, 16x24 and 60x96 at `gamma = 0.3`. The
+  ES-002 public-driver case keeps an `E*` error of 3.5e-5 at default settings and stays
+  `@test_broken` (#63); with `field_tol = 1e-8` it meets the 1e-6 gate. In Float32,
+  on grids with `Ny - 1 ≳ 100`, the iteration freezes at bit level before `E` converges
+  and the check accepts whatever `field_tol` is: use `phi_scheme = :direct` or Float64
+  for an accurate `E`.
+
+## [0.5.1] — 2026-10-23
+
+### Changed
+- Jiachen Zhao (Queensland University of Technology) joins the authors, second position,
+  in `CITATION.cff`, `Project.toml` and the BibTeX entries of the README and the
+  documentation home page. `CITATION.cff` now carries the ORCIDs of J. Zhao and
+  E. Sauret. The `version` field of those two BibTeX entries now reads 0.5.1 (it read
+  0.2.0 in the README and 0.4.0 on the home page).
+
+### Fixed
+- **CUDSS weak-dependency UUID corrected** (#61). Since v0.3.0 the `KrakenCUDSSExt`
+  extension could not be activated by `using CUDA, CUDSS, Kraken`, because `Project.toml`
+  declared a UUID that differs from the registered one in one character. Whether the
+  July 2026 GPU validation exercised the extension is not recorded. The corrected
+  extension was run on an H100 on the fix branch (Julia 1.11.9, CUDA 5.11.3,
+  CUDSS 0.6.5, Float64): it loads through plain `using`, and 41/41 GPU assertions pass
+  with no CPU fallback. New offline test `test/platform/weakdeps_metadata_test.jl`
+  checks every `[weakdeps]` UUID against the registry; the GPU test now asserts the
+  extension is active when CUDSS loads.
+- The 0.3.0 entry "GPU-validated (parity ≤1.6e-12)" for the cuDSS solve and the matching
+  line of `docs/agent/solve-linear-implication.md` now carry a correction note (#61): the
+  loading path of that July run is not recorded.
+
+## [0.5.0] — 2026-09-24
+
+### Added
+- **3D viscoelastic flow, four constitutive models** (`src/kernels/logconformation_fv_3d.jl`,
+  `src/kernels/logconformation_lbm_3d.jl`, `src/fvfd/operators_3d*.jl`,
+  `src/drivers/viscoelastic_*_3d.jl`, `src/rheology/linalg_3d.jl`): log-conformation
+  constitutive step in 3D with Oldroyd-B, FENE-P, Giesekus and PTT (linear and
+  exponential), on the FVFD finite-volume grid (`run_viscoelastic_fvfd_poiseuille_3d`,
+  `run_viscoelastic_fvfd_extensional_3d`). The LBM-CDE drivers (Oldroyd-B sphere, planar
+  Couette, planar Poiseuille) evolve the conformation directly and accept Oldroyd-B only.
+  Reachable from `.krk`: the sphere, FVFD Poiseuille and FVFD planar extension (imposed
+  velocity only; the coupled mode is Julia-only); Couette and LBM-CDE Poiseuille are
+  Julia-only. The sphere driver is not validated against a viscoelastic reference: its
+  tests check the Newtonian limit against Kraken's Newtonian sphere driver and a NaN-free
+  run at `Wi = 0.01`. Each closure matches its closed-form steady simple-shear fixed point
+  (Giesekus, PTT residual ≤ 1e-6; FENE-P and the Oldroyd-B limit ≤ 1e-3); setting `α = 0`
+  or `ε = 0` recovers the Oldroyd-B trajectory byte for byte, and FENE-P approaches it as
+  `L²` grows (1.3e-8 on `C_xx` at `L² = 1e8` in planar extension).
+  *Corrected 2026-09-24 (#52). The entry as tagged said the four closures ran "on either
+  the LBM lattice or the FVFD finite-volume grid", that all five drivers were "reachable
+  from `.krk`", and that `L² → ∞` recovered Oldroyd-B "byte-for-byte"; none was true.*
+- **FVFD transport cures the near-wall conformation error of the LBM-CDE path.** On
+  identical `N_y = 32` viscoelastic Poiseuille, the near-wall `C_xy` error is 3.9e-15
+  against an anti-tautological reference built from the measured shear (at most 1.9e-7
+  absolute, 3.9e-7 relative, over `N_y = 32–128`), where the diffusive LBM-CDE path
+  returns 25.9 % error and a peak velocity ratio of ≈ 1.13. The FVFD peak velocity is
+  within 0.086 % of the analytic parabola at `N_y = 32` and 0.0095 % at `N_y = 128` (H100,
+  CUDA Float64). Both paths ship in this release; see Known issues for LBM-CDE.
+  *Corrected 2026-09-24 (#52). The entry as tagged said "machine-exact (≤ 1.9e-7, i.e.
+  ≤ 2e-5 %)" and "to 0.01 %" at `N_y = 32`: 1.9e-7 is the absolute `N_y = 128` value, and
+  the velocity is within 0.01 % only at `N_y = 128`.*
+- **Resumable simulation state and HDF5 checkpoints** (#26) (`src/platform/state.jl`,
+  `src/io/checkpoint_hdf5.jl`, `src/drivers/ehd_ec_state.jl`): the `init_state` /
+  `advance!` / `solution` contract, checkpoints written as HDF5, and the electroconvection
+  driver running on the contract bit-identically to the frozen legacy driver. An
+  interrupted run resumes instead of restarting. New direct dependency: `HDF5`.
+  Documented in `docs/src/users/simulation-state-checkpoints.md` and `docs/src/api/platform.md`.
+- **RheoTool cross-validation** of FVFD-3D Poiseuille, Oldroyd-B planar extension and
+  FENE-P planar extension. Runs performed in a local `openfoam9-rheotool:v1.2` container;
+  OpenFOAM case templates under `bench/rheotool/`, raw output and comparison tables under
+  `benchmarks/results/rheotool_compare/`. On Poiseuille, Kraken's relative L2 error against
+  the analytic profile is 1.2e-3 on velocity and 4.1e-9 on `N1`, where RheoTool gives 1.3e-3
+  and 4.6e-3. On Oldroyd-B planar extension RheoTool reaches the analytic fixed point to
+  machine precision and Kraken's 1000-step canary sits 0.39 % below on `C_xx` and 0.0015 %
+  off on `C_yy`; these gaps come from a first-order advection fallback in the periodic z
+  direction (#54), not from a slow relaxation as the tagged entry said. The 10.9 % FENE-P
+  `C_xx` gap is a closure-variant difference (Peterlin argument `tr C` vs `tr A`), not a
+  defect. These are benchmarks, not automated gates: no test reads the reference data.
+- **Steady-state time estimate and viscoelastic parameter-stability check**
+  (`src/units/steady_state.jl`).
+- **Finite-difference cross-check of the viscoelastic polymer-drag adjoint** (#41)
+  (`test/ad/test_ad_ve_fd_check.jl`): four design directions against central finite
+  differences of the reconverged primal, with a three-point Richardson error estimate. The
+  19 pre-existing adjoint assertions all pass under a known miscompile; this one does not.
+- **References page** in the documentation (#46). `DocumenterCitations` was loaded and
+  `docs/refs.bib` held 39 entries, but no page carried a `@bibliography` block, so all 37
+  cited keys rendered as unlinked text.
+
+### Changed
+- The test suite is a two-tier merge gate (#24, #27, #30, #31): a fast pull-request tier, a
+  full tier on the integration branch and nightly, superseded runs cancelled, and any
+  single test file runnable on its own locally or on CI.
+- The four Enzyme-driven test files run with production bounds checking
+  (`--check-bounds=auto`) (#39, #41, #43). Under the `Pkg.test` default Enzyme's reverse
+  mode miscompiles them; reported upstream as EnzymeAD/Enzyme.jl#3614.
+- Known failures are carried as `@test_broken` rather than kept out of the suite (#29);
+  the full CI run of this release carries 13 (12 in the LBM tier, 1 in the IncNS tier;
+  the tagged entry said 22).
+- The contribution model replaces the `src/` edit ban with directory ownership and review
+  (#25); `AGENTS.md` and `.github/CODEOWNERS` carry the rules.
+- `CITATION.cff`: G. Maitrejean's affiliation is now Grenoble INP, Université Grenoble Alpes.
+
+### Fixed
+- Type inference no longer expands the Enzyme shape-sensitivity thunks when
+  `run_simulation` is called without automatic differentiation (#39, #40), which crashed
+  the full test tier on Julia 1.12 / x86_64 Linux.
+- Two IncNS tests asserted round-off residues against macOS literals; they now assert
+  bounds (#36).
+- `docs/node_modules` is no longer tracked (#45). The committed copy held the macOS
+  `rollup` binary, so the documentation build failed on Linux with
+  `Cannot find module @rollup/rollup-linux-x64-gnu`.
+- The citation block on the documentation home page declared version 0.2.0 with no DOI and
+  announced a DOI that had already been minted (#48).
+
+### Known issues
+- Multiblock ghost exchange reads the wrong source block at `n_ghost = 2`, and a topology
+  guard is missing (#28).
+- `zou_he_pressure_3d_kernel!` still omits the wall-parallel diagonal populations that the
+  velocity BC includes (#20).
+- DDF potential stopping can accept an unconverged electric-field moment (#23).
+- Enzyme reverse mode miscompiles a loop branching on a `Const` Bool mask at neighbour
+  indices under `--check-bounds=yes`: segfault on x86_64 Linux, wrong gradient on aarch64
+  macOS (#41, EnzymeAD/Enzyme.jl#3614). Production mode (`--check-bounds=auto`) is exact
+  and is what CI and the documented workflow use.
+- 13 files exceed the 700-LOC budget (#15; the tagged entry said 8).
+- The LBM-CDE 3D Poiseuille driver (`run_conformation_poiseuille_libb_3d`) over-smooths the
+  conformation near walls: 25.9 % near-wall `C_xy` error and a peak velocity ratio ≈ 1.13
+  at `N_y = 32` (4 `@test_broken`). Use `run_viscoelastic_fvfd_poiseuille_3d`.
+
+## [0.4.0] — 2026-09-14
+
+### Added
+- **Electrohydrodynamics / electroconvection** (`src/kernels/ehd_*`, `src/drivers/`):
+  charge-transport and electric-potential LBM sub-solvers, Coulomb body force,
+  free-slip sidewalls, MRT collision, GPU-ready kernels, a `.krk` user surface
+  (`benchmarks/krk/ehd/`) and a critical-threshold sweep script
+  (`benchmarks/ehd/tc_sweep.jl`). Hydrostatic base state matches the analytical
+  charge-density and field profiles below 1%; onset threshold `T_c ~ 166.5`
+  against 163.5 from Luo, Wu, Yi & Tan, Phys. Rev. E 93, 023309 (2016), a +1.8%
+  deviation — mesh-convergence study for `T_c` still pending, so read it as
+  consistent-with rather than converged.
+- **West pressure boundary in 2D** (`apply_zou_he_pressure_west_2d!`), completing
+  the east/west pair. Validated against analytic Poiseuille: max relative error
+  2.03e-3 at Ny=16 and 5.15e-4 at Ny=32 (2nd order).
+- **Thermal conduction driver** accepts `nu`, `alpha` and an `orientation`
+  (`:vertical` default, `:horizontal` for west/east).
+- Regression tests exercising the public `.krk` runner rather than the drivers
+  directly: `test/analytical/H2-004-route.jl`, `test/analytical/TH-002-route.jl`.
+- `AGENTS.md` and `.github/CODEOWNERS`: contributor working rules, ownership per
+  directory, bug-report-as-failing-test convention.
+
+### Fixed
+- **MRT Guo forcing injected only half the requested body force.** Any MRT run
+  with a body force before this release was forced at half the intended value.
+- `_D2Q9_CX` was defined twice in the module with different types, which made the
+  package fail to load on Julia 1.11 — the declared minimum (#17).
+- The generic `.krk` runner silently ignored west pressure boundaries; unsupported
+  faces now raise an explicit error instead of a no-op (#18).
+- The conduction `.krk` fallback dropped `nu`, `alpha` and the thermal face
+  settings, silently solving a different problem. `examples/heat_conduction.krk`
+  is itself a west/east case and had been running south/north defaults at nu=0.05
+  instead of its documented nu=0.1, alpha=0.01 (#19).
+- 3D cavity test ran at omega = 1.8868, above the measured BGK stability ceiling
+  of ~1.81, and produced NaN at step 194. Reconfigured at the same Re = 32 with
+  tightened assertions.
+
+### Changed
+- **Breaking:** driver spec `OldroydB` renamed `OldroydBSpec` (name clash with the
+  rheology model of the same name). Scripts naming the old type must be updated.
+- `main` reconciled with the development line; the two now carry the same content.
+
+### Known issues
+- 3 failures in multi-block ghost exchange (`test_multiblock_exchange.jl`).
+- `zou_he_pressure_3d_kernel!` still omits the wall-parallel diagonal populations
+  that the velocity BC now includes (#20).
+
 ## [0.3.0] — 2026-07-22
 
 ### Added
@@ -24,6 +481,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **LinearSolve.jl front-end + cuDSS direct solve** behind `[weakdeps]`
   (`solve_poisson_direct`): assembled sparse alternative to the MG path on the same
   discretization; CPU MMS order 2.00, GPU-validated (parity ≤1.6e-12).
+  *Correction (0.5.1, see #61):* the GPU claim is not supported as written. The declared
+  CUDSS UUID was wrong, so `using CUDSS` could not activate `KrakenCUDSSExt`, and the
+  loading path of the July run (extension or manual include) was not recorded. The
+  extension path was first validated with the UUID fix of 0.5.1 (Aqua job 26559033,
+  reported 2026-10-10: H100, 41/41 GPU assertions, no CPU fallback).
 
 ### Changed
 - Documentation reframed method-agnostic (architecture page, maturity table) — the

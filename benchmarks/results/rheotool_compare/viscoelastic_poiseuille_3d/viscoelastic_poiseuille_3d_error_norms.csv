@@ -1,0 +1,18 @@
+quantity,comparison,L1,L2,Linf,relL2,relLinf
+u,RheoTool vs analytic,1.874999e-05,1.874999e-05,1.875000e-05,1.316298e-03,9.775171e-04
+u,Kraken   vs analytic,1.650000e-05,1.650000e-05,1.650000e-05,1.158343e-03,8.602151e-04
+u,RheoTool vs Kraken,2.249993e-06,2.249993e-06,2.250000e-06,1.581249e-04,1.174030e-04
+Cxy,RheoTool vs analytic,4.015872e-10,4.448959e-10,6.236559e-10,1.539564e-09,1.247312e-09
+Cxy,Kraken   vs analytic,5.135161e-10,5.926936e-10,1.025000e-09,2.051018e-09,2.050000e-09
+Cxy,RheoTool vs Kraken,9.151034e-10,1.035484e-09,1.648656e-09,3.583294e-09,3.297312e-09
+N1,RheoTool vs analytic,1.007015e-03,1.023661e-03,1.040583e-03,4.562161e-03,2.081165e-03
+N1,Kraken   vs analytic,6.847758e-10,9.203289e-10,2.050000e-09,4.101639e-09,4.100000e-09
+N1,RheoTool vs Kraken,1.007015e-03,1.023660e-03,1.040583e-03,4.562158e-03,2.081165e-03
+
+integrated,value_analytic,value_rheotool,value_kraken,rel_err_rt,rel_err_kr,
+flow_rate_Q,4.091812e-01,4.086000e-01,4.086697e-01,1.421e-03,1.250e-03,
+wall_shear_total,2.400000e-04,2.325000e-04,2.329500e-04,3.125e-02,2.938e-02,
+
+local_max,value_analytic,value_rheotool,value_kraken,rel_err_rt,rel_err_kr,
+u_max,1.920000e-02,1.916250e-02,1.916475e-02,1.953e-03,1.836e-03,
+N1_max,5.000000e-01,5.000000e-01,5.000000e-01,2.297e-09,4.100e-09,

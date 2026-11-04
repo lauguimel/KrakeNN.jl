@@ -2,62 +2,9 @@ using Test
 using Kraken
 using KernelAbstractions
 
-# Minimal periodic-xz, wall-y streaming kernel for 3D Poiseuille test
-@kernel function stream_periodic_xz_wall_y_3d_kernel!(f_out, @Const(f_in), Nx, Ny, Nz)
-    i, j, k = @index(Global, NTuple)
-
-    @inbounds begin
-        # Periodic helpers
-        ip = ifelse(i < Nx, i + 1, 1)
-        im = ifelse(i > 1, i - 1, Nx)
-        kp = ifelse(k < Nz, k + 1, 1)
-        km = ifelse(k > 1, k - 1, Nz)
-        # Wall-y neighbor indices clamped in-range so the unselected ifelse
-        # branch never indexes at 0 / Ny+1 (Julia 1.12 evaluates both branches).
-        jm1 = ifelse(j > 1,  j - 1, j)
-        jp1 = ifelse(j < Ny, j + 1, j)
-
-        # q=1: rest
-        f_out[i,j,k,1] = f_in[i, j, k, 1]
-
-        # Axis-aligned x (periodic)
-        f_out[i,j,k,2] = f_in[im, j, k, 2]
-        f_out[i,j,k,3] = f_in[ip, j, k, 3]
-
-        # Axis-aligned y (wall bounce-back)
-        f_out[i,j,k,4] = ifelse(j > 1,  f_in[i, jm1, k, 4], f_in[i, j, k, 5])
-        f_out[i,j,k,5] = ifelse(j < Ny, f_in[i, jp1, k, 5], f_in[i, j, k, 4])
-
-        # Axis-aligned z (periodic)
-        f_out[i,j,k,6] = f_in[i, j, km, 6]
-        f_out[i,j,k,7] = f_in[i, j, kp, 7]
-
-        # Edge xy (periodic x, wall y)
-        f_out[i,j,k,8]  = ifelse(j > 1,  f_in[im, jm1, k, 8],  f_in[i, j, k, 11])
-        f_out[i,j,k,9]  = ifelse(j > 1,  f_in[ip, jm1, k, 9],  f_in[i, j, k, 10])
-        f_out[i,j,k,10] = ifelse(j < Ny, f_in[im, jp1, k, 10], f_in[i, j, k, 9])
-        f_out[i,j,k,11] = ifelse(j < Ny, f_in[ip, jp1, k, 11], f_in[i, j, k, 8])
-
-        # Edge xz (periodic x, periodic z)
-        f_out[i,j,k,12] = f_in[im, j, km, 12]
-        f_out[i,j,k,13] = f_in[ip, j, km, 13]
-        f_out[i,j,k,14] = f_in[im, j, kp, 14]
-        f_out[i,j,k,15] = f_in[ip, j, kp, 15]
-
-        # Edge yz (periodic z, wall y)
-        f_out[i,j,k,16] = ifelse(j > 1,  f_in[i, jm1, km, 16], f_in[i, j, k, 19])
-        f_out[i,j,k,17] = ifelse(j < Ny, f_in[i, jp1, km, 17], f_in[i, j, k, 18])
-        f_out[i,j,k,18] = ifelse(j > 1,  f_in[i, jm1, kp, 18], f_in[i, j, k, 17])
-        f_out[i,j,k,19] = ifelse(j < Ny, f_in[i, jp1, kp, 19], f_in[i, j, k, 16])
-    end
-end
-
-function stream_periodic_xz_wall_y_3d!(f_out, f_in, Nx, Ny, Nz)
-    backend = KernelAbstractions.get_backend(f_in)
-    kernel! = stream_periodic_xz_wall_y_3d_kernel!(backend)
-    kernel!(f_out, f_in, Nx, Ny, Nz; ndrange=(Nx, Ny, Nz))
-    KernelAbstractions.synchronize(backend)
-end
+# Uses the package-level `stream_periodic_xz_wall_y_3d!` (periodic x/z, no-slip
+# bounce-back y-walls) — the same reusable streamer the 3D viscoelastic Couette
+# canary builds on. This test pins it against the analytical parabolic profile.
 
 @testset "Poiseuille 3D body force" begin
     Nx, Ny, Nz = 4, 32, 4

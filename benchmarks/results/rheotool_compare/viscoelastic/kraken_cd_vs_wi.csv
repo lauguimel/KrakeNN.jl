@@ -1,9 +1,11 @@
 # Kraken Oldroyd-B cylinder drag, R=50, beta=0.59, diffusive scaling (nu_total=0.15, tau=0.95)
-# halfwayBB wall, D/H=0.5 blockage, +-15R up/downstream, 300k steps, CUDA Float64 (Aqua A100, job 22199679)
+# interpolated bounce-back cylinder wall (wall_bc=halfwayBB), D/H=0.5 blockage, +-15R up/downstream, 300k steps, CUDA Float64 (Aqua A100)
+# Re-measured 2026-10-14 after the TRT Guo forcing fix (#67): source edbc20916, jobs 26763246/47/48,
+# same settings as job 22199679. Pre-fix values (job 22199679): Cd 129.9155 / 118.6770 / 119.2410.
 # Cd = total drag coefficient (Cd_kraken, col 26); Cd_s/Cd_p are the raw solvent/polymer
 # wall-ring integrator diagnostics (cols 27/28), reported verbatim from the source CSVs.
-# source: bench/viscoelastic_logfv/v03_cutlink_reval_22199679/reval_R50/cyl_bigsweep_v2_*.csv
+# source: aqua:~/kraken_guo_remeasure/out/<src>_<tag>_R50_<jobid>/cyl_bigsweep_v2_*.csv
 Wi,Cd,Cd_s,Cd_p
-0.1,129.9155,130.2711,16.0967
-0.5,118.6770,119.9412,14.8371
-1.0,119.2410,119.5352,14.1549
+0.1,129.9514,130.3068,16.0955
+0.5,118.9187,120.1821,14.8427
+1.0,119.4912,119.8028,14.1820

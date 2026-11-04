@@ -17,7 +17,5 @@ Initial { C = 0.5*(1 - tanh((sqrt((x-N/2)^2 + (y-N/2)^2) - R) / 2)) }
 Boundary x periodic
 Boundary y periodic
 
-Refine drop { region = [20, 20, 108, 108], ratio = 2 }
-
 Run 5000 steps
 Output vtk every 1000 [rho, ux, uy, C]

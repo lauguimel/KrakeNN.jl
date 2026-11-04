@@ -1,11 +1,42 @@
+# 3D thermal refinement check (conduction + natural convection with wall patches,
+# Ra = 1e3) against Fusegi et al. (1991), Nu = 1.085.
+#
+#   julia --project benchmarks/validate_thermal_ref_3d_gpu.jl                         # Metal, N = 16, Float32
+#   julia --project benchmarks/validate_thermal_ref_3d_gpu.jl --backend=cuda --FT=Float64
+#   julia --project benchmarks/validate_thermal_ref_3d_gpu.jl --backend=cpu --N=12
 using Kraken
-using Metal
 using KernelAbstractions
 using Printf
 
+function parse_thermal_ref_3d_options(args)
+    backend, N, FT = "metal", 16, Float32
+    for arg in args
+        key, value = occursin('=', arg) ? split(arg, '='; limit=2) : (arg, "")
+        if key == "--backend" && value in ("metal", "cuda", "cpu")
+            backend = String(value)
+        elseif key == "--N"
+            N = parse(Int, value)
+        elseif key == "--FT" && value in ("Float32", "Float64")
+            FT = value == "Float32" ? Float32 : Float64
+        else
+            throw(ArgumentError("unknown option: $arg (--backend=metal|cuda|cpu, --N=<int>, --FT=Float32|Float64)"))
+        end
+    end
+    return (; backend, N, FT)
+end
+
+# Load the GPU package at top level, in its own block, before any function
+# uses it (`using` inside a function hits a world-age error on first use).
+const THERMAL_REF_3D_OPTIONS = parse_thermal_ref_3d_options(ARGS)
+if THERMAL_REF_3D_OPTIONS.backend == "cuda"
+    using CUDA
+elseif THERMAL_REF_3D_OPTIONS.backend == "metal"
+    using Metal
+end
+
 const NU_REF_3D = 1.085  # Fusegi Ra=1e3
 
-function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
+function validate_thermal_ref_3d_gpu(; N=16, backend, FT=Float32)
     println("=== 3D Thermal Refinement — GPU validation (N=$N, $FT) ===\n")
 
     ν = FT(0.05); Pr = FT(0.71)
@@ -33,7 +64,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
 
     g_cpu = zeros(FT, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT * (i-1) / (Nx-1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)   # half-way walls at x = 0.5, Nx + 0.5
         for q in 1:19; g_cpu[i,j,k,q] = FT(w[q]) * T_init; end
     end
     copyto!(g_in, g_cpu); copyto!(g_out, g_cpu)
@@ -71,9 +102,11 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
         collide_thermal_3d!(go, ux, uy, uz, ω_T)
         collide_3d!(fo, is_solid, ω_f)
     end
+    # Post-restriction thermal call on the patched (west) face only: the
+    # half-way kernel flips the incoming slots, so the unpatched east wall,
+    # already set post-stream in `fused`, must not get a second call.
     bc_c = (f, g, Te, nx, ny, nz) -> begin
         apply_fixed_temp_west_3d!(g, T_hot, ny, nz)
-        apply_fixed_temp_east_3d!(g, T_cold, nx, ny, nz)
     end
 
     t0 = time()
@@ -90,7 +123,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
     T_cpu = Array(Temp)
     jm = N÷2; km = N÷2
     T_line = T_cpu[:, jm, km]
-    T_exact = [FT(T_hot - ΔT*(i-1)/(Nx-1)) for i in 1:Nx]
+    T_exact = [FT(T_hot - ΔT * (i - 0.5) / Nx) for i in 1:Nx]
     max_err = maximum(abs.(T_line .- T_exact))
     ux_max = maximum(abs, Array(ux))
     @printf("  %d steps in %.1fs (%.0f steps/s)\n", nsteps, dt, nsteps/dt)
@@ -112,7 +145,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
 
     g_cpu2 = zeros(FT, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT*(i-1)/(Nx-1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)   # half-way walls at x = 0.5, Nx + 0.5
         for q in 1:19; g_cpu2[i,j,k,q] = FT(w[q]) * T_init; end
     end
     copyto!(g_in2, g_cpu2); copyto!(g_out2, g_cpu2)
@@ -155,6 +188,7 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
         collide_thermal_3d!(go, ux2, uy2, uz2, ω_T)
         collide_boussinesq_3d!(fo, Te, is_solid2, ω_f, β_g, T_ref)
     end
+    # Both walls carry a patch here, so both get the post-restriction call.
     bc_c2 = (f, g, Te, nx, ny, nz) -> begin
         apply_fixed_temp_west_3d!(g, T_hot, ny, nz)
         apply_fixed_temp_east_3d!(g, T_cold, nx, ny, nz)
@@ -200,11 +234,12 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
     end
     Nu_fine = sum(Nu_arr[2:end-1, 2:end-1]) / max((Ny_f-2)*(Nz_f-2), 1)
 
-    # Nu from coarse grid
+    # Nu from coarse grid: second-order one-sided gradient through the
+    # half-way wall value and the first two nodes.
     T_c = Array(Temp2)
     Nu_c_arr = zeros(FT, Ny, Nz)
     for k in 1:Nz, j in 1:Ny
-        dTdx = (-3*T_c[1,j,k] + 4*T_c[2,j,k] - T_c[3,j,k]) / FT(2)
+        dTdx = (-8*T_hot + 9*T_c[1,j,k] - T_c[2,j,k]) / FT(3)
         Nu_c_arr[j, k] = -L * dTdx / ΔT
     end
     Nu_coarse = sum(Nu_c_arr[2:end-1, 2:end-1]) / max((Ny-2)*(Nz-2), 1)
@@ -224,4 +259,16 @@ function validate_thermal_ref_3d_gpu(; N=16, backend=MetalBackend(), FT=Float32)
     @printf("\n  → STABLE (%d steps)\n", nsteps)
 end
 
-validate_thermal_ref_3d_gpu(; N=16)
+let (; backend, N, FT) = THERMAL_REF_3D_OPTIONS
+    ka_backend = if backend == "cuda"
+        CUDA.functional() || error("CUDA.functional() is false: a functional CUDA device is required")
+        CUDA.CUDABackend()
+    elseif backend == "metal"
+        Metal.functional() || error("Metal.functional() is false: a functional Metal device is required")
+        MetalBackend()
+    else
+        KernelAbstractions.CPU()
+    end
+    println("backend=$backend, Julia=$VERSION")
+    validate_thermal_ref_3d_gpu(; N, backend=ka_backend, FT)
+end

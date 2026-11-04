@@ -50,6 +50,8 @@ end
 
 Extra arrays for thermal DDF on a refinement patch. Stored alongside
 the existing RefinementPatch (which holds f arrays).
+
+Grid refinement is under development and not validated.
 """
 struct ThermalPatchArrays{T}
     g_in::AbstractArray{T, 3}

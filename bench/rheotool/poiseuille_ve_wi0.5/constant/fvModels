@@ -1,0 +1,37 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Website:  https://openfoam.org                  |
+|    \\/     M anipulation  | Version:  9                                     |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      fvModels;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+//
+// Uniform streamwise body acceleration driving the channel.
+// Matches Kraken Fx = 1.5e-5 (force per unit mass, [m/s^2]).
+// volumeMode specific => value is the specific (per-unit-mass) source for U.
+//
+bodyForce
+{
+    type            semiImplicitSource;
+
+    timeStart       0;
+    duration        1e10;
+    selectionMode   all;
+    volumeMode      specific;
+    sources
+    {
+        U
+        {
+            explicit (1.5e-5 0 0);
+            implicit 0;
+        }
+    }
+}
+
+// ************************************************************************* //
