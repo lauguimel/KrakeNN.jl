@@ -1,0 +1,17 @@
+# Taylor-Green vortex decay in a fully periodic domain
+# Validation: exponential decay rate exp(-2*nu*k^2*t)
+
+Simulation taylor_green D2Q9
+Domain  L = 64 x 64  N = 64 x 64
+
+Define u0 = 0.01
+
+Physics nu = 0.01
+
+Boundary x periodic
+Boundary y periodic
+
+Initial { ux = -u0*cos(2*pi*x/Lx)*sin(2*pi*y/Ly) uy = u0*sin(2*pi*x/Lx)*cos(2*pi*y/Ly) rho = 1 - 3*u0^2/4*(cos(4*pi*x/Lx) + cos(4*pi*y/Ly)) }
+
+Run 1000 steps
+Output vtk every 500 [rho, ux, uy]

@@ -1,0 +1,24 @@
+# Flow around a cylinder at Re = 20
+# Validation: drag coefficient Cd ~ 2.0
+
+Simulation cylinder D2Q9
+Domain  L = 10.0 x 2.5  N = 200 x 50
+
+Define U = 0.05
+Define H = 2.5
+Define cx = 2.5
+Define cy = 1.25
+Define R = 0.5
+
+Physics nu = 0.05
+
+Obstacle cylinder { (x - cx)^2 + (y - cy)^2 <= R^2 }
+
+Boundary west  velocity(ux = 4*U*y*(H - y)/H^2, uy = 0)
+Boundary east  pressure(rho = 1.0)
+Boundary south wall
+Boundary north wall
+
+Run 20000 steps
+Output vtk every 1000 [rho, ux, uy]
+Diagnostics every 100 [step, drag, lift]

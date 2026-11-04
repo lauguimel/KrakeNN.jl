@@ -1,0 +1,23 @@
+# Axisymmetric Hagen-Poiseuille pipe flow
+# Validation: parabolic axial profile u_z(r) = u_max (1 - (r/R)^2)
+# with u_max = Fz * R^2 / (4 * nu).
+#
+# Solved on a 2D (z, r) mesh using the Li et al. (2010) axisymmetric
+# collision kernel. The `Module axisymmetric` directive enables the
+# (z, r) aliases used below:
+#   Boundary z     periodic   # streamwise axis (x direction of the D2Q9 grid)
+#   Boundary wall  wall       # outer radial wall at r = R  (north face)
+#   Boundary axis  symmetry   # axis of symmetry at r = 0   (south face)
+
+Simulation hagen_poiseuille D2Q9
+Domain  L = 0.125 x 1.0  N = 4 x 32
+Physics nu = 0.1  Fz = 1e-5
+
+Module axisymmetric
+
+Boundary z     periodic
+Boundary wall  wall
+Boundary axis  symmetry
+
+Run 10000 steps
+Output vtk every 2000 [rho, ux, uy]

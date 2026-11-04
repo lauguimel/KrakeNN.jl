@@ -1,0 +1,22 @@
+# Pure heat conduction in a 2D channel
+# Validation: 1D analytical steady-state linear temperature profile
+#
+# Hot west wall (T=1), cold east wall (T=0), insulated north/south.
+# Steady state gives T(x) = 1 - x/L (linear profile).
+#
+# This case isolates the thermal solver from any momentum coupling
+# (no Boussinesq, ν only acts on a fluid at rest).
+
+Simulation heat_conduction D2Q9
+Domain L = 1.0 x 0.25  N = 128 x 32
+Physics nu = 0.1 alpha = 0.01
+
+Module thermal
+
+Boundary west  wall T = 1.0
+Boundary east  wall T = 0.0
+Boundary south wall
+Boundary north wall
+
+Run 20000 steps
+Output vtk every 5000 [rho, ux, uy, T]

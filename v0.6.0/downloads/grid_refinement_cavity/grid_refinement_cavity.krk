@@ -1,0 +1,31 @@
+# Lid-driven cavity at Re = 1000 with patch-based grid refinement
+# Validation: Ghia, Ghia & Shin (1982) — centerline u and v profiles
+#
+# Coarse base grid 64x64 covers the full domain. A 2:1 refined patch
+# concentrates resolution in the upper-right corner where the secondary
+# vortex develops. Filippova-Hanel rescaling guarantees second-order
+# accuracy across the coarse-fine interface.
+#
+# The .krk runner dispatches refined cases automatically via the
+# Refine block. Both 2D (D2Q9) and 3D (D3Q19) lattices are supported,
+# with isothermal and thermal modules.
+
+Simulation grid_refinement_cavity D2Q9
+Domain L = 1.0 x 1.0  N = 64 x 64
+Physics nu = 0.0064
+
+Boundary north velocity(ux = 0.1, uy = 0)
+Boundary south wall
+Boundary east  wall
+Boundary west  wall
+
+# 2:1 refined patch in the upper-right corner where the
+# secondary vortex of Ghia's Re=1000 case is strongest.
+Refine corner_patch {
+    region = [0.5, 0.5, 1.0, 1.0],
+    ratio  = 2,
+    parent = base
+}
+
+Run 60000 steps
+Output vtk every 10000 [rho, ux, uy]

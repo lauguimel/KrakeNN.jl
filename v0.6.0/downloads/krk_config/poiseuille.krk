@@ -1,0 +1,13 @@
+# Poiseuille flow driven by body force
+# Validation: parabolic profile ux(y) = Fx/(2*nu) * y * (Ly - y)
+
+Simulation poiseuille D2Q9
+Domain  L = 0.125 x 1.0  N = 4 x 32
+Physics nu = 0.1  Fx = 1e-5
+
+Boundary x periodic
+Boundary south wall
+Boundary north wall
+
+Run 10000 steps
+Output vtk every 2000 [rho, ux, uy]

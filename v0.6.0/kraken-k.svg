@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Stylised capital K logo">
+  <defs>
+    <linearGradient id="kGrad" x1="0" y1="16" x2="0" y2="84" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ECFBFD"/>
+      <stop offset="1" stop-color="#93D9EB"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#kGrad)" d="M20 16H41V42L66 16H91L58 49L93 84H68L41 56V84H20Z"/>
+</svg>

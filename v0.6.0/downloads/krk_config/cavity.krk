@@ -1,0 +1,14 @@
+# Lid-driven cavity flow at Re = 100
+# Validation: Ghia et al. (1982)
+
+Simulation cavity D2Q9
+Domain  L = 1.0 x 1.0  N = 128 x 128
+Physics nu = 0.128
+
+Boundary north velocity(ux = 0.1, uy = 0)
+Boundary south wall
+Boundary east  wall
+Boundary west  wall
+
+Run 60000 steps
+Output vtk every 10000 [rho, ux, uy]

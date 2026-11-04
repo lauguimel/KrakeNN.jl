@@ -1,0 +1,13 @@
+# Rayleigh-Benard convection at Ra = 1e5, Pr = 0.71
+# Validation: De Vahl Davis (1983)
+#
+# Hot bottom, cold top, periodic side walls.
+# Convection rolls develop above the critical Rayleigh number Ra_c ≈ 1708.
+#
+# Run via Julia API or `run_simulation("examples/rayleigh_benard.krk")`.
+
+# The Preset already sets ν, Pr, Ra. Override the Run length and Output here.
+Preset rayleigh_benard_2d
+
+Run 30000 steps
+Output vtk every 5000 [rho, ux, uy, T]

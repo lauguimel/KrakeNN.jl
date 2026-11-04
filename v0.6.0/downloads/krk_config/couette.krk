@@ -1,0 +1,16 @@
+# Couette flow: linear velocity profile
+# Validation: ux(y) = u_wall * y / Ly
+
+Simulation couette D2Q9
+Domain  L = 0.125 x 1.0  N = 4 x 32
+
+Define u_wall = 0.05
+
+Physics nu = 0.1
+
+Boundary x periodic
+Boundary south wall
+Boundary north velocity(ux = u_wall, uy = 0)
+
+Run 10000 steps
+Output vtk every 2000 [rho, ux, uy]
