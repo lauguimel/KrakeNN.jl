@@ -26,9 +26,11 @@ The result carries, in addition to its previous fields, `converged::Bool` (the
 `(step, Cd)` samples, empty with `stop = :none`) and `Cd_last` (last sample, `NaN`
 without samples).
 
-`Cd` and the `Cd_*`, `F*` fields keep their meaning: the mean over the last
-`avg_window` steps of `max_steps`. A run stopped before that window has no window
-samples, so they are `NaN` and the converged value is `Cd_last`.
+`Cd` and the `Cd_*`, `F*` fields keep their meaning: the mean over the window samples
+(the last `avg_window` steps of `max_steps`). A run stopped inside that window averages
+the samples taken so far. A run stopped before the window has none, so they take the
+values of the last `cd_history` sample (`Cd == Cd_last`). Same rule as
+`run_cylinder_libb_2d`.
 """
 function _run_viscoelastic_logfv_step_channel_coupled_2d(
     geom_h;
@@ -243,6 +245,8 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
     stop === :cd_change && !drag_enabled &&
         throw(ArgumentError("stop = :cd_change requires drag_cx, drag_cy, drag_radius and drag_u_ref"))
     cd_history = Tuple{Int,Float64}[]
+    nan_force = (Fx=NaN, Fy=NaN)
+    last_drag_s = nan_force; last_drag_p = nan_force; last_drag_bsd = nan_force
     stop_reason = :max_steps
     completed_steps = 0
     first_nonfinite_step = 0
@@ -411,6 +415,7 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
                 cd_sample = 2.0 * (drag_s.Fx + drag_p.Fx - drag_bsd.Fx) /
                             (Float64(drag_u_ref)^2 * 2.0 * Float64(drag_radius))
                 push!(cd_history, (step, cd_sample))
+                last_drag_s = drag_s; last_drag_p = drag_p; last_drag_bsd = drag_bsd
             end
         end
         logfv_compute_macroscopic_forced_field_2d!(rho, ux, uy, f_out, fx_total, fy_total; sync=false)
@@ -497,20 +502,21 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
     max_abs_tau = max(maximum(abs, tauxx_cpu), maximum(abs, tauxy_cpu), maximum(abs, tauyy_cpu))
     max_abs_poly_force = max(maximum(abs, fx_poly_cpu), maximum(abs, fy_poly_cpu))
     max_abs_total_force = max(maximum(abs, fx_total_cpu), maximum(abs, fy_total_cpu))
-    Fx_s = n_drag > 0 ? Fx_s_sum / n_drag : NaN
-    Fy_s = n_drag > 0 ? Fy_s_sum / n_drag : NaN
-    Fx_p = n_drag > 0 ? Fx_p_sum / n_drag : NaN
-    Fy_p = n_drag > 0 ? Fy_p_sum / n_drag : NaN
-    Fx_bsd = n_drag > 0 ? Fx_bsd_sum / n_drag : NaN
-    Fy_bsd = n_drag > 0 ? Fy_bsd_sum / n_drag : NaN
-    Fx_drag = n_drag > 0 ? Fx_s + Fx_p - Fx_bsd : NaN
-    Fy_drag = n_drag > 0 ? Fy_s + Fy_p - Fy_bsd : NaN
+    n_force = n_drag > 0 || !isempty(cd_history)
+    Fx_s = n_drag > 0 ? Fx_s_sum / n_drag : last_drag_s.Fx
+    Fy_s = n_drag > 0 ? Fy_s_sum / n_drag : last_drag_s.Fy
+    Fx_p = n_drag > 0 ? Fx_p_sum / n_drag : last_drag_p.Fx
+    Fy_p = n_drag > 0 ? Fy_p_sum / n_drag : last_drag_p.Fy
+    Fx_bsd = n_drag > 0 ? Fx_bsd_sum / n_drag : last_drag_bsd.Fx
+    Fy_bsd = n_drag > 0 ? Fy_bsd_sum / n_drag : last_drag_bsd.Fy
+    Fx_drag = n_force ? Fx_s + Fx_p - Fx_bsd : NaN
+    Fy_drag = n_force ? Fy_s + Fy_p - Fy_bsd : NaN
     drag_diameter = isnothing(drag_radius) ? NaN : 2.0 * Float64(drag_radius)
     drag_speed = isnothing(drag_u_ref) ? NaN : Float64(drag_u_ref)
-    Cd_s = n_drag > 0 ? 2.0 * Fx_s / (drag_speed^2 * drag_diameter) : NaN
-    Cd_p = n_drag > 0 ? 2.0 * Fx_p / (drag_speed^2 * drag_diameter) : NaN
-    Cd_bsd = n_drag > 0 ? 2.0 * Fx_bsd / (drag_speed^2 * drag_diameter) : NaN
-    Cd = n_drag > 0 ? Cd_s + Cd_p - Cd_bsd : NaN
+    Cd_s = n_force ? 2.0 * Fx_s / (drag_speed^2 * drag_diameter) : NaN
+    Cd_p = n_force ? 2.0 * Fx_p / (drag_speed^2 * drag_diameter) : NaN
+    Cd_bsd = n_force ? 2.0 * Fx_bsd / (drag_speed^2 * drag_diameter) : NaN
+    Cd = n_force ? Cd_s + Cd_p - Cd_bsd : NaN
     fluid_cell_fractions = embedded_h.cell_fraction[.!is_solid_h]
     embedded_min_fluid_cell_fraction = isempty(fluid_cell_fractions) ?
         NaN : Float64(minimum(fluid_cell_fractions))

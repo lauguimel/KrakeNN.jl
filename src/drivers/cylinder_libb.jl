@@ -186,9 +186,9 @@ Returns a NamedTuple with:
 - `cd_history`: vector of `(step, Cd)` samples taken every `check_every` steps
   (empty with `stop = :none`). These are instantaneous values, not window means.
 
-With `stop = :cd_change` a run that stops before the last `avg_window` steps of
-`max_steps` has no averaging window: `Cd`, `Cl`, `Fx`, `Fy` are then the last
-sample of `cd_history` instead of a window mean.
+`Cd`, `Cl`, `Fx`, `Fy` are the mean over the last `avg_window` steps of `max_steps`.
+A run stopped inside that window averages the samples taken so far; a run stopped
+before it has none, so they take the values of the last `cd_history` sample.
 
 Reference for Schäfer-Turek 2D-1 (Re=20, blockage ≈ 25%): Cd ≈ 5.58.
 """

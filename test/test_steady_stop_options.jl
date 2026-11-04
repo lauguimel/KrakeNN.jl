@@ -144,6 +144,11 @@ using KernelAbstractions
             cd_new, cd_old = r.cd_history[end][2], r.cd_history[end-1][2]
             @test abs(cd_new - cd_old) <= 1e-4 * abs(cd_new)
             @test r.Cd_last == cd_new
+            # Stopped before the averaging window: Cd is the last sample, as in the
+            # LI-BB cylinder driver.
+            @test r.n_drag_samples == 0
+            @test r.Cd ≈ cd_new rtol=1e-12
+            @test r.Cd_s + r.Cd_p - r.Cd_bsd ≈ r.Cd rtol=1e-12
         end
 
         @testset "stop on: cannot settle within the cap" begin
