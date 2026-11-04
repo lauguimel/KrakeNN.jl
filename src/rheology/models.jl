@@ -250,11 +250,12 @@ end
 
 FENE-P model: finitely extensible nonlinear elastic with Peterlin closure.
 - `L_max`: maximum extensibility of polymer chains
-- Peterlin function, as used by the kernels: the log-conformation relaxation
-  term uses `f = (L² - d)/(L² - tr(C))` with `d` the space dimension (`d = 2` in
-  the 2D finite-volume kernels, `d = 3` in the 3D ones), so that `f = 1` at
-  `C = I`; the polymer stress reconstruction `τ_p = G·f·(C - I)` and the legacy
-  2D stress-formulation kernel use `f = L²/(L² - tr(C))`.
+- Peterlin function, as used by the kernels: the 2D log-conformation
+  finite-volume kernels and the 3D kernels use `f = (L² - d)/(L² - tr(C))`, with
+  `d` the space dimension, in both the relaxation term and the polymer stress
+  `τ_p = G·(f·C - I)`, so that `f = 1` and `τ_p = 0` at `C = I`. The legacy 2D
+  kernels (`kernels/viscoelastic_2d.jl`) use `f = L²/(L² - tr(C))` with
+  `τ_p = G·f·(C - I)`.
 - Reduces to Oldroyd-B when `L_max → ∞`.
 """
 struct FENEP{T,F<:VEFormulation,TC<:AbstractThermalCoupling} <: Viscoelastic
