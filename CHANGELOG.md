@@ -17,8 +17,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   buffers). The cuDSS transposed solve requires CUDSS.jl >= 1.0: older versions
   silently ignore the transpose mode, so Kraken raises an explicit error there
   instead of returning `A \ b`. A different sparsity pattern is refused (#104).
+- Newton solver for the steady colocated FV residual (step C2 of the FV Newton
+  roadmap), `solve_incns_fv_newton(; problem, to, linsolve)` and
+  `solve(params, IncNS(:fv_newton))`. The Jacobian is the exact derivative of
+  the residual kernel, assembled by coloured forward-mode duals (pattern built
+  from the stencil, colouring by SparseMatrixColorings, new dependency) through
+  the same KernelAbstractions kernel on CPU and GPU, written directly into the
+  CSC (UMFPACK) or CSR (cuDSS) matrix values. Linear solves go through the
+  linear-solve seam: one `lin_factorize` (symbolic analysis), then
+  `lin_refactorize!` and in-place `lin_solve!` at every iteration. Armijo line
+  search; optional pseudo-transient continuation (`dtau0`).
+  `fv_newton_finalize!` leaves the factors of the unshifted Jacobian at the
+  solution, for a later adjoint solve. Checked on CPU: the assembled Jacobian
+  equals the dense Jacobian on four configurations (cavity, masked channel,
+  periodic channel, doubly periodic); quadratic convergence to ‖R‖₂ ≈ 1e-16
+  (cavity Re = 100, 32², 5 iterations; Re = 1000, 64², 11 iterations);
+  agreement with the SIMPLE cavity within 5e-3 and with Ghia et al. (1982) at
+  128², Re = 100 (max centreline error 0.0072 of the lid speed).
 
 ### Changed
+- `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
+  declares `SteadyResidual`; the other drivers declare `ForwardSolve` only, and
+  `residual(prob, IncNS(:simple), U)` raises an `ArgumentError`.
 - Compat widened to `CUDA = "5, 6"` and `CUDSS = "0.3, 0.4, 0.5, 0.6, 1"`
   (CUDSS.jl 1.0 requires CUDA.jl 6). Existing CUDA.jl 5 environments keep
   resolving; a fresh environment now resolves to CUDA.jl 6. LinearSolve.jl does
@@ -139,8 +159,8 @@ own that went through these paths with a nonzero force and `ν ≠ √3/12` shou
   viscosity field, body/mass sources, wall / inlet / outlet / periodic sides,
   solid mask, one pressure pin per closed fluid pocket (`fv_pressure_pins!`).
   Problems are built with `fv_steady_problem` and moved to a device with
-  `fv_adapt`. `capabilities(::IncNS)` now includes `SteadyResidual`
-  (`residual(prob::FVSteadyProblem2D, ::IncNS, U)`); this is the residual of the
+  `fv_adapt`. `SteadyResidual` is declared by `IncNS(:fv_newton)`
+  (`residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`); this is the residual of the
   coupled FV discretisation, not of the SIMPLE drivers. Checked on CPU against the
   J0 prototype (identical residuals on 11 configurations), exact discrete
   solutions (R = 0), manufactured solutions with variable viscosity (velocity

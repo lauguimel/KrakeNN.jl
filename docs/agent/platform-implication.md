@@ -90,8 +90,9 @@ Phase 2c-1 (`residual.jl` + `ad_step.jl` + `ad_forward.jl` + `KrakenADExt.jl`, a
 
 Second concrete method (`src/methods/inc_ns/method.jl`, mirrors the LBM wrapper):
 - `IncNS <: AbstractMethod` — `IncNS(driver)` with driver ∈
-  `{:simple, :cavity, :cavity_mg, :projection, :manifold}`;
-  `capabilities(::IncNS)` = `{ForwardSolve}` only (CUDA seam is manual-load).
+  `{:simple, :cavity, :cavity_mg, :projection, :manifold, :fv_newton}`;
+  `capabilities` is driver-dependent: `{ForwardSolve, SteadyResidual}` for
+  `:fv_newton`, `{ForwardSolve}` for the others (CUDA seam is manual-load).
 - `IncNSSolution{R} <: AbstractSolution` — thin wrapper over the driver `NamedTuple`.
 - `solve(params::NamedTuple, m::IncNS)` — splats `params` verbatim into the matching
   `solve_incns_*` driver; `sample` pass-through methods as for `LBMSolution`.
