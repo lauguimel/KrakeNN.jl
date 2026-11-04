@@ -111,6 +111,11 @@ function run_incns_testset()
         # its GPU parity + zero-allocation contract — self-gated on CUDA;
         # KRAKEN_REQUIRE_GPU=1 makes a skip fail
         include("analytical/incns_fv_steady_residual_gpu.jl")
+        # C2 Newton on that residual: coloured dual Jacobian (same KA kernels
+        # as GPU) vs dense, quadratic convergence, one analysis, Ghia, SIMPLE
+        # (~15 s CPU), and its opt-in GPU/cuDSS contract
+        include("analytical/incns_fv_newton.jl")
+        include("analytical/incns_fv_newton_gpu.jl")
         include("analytical/scalar_transport_heated_channel.jl")
         include("analytical/scalar_transport_advection_order.jl")
 
