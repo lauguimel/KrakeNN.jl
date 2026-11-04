@@ -174,7 +174,7 @@ Arguments:
 The `:parabolic` profile vanishes on the half-way walls and its row sum is
 exactly `u_ref · Ny`, `u_ref = (2/3) u_in`:
 `u(j) = 4 u_in (j - 1/2)(Ny + 1/2 - j) / (Ny² + 1/2)`. The Zou-He rebuild
-imposes it on rows `2:Ny-1`; rows 1 and Ny keep the wall treatment.
+imposes it on every row `1:Ny`, rows 1 and Ny included.
 
 Returns a NamedTuple with:
 - `ρ`, `ux`, `uy`, `is_solid`, `q_wall`, `u_ref`, `D`, `Fx`, `Fy`
@@ -241,7 +241,7 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
     for step in 1:max_steps
         fused_trt_libb_v2_step!(f_out, f_in, ρ, ux, uy, is_solid,
                                  q_wall, uw_x, uw_y, Nx, Ny, T(ν))
-        # Pre-collision Zou-He rebuild at i=1 and i=Nx (j=2..Ny-1)
+        # Pre-collision Zou-He rebuild at i=1 and i=Nx (j=1..Ny)
         rebuild_inlet_outlet_libb_2d!(f_out, f_in, u_profile, ρ_out, ν, Nx, Ny)
 
         if step > max_steps - avg_window
