@@ -94,8 +94,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   solutions (R = 0), manufactured solutions with variable viscosity (velocity
   order 2 for Stokes; the pressure is first order in the wall cells), duals
   against finite differences, and the SIMPLE cavity (centreline difference
-  1.2e-3 at 32², Re = 100). No Newton solver yet: nothing user-facing solves
-  with it.
+  1.2e-3 at 32², Re = 100). On an A100 (Aqua job 27617685) the GPU residual
+  matches the CPU one (1.8e-17 relative at 1024² in Float64, within the 1e-14
+  test bound in Dual{4} on three cases), allocates 0
+  bytes per call, and takes 0.43 ms at 1024² in Float64 (2.4 ms in Dual{4}).
+  No Newton solver yet: nothing user-facing solves with it.
 
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.
