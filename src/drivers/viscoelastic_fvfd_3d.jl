@@ -6,14 +6,50 @@
 
 export run_viscoelastic_fvfd_poiseuille_3d
 
+# Relative L2 change between two tuples of equally sized arrays, stacked:
+# sqrt(Σ‖a_c − b_c‖²) / sqrt(Σ‖a_c‖²). Zero over zero is 0; x over zero is Inf.
+function _fvfd_relative_change(cur, prev)
+    num = 0.0; den = 0.0
+    for (a, b) in zip(cur, prev)
+        num += Float64(sum(abs2, a .- b))
+        den += Float64(sum(abs2, a))
+    end
+    return den == 0 ? (num == 0 ? 0.0 : Inf) : sqrt(num / den)
+end
+
 """
     run_viscoelastic_fvfd_poiseuille_3d(; Nx, Ny, Nz, Fx, ν_s, ν_p, lambda,
                                          polymer_model=nothing,
-                                         max_steps, backend, FT)
+                                         max_steps, backend, FT,
+                                         stop=:none, tol=1e-12, check_every=nothing)
 
 3D Oldroyd-B planar Poiseuille with periodic x/z, no-slip half-way bounce-back
 y walls, D3Q19 solvent at ν_s, and polymer feedback only through Guo
 F_poly = ∇·τ_p. The conformation state is advanced in symmetric log form ψ.
+
+# Stop option
+
+- `stop`: `:none` (default) runs exactly `max_steps` steps and computes the same
+  values as without the option. `:change` compares the state every `check_every`
+  steps with the state at the previous check and stops when both relative changes
+  are at most `tol`. `max_steps` stays the hard cap.
+- `tol`: tolerance of the `:change` rule (default `1e-12`).
+- `check_every`: steps between two checks. Default `nothing`: `0.1 H²/ν₀` with
+  `H = Ny` and `ν₀ = ν_s + ν_p` (the zero-shear total viscosity), at least 1 step.
+
+The two changes are, over all cells,
+
+    r_u   = ‖u^k − u^(k−1)‖₂ / ‖u^k‖₂       (ux, uy, uz stacked)
+    r_tau = ‖τ_p^k − τ_p^(k−1)‖₂ / ‖τ_p^k‖₂  (the six τ_p components stacked)
+
+where `k−1` is the previous check. A norm of exactly zero (for instance τ_p at the
+start of a Newtonian run) gives a change of 0 if the difference is also 0, else
+`Inf`.
+
+The result carries, in addition to its previous fields, `converged::Bool` (the
+rule was met; always `false` with `stop = :none`), `stop_step` (steps run) and
+`change_history`, a vector of `(step, r_u, r_tau)` tuples, one per check from the
+second check on (empty with `stop = :none`).
 """
 function run_viscoelastic_fvfd_poiseuille_3d(;
         Nx::Int=6, Ny::Int=32, Nz::Int=6,
@@ -24,8 +60,14 @@ function run_viscoelastic_fvfd_poiseuille_3d(;
         backend=KernelAbstractions.CPU(),
         FT::Type{<:AbstractFloat}=Float64,
         advection_scheme::Symbol=:muscl_superbee,
-        max_polymer_substeps::Int=64)
+        max_polymer_substeps::Int=64,
+        stop::Symbol=:none,
+        tol::Real=1e-12,
+        check_every::Union{Nothing,Integer}=nothing)
 
+    stop in (:none, :change) ||
+        throw(ArgumentError("stop must be :none or :change, got $(stop)"))
+    tol >= 0 || throw(ArgumentError("tol must be non-negative"))
     # Step order:
     # 1. cell u -> faces: fvfd_cell_velocity_to_faces_3d!
     # 2. advect ψ (6 comps): fvfd_sym3_advect_upwind_3d!
@@ -159,6 +201,16 @@ function run_viscoelastic_fvfd_poiseuille_3d(;
     last_grad_norm = 0.0
     completed_steps = 0
 
+    check_n = isnothing(check_every) ?
+        max(1, round(Int, 0.1 * Ny^2 / ν_total)) : Int(check_every)
+    check_n >= 1 || throw(ArgumentError("check_every must be >= 1"))
+    stop_on = stop === :change
+    converged = false
+    change_history = Tuple{Int,Float64,Float64}[]
+    prev_u = stop_on ? ntuple(_ -> KernelAbstractions.zeros(backend, FT, Nx, Ny, Nz), 3) : nothing
+    prev_tau = stop_on ? ntuple(_ -> KernelAbstractions.zeros(backend, FT, Nx, Ny, Nz), 6) : nothing
+    have_prev = false
+
     for step in 1:max_steps
         completed_steps = step
 
@@ -236,6 +288,22 @@ function run_viscoelastic_fvfd_poiseuille_3d(;
         stream_periodic_xz_wall_y_3d!(f_out, f_in, Nx, Ny, Nz)
         compute_macroscopic_forced_field_3d!(ρ, ux, uy, uz, f_out, Fx_tot, Fy_tot, Fz_tot)
 
+        if stop_on && step % check_n == 0
+            cur_u = (ux, uy, uz)
+            cur_tau = (tau_p_xx, tau_p_xy, tau_p_xz, tau_p_yy, tau_p_yz, tau_p_zz)
+            if have_prev
+                r_u = _fvfd_relative_change(cur_u, prev_u)
+                r_tau = _fvfd_relative_change(cur_tau, prev_tau)
+                push!(change_history, (step, r_u, r_tau))
+                if r_u <= tol && r_tau <= tol
+                    converged = true
+                end
+            end
+            for (dst, src) in zip(prev_u, cur_u); copyto!(dst, src); end
+            for (dst, src) in zip(prev_tau, cur_tau); copyto!(dst, src); end
+            have_prev = true
+        end
+
         f_in, f_out = f_out, f_in
         psixx, psixx_next = psixx_next, psixx
         psixy, psixy_next = psixy_next, psixy
@@ -243,6 +311,7 @@ function run_viscoelastic_fvfd_poiseuille_3d(;
         psiyy, psiyy_next = psiyy_next, psiyy
         psiyz, psiyz_next = psiyz_next, psiyz
         psizz, psizz_next = psizz_next, psizz
+        converged && break
     end
     KernelAbstractions.synchronize(backend)
 
@@ -311,6 +380,8 @@ function run_viscoelastic_fvfd_poiseuille_3d(;
             beta=beta, Re=Re, eta_s=eta_s, eta_p=eta_p, eta_total=eta_total,
             L2_fene=L2_fene,
             completed_steps=completed_steps, last_n_sub=last_n_sub,
+            converged=converged, stop_step=completed_steps,
+            change_history=change_history,
             max_substeps_observed=max_substeps_observed,
             last_grad_norm=last_grad_norm)
 end

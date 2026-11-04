@@ -1,3 +1,35 @@
+"""
+    _run_viscoelastic_logfv_step_channel_coupled_2d(geom_h; shear_length, kwargs...)
+
+Shared coupled log-FV polymer driver behind the public `run_viscoelastic_logfv_*_coupled_2d`
+wrappers, which forward their keywords to it. Only the stop option is described here.
+
+# Stop option
+
+- `stop`: `:none` (default) runs exactly `max_steps` steps and computes the same
+  values as without the option. `:cd_change` samples the total drag coefficient
+  `Cd = Cd_s + Cd_p - Cd_bsd` every `check_every` steps, from step 1 and independently
+  of the averaging window, and stops when two consecutive samples satisfy
+  `|Cd_k - Cd_(k-1)| <= tol * |Cd_k|`. It needs the drag keywords
+  (`drag_cx`, `drag_cy`, `drag_radius`, `drag_u_ref`), which the cylinder wrapper sets.
+  `max_steps` stays the hard cap.
+- `tol`: relative tolerance of the `:cd_change` rule (default `2e-4`).
+- `check_every`: steps between two samples. Default `nothing`: `round(Int, Nx / u_mean)`
+  steps, one flow-through of the domain at the mean velocity. Set it to the window the
+  stop criterion is written for.
+- `step_callback(step, fields)`: called every step as before. If it returns exactly
+  `true`, the run stops after that step. Any other return value is ignored, as before.
+
+The result carries, in addition to its previous fields, `converged::Bool` (the
+`:cd_change` rule was met, or the callback returned `true`), `stop_reason` (`:rule`,
+`:callback`, or `:max_steps`), `stop_step` (steps run), `cd_history` (vector of
+`(step, Cd)` samples, empty with `stop = :none`) and `Cd_last` (last sample, `NaN`
+without samples).
+
+`Cd` and the `Cd_*`, `F*` fields keep their meaning: the mean over the last
+`avg_window` steps of `max_steps`. A run stopped before that window has no window
+samples, so they are `NaN` and the converged value is `Cd_last`.
+"""
 function _run_viscoelastic_logfv_step_channel_coupled_2d(
     geom_h;
     shear_length::Real,
@@ -28,6 +60,9 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
     advection_scheme::Symbol=:rusanov,
     wall_bc::Symbol=:halfwayBB,
     step_callback::Union{Nothing,Function}=nothing,
+    stop::Symbol=:none,
+    tol::Real=2e-4,
+    check_every::Union{Nothing,Integer}=nothing,
     drag_cx::Union{Nothing,Real}=nothing,
     drag_cy::Union{Nothing,Real}=nothing,
     drag_radius::Union{Nothing,Real}=nothing,
@@ -43,6 +78,9 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
     0 <= bsd_fraction <= 1 || throw(ArgumentError("bsd_fraction must be in [0, 1]"))
     max_steps >= 0 || throw(ArgumentError("max_steps must be non-negative"))
     drag_stride > 0 || throw(ArgumentError("drag_stride must be positive"))
+    stop in (:none, :cd_change) ||
+        throw(ArgumentError("stop must be :none or :cd_change, got $(stop)"))
+    tol >= 0 || throw(ArgumentError("tol must be non-negative"))
     diagnostic_stride >= 0 || throw(ArgumentError("diagnostic_stride must be non-negative"))
     embedded_geometry_symbol = Symbol(embedded_geometry)
     embedded_geometry_symbol in (:qwall, :circle) ||
@@ -199,6 +237,13 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
     Fx_bsd_sum = 0.0
     Fy_bsd_sum = 0.0
     n_drag = 0
+    check_n = isnothing(check_every) ?
+        max(1, round(Int, Nx / Float64(u_mean))) : Int(check_every)
+    check_n >= 1 || throw(ArgumentError("check_every must be >= 1"))
+    stop === :cd_change && !drag_enabled &&
+        throw(ArgumentError("stop = :cd_change requires drag_cx, drag_cy, drag_radius and drag_u_ref"))
+    cd_history = Tuple{Int,Float64}[]
+    stop_reason = :max_steps
     completed_steps = 0
     first_nonfinite_step = 0
     first_nonfinite_field = :none
@@ -313,8 +358,10 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
             Nx, Ny, nu_lbm_t; wall_bc=wall_bc,
         )
         apply_bc_rebuild_2d!(f_out, f_in, bcspec, nu_lbm_t, Nx, Ny)
-        if drag_enabled && step > drag_start &&
-           ((step - drag_start - 1) % drag_stride == 0 || step == max_steps)
+        in_window = drag_enabled && step > drag_start &&
+                    ((step - drag_start - 1) % drag_stride == 0 || step == max_steps)
+        is_check = stop === :cd_change && step % check_n == 0
+        if in_window || is_check
             drag_s = compute_drag_libb_mei_2d(f_out, q_wall, uwx, uwy, Nx, Ny)
             drag_p = if embedded_drag
                 logfv_embedded_wall_traction_2d!(
@@ -351,13 +398,20 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
                     reconstruction_order=2,
                 )
             end
-            Fx_s_sum += drag_s.Fx
-            Fy_s_sum += drag_s.Fy
-            Fx_p_sum += drag_p.Fx
-            Fy_p_sum += drag_p.Fy
-            Fx_bsd_sum += drag_bsd.Fx
-            Fy_bsd_sum += drag_bsd.Fy
-            n_drag += 1
+            if in_window
+                Fx_s_sum += drag_s.Fx
+                Fy_s_sum += drag_s.Fy
+                Fx_p_sum += drag_p.Fx
+                Fy_p_sum += drag_p.Fy
+                Fx_bsd_sum += drag_bsd.Fx
+                Fy_bsd_sum += drag_bsd.Fy
+                n_drag += 1
+            end
+            if is_check
+                cd_sample = 2.0 * (drag_s.Fx + drag_p.Fx - drag_bsd.Fx) /
+                            (Float64(drag_u_ref)^2 * 2.0 * Float64(drag_radius))
+                push!(cd_history, (step, cd_sample))
+            end
         end
         logfv_compute_macroscopic_forced_field_2d!(rho, ux, uy, f_out, fx_total, fy_total; sync=false)
         if diagnostic_stride > 0 &&
@@ -389,12 +443,21 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
         end
         if step_callback !== nothing
             KernelAbstractions.synchronize(backend)
-            step_callback(step, (; rho, ux, uy,
+            if step_callback(step, (; rho, ux, uy,
                 psixx, psixy, psiyy, tauxx, tauxy, tauyy,
                 fx_poly, fy_poly, fx_total, fy_total,
-                dudx, dudy, dvdx, dvdy, f_out, q_wall, uwx, uwy, is_solid_h))
+                dudx, dudy, dvdx, dvdy, f_out, q_wall, uwx, uwy, is_solid_h)) === true
+                stop_reason = :callback
+            end
+        end
+        if stop_reason === :max_steps && is_check && length(cd_history) >= 2
+            cd_new = cd_history[end][2]; cd_old = cd_history[end - 1][2]
+            if isfinite(cd_new) && abs(cd_new - cd_old) <= tol * abs(cd_new)
+                stop_reason = :rule
+            end
         end
         f_in, f_out = f_out, f_in
+        stop_reason === :max_steps || break
     end
     logfv_stress_from_log_2d!(
         tauxx, tauxy, tauyy, psixx, psixy, psiyy, prefactor_t;
@@ -538,6 +601,11 @@ function _run_viscoelastic_logfv_step_channel_coupled_2d(
         Cd_bsd,
         Cd,
         n_drag_samples=n_drag,
+        converged=stop_reason !== :max_steps,
+        stop_reason,
+        stop_step=completed_steps,
+        cd_history,
+        Cd_last=isempty(cd_history) ? NaN : cd_history[end][2],
         rho_min=minimum(rho_cpu[fluid_mask]),
         rho_max=maximum(rho_cpu[fluid_mask]),
     )
