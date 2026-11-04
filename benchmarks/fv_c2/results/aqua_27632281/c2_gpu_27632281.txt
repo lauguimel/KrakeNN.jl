@@ -1,0 +1,117 @@
+Precompiling packages...
+   3112.1 ms  ✓ BFloat16s
+   2184.6 ms  ✓ CompilerCaching
+   2076.1 ms  ✓ LLVM → BFloat16sExt
+  28857.8 ms  ✓ GPUCompiler
+  88799.9 ms  ✓ CUDACore
+   4940.8 ms  ✓ cuFFT
+   5694.9 ms  ✓ cuRAND
+   6933.3 ms  ✓ NVML
+   7883.0 ms  ✓ CUPTI
+   9772.2 ms  ✓ cuSPARSE
+  13742.0 ms  ✓ cuBLAS
+  14236.1 ms  ✓ CUDATools
+   9645.9 ms  ✓ cuSOLVER
+   5475.0 ms  ✓ CUDA
+   5191.1 ms  ✓ Atomix → AtomixCUDAExt
+  15 dependencies successfully precompiled in 168 seconds. 95 already precompiled.
+CUDA.functional() = true
+Precompiling packages...
+   2216.3 ms  ✓ CUDSS_jll
+   5061.3 ms  ✓ CUDSS
+  2 dependencies successfully precompiled in 8 seconds. 86 already precompiled.
+Precompiling packages...
+   4580.5 ms  ✓ DocStringExtensions
+   3425.6 ms  ✓ ADTypes
+   5454.3 ms  ✓ OffsetArrays
+    551.7 ms  ✓ ADTypes → ADTypesChainRulesCoreExt
+    548.1 ms  ✓ OffsetArrays → OffsetArraysAdaptExt
+   1207.1 ms  ✓ LogExpFunctions
+   1528.7 ms  ✓ LogExpFunctions → LogExpFunctionsChainRulesCoreExt
+   3138.6 ms  ✓ CUDACore → ChainRulesCoreExt
+   3068.1 ms  ✓ Interpolations
+   2962.7 ms  ✓ SpecialFunctions
+   2079.4 ms  ✓ SpecialFunctions → SpecialFunctionsChainRulesCoreExt
+   6837.5 ms  ✓ SparseMatrixColorings
+   3594.4 ms  ✓ CUDACore → SpecialFunctionsExt
+   1965.2 ms  ✓ SparseMatrixColorings → SparseMatrixColoringsGPUArraysExt
+   5197.4 ms  ✓ ForwardDiff
+    824.2 ms  ✓ ForwardDiff → ForwardDiffStaticArraysExt
+   1072.4 ms  ✓ Interpolations → InterpolationsForwardDiffExt
+   4809.0 ms  ✓ SparseMatrixColorings → SparseMatrixColoringsCUDAExt
+  36069.0 ms  ✓ Metal
+   3344.7 ms  ✓ Metal → SpecialFunctionsExt
+   3350.3 ms  ✓ Atomix → AtomixMetalExt
+  40287.2 ms  ✓ Kraken
+  22 dependencies successfully precompiled in 92 seconds. 209 already precompiled.
+Precompiling packages...
+   6643.9 ms  ✓ Kraken → KrakenCUDSSExt
+  1 dependency successfully precompiled in 8 seconds. 233 already precompiled.
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0  threads 8
+
+--- C2 test files ---
+
+--- incns_fv_newton.jl ---
+┌ Info: C2 Newton, cavity Re=100 32² (CPU)
+│   residual_2norm =
+│    6-element Vector{Float64}:
+│     0.11313708498984758
+│     ⋮
+│   inf_norm =
+│    5-element Vector{Float64}:
+│     0.003861603096183006
+│     ⋮
+│   alpha =
+│    4-element Vector{Float64}:
+│     1.0
+└     ⋮
+
+--- incns_fv_newton_gpu.jl ---
+┌ Info: C2 Newton, cavity Re=100 64² (GPU, cuDSS)
+│   residual_2norm =
+│    6-element Vector{Float64}:
+│     0.16000000000000006
+│     0.008652369431648464
+│     0.0007887504455023261
+│     1.647322092819078e-5
+│     7.809198537271148e-10
+└     8.010963307181926e-17
+┌ Info: C2 GPU hot loop
+└   free_memory_spread_MiB = 0.0
+Test Summary:   | Pass  Total   Time
+C2 GPU receipts |  132    132  46.3s
+BENCH FAILED N=512 Re=100.0: UndefVarError: `N²` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+BENCH FAILED N=1024 Re=100.0: UndefVarError: `N²` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+BENCH FAILED N=512 Re=1000.0: UndefVarError: `N²` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+BENCH FAILED N=1024 Re=1000.0: UndefVarError: `N²` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+
+--- pressure-pin row scale on cuDSS ---
+PIN SCALING FAILED N=128: MethodError: no method matching lin_factorize(::SparseMatrixCSC{Float64, Int32}; backend::CUDABackendTag, spd::Bool)
+The function `lin_factorize` exists, but no method is defined for this combination of argument types.
+
+Closest candidates are:
+  lin_factorize(!Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; backend, spd, pin_k0, A_unpinned)
+   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:76
+  lin_factorize(!Matched::CUDABackendTag, !Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; spd, pin_k0, A_unpinned) got unsupported keyword argument "backend"
+   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:88
+  lin_factorize(!Matched::SparseMatrixCSC{Float64, Int64}; backend, spd, pin_k0)
+   @ Kraken /mnt/hpccs01~/kraken_c2/src_c2/src/solve/linear_solve.jl:121
+  ...
+
+PIN SCALING FAILED N=512: MethodError: no method matching lin_factorize(::SparseMatrixCSC{Float64, Int32}; backend::CUDABackendTag, spd::Bool)
+The function `lin_factorize` exists, but no method is defined for this combination of argument types.
+
+Closest candidates are:
+  lin_factorize(!Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; backend, spd, pin_k0, A_unpinned)
+   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:76
+  lin_factorize(!Matched::CUDABackendTag, !Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; spd, pin_k0, A_unpinned) got unsupported keyword argument "backend"
+   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:88
+  lin_factorize(!Matched::SparseMatrixCSC{Float64, Int64}; backend, spd, pin_k0)
+   @ Kraken /mnt/hpccs01~/kraken_c2/src_c2/src/solve/linear_solve.jl:121
+  ...
+
+DONE status=1

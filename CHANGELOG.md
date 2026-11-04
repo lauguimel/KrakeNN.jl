@@ -33,7 +33,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   periodic channel, doubly periodic); quadratic convergence to ‖R‖₂ ≈ 1e-16
   (cavity Re = 100, 32², 5 iterations; Re = 1000, 64², 11 iterations);
   agreement with the SIMPLE cavity within 5e-3 and with Ghia et al. (1982) at
-  128², Re = 100 (max centreline error 0.0072 of the lid speed).
+  128², Re = 100 (max centreline error 0.0072 of the lid speed). On an A100
+  (Aqua job 27632281) the GPU Jacobian equals the CPU one (1e-12 bound), Newton
+  on cuDSS follows the CPU residual history at 64² (one symbolic analysis, then
+  refactorizations; direct and transposed solves of the finalized factors), and
+  assembly, refactorization, solve and whole Newton iterations allocate 0 device
+  bytes. Timings at 512² and 1024² are not measured yet.
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`

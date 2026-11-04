@@ -52,7 +52,7 @@ gib(x) = x / 2^30
 hostJ(J) = sparse(transpose(SparseMatrixCSC(size(J)..., Array(J.rowPtr), Array(J.colVal), Array(J.nzVal))))
 
 function bench(N, Re)
-    println("\n================ cavity N = $N², Re = $Re (from rest) ================"); flush(stdout)
+    println("\n================ cavity N = $(N)², Re = $Re (from rest) ================"); flush(stdout)
     GC.gc(); CUDA.reclaim()
     free0 = CUDA.free_memory()
     p = fv_steady_problem(N, N; nu = 1 / Re, boundary_velocity = _fvc2_lid)
@@ -140,7 +140,7 @@ function pin_scaling(N, Re)
     for sc in (1.0, c, 1e-6, 1e6)
         D = ones(size(J, 1)); D[rp] = sc
         Js = sparse(Diagonal(D) * J); Rs = D .* R
-        cache = lin_factorize(Js; backend = CUDABackendTag(), spd = false)
+        cache = lin_factorize(SparseMatrixCSC{Float64,Int}(Js); backend = CUDABackendTag(), spd = false)
         x = Array(lin_solve!(cache, CuArray(Rs)))
         be = norm(Js * x - Rs) / norm(Rs)
         ref === nothing && (ref = x)
