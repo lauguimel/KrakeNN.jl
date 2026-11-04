@@ -227,7 +227,10 @@ the conduction geometry chain, and the full convection-cavity `dNu/dL` check:
 | TC0 | coupled VJP on the stacked `(f, g)` state | relative agreement `6.1e-11` |
 | TC1 | `dNu/dβ_g` adjoint check | finite-difference agreement `6.9e-6` |
 | TC2 | conduction geometry chain | analytic `-alpha DeltaT/L^2` agreement `2.7e-15` |
-| TC3 | convection cavity `dNu/dL` | central finite-difference agreement `1.2e-5` |
+| TC3 | convection cavity `dNu/dL` | central finite-difference agreement `1.0e-3` (test gate `< 2e-2`) |
+
+The TC3 value is the one the `TC3 cavity dNu/dL` testset of
+`test/ad/test_ad_sensitivity.jl` gives (CPU, Float64, measured 2026-11-04).
 
 ## Validation
 
@@ -239,7 +242,10 @@ trusted:
 | C0 | one-step VJP against dense finite-difference Jacobian transpose | Enzyme VJP matches the discrete step |
 | C1 | steady fixed-point adjoint on a Poiseuille/body-force case | adjoint solve and finite-difference derivative agree |
 | C2 | geometry chain on planar Poiseuille flow rate | analytic anchor `Q proportional to H^3` |
-| C3 | confined-cylinder `d(Cd)/dR` | central finite difference agreement to `9e-5` |
+| C3 | confined-cylinder `d(Cd)/dR` | central finite difference agreement to `3.0e-3` (test gate `< 1e-2`) |
+
+The C3 value is the one the `C3 cylinder radius sensitivity` testset of
+`test/ad/test_ad_sensitivity.jl` gives (CPU, Float64, measured 2026-11-04).
 
 The C2 anchor is the substitute reference for the geometry derivative: RheoTool
 can compute a drag value for its own finite-volume operator, but it cannot
