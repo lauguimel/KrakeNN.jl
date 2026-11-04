@@ -251,10 +251,16 @@ reconstructed pre-collision via the modular BC system
 (`apply_bc_rebuild_3d!`).
 
 - `inlet=:uniform`: inlet velocity u = (u_in, 0, 0) constant over y, z.
-- `inlet=:parabolic`: inlet u(y, z) = u_in · 16 · y·(H-y)·z·(D-z) /
-  (H·D)² (parabolic in both y and z). `u_in` is the centerline maximum.
+- `inlet=:parabolic`: parabolic in both y and z. `u_in` is the
+  centerline maximum.
 - `inlet=:parabolic_y`: parabolic in y only (rectangular duct,
   infinite in z direction).
+
+The y and z domain walls are half-way, so a parabolic direction of `N`
+nodes is sampled as `6 ū (j - 1/2)(N + 1/2 - j) / (N² + 1/2)` with
+discrete mean `ū = (2/3) u_in` (the product of two such factors for
+`:parabolic`, mean `(4/9) u_in`); these are the `u_ref` used for Cd. The
+Zou-He rebuild covers every node of the inlet and outlet faces.
 
 Drag integrated via `compute_drag_libb_3d` over `avg_window` steps.
 Reference: free-stream sphere Re=20, Cd ≈ 2.6 (Clift et al. 1978;
@@ -284,23 +290,18 @@ function run_sphere_libb_3d(; Nx::Int=120, Ny::Int=60, Nz::Int=60,
     if inlet === :uniform
         fill!(u_profile_h, T(u_in))
     elseif inlet === :parabolic
-        # Parabolic in both y and z, peak = u_in at (Ny/2, Nz/2).
-        # Normalised so max(u) = u_in.
-        Hy = T(Ny - 1); Hz = T(Nz - 1)
+        # The y and z walls are half-way: node j sits at y = j - 1/2 and the
+        # walls at y = 0 and y = Ny (same in z), so each parabolic factor is
+        # sampled on that layout with a discrete mean of exactly 2/3 (u_ref).
+        s_y = _halfway_poiseuille_profile(Float64, Ny, 2 / 3)
+        s_z = _halfway_poiseuille_profile(Float64, Nz, 2 / 3)
         for k in 1:Nz, j in 1:Ny
-            yy = T(j - 1); zz = T(k - 1)
-            u_profile_h[j, k] = T(16) * T(u_in) *
-                                yy * (Hy - yy) * zz * (Hz - zz) /
-                                (Hy^2 * Hz^2)
+            u_profile_h[j, k] = T(Float64(u_in) * s_y[j] * s_z[k])
         end
     elseif inlet === :parabolic_y
-        Hy = T(Ny - 1)
-        for j in 1:Ny
-            yy = T(j - 1)
-            val = T(4) * T(u_in) * yy * (Hy - yy) / Hy^2
-            for k in 1:Nz
-                u_profile_h[j, k] = val
-            end
+        prof = _halfway_poiseuille_profile(T, Ny, (2 / 3) * Float64(u_in))
+        for k in 1:Nz, j in 1:Ny
+            u_profile_h[j, k] = prof[j]
         end
     else
         error("unknown inlet $(inlet); expected :uniform|:parabolic|:parabolic_y")
@@ -344,8 +345,10 @@ function run_sphere_libb_3d(; Nx::Int=120, Ny::Int=60, Nz::Int=60,
         fused_trt_libb_v2_step_3d!(f_out, f_in, ρ, ux, uy, uz, is_solid,
                                     q_wall, uw_x, uw_y, uw_z,
                                     Nx, Ny, Nz, T(ν))
-        # Pre-collision Zou-He rebuild (modular BC dispatch)
-        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν, Nx, Ny, Nz)
+        # Pre-collision Zou-He rebuild (modular BC dispatch), on every node of
+        # the face: the four lateral faces are half-way walls of the step.
+        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν, Nx, Ny, Nz;
+                             halfway_walls=(:south, :north, :bottom, :top))
 
         if step > max_steps - avg_window
             drag = compute_drag_libb_3d(f_out, q_wall, Nx, Ny, Nz)

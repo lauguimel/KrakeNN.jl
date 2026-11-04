@@ -246,8 +246,10 @@ function run_conformation_sphere_libb_3d(;
                                                q_wall, uw_x, uw_y, uw_z,
                                                Fx_poly, Fy_poly, Fz_poly,
                                                Nx, Ny, Nz, FT(ν_s))
-        # Pre-collision Zou-He rebuild at inlet/outlet
-        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν_s, Nx, Ny, Nz)
+        # Pre-collision Zou-He rebuild at inlet/outlet, on every node of the
+        # face: the four lateral faces are half-way walls of the fused step.
+        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν_s, Nx, Ny, Nz;
+                             halfway_walls=(:south, :north, :bottom, :top))
 
         # Drag (standard halfway-BB MEA on post-collision f) — note:
         # `compute_drag_libb_3d` reads f_out only and integrates over

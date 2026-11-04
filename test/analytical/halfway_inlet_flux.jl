@@ -3,12 +3,15 @@
 # rows, so the parabola must vanish there, and its row sum (the discrete flow
 # rate) must equal H * u_mean exactly. Before the fix the zeros were put on
 # rows 1 and H, which made the delivered flow rate low by 1/(H - 1). The Zou-He
-# rebuild must then impose the profile on rows 1 and H too (last two testsets).
+# rebuild must then impose the profile on rows 1 and H too, and in 3D on the
+# edge rows and planes next to the half-way walls (`halfway_walls`, last four
+# testsets).
 #
 # Gates are analytical identities (round-off only) unless stated, CPU Float64.
-# Runtime: about 15 s.
+# Runtime: about 25 s (3D part about 14 s).
 
 using Test
+using Random
 using Kraken
 
 @testset "Inlet flow rate (half-way walls)" begin
@@ -195,5 +198,136 @@ using Kraken
             @test abs(eu[Ny]) < 0.15 / Ny
         end
         @test 0 < eu[80] < 0.6 * eu[40]
+    end
+
+    # 3D: the x-face rebuild covers the edge rows and planes of the lateral
+    # faces named in `halfway_walls` (default none, the interior j = 2..Ny-1,
+    # k = 2..Nz-1 only).
+    @testset "3D Zou-He x-face rebuild with halfway_walls" begin
+        Nx, Ny, Nz, nu = 5, 6, 7, 0.1
+        s_p, s_m = trt_rates(nu; Λ=3 / 16)
+        cx = Kraken.velocities_x(D3Q19())
+        cy = Kraken.velocities_y(D3Q19())
+        cz = Kraken.velocities_z(D3Q19())
+        opp = [findfirst(p -> (cx[p], cy[p], cz[p]) == (-cx[q], -cy[q], -cz[q]), 1:19)
+               for q in 1:19]
+        all4 = (:south, :north, :bottom, :top)
+        dens(f, i, j, k) = sum(f[i, j, k, q] for q in 1:19)
+        velx(f, i, j, k) = sum(cx[q] * f[i, j, k, q] for q in 1:19) / dens(f, i, j, k)
+        rebuild!(f_out, f_in, spec, walls, rates) = rates === :uniform ?
+            apply_bc_rebuild_3d!(f_out, f_in, spec, nu, Nx, Ny, Nz; halfway_walls=walls) :
+            apply_bc_rebuild_3d!(f_out, f_in, spec, nu, Nx, Ny, Nz; halfway_walls=walls,
+                                 sp_field=fill(s_p, Nx, Ny, Nz),
+                                 sm_field=fill(s_m, Nx, Ny, Nz))
+
+        # (a) One rebuild of a state at equilibrium with the inlet profile, all
+        # four lateral faces walls. f_out starts as NaN, so a skipped node is
+        # caught. Gate 1e-12 (round-off): the Zou-He closure sets the density
+        # and x-momentum exactly and the TRT collision conserves both, so every
+        # west node, edges and corners included, carries u_x = profile and
+        # every east node rho = 1.
+        sy = Kraken._halfway_poiseuille_profile(Float64, Ny, 2 / 3)
+        sz = Kraken._halfway_poiseuille_profile(Float64, Nz, 2 / 3)
+        py = Kraken._halfway_poiseuille_profile(Float64, Ny, (2 / 3) * 0.04)
+        for prof in ([0.04 * sy[j] * sz[k] for j in 1:Ny, k in 1:Nz],   # :parabolic
+                     [py[j] for j in 1:Ny, k in 1:Nz]),                 # :parabolic_y
+            rates in (:uniform, :field)
+            f_in = [Kraken.equilibrium(D3Q19(), 1.0, prof[j, k], 0.0, 0.0, q)
+                    for i in 1:Nx, j in 1:Ny, k in 1:Nz, q in 1:19]
+            f_out = fill(NaN, Nx, Ny, Nz, 19)
+            spec = BCSpec3D(; west=ZouHeVelocity(prof), east=ZouHePressure(1.0))
+            rebuild!(f_out, f_in, spec, all4, rates)
+            @test maximum(abs(velx(f_out, 1, j, k) - prof[j, k])
+                          for j in 1:Ny, k in 1:Nz) <= 1e-12
+            @test maximum(abs(dens(f_out, Nx, j, k) - 1) for j in 1:Ny, k in 1:Nz) <= 1e-12
+        end
+
+        # (b) Which populations the rim reads, on a random state. Reference: the
+        # default rebuild (interior only) on a copy padded with one ghost layer
+        # beyond each listed wall, where ghost population q holds the opposite
+        # population of the node it streams into: the pull-scheme form of
+        # half-way bounce-back used by PullHalfwayBB_3D. Same arithmetic on the
+        # same values, so the gate is round-off; nodes outside the listed walls
+        # must stay NaN in both.
+        function ghost_reference(f_in, prof, walls, rates)
+            ly, hy = Int(:south in walls), Int(:north in walls)
+            lz, hz = Int(:bottom in walls), Int(:top in walls)
+            Nyp, Nzp = Ny + ly + hy, Nz + lz + hz
+            real_j, real_k = (1 + ly):(Ny + ly), (1 + lz):(Nz + lz)
+            g = fill(NaN, Nx, Nyp, Nzp, 19)
+            g[:, real_j, real_k, :] .= f_in
+            for kp in 1:Nzp, jp in 1:Nyp, i in 1:Nx, q in 1:19
+                (jp in real_j && kp in real_k) && continue
+                it, jt, kt = i + cx[q], jp - ly + cy[q], kp - lz + cz[q]
+                (1 <= it <= Nx && 1 <= jt <= Ny && 1 <= kt <= Nz) || continue
+                g[i, jp, kp, q] = f_in[it, jt, kt, opp[q]]
+            end
+            profp = zeros(Nyp, Nzp)
+            profp[real_j, real_k] .= prof
+            gspec = BCSpec3D(; west=ZouHeVelocity(profp), east=ZouHePressure(1.0))
+            out = fill(NaN, Nx, Nyp, Nzp, 19)
+            if rates === :uniform
+                apply_bc_rebuild_3d!(out, g, gspec, nu, Nx, Nyp, Nzp)
+            else
+                apply_bc_rebuild_3d!(out, g, gspec, nu, Nx, Nyp, Nzp;
+                                     sp_field=fill(s_p, Nx, Nyp, Nzp),
+                                     sm_field=fill(s_m, Nx, Nyp, Nzp))
+            end
+            return out[:, real_j, real_k, :]
+        end
+        same(a, b) = isnan.(a) == isnan.(b) &&
+                     maximum(abs, filter(!isnan, a .- b); init=0.0) <= 1e-14
+        rng = Random.Xoshiro(115)
+        f_in = 0.02 .+ 0.08 .* rand(rng, Nx, Ny, Nz, 19)
+        prof = 0.03 .* rand(rng, Ny, Nz)
+        spec = BCSpec3D(; west=ZouHeVelocity(prof), east=ZouHePressure(1.0))
+        for walls in (all4, (:north, :bottom)), rates in (:uniform, :field)
+            f_out = fill(NaN, Nx, Ny, Nz, 19)
+            rebuild!(f_out, f_in, spec, walls, rates)
+            @test same(f_out, ghost_reference(f_in, prof, walls, rates))
+        end
+
+        @test_throws ArgumentError apply_bc_rebuild_3d!(similar(f_in), f_in, spec, nu,
+                                                        Nx, Ny, Nz; halfway_walls=(:west,))
+        @test_throws ArgumentError apply_bc_rebuild_3d!(similar(f_in), f_in, spec, nu,
+                                                        Nx, Ny, Nz; halfway_walls=all4,
+                                                        apply_transverse=true)
+    end
+
+    # Delivered flow rate in a steady 3D duct: run_sphere_libb_3d with a sphere
+    # of radius 0.3 centred between nodes, which covers no node and cuts no link
+    # (empty duct), Nx = 24, nu = 0.1, u_in = 0.04, N = Ny = Nz. Velocity flow
+    # rate Sum u_x on the plane i = 3 over N^2 u_ref. Measured 2026-11-04 (CPU
+    # Float64) at N = 8 / 16, before the fix (profile with its zeros on the
+    # edge nodes, rim not rebuilt) and after:
+    #   :parabolic    -24.8 / -12.5 %  ->  +0.47 / +0.12 %
+    #   :parabolic_y  -33.7 / -17.4 %  ->  +1.25 / +0.56 %
+    # The value moves by less than 1.1e-6 between 1500 and 2000 steps.
+    @testset "steady delivered flow rate, run_sphere_libb_3d" begin
+        function flow_rate_error_3d(inlet, N, steps)
+            r = run_sphere_libb_3d(; Nx=24, Ny=N, Nz=N, cx=18.5, cy=N / 2 - 0.5,
+                                   cz=N / 2 - 0.5, radius=0.3, u_in=0.04, ν=0.1,
+                                   max_steps=steps, avg_window=1, inlet=inlet)
+            return sum(r.ux[3, :, :]) / (N^2 * r.u_ref) - 1
+        end
+        e = Dict{Tuple{Symbol,Int},Float64}()
+        for inlet in (:parabolic, :parabolic_y), N in (8, 16)
+            e[(inlet, N)] = flow_rate_error_3d(inlet, N, 2000)
+            # Steady: the value moves by less than 1e-5 (under 1 % of the
+            # smallest residual gated below) over the last 500 steps.
+            drift = abs(flow_rate_error_3d(inlet, N, 1500) - e[(inlet, N)])
+            gate = inlet === :parabolic ? 0.5 / N^2 : 0.15 / N
+            @test 0 < e[(inlet, N)] < gate && drift < 1e-5
+        end
+        # :parabolic vanishes on all four walls, so the residual is a
+        # second-order discretisation error (measured 0.30/N^2): gate 0.5/N^2
+        # above, and a decrease by more than 2.8x from N = 8 to 16 (4x expected,
+        # 3.9x measured).
+        @test 0 < e[(:parabolic, 16)] < 0.35 * e[(:parabolic, 8)]
+        # :parabolic_y is uniform in z, so u_x is not zero against the bottom and
+        # top walls: the corner singularity of the 2D uniform inlet above, a
+        # first-order excess (measured 0.10/N and 0.09/N). Gate 0.15/N above and
+        # a first-order decrease (2.2x measured).
+        @test 0 < e[(:parabolic_y, 16)] < 0.6 * e[(:parabolic_y, 8)]
     end
 end
