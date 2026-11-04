@@ -46,6 +46,7 @@ include("lattice/d3q19.jl")
 include("rheology/models.jl")
 include("rheology/viscosity.jl")
 include("rheology/strain_rate.jl")
+include("rheology/gnf_3d.jl")
 include("rheology/linalg.jl")
 include("rheology/linalg_3d.jl")
 
@@ -93,6 +94,7 @@ include("kernels/viscoelastic_2d.jl")
 include("kernels/dsl/lbm_spec.jl")
 include("kernels/dsl/bricks.jl")
 include("kernels/dsl/bricks_3d.jl")
+include("kernels/dsl/bricks_gnf_3d.jl")
 include("kernels/dsl/lbm_builder.jl")
 
 # --- Kernels built from the DSL (must come after li_bb_2d.jl + DSL) ---
@@ -163,6 +165,7 @@ include("kernels/enzyme_rules.jl")
 include("drivers/basic.jl")
 include("drivers/cylinder_libb.jl")
 include("drivers/thermal.jl")
+include("drivers/natconv_gnf_2d.jl")
 include("drivers/ehd_poisson.jl")
 include("drivers/ehd_phi_ddf.jl")
 include("drivers/ehd.jl")
@@ -285,6 +288,7 @@ include("kernels/boundary_spatial_2d.jl")
 # --- Geometry ---
 include("geometry/Geometry.jl")
 include("drivers/obstacle_3d.jl")
+include("drivers/gnf_3d.jl")
 
 # --- Carved .krk runner support ---
 include("kernels/mesh_drag_2d.jl")
@@ -336,6 +340,7 @@ export apply_bounce_back_walls_2d!, apply_bounce_back_wall_2d!
 export LBMConfig, omega, reynolds
 export initialize_2d, initialize_3d
 export run_cavity_2d, run_cavity_3d
+export run_gnf_channel_3d
 export run_poiseuille_2d, run_couette_2d
 export initialize_taylor_green_2d, run_taylor_green_2d
 export initialize_cylinder_2d, run_cylinder_2d, compute_drag_mea_2d
@@ -350,6 +355,7 @@ export apply_fixed_temp_south_2d!, apply_fixed_temp_north_2d!
 export apply_fixed_temp_west_2d!, apply_fixed_temp_east_2d!
 export apply_fixed_temp_2d!
 export run_rayleigh_benard_2d, run_natural_convection_2d, run_natural_convection_refined_2d
+export run_natural_convection_gnf_2d, gnf_reference_scales, cavity_powerlaw
 export run_natural_convection_3d
 export run_electroconvection_2d
 export ECState, ECSolution
@@ -668,6 +674,7 @@ export OldroydB, FENEP, Saramito
 export StressFormulation, LogConfFormulation
 export effective_viscosity, effective_viscosity_thermal, thermal_shift_factor
 export strain_rate_magnitude_2d, strain_rate_magnitude_3d
+export fused_trt_gnf_libb_guo_field_step_3d!
 export collide_rheology_2d!, collide_rheology_guo_2d!, collide_rheology_thermal_2d!
 export collide_twophase_rheology_2d!
 # Steady GNF (per-cell pure functions, split/fused kernels, periodic-x driver)

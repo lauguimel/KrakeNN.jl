@@ -66,6 +66,7 @@ minimal — use with caution.
 | Boussinesq buoyancy | ✓ | ✓ | in development | ✓ | auto when hot/cold BCs set | [Rayleigh-Bénard](examples/08_rayleigh_benard.md) |
 | Heat conduction (pure) | ✓ | ✓ | — | ✓ | ✓ | [Heat conduction](examples/07_heat_conduction.md) |
 | Natural convection (cavity) | ✓ | ✓ | in development | ✓ | ✓ | driver `run_natural_convection_2d/3d` |
+| Natural convection, generalised Newtonian (power law, Carreau-Yasuda…) | ✓ | ✗ | ✗ | ✓ (one A100, Float64) | ✓ | [GNF natural convection](users/benchmarks/gnf-natural-convection.md); driver `run_natural_convection_gnf_2d` |
 | ν(T) Arrhenius (kernel) | ✓ | ✗ | ✗ | ✓ | ✗ | code: `collide_boussinesq_vt_2d!` |
 | ν(T) modified Arrhenius (Rc) | ✓ | ✗ | ✗ | ✓ | ✗ | driver via `Rc` keyword |
 | α(T), κ(T) variable diffusivity | ✗ | ✗ | — | — | ✗ | not implemented |
@@ -190,21 +191,31 @@ Beyond Oldroyd-B (the validated viscoelastic model), the models below are
 column means the collision kernel is KernelAbstractions-based, which does not imply a
 GPU test. "Thermal coupling" is the shift of the model parameters with temperature
 (`thermal_shift_factor`); it is implemented for the generalised-Newtonian models only,
-and no driver calls the thermal rheology kernel yet (`collide_rheology_thermal_2d!` is
-exported but unused), so it is not reachable from `.krk` or from a driver.
+and only one driver calls the thermal rheology kernel (`collide_rheology_thermal_2d!`,
+via `run_natural_convection_gnf_2d`, 2D natural convection, reachable from `.krk`).
 
 | Model | 2D | 3D | GPU | Thermal coupling |
 |---|:-:|:-:|:-:|:-:|
 | Newtonian | ✓ | ✓ | ✓ | kernel only (no driver) |
-| Power-law | ✓ | ✗ | ✓ | kernel only (no driver) |
-| Carreau-Yasuda | ✓ | ✗ | ✓ | kernel only (no driver) |
+| Power-law | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
+| Carreau-Yasuda | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
 | Carreau-Yasuda steady adjoint (`gnf_steady_gradient`; tests `test/ad/gnf_adjoint_test.jl`, `test/ad/gnf_adjoint_enzyme_test.jl`; one A100, Float64, run archived under `benchmarks/validation/gnf_adjoint/results/`) | ✓ | ✗ | ✓ (one A100) | — |
-| Cross | ✓ | ✗ | ✓ | kernel only (no driver) |
+| Cross | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
 | Bingham (Papanastasiou) | ✓ | ✗ | ✓ | kernel only (no driver) |
 | Herschel–Bulkley | ✓ | ✗ | ✓ | kernel only (no driver) |
 | Oldroyd-B (log-conf) | ✓ | ✓ (FVFD) | ✓ | ✗ |
 | FENE-P | ✓ | ✓ (FVFD) | ✓ | ✗ |
 | Saramito (EVP) | model type and `.krk` parsing only | ✗ | ✗ (no solver kernel) | ✗ |
+
+**3D generalised-Newtonian (Julia API only).** `run_gnf_channel_3d` (D3Q19 TRT, LI-BB
+walls, Guo forcing; Power-law, Carreau-Yasuda, Cross) is isothermal, has no `.krk`
+keyword yet, and is verified against an exact planar-channel solution on CPU Float64
+(`test/analytical/gnf3d_channel_order.jl`, observed order 1.93 to 2.00) and on an A100
+(Float64, N = 32 to 256, order 1.95 to 2.001, archived sweep, not a test). With a
+constant viscosity it equals the Newtonian step (`test/analytical/gnf3d_parity.jl`); the
+strain-rate estimate is in `test/analytical/gnf3d_strain_rate.jl`. Bingham and
+Herschel-Bulkley have no 3D path. See
+[3D GNF channel](users/benchmarks/gnf3d-channel-convergence.md).
 
 **3D viscoelastic (since v0.5.0).** Oldroyd-B, FENE-P, Giesekus and PTT (linear and
 exponential) run in 3D in log-conformation form on the FVFD path only

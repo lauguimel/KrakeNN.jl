@@ -47,6 +47,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   buffers). The cuDSS transposed solve requires CUDSS.jl >= 1.0: older versions
   silently ignore the transpose mode, so Kraken raises an explicit error there
   instead of returning `A \ b`. A different sparsity pattern is refused.
+- 3D generalised-Newtonian (GNF) flow on D3Q19 with TRT collision, linearly
+  interpolated bounce-back walls and Guo forcing: `run_gnf_channel_3d` and the fused
+  step `fused_trt_gnf_libb_guo_field_step_3d!`. Supports `PowerLaw`, `CarreauYasuda`
+  and `Cross` (and Newtonian), isothermal only, Julia API only (no `.krk` keyword yet).
+  On planar channels against an independent analytical reference the observed order is
+  1.93 to 2.00 on CPU Float64 (N = 16, 32, 64) and 1.95 to 2.001 on an A100 (CUDA
+  Float64, N = 32 to 256, archived in `benchmarks/validation/gnf3d/results/`; the code
+  that ran is kept reachable by the tag `archive/gnf3d-gpu-sweep`). Float32 was only
+  run through on the GPU, not validated. See
+  `docs/src/users/benchmarks/gnf3d-channel-convergence.md`.
+- `run_natural_convection_gnf_2d`, `gnf_reference_scales` and `cavity_powerlaw`:
+  differentially heated D2Q9 cavity for generalised Newtonian fluids, driving
+  `collide_rheology_thermal_2d!` with the thermal double-distribution populations.
+  Ra and Pr are defined with the reference kinematic viscosity `nu0`; with
+  `cavity_powerlaw` they are the power-law definitions of Turan et al. (2011).
+  A `.krk` `natural_convection` case with a non-Newtonian `Rheology` block now
+  routes to this driver. Thermal walls half-way, as in the Newtonian driver
+  (H = N). 2D only, Float64. n = 1 reproduces the Newtonian driver to round-off
+  (Nu = 1.1185 at N = 64, Ra = 1e3; De Vahl Davis 1.118). Against Turan et al.
+  (Pr = 10, figure readings) on CPU: Nu = 5.393 vs 5.40 at Ra = 1e4, n = 0.6
+  (N = 32/48 extrapolated). On one A100 (CUDA Float64, N = 64/128/256): Ra = 1e4,
+  n = 0.6 and 1.0 within 0.6 % at every N; Ra = 1e3, n = 1.8 within 0.13 %;
+  Ra = 1e3, n = 1.0 gives 1.12 vs 1.14 (-1.7 % to -1.9 %, paper value read to ±0.02);
+  Ra = 1e3, n = 0.6 gives 1.99 vs 2.07 (-3.8 %), grid-converged and the same on CPU,
+  gap documented and not explained; Ra = 1e4, n = 1.8 did not converge and is not a
+  validated point. GPU and CPU agree at N = 64 to 2e-5 in Nu. Results in
+  `benchmarks/validation/natconv_gnf/results/`; the code that ran is kept reachable
+  by the tag `archive/gnf-thermal-turan-gpu`. No 3D, no grid refinement. See
+  `docs/src/users/benchmarks/gnf-natural-convection.md`.
 
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.
@@ -116,6 +145,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   is exact only at `q = 0.5`: in pure conduction `Nu − 1` falls by 8·10⁻³ per unit of
   cold-wall fraction (`q` from 0.3 to 0.9), while moving that wall by a whole cell at
   fixed `q` changes `Nu` by +1.74·10⁻² at `Ra = 10³`. That cut-link error stays open.
+- `strain_rate_magnitude_3d` used a D3Q19 velocity ordering that is not the one of the
+  lattice tables, so the off-diagonal sums `Π_xy`, `Π_xz`, `Π_yz` had wrong signs and a
+  pure shear in any plane returned a zero strain rate. The sums now follow the lattice;
+  the final contraction moved to the new `strain_rate_from_pi_3d`. Any 3D result computed
+  with the old function (exported, so user code can call it) was wrong when
+  off-diagonal stress was present. Inside this repository, no `src/` driver, test or
+  benchmark called it before the 3D GNF path, so no previously published Kraken result
+  changes; it affects only external callers.
 - The 0.3.0 entry "GPU-validated (parity ≤1.6e-12)" for the cuDSS solve and the matching
   line of `docs/agent/solve-linear-implication.md` now carry a correction note (#61): the
   loading path of that July run is not recorded. Same note as in 0.5.1.

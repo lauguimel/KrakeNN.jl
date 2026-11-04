@@ -14,9 +14,16 @@ function _run_thermal(setup::SimulationSetup;
                                          backend=backend, FT=T)
         return merge(result, (setup=setup,))
     elseif occursin("natural_convection", name)
-        result = run_natural_convection_2d(; N=dom.Nx, Ra=Ra, Pr=Pr,
+        entry = findfirst(rs -> rs.phase in (:default, :liquid), setup.rheology)
+        if entry !== nothing && setup.rheology[entry].model !== :newtonian
+            rheology = build_rheology_model(setup.rheology[entry]; FT=T)
+            result = run_natural_convection_gnf_2d(; N=dom.Nx, Ra, Pr, rheology,
+                nu0=get(params, :nu, 0.05), max_steps=setup.max_steps, backend, FT=T)
+        else
+            result = run_natural_convection_2d(; N=dom.Nx, Ra=Ra, Pr=Pr,
                                             max_steps=setup.max_steps,
                                             backend=backend, FT=T)
+        end
         return merge(result, (setup=setup,))
     elseif occursin("heat_conduction", name) || occursin("conduction", name)
         # No dedicated conduction driver: run the Boussinesq driver with Ra≈0
