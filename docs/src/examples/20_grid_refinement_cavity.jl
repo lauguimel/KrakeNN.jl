@@ -1,5 +1,8 @@
 # # Grid Refinement --- Lid-Driven Cavity
 #
+# !!! warning "Under development"
+#     Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set. This page is unlisted and kept for reference only; see [Limitations](../theory/10_limitations.md).
+#
 # ```@raw html
 # <DownloadMenu :files="[{label:'grid_refinement_cavity.krk',href:'/downloads/grid_refinement_cavity/grid_refinement_cavity.krk'},{label:'grid_refinement_cavity.csv',href:'/downloads/grid_refinement_cavity/grid_refinement_cavity.csv'},{label:'grid_refinement_cavity.py',href:'/downloads/grid_refinement_cavity/grid_refinement_cavity.py'}]" />
 # ```

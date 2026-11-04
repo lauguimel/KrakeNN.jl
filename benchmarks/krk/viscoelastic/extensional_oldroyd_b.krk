@@ -1,0 +1,21 @@
+# Oldroyd-B 3D planar-extension analytical canary for the KRK-VE-3D dispatch.
+# The production driver (run_viscoelastic_fvfd_extensional_3d) imposes the
+# planar-extension velocity field u = (epsilon_dot*x, -epsilon_dot*y, 0) on a
+# coarse box and advances psi = log(C) to the analytical fixed point. No
+# obstacle or inflow/outflow geometry is needed: velocity_mode=:imposed.
+#
+# With lambda = 50 and epsilon_dot = 0.005, lambda*epsilon_dot = 0.25, so the
+# Oldroyd-B planar-extension fixed point is
+#   C_xx = 1/(1 - 2*lambda*epsilon_dot) = 2.0
+#   C_yy = 1/(1 + 2*lambda*epsilon_dot) = 2/3
+# beta = nu_s/(nu_s+nu_p) = 0.5 with nu_total = 0.1.
+Simulation extensional_oldroyd_b D3Q19
+
+Define epsilon_dot = 0.005
+
+Domain L = 24 x 24 x 6  N = 24 x 24 x 6
+Physics epsilon_dot = epsilon_dot
+Rheology oldroyd_b { nu_s = 0.05 nu_p = 0.05 lambda = 50 }
+Module viscoelastic
+
+Run 1000 steps

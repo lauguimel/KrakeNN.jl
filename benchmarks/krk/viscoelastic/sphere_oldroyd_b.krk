@@ -1,0 +1,28 @@
+# Oldroyd-B confined-sphere 3D smoke for the KRK-VE-3D dispatch wiring.
+# The production driver (run_conformation_sphere_libb_3d) rebuilds the
+# sphere geometry analytically from N, radius, and (optional) cx/cy/cz; the
+# Domain/Obstacle/Boundary below name the case and supply those scalars.
+#
+# Tiny grid, R=4 (cut-links exercised), parabolic-y inlet. With u_in=0.04
+# the centreline u_ref = (2/3)*u_in = 0.02667, so Wi = lambda*u_ref/R = 0.01
+# at lambda = 1.5; beta = nu_s/(nu_s+nu_p) = 0.5.
+Simulation sphere_oldroyd_b D3Q19
+
+Define R = 4
+Define u_in = 0.04
+Define cx = 12
+Define cy = 12
+Define cz = 12
+
+Domain L = 48 x 24 x 24  N = 48 x 24 x 24
+Physics R = R u_in = u_in cx = cx cy = cy cz = cz
+Rheology oldroyd_b { nu_s = 0.04 nu_p = 0.04 lambda = 1.5 }
+Module viscoelastic
+
+Obstacle sphere wall(radius = R) { (x - cx)^2 + (y - cy)^2 + (z - cz)^2 <= R^2 }
+Boundary west  velocity(ux = u_in, uy = 0)
+Boundary east  pressure(rho = 1)
+Boundary south wall
+Boundary north wall
+
+Run 20 steps

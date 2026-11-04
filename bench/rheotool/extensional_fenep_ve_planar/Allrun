@@ -1,0 +1,15 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # run from this directory
+
+# Source tutorial run functions
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+# rheoTool links PETSc/HYPRE; make sure those libs are reachable.
+export LD_LIBRARY_PATH="$PETSC_DIR/$PETSC_ARCH/lib:$LD_LIBRARY_PATH"
+
+# Get application directory
+application=`getApplication`
+
+runApplication blockMesh
+
+runApplication $application

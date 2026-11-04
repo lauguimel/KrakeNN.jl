@@ -153,7 +153,8 @@ end
     @test c.res.dp ≈ 492.7252026635531 rtol=1e-13
     @test sum(c.res.u) ≈ 255.75709873039895 rtol=1e-13
     @test sum(abs, c.res.v) ≈ 4.188177731722439 rtol=1e-13
-    @test c.res.mass_imbalance == 0.0
+    # 0.0 on macOS arm64, one ulp (2.2e-16) on Linux x86_64: round-off, not physics.
+    @test c.res.mass_imbalance <= 1e-14
 
     @test_throws ArgumentError incns_manifold_poiseuille_case(;
         ny=4, aspect=2, Lx=2.0, momentum_advection=:quick)

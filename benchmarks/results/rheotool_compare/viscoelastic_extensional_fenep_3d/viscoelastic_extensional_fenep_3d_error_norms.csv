@@ -1,0 +1,10 @@
+# FENE-P planar extension: RheoTool (rheoTestFoam) vs Kraken FVFD log-conf. CROSS-VALIDATION (both numerical).
+# Operating point: lambda=50, eps_dot=0.005 (2*lambda*eps_dot=0.5), beta=etaS/(etaS+etaP)=0.5, L2=50.
+# FENE-P has NO closed-form fixed point (transcendental in trC). Conformation reported in Kraken's convention (C-eq=I).
+# RheoTool and Kraken use DIFFERENT FENE-P Peterlin closures (varf=1/(1-trA/L2), A-eq=a*I  vs  f=(L2-3)/(L2-trC), C-eq=I);
+# they coincide only as L2->inf (Oldroyd-B). OB-limit sanity: RheoTool at L2=1e5 gives C_xx=1.99985 (0.007% vs OB=2).
+component,kraken_canary_1000steps,kraken_transcendental,rheotool_fenep_steady,rel_err_rt_vs_kraken_canary
+C_xx,1.949729,1.949745,1.737435,1.089e-01
+C_yy,NA,0.660988,0.634695,NA
+C_zz,NA,0.987276,0.929747,NA
+trC,3.597994,3.598009,3.301877,8.230e-02

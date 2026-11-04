@@ -1,0 +1,58 @@
+{
+  "type": "analytic",
+  "source": "Bird, Armstrong, Hassager (1987) Dynamics of Polymeric Liquids Vol 1, 2nd ed. Wiley, Section 3.4 \u2014 steady planar Poiseuille of an Oldroyd-B fluid",
+  "provenance": {
+    "expressions": {
+      "gamma_dot": "Fx * (y - y_center) / nu_total   (linear, zero at centreline)",
+      "u_x": "Fx * (h^2 - (y - y_center)^2) / (2 * nu_total)   (parabolic, identical to Newtonian)",
+      "tau_xy": "nu_p * gamma_dot                              (linear in y)",
+      "tau_xx": "2 * lambda * nu_p * gamma_dot^2               (quadratic in y; first normal stress)",
+      "tau_yy": "0",
+      "N1": "tau_xx - tau_yy = 2 * lambda * nu_p * gamma_dot^2"
+    },
+    "wall_stencil": "M40 Phase A: at j=1 and j=Ny the comparator uses a HWBB-aware 3-point quadratic one-sided derivative (-3*u[j] +/- 4*u[j_in] -/+ u[j_in2])/(2*dy), matching src/fvfd/operators_2d.jl::_fvfd_solid_bc_derivative_y_2d with polymer_wall_extrap=Val(:quadratic) when south/north BC is FVFD_BC_WALL. The wall lives at j=0.5 (HWBB), so the cell-center gradient at j=1 must be sampled from the j=1,2,3 fluid triplet rather than from a central-difference using the Dirichlet ghost at j=0 (which samples the gradient at the midpoint j=1.5, undershooting by 26% on a quadratic profile).",
+    "cross_check_jsons": [
+      "ref/basilisk_poiseuille_oldb.json",
+      "ref/waters_king_1970_couette.json (steady limit T -> infinity)"
+    ]
+  },
+  "convergence_verified": true,
+  "convergence_evidence": "Steady Bird-Armstrong-Hassager Vol 1 \u00a73.4 is the textbook closed form; reduces from Waters & King 1970 series at T -> infinity",
+  "parameters": {
+    "Nx": 8,
+    "Ny": 32,
+    "nu_s": 0.04,
+    "nu_p": 0.06,
+    "nu_total": 0.1,
+    "Fx_body": 5e-06,
+    "lambda_relaxation": 5.0,
+    "bsd_fraction": 1.0,
+    "polymer_substeps": "auto",
+    "max_steps": 10000,
+    "backend": "CPU",
+    "precision": "Float64",
+    "Wi_estimate_lambda_gamma_dot_wall": 0.003875,
+    "Re_estimate": 1.0,
+    "beta_solvent_ratio": 0.39999999999999997
+  },
+  "values": {
+    "u_centerline_peak_approx_lu": 0.0064,
+    "gamma_dot_wall_approx_lu": 0.000775,
+    "tau_xy_wall_approx_lu": 4.65e-05,
+    "tau_xx_wall_approx_lu": 3.6037499999999997e-07,
+    "tau_yy_wall_target": 0.0,
+    "uy_interior_target": 0.0,
+    "rho_target": 1.0,
+    "min_eig_C_target": 1.0
+  },
+  "tolerance_pass_fail": {
+    "u_centerline_relL2_max": 0.01,
+    "tau_xy_wall_relL2_max": 0.05,
+    "tau_xx_wall_relL2_max": 0.05,
+    "rho_max_abs_deviation": 0.001,
+    "uy_interior_max_abs": 5e-06,
+    "min_eig_C_min": 0.8,
+    "no_nan_inf": true
+  },
+  "notes": "Thresholds reflect the LBM half-cell wall offset (dominant for body-force tests) plus 2nd-order BSD discretisation. tau_xy at wall is the most diagnostic single quantity: wrong constitutive law -> wrong tau_xy; wrong Hermite CE correction -> wrong tau_xx but right tau_xy. M40: u_centerline_relL2_max widened 5e-3 -> 1e-2 to absorb the 0.6 % HWBB body-force / BSD discretisation budget (see RESULTS_20260523.md Class-A diagnostic)."
+}

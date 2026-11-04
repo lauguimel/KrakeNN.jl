@@ -201,15 +201,17 @@ struct SimulationSetup
     collision::Symbol                              # Generic 2D collision selector; default preserves the historical BGK path.
     wall_bc::Symbol                                # Generic 2D wall selector; default preserves historical halfway bounce-back.
     sensitivity::Union{Nothing,NamedTuple}         # Optional AD request parsed from `Sensitivity { qoi = ..., wrt = ... }`.
+    backend::Union{Nothing,Symbol}                 # Optional `Backend <cpu|cuda|metal>` directive; `nothing` = file does not select a backend (caller/default decides). See `_backend_from_krk_symbol` in simulation_runner.jl.
 
     function SimulationSetup(name, lattice, domain, physics, user_vars, regions,
                              boundaries, initial, modules, max_steps, outputs,
                              diagnostics, refinements, velocity_field, rheology,
-                             mesh, units, collision, wall_bc, sensitivity=nothing)
+                             mesh, units, collision, wall_bc, sensitivity=nothing,
+                             backend=nothing)
         return new(name, lattice, domain, physics, Dict{Symbol, Any}(user_vars),
                    regions, boundaries, initial, modules, max_steps, outputs,
                    diagnostics, refinements, velocity_field, rheology, mesh,
-                   units, Symbol(collision), Symbol(wall_bc), sensitivity)
+                   units, Symbol(collision), Symbol(wall_bc), sensitivity, backend)
     end
 end
 
@@ -473,6 +475,7 @@ function _parse_kraken_internal_single(lines::Vector{String}; kwargs...)
     refinements = RefineSetup[]
     rheology_setups = RheologySetup[]
     sensitivity = nothing
+    backend_setup = nothing
     setup_helpers = Dict{Symbol, Float64}()  # reynolds, rayleigh, prandtl, L_ref, U_ref
 
     for line in lines
@@ -518,11 +521,15 @@ function _parse_kraken_internal_single(lines::Vector{String}; kwargs...)
             sensitivity === nothing ||
                 throw(ArgumentError("Only one Sensitivity { ... } block is allowed"))
             sensitivity = _parse_sensitivity(line)
+        elseif keyword == "Backend"
+            backend_setup === nothing ||
+                throw(ArgumentError("Only one Backend directive is allowed"))
+            backend_setup = _parse_backend(line)
         else
             known = ("Simulation", "Domain", "Physics", "Define", "Obstacle",
                      "Fluid", "Boundary", "Refine", "Initial", "Velocity",
                      "Module", "Run", "Output", "Diagnostics", "Rheology",
-                     "Setup", "Units", "Preset", "Sweep", "Sensitivity")
+                     "Setup", "Units", "Preset", "Sweep", "Sensitivity", "Backend")
             suggestion = _suggest_name(keyword, known)
             msg = "Unknown keyword '$keyword' in .krk file"
             if suggestion !== nothing
@@ -590,7 +597,7 @@ function _parse_kraken_internal_single(lines::Vector{String}; kwargs...)
                             regions, boundaries, initial, modules,
                             max_steps, outputs, diagnostics, refinements,
                             velocity_field, rheology_setups, nothing, units_setup,
-                            collision, wall_bc, sensitivity)
+                            collision, wall_bc, sensitivity, backend_setup)
 
     # --- Validate face names against lattice dimensionality ---
     _validate_faces_vs_lattice(setup)

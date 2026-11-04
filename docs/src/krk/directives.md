@@ -7,7 +7,7 @@ the following top-level keywords (see `_parse_kraken_internal_single` in
 ```
 Simulation, Domain, Physics, Define, Obstacle, Fluid, Boundary,
 Refine, Initial, Velocity, Module, Run, Output, Diagnostics,
-Rheology, Setup, Preset, Sweep
+Rheology, Setup, Preset, Sweep, Backend
 ```
 
 Unknown keywords trigger a Levenshtein-based *did you mean?* suggestion.
@@ -139,6 +139,9 @@ Refine <name> { region = [x0, y0, x1, y1], ratio = 2, parent = <name> }
 
 Declare a nested refinement patch over an axis-aligned box. `ratio` defaults
 to `2`; `parent` defaults to `""` (the base grid).
+
+!!! warning "Under development"
+    Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set. This keyword is kept for reference only.
 
 **Example**
 
@@ -302,6 +305,39 @@ Sweep N  = [64, 128, 256]
 ```
 
 **Parser:** `_parse_sweep`, driver in `_parse_kraken_internal`.
+
+## Backend
+
+**Syntax:** `Backend <cpu|cuda|metal>`
+
+Selects the compute backend for `run_simulation`, so the `.krk` file alone
+decides how a case runs — no separate Julia driver script required. At most
+one `Backend` directive is allowed per file.
+
+**Resolution order** (see `_resolve_run_backend` in `src/simulation_runner.jl`):
+
+1. An explicit `backend=...` keyword argument to `run_simulation` — this
+   ALWAYS wins over the file, for backward compatibility with existing
+   Julia-driven scripts.
+2. Otherwise, this `Backend` directive, if present.
+3. Otherwise, `KernelAbstractions.CPU()` (unchanged historical default).
+
+Only the backend *name* is checked at parse time (fail fast on a typo — same
+`ArgumentError` style as an unknown lattice). Whether `cuda`/`metal` is
+actually usable (package loads, `functional()` returns `true`) is checked
+lazily at run time in `_backend_from_krk_symbol`: a non-functional or
+unloadable GPU backend raises a clear `ArgumentError` naming the backend and
+suggesting `Backend cpu` — it is **never** silently downgraded to CPU.
+
+**Example**
+
+```krk
+Backend cpu
+Backend cuda
+Backend metal
+```
+
+**Parser:** `_parse_backend`.
 
 ## Rheology
 

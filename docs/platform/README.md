@@ -16,6 +16,7 @@
 | [`04-HYGIENE-PROCESS.md`](04-HYGIENE-PROCESS.md) | Worktrees, branches/bugs, nettoyage, skills, **red-team du plan**. |
 | [`05-DOF-LIBRES.md`](05-DOF-LIBRES.md) | **Le cœur conceptuel** : libérer n'importe quelle quantité figée (param → champ → modèle constitutif appris IA) via le même `fit`. 3 axes orthogonaux, échelle de coût, exemples cibles. |
 | [`06-WORKFLOW.md`](06-WORKFLOW.md) | **Modèle opératoire** : éviter les collisions git (choke files vs briques), branches courtes, doc humaine+LLM dans la PR (gate), mandat vivant, cycle de vie d'une modif. |
+| [`07-STATE-CONTRACT.md`](07-STATE-CONTRACT.md) | **ADR-02** : état de simulation reprenable (contrat indépendant du solveur) et format de checkpoint HDF5. Trois classes de configuration, deux entiers de version, reprise `.krk` différée. |
 
 ## Les 3 prises de tête à valider AVANT de coder
 

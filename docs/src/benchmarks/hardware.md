@@ -2,7 +2,7 @@
 
 All benchmark results in this section are tagged with a hardware identifier
 that maps to an entry in
-[`benchmarks/hardware.toml`](https://github.com/lauguimel/Kraken.jl/blob/lbm/benchmarks/hardware.toml).
+[`benchmarks/hardware.toml`](https://github.com/lauguimel/Kraken.jl/blob/main/benchmarks/hardware.toml).
 
 ## Machines used
 

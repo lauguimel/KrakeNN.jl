@@ -1,0 +1,9 @@
+#!/bin/bash -l
+#PBS -N ehd_scalar
+#PBS -l select=1:ncpus=2:ngpus=1:mem=3GB:gpu_id=H100
+#PBS -l walltime=00:20:00
+#PBS -j oe
+set -euo pipefail
+cd "$PBS_O_WORKDIR"
+exec >"logs/run.${PBS_JOBID}.log" 2>&1
+bash run.sh

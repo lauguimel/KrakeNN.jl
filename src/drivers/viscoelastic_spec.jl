@@ -57,6 +57,177 @@ polymer_modulus(m::LogConfOldroydB) = m.G
 polymer_relaxation_time(m::LogConfOldroydB) = m.λ
 
 """
+    LogConfFENEP(; G, λ, L²)
+    LogConfFENEP(; G, λ, Lmax2)
+
+FENE-P (finitely-extensible nonlinear elastic, Peterlin closure) evolved
+in the log-conformation variable Ψ = log(C). Identical log-conf machinery
+to `LogConfOldroydB` (Fattal & Kupferman 2004) but the upper-convected
+relaxation is multiplied by the Peterlin factor
+
+    f = (L² − 3) / (L² − tr C),
+
+so that `dC/dt = ∇uᵀ·C + C·∇u − (1/λ)(f·C − I)`. The factor caps the
+trace below `L²` (finite extensibility) and reduces the shear/extensional
+response relative to Oldroyd-B. At equilibrium (C=I, tr C=3) → f=1, and as
+`L² → ∞` → f→1, so FENE-P reduces to Oldroyd-B exactly.
+
+- `G`:  polymer shear modulus (G = ν_p / λ)
+- `λ`:  polymer relaxation time
+- `L²`: maximum extensibility (`Lmax²`), must satisfy `L² > 3`.
+
+Stress reconstruction (Peterlin-consistent): τ_p = G · (f·C − I).
+"""
+struct LogConfFENEP{T<:AbstractFloat} <: AbstractPolymerModel
+    G::T
+    λ::T
+    L²::T
+end
+function LogConfFENEP(; G, λ, L²=nothing, Lmax2=nothing)
+    L2 = L² === nothing ? Lmax2 : L²
+    L2 === nothing && throw(ArgumentError("LogConfFENEP requires L² (alias Lmax2)"))
+    float(L2) > 3 || throw(ArgumentError("LogConfFENEP requires L² > 3"))
+    return LogConfFENEP(promote(float(G), float(λ), float(L2))...)
+end
+
+polymer_modulus(m::LogConfFENEP) = m.G
+polymer_relaxation_time(m::LogConfFENEP) = m.λ
+
+"""
+    LogConfGiesekus(; G, λ, α)
+
+Giesekus model evolved in the log-conformation variable Ψ = log(C)
+(Fattal & Kupferman 2004). Identical log-conf machinery to
+`LogConfOldroydB`, but the upper-convected relaxation gains an
+anisotropic (quadratic) mobility term controlled by `α ∈ [0, 0.5]`:
+
+    dC/dt = ∇uᵀ·C + C·∇u − (1/λ)[ (C − I) + α·(C − I)² ].
+
+In the eigenframe of C (eigenvalues c_i) the relaxation is diagonal,
+with per-eigenvalue restoring term
+
+    (c_i − 1) + α·(c_i − 1)² = (c_i − 1)·(1 + α·(c_i − 1)),
+
+so the mobility quadratically enhances relaxation of stretched modes
+(`c_i > 1`), producing shear-thinning and a bounded steady response. At
+`α = 0` the term collapses to `(c_i − 1)`, recovering Oldroyd-B exactly
+(bit-identically).
+
+- `G`: polymer shear modulus (G = ν_p / λ)
+- `λ`: polymer relaxation time
+- `α`: mobility / anisotropy parameter, `0 ≤ α ≤ 0.5`.
+
+Stress reconstruction (same as Oldroyd-B): τ_p = G · (C − I).
+"""
+struct LogConfGiesekus{T<:AbstractFloat} <: AbstractPolymerModel
+    G::T
+    λ::T
+    α::T
+end
+function LogConfGiesekus(; G, λ, α)
+    αf = float(α)
+    (αf >= 0 && αf <= 0.5) ||
+        throw(ArgumentError("LogConfGiesekus requires 0 ≤ α ≤ 0.5"))
+    return LogConfGiesekus(promote(float(G), float(λ), αf)...)
+end
+
+polymer_modulus(m::LogConfGiesekus) = m.G
+polymer_relaxation_time(m::LogConfGiesekus) = m.λ
+
+"""
+    LogConfPTT(; G, λ, ε, variant=:linear)
+
+Phan-Thien–Tanner (PTT) model evolved in the log-conformation variable
+Ψ = log(C) (Fattal & Kupferman 2004). Identical log-conf machinery to
+`LogConfOldroydB`, but the upper-convected relaxation is multiplied by a
+SCALAR function `Y(trC)` of the trace `trC = tr C = Σ exp(ψ_i)` (the
+non-affine slip parameter ξ is set to 0, i.e. upper-convected PTT):
+
+    dC/dt = ∇uᵀ·C + C·∇u − (1/λ)·Y(trC)·(C − I),
+
+with, for `variant=:linear` (linear PTT, Phan-Thien & Tanner 1977),
+
+    Y(trC) = 1 + ε·(trC − 3),
+
+or, for `variant=:exponential` (exponential PTT, Phan-Thien 1978),
+
+    Y(trC) = exp( ε·(trC − 3) ).
+
+Unlike Giesekus, the PTT multiplier is the SAME scalar `Y(trC)` for every
+eigenvalue (it depends only on the trace), so in the eigenframe of C the
+per-eigenvalue restoring term is `Y(trC)·(c_i − 1)`, i.e. in the log
+variable `−Y(trC)·(1 − 1/c_i)·inv_λ`. At equilibrium (C=I, trC=3) → Y=1,
+and at `ε = 0` → Y=1 exactly, so the term collapses to the Oldroyd-B
+diagonal restoring term BIT-IDENTICALLY and Oldroyd-B is recovered. A
+positive `ε` enhances relaxation of stretched modes (large trC),
+producing shear-thinning and a bounded steady response.
+
+- `G`: polymer shear modulus (G = ν_p / λ)
+- `λ`: polymer relaxation time
+- `ε`: extensibility / elongational parameter, `ε ≥ 0`.
+- `variant`: `:linear` (default) or `:exponential`.
+
+Stress reconstruction (same as Oldroyd-B): τ_p = G · (C − I).
+"""
+struct LogConfPTT{T<:AbstractFloat} <: AbstractPolymerModel
+    G::T
+    λ::T
+    ε::T
+    variant::Symbol
+end
+function LogConfPTT(; G, λ, ε, variant::Symbol=:linear)
+    εf = float(ε)
+    εf >= 0 || throw(ArgumentError("LogConfPTT requires ε ≥ 0"))
+    (variant === :linear || variant === :exponential) ||
+        throw(ArgumentError("LogConfPTT variant must be :linear or :exponential"))
+    G2, λ2, ε2 = promote(float(G), float(λ), εf)
+    return LogConfPTT(G2, λ2, ε2, variant)
+end
+
+polymer_modulus(m::LogConfPTT) = m.G
+polymer_relaxation_time(m::LogConfPTT) = m.λ
+
+"""
+    polymer_max_extensibility(model) -> L²
+
+Maximum extensibility `L²` (`Lmax²`) for finitely-extensible models.
+Returns `Inf` for unbounded models (Oldroyd-B), so callers can branch on
+`isfinite(...)` to recover the OB path.
+"""
+polymer_max_extensibility(::AbstractPolymerModel) = Inf
+polymer_max_extensibility(m::LogConfFENEP) = m.L²
+
+"""
+    polymer_mobility(model) -> α
+
+Giesekus mobility / anisotropy parameter `α`. Returns `0` for models
+without a quadratic mobility term (Oldroyd-B, FENE-P), so callers can
+branch on `iszero(...)` to recover the Oldroyd-B path bit-identically.
+"""
+polymer_mobility(::AbstractPolymerModel) = 0.0
+polymer_mobility(m::LogConfGiesekus) = m.α
+
+"""
+    polymer_ptt_epsilon(model) -> ε
+
+Phan-Thien–Tanner extensibility parameter `ε`. Returns `0` for models
+without a PTT trace multiplier (Oldroyd-B, FENE-P, Giesekus), so callers
+can branch on `iszero(...)` to recover the Oldroyd-B path bit-identically.
+"""
+polymer_ptt_epsilon(::AbstractPolymerModel) = 0.0
+polymer_ptt_epsilon(m::LogConfPTT) = m.ε
+
+"""
+    polymer_ptt_variant(model) -> Symbol
+
+PTT trace-multiplier variant: `:linear` (`Y = 1 + ε(trC−3)`) or
+`:exponential` (`Y = exp(ε(trC−3))`). Defaults to `:linear` for every
+non-PTT model (where it is inert because `ε = 0`).
+"""
+polymer_ptt_variant(::AbstractPolymerModel) = :linear
+polymer_ptt_variant(m::LogConfPTT) = m.variant
+
+"""
     uses_log_conformation(model) -> Bool
 
 Dispatch hook: `true` if the driver must evolve Ψ = log(C) instead of
@@ -64,6 +235,9 @@ C, and reconstruct C via `psi_to_C_2d!` before computing τ_p.
 """
 uses_log_conformation(::AbstractPolymerModel) = false
 uses_log_conformation(::LogConfOldroydB) = true
+uses_log_conformation(::LogConfFENEP) = true
+uses_log_conformation(::LogConfGiesekus) = true
+uses_log_conformation(::LogConfPTT) = true
 
 """
     update_polymer_stress!(τ_p_xx, τ_p_xy, τ_p_yy, C_xx, C_xy, C_yy, model)
@@ -92,6 +266,44 @@ end
 function update_polymer_stress!(τ_p_xx, τ_p_xy, τ_p_yy,
                                   C_xx, C_xy, C_yy,
                                   m::LogConfOldroydB)
+    G = eltype(τ_p_xx)(m.G)
+    if iszero(G)
+        fill!(τ_p_xx, zero(eltype(τ_p_xx)))
+        fill!(τ_p_xy, zero(eltype(τ_p_xy)))
+        fill!(τ_p_yy, zero(eltype(τ_p_yy)))
+        return nothing
+    end
+    @. τ_p_xx = G * (C_xx - 1)
+    @. τ_p_xy = G * C_xy
+    @. τ_p_yy = G * (C_yy - 1)
+    return nothing
+end
+
+# Giesekus uses the same linear stress reconstruction τ_p = G·(C − I) as
+# Oldroyd-B; the quadratic mobility lives only in the conformation
+# evolution, not in the stress closure.
+function update_polymer_stress!(τ_p_xx, τ_p_xy, τ_p_yy,
+                                  C_xx, C_xy, C_yy,
+                                  m::LogConfGiesekus)
+    G = eltype(τ_p_xx)(m.G)
+    if iszero(G)
+        fill!(τ_p_xx, zero(eltype(τ_p_xx)))
+        fill!(τ_p_xy, zero(eltype(τ_p_xy)))
+        fill!(τ_p_yy, zero(eltype(τ_p_yy)))
+        return nothing
+    end
+    @. τ_p_xx = G * (C_xx - 1)
+    @. τ_p_xy = G * C_xy
+    @. τ_p_yy = G * (C_yy - 1)
+    return nothing
+end
+
+# PTT uses the same linear stress reconstruction τ_p = G·(C − I) as
+# Oldroyd-B; the trace multiplier Y(trC) lives only in the conformation
+# evolution, not in the stress closure.
+function update_polymer_stress!(τ_p_xx, τ_p_xy, τ_p_yy,
+                                  C_xx, C_xy, C_yy,
+                                  m::LogConfPTT)
     G = eltype(τ_p_xx)(m.G)
     if iszero(G)
         fill!(τ_p_xx, zero(eltype(τ_p_xx)))

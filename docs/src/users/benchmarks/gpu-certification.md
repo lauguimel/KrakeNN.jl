@@ -2,26 +2,31 @@
 
 Single-GPU throughput of the Newtonian BGK D2Q9 solver in **CUDA Float64** (Taylor–Green
 driver, `run_taylor_green_2d`). Kraken sustains **3461 MLUPS** at `N = 2048` on an
-**A100-40GB**, reaching **0.68** of the memory-bandwidth roofline and **0.74** of the
-published Palabos single-GPU F64 number — comfortably clearing the **≥ 0.5 of roofline**
-gate.
+**A100-40GB**. A D2Q9 Float64 update moves at least 144 bytes, so the bandwidth ceiling of
+that GPU is 10 799 MLUPS and Kraken reaches **0.32** of it. That is **below** the
+**≥ 0.5 of roofline** gate this page was written against.
+
+A previous version of this page reported 0.68 and a PASS. It divided the bandwidth by
+304 bytes per update, which is the D3Q19 traffic (2 × 19 × 8), not the D2Q9 traffic
+(2 × 9 × 8 = 144). The measured 3461 MLUPS did not change; only the ceiling did.
 
 ![GPU certification](gpu-certification.png)
 
 ## Result
 
+Ceiling = peak bandwidth / 144 bytes. Ratio = 3461 / ceiling.
+
 | Reference                          | MLUPS  | Kraken / ref | Type |
 |------------------------------------|-------:|-------------:|------|
-| A100-40GB roofline (1.555 TB/s)    | 5115   | **0.68**     | bandwidth ceiling |
-| A100-80GB roofline (2.039 TB/s)    | 6707   | **0.52**     | bandwidth ceiling |
-| Palabos, single-GPU F64 D3Q19 TRT  | 4656   | **0.74**     | published real code |
+| A100-40GB roofline (1.555 TB/s)    | 10 799 | **0.32**     | bandwidth ceiling |
+| A100-80GB roofline (2.039 TB/s)    | 14 160 | **0.24**     | bandwidth ceiling |
+| Palabos, single-GPU F64 D3Q19 TRT  | 4656   | 0.74         | published real code, different lattice |
 
-**Verdict: PASS.** On the applicable A100-40GB roofline Kraken reaches 0.68 of the
-memory-bandwidth limit and 0.74 of the Palabos single-GPU F64 number — same neighbourhood
-as an established production LBM code. Even against the stricter 80 GB ceiling the ratio
-is 0.52, so the pass is robust to the bandwidth assumption. The Palabos figure is ~73 %
-of A100 FP64 peak (Latt et al., *Comput. Math. Appl.* 2021; PASC '22); the H100 roofline
-(11020 MLUPS) is context only — the run was on an A100.
+**Verdict: below the 0.5 gate** on the applicable A100-40GB ceiling (0.32). The Palabos
+figure (about 73 % of A100 FP64 peak, Latt et al., *Comput. Math. Appl.* 2021; PASC '22)
+is for D3Q19, which moves about twice the bytes per update of D2Q9, so the 0.74 ratio mixes
+two lattices and is not a like-for-like efficiency. The H100 ceiling for D2Q9 would be
+23 264 MLUPS (3.35 TB/s / 144 B); it is context only, the run was on an A100.
 
 ## Method
 
@@ -35,12 +40,12 @@ MLUPS = N² · steps / wallclock_s / 1e6
 Best sustained throughput was 3461 MLUPS at `N = 2048` (3084 MLUPS at `N = 1024`).
 
 **Roofline.** LBM is memory-bandwidth bound: a D2Q9 BGK step in Float64 moves 9
-populations in and 9 out, `2 × 19 × sizeof(Float64) = 304 bytes/update`, so the hard
-upper bound is `MLUPS_ceiling = peak_BW / 304 / 1e6`. No F64 D2Q9 kernel can exceed it.
+populations in and 9 out, `2 × 9 × sizeof(Float64) = 144 bytes/update`, so the hard
+upper bound is `MLUPS_ceiling = peak_BW / 144 / 1e6`. No F64 D2Q9 kernel can exceed it.
 
 **Environment.** Aqua (QUT) node `gpu0n009`, NVIDIA A100-40GB (HBM2e, 1.555 TB/s peak),
-CUDA Float64. The 40 GB roofline is the applicable ceiling; the 80 GB figure is a
-stricter lower-bound reference.
+CUDA Float64. The 40 GB roofline is the applicable ceiling; the 80 GB row is shown for
+reference only (a larger ceiling, hence a smaller ratio).
 
 ## Caveats
 

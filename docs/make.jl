@@ -146,7 +146,7 @@ makedocs(;
     format = DocumenterVitepress.MarkdownVitepress(
         repo = "github.com/lauguimel/Kraken.jl",
         devurl = "dev",
-        devbranch = "release/v0.3",
+        devbranch = "release/v0.5",
         build_vitepress = false,
         keep = :patch,
     ),
@@ -160,6 +160,7 @@ makedocs(;
             "Architecture" => "architecture.md",
             "KRK reference" => "users/krk-reference.md",
             "Incompressible Navier–Stokes (FVFD/SIMPLE)" => "users/incompressible-navier-stokes.md",
+            "Simulation state and checkpoints" => "users/simulation-state-checkpoints.md",
         ],
         "Examples" => [
             "Newtonian" => [
@@ -180,9 +181,6 @@ makedocs(;
             "Geometry / STL" => [
                 "Sphere drag 3D" => "users/tutorials/sphere-drag-3d.md",
             ],
-            "Grid refinement" => [
-                "Refined cavity" => "examples/20_grid_refinement_cavity.md",
-            ],
             "Configuration (.krk)" => [
                 "KRK config" => "examples/10_krk_config.md",
             ],
@@ -191,10 +189,15 @@ makedocs(;
             "Validation matrix" => "users/benchmarks/validation-matrix.md",
             "Cartesian cavity" => "users/benchmarks/cartesian-cavity.md",
             "Thermal natural convection" => "users/benchmarks/thermal-natural-convection.md",
+            "Generalised Newtonian natural convection" => "users/benchmarks/gnf-natural-convection.md",
             "Sphere drag 3D" => "users/benchmarks/sphere-drag-3d.md",
             "Viscoelastic cylinder (Oldroyd-B)" => "users/benchmarks/viscoelastic-cylinder.md",
+            "Viscoelastic constitutive models" => "users/benchmarks/ve-constitutive-models.md",
+            "Viscoelastic Poiseuille (FVFD 3D)" => "users/benchmarks/ve3d-poiseuille-convergence.md",
+            "Generalised-Newtonian channel (3D)" => "users/benchmarks/gnf3d-channel-convergence.md",
             "Steady shape sensitivity (AD)" => "users/benchmarks/ad-shape-sensitivity.md",
             "Steady shape sensitivity — viscoelastic (AD)" => "users/benchmarks/ad-shape-sensitivity-viscoelastic.md",
+            "GNF adjoint gradient" => "users/benchmarks/gnf-adjoint-gradient.md",
             "GPU certification" => "users/benchmarks/gpu-certification.md",
             "Electroconvection (EHD)" => "users/benchmarks/electroconvection.md",
             "Performance" => "benchmarks/performance.md",
@@ -225,6 +228,7 @@ makedocs(;
                 "Boundary conditions" => "api/bc.md",
                 "Backend" => "api/backend.md",
                 "KRK I/O" => "api/io-krk.md",
+                "Platform state & checkpoints" => "api/platform.md",
             ],
             "Julia API" => [
                 "api/lattice.md",
@@ -233,12 +237,11 @@ makedocs(;
                 "api/boundary.md",
                 "api/macroscopic.md",
                 "api/drivers.md",
-                "api/refinement.md",
                 "api/io.md",
                 "api/postprocess.md",
                 "api/config.md",
             ],
-            # v0.2.0 scope: single-phase LBM (2D/3D), thermal, grid refinement,
+            # v0.2.0 scope: single-phase LBM (2D/3D), thermal,
             # spatial BCs, .krk DSL. Out-of-scope pages (phasefield, VOF/PLIC,
             # rheology, viscoelastic, Shan-Chen, species) are excluded here.
             "Theory" => [
@@ -253,9 +256,14 @@ makedocs(;
                 "theory/09_axisymmetric.md",
                 "theory/10_limitations.md",
                 "theory/12_mrt.md",
-                "theory/18_grid_refinement.md",
+                "theory/14_rheology.md",
+                "theory/15_viscoelastic.md",
                 "theory/19_spatial_bcs.md",
             ],
+            # The one page carrying a @bibliography block. Without it every
+            # citation in the docs has no destination and DocumenterCitations
+            # degrades it to plain unlinked text (#46).
+            "References" => "references.md",
         ],
     ],
     remotes = nothing,
@@ -269,7 +277,6 @@ makedocs(;
 # Keep the v0.2 navigation strict while preserving hidden pages that visible
 # pages link to, so Vitepress dead-link checks stay useful.
 const VITEPRESS_KEEP_HIDDEN = Set{String}([
-    "benchmarks/refinement_showcase.md",
     "benchmarks/mlups_cpu_gpu.md",
 ])
 
@@ -348,13 +355,29 @@ function build_vitepress_outputs!(vp_input::AbstractString)
     current_version = vitepress_current_version(bases)
 
     cd(@__DIR__) do
+        # docs/package.json and docs/package-lock.json are tracked so the npm
+        # tree is reproducible: the DocumenterVitepress template uses caret
+        # ranges, and on 2026-10-13 `@nolebase/*` 2.21 started requiring
+        # vitepress 2, which broke `npm install` (ERESOLVE). docs/package.json
+        # pins the plugin to ~2.18.2 and `overrides` its `@nolebase/ui`
+        # dependency to ~2.18.2 too (the plugin asks for ^2.18.2, which would
+        # pull ui 2.21 with an unmet vitepress-2 peer). Drop both pins only
+        # when moving to vitepress 2. The template copy below is only a
+        # fallback for a checkout without docs/package.json.
         tmpl_pkg = joinpath(dirname(pathof(DocumenterVitepress)), "..", "template", "package.json")
         pkg_json = joinpath(@__DIR__, "package.json")
+        lock_json = joinpath(@__DIR__, "package-lock.json")
         cleanup_pkg = !isfile(pkg_json)
         cleanup_pkg && cp(tmpl_pkg, pkg_json)
         try
             npm_bin = npm_executable()
-            run(`$(npm_bin) install --no-audit --no-fund`)
+            if !cleanup_pkg && isfile(lock_json)
+                # Install exactly the locked tree; fails if package.json and
+                # the lockfile disagree instead of silently re-resolving.
+                run(`$(npm_bin) ci --no-audit --no-fund`)
+            else
+                run(`$(npm_bin) install --no-audit --no-fund`)
+            end
             for (i, base) in enumerate(bases)
                 base_url = vitepress_base_url(deploy_abspath, base)
                 config = replace(
@@ -372,7 +395,7 @@ function build_vitepress_outputs!(vp_input::AbstractString)
         finally
             if cleanup_pkg
                 rm(pkg_json; force = true)
-                rm(joinpath(@__DIR__, "package-lock.json"); force = true)
+                rm(lock_json; force = true)
             end
         end
     end
@@ -401,7 +424,7 @@ if startswith(get(ENV, "GITHUB_REF", ""), "refs/tags/v")
     DocumenterVitepress.deploydocs(;
         repo = "github.com/lauguimel/Kraken.jl.git",
         target = joinpath(@__DIR__, "build"),
-        devbranch = "release/v0.3",
+        devbranch = "release/v0.5",
         branch = "gh-pages",
         push_preview = true,
     )

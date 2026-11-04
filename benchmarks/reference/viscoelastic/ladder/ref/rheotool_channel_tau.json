@@ -1,0 +1,71 @@
+{
+  "type": "code_run_setup_only",
+  "source": "rheoTool of90/tutorials/rheoFoam/Channel/Oldroyd-BLog (setup committed; tau output NOT precomputed in this project)",
+  "provenance": {
+    "rt_path": "/Users/guillaume/Documents/Recherche/Codes CFD/rheotool/rheoTool/of90/tutorials/rheoFoam/Channel/Oldroyd-BLog",
+    "rt_constitutiveProperties": "constant/constitutiveProperties",
+    "rt_blockMeshDict": "system/blockMeshDict",
+    "rt_sampleDict": "system/sampleDict"
+  },
+  "convergence_verified": false,
+  "convergence_evidence": "case has not been run in this project; setup only",
+  "parameters": {
+    "domain_xyz": [
+      40.0,
+      2.0,
+      1.0
+    ],
+    "mesh_per_half_xyz": [
+      50,
+      30,
+      1
+    ],
+    "mesh_total_2d_NxNy": [
+      50,
+      60
+    ],
+    "rho": 1.0,
+    "etaS_solvent_viscosity": 0.01,
+    "etaP_polymer_viscosity": 0.99,
+    "lambda_relaxation": 1.0,
+    "Uin_uniform": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "Re_rho_U_H_over_eta_total": 1.0,
+    "Wi_lambda_U_over_H": 1.0,
+    "beta_solvent_ratio": 0.01,
+    "endTime": 30.0,
+    "deltaT": 0.01,
+    "stabilization": "coupling",
+    "constitutive_model": "Oldroyd-BLog",
+    "sample_line": "x=30, y in [-1.2, 1.2]",
+    "boundary_conditions": {
+      "inlet_U": "fixedValue uniform (1 0 0)",
+      "outlet_U": "zeroGradient",
+      "walls_U": "fixedValue uniform (0 0 0)",
+      "walls_tau": "linearExtrapolation",
+      "inlet_tau": "fixedValue uniform (0 0 0 0 0 0)",
+      "outlet_tau": "zeroGradient"
+    }
+  },
+  "values": {
+    "tau_xy_profile_y": "TO_BE_FILLED_BY_NEXT_RUN",
+    "tau_xx_profile_y": "TO_BE_FILLED_BY_NEXT_RUN",
+    "u_x_profile_y": "TO_BE_FILLED_BY_NEXT_RUN",
+    "expected_analytic_at_developed_x_eq_30": {
+      "u_max_at_y0": 1.5,
+      "u_avg": 1.0,
+      "tau_xy_at_wall_y_eq_1": -1.485,
+      "comment": "etaP * gamma_dot_wall; gamma_dot_wall = 3*u_avg/H = 3, sign per outward normal. Use as expectation when filled."
+    }
+  },
+  "tolerance_pass_fail": {
+    "rt_vs_kraken_u_profile_relative_L2": 0.01,
+    "rt_vs_kraken_tau_xy_profile_relative_L2": 0.05,
+    "rt_vs_kraken_tau_xx_profile_relative_L2": 0.05,
+    "applies_when": "rT actually run AND post-processed"
+  },
+  "notes": "Best-effort entry: rT case is fully specified but its output is NOT in the rheoTool source tree. To populate values, run Allrun in the rT case dir and ingest the sample line; expected_analytic_at_developed_x_eq_30 is the steady-state Bird-Armstrong-Hassager prediction the rT run should converge to."
+}

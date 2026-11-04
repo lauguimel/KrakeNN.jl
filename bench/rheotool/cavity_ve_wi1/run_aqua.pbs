@@ -1,0 +1,63 @@
+#!/bin/bash -l
+#PBS -N rT_cavity
+#PBS -l select=1:ncpus=1:mem=8GB
+#PBS -l walltime=24:00:00
+#PBS -j oe
+#PBS -m n
+# ===================================================================
+#  RheoTool reference for the viscoelastic lid-driven cavity (#51).
+#
+#  Usage, from the directory holding this template on the Aqua login node:
+#    qsub -v N=128,RHO=1,MODEL=ve,TAG=ve_re1_n128_repro run_aqua.pbs
+#
+#    N        cells per side (blockMeshDict entry `N`)
+#    RHO      density; with U = L = etaS + etaP = 1, Re = RHO
+#    MODEL    ve   -> constant/constitutiveProperties (Oldroyd-BLog)
+#             newt -> constant/constitutiveProperties.newtonian (eta = 1)
+#    TAG      run directory name under $HOME/kraken-rheotool/cavity_ve_wi1/
+#    ENDTIME  optional, default 10 (the tutorial value)
+#    DT       optional, default 2e-4 (the tutorial value)
+#
+#  Serial run: the tutorial's (p|U) eigenSolver is used as shipped.
+#  OF9_RT.sh wraps the Apptainer sandbox /scratch/$USER/openfoam9-sandbox
+#  (built 2025-06-26 from guiguitcho/openfoam9-rheotool:v1.2 per the
+#  sandbox's .singularity.d/labels.json; image digest not recorded;
+#  rheoTool source tree at 81f3e8c, OpenFOAM 9; see the results README
+#  for what was checked); the container mounts $HOME
+#  read-write, so the run directory lives under $HOME.
+#  `run_done` is created only if every step of the chain succeeds, and the
+#  job exits non-zero without it.
+# ===================================================================
+set -euo pipefail
+: "${N:?}" "${RHO:?}" "${MODEL:?}" "${TAG:?}"
+ENDTIME="${ENDTIME:-10}"
+DT="${DT:-2e-4}"
+
+cd "$PBS_O_WORKDIR"
+DEST="$HOME/kraken-rheotool/cavity_ve_wi1/$TAG"
+rm -rf "$DEST"
+mkdir -p "$(dirname "$DEST")"
+cp -r "$PBS_O_WORKDIR" "$DEST"
+rm -f "$DEST"/*.pbs "$DEST"/*.py "$DEST"/rT_cav*.o*
+if [ "$MODEL" = newt ]; then
+    cp "$DEST/constant/constitutiveProperties.newtonian" "$DEST/constant/constitutiveProperties"
+fi
+abs_dest=$(cd "$DEST" && pwd)
+
+echo "start $(date -Is) N=$N RHO=$RHO MODEL=$MODEL ENDTIME=$ENDTIME DT=$DT host=$(hostname)"
+OF9_RT.sh -- "
+    cd '$abs_dest' && \
+    foamDictionary -entry N -set $N system/blockMeshDict && \
+    foamDictionary -entry 'parameters/rho' -set 'rho [1 -3 0 0 0 0 0] $RHO' constant/constitutiveProperties && \
+    foamDictionary -entry endTime -set $ENDTIME system/controlDict && \
+    foamDictionary -entry deltaT -set $DT system/controlDict && \
+    blockMesh                   > log.blockMesh   2>&1 && \
+    rheoFoam                    > log.rheoFoam    2>&1 && \
+    postProcess -func sampleDict > log.postProcess 2>&1 && \
+    touch run_done \
+"
+echo "end $(date -Is)"
+test -f "$abs_dest/run_done"
+grep -E '^ *nCells|cells:' "$abs_dest/log.blockMesh" || true
+tail -4 "$abs_dest/log.rheoFoam"
+tail -3 "$abs_dest/kinEner.txt"

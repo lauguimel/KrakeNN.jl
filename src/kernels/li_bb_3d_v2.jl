@@ -41,6 +41,68 @@ function fused_trt_libb_v2_step_3d!(f_out, f_in, ρ, ux, uy, uz, is_solid,
             ndrange=(Nx, Ny, Nz))
 end
 
+# TRT + LI-BB 3D step with a per-cell Guo body-force field fused into the
+# collision (3D analogue of `_TRT_LIBB_V2_GUO_FIELD_SPEC`). Same pull /
+# solid / LI-BB pre-phase as `_TRT_LIBB_V2_SPEC_3D`; only the collision
+# brick carries the Guo force. Used by the VE sphere driver to inject the
+# polymer body force F_poly = ∇·τ_p at the solvent rate (replacing the
+# standalone re-relaxed Hermite source).
+const _TRT_LIBB_V2_GUO_FIELD_SPEC_3D = LBMSpec(
+    PullHalfwayBB_3D(), SolidInert_3D(),
+    ApplyLiBBPrePhase_3D(),
+    Moments_3D(), CollideTRTDirectGuoField_3D(),
+    WriteMoments_3D();
+    stencil = :D3Q19,
+)
+
+# Variant of the Guo-field spec with PERIODIC z-wrap in the pull-stream brick
+# (x/y faces stay no-slip halfway-BB). Selected when the caller declares
+# periodic_z=true — e.g. the planar-extensional driver whose FVFD polymer side
+# is fully z-periodic, so the LBM solvent side must agree on z. The collision /
+# solid / cut-link bricks are identical; only PullHalfwayBB_3D's z-treatment
+# differs (distinct brick TYPE → distinct cached kernel, no runtime branch).
+const _TRT_LIBB_V2_GUO_FIELD_SPEC_Z_PERIODIC_3D = LBMSpec(
+    PullHalfwayBB_3D{true}(), SolidInert_3D(),
+    ApplyLiBBPrePhase_3D(),
+    Moments_3D(), CollideTRTDirectGuoField_3D(),
+    WriteMoments_3D();
+    stencil = :D3Q19,
+)
+
+"""
+    fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, ρ, ux, uy, uz, is_solid,
+                                          q_wall, uw_x, uw_y, uw_z,
+                                          Fx_field, Fy_field, Fz_field,
+                                          Nx, Ny, Nz, ν; Λ=3/16)
+
+D3Q19 LI-BB V2 solvent step with a per-cell Guo force field. Identical
+pull-stream / solid handling / cut-link pre-phase to
+`fused_trt_libb_v2_step_3d!`, with the collision brick replaced by the
+TRT+Guo-field brick. The force is fused into the collision and consumed
+EXACTLY ONCE (no post-collision re-relaxation). 3D analogue of the 2D
+`fused_trt_libb_v2_guo_field_step!` used by the validated VE cylinder.
+"""
+function fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, ρ, ux, uy, uz, is_solid,
+                                                q_wall, uw_link_x, uw_link_y, uw_link_z,
+                                                Fx_field, Fy_field, Fz_field,
+                                                Nx, Ny, Nz, ν; Λ::Real=3/16,
+                                                periodic_z::Bool=false)
+    backend = KernelAbstractions.get_backend(f_in)
+    ET = eltype(f_in)
+    s_plus, s_minus = trt_rates(ν; Λ=Λ)
+    # periodic_z=false (DEFAULT) keeps the bit-identical no-slip-z spec used by
+    # the VE sphere driver; =true selects the z-wrap variant for the extensional
+    # driver. Val-dispatch on a compile-time flag (M1 scheme) → no runtime branch.
+    spec = periodic_z ? _TRT_LIBB_V2_GUO_FIELD_SPEC_Z_PERIODIC_3D :
+                        _TRT_LIBB_V2_GUO_FIELD_SPEC_3D
+    kernel! = build_lbm_kernel(backend, spec)
+    kernel!(f_out, ρ, ux, uy, uz, f_in, is_solid,
+            q_wall, uw_link_x, uw_link_y, uw_link_z,
+            Nx, Ny, Nz, ET(s_plus), ET(s_minus),
+            Fx_field, Fy_field, Fz_field;
+            ndrange=(Nx, Ny, Nz))
+end
+
 """
     precompute_q_wall_sphere_3d(Nx, Ny, Nz, cx, cy, cz, R; FT=Float64)
         -> (q_wall, is_solid)
@@ -312,4 +374,54 @@ function run_sphere_libb_3d(; Nx::Int=120, Ny::Int=60, Nz::Int=60,
              Cd, Fx = Fx_avg, Fy = Fy_avg, Fz = Fz_avg,
              q_wall = Array(q_wall), is_solid = Array(is_solid),
              u_ref, D, A)
+end
+
+# GNF variants retain the existing LI-BB pre-phase and Guo field conventions.
+const _TRT_GNF_LIBB_GUO_FIELD_SPEC_3D = LBMSpec(
+    PullHalfwayBB_3D(), SolidInert_3D(),
+    ApplyLiBBPrePhase_3D(),
+    Moments_3D(), CollideTRTGNFGuoField_3D(),
+    WriteMoments_3D();
+    stencil = :D3Q19,
+)
+
+const _TRT_GNF_LIBB_GUO_FIELD_SPEC_Z_PERIODIC_3D = LBMSpec(
+    PullHalfwayBB_3D{true}(), SolidInert_3D(),
+    ApplyLiBBPrePhase_3D(),
+    Moments_3D(), CollideTRTGNFGuoField_3D(),
+    WriteMoments_3D();
+    stencil = :D3Q19,
+)
+
+"""
+    fused_trt_gnf_libb_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz, is_solid,
+        q_wall, uw_x, uw_y, uw_z, Fx, Fy, Fz, sp_field, sm_field,
+        Nx, Ny, Nz, rheology; Λ=3/16, periodic_z=false)
+
+Advance D3Q19 populations with LI-BB, local GNF TRT relaxation, and Guo forcing.
+The written velocity includes `F/(2rho)`. Strain uses the Guo-corrected stress
+moment and the lagged even relaxation time `1/sp_field`; the fluid-cell rate
+fields are then updated in place. Initialize them to the chosen starting
+viscosity's TRT rates before the first call. Solid-cell rates remain untouched.
+
+Supported models are isothermal Newtonian, PowerLaw, CarreauYasuda, and Cross;
+parameters are converted to `eltype(f_in)` on the host. `periodic_z=true` wraps
+z links while retaining the existing x/y halfway-BB fallback.
+"""
+function fused_trt_gnf_libb_guo_field_step_3d!(f_out, f_in, ρ, ux, uy, uz, is_solid,
+                                             q_wall, uw_link_x, uw_link_y, uw_link_z,
+                                             Fx_field, Fy_field, Fz_field,
+                                             sp_field, sm_field, Nx, Ny, Nz, rheology;
+                                             Λ::Real=3/16, periodic_z::Bool=false)
+    backend = KernelAbstractions.get_backend(f_in)
+    ET = eltype(f_in)
+    model = _gnf3d_rheology(ET, rheology)
+    spec = periodic_z ? _TRT_GNF_LIBB_GUO_FIELD_SPEC_Z_PERIODIC_3D :
+                        _TRT_GNF_LIBB_GUO_FIELD_SPEC_3D
+    kernel! = build_lbm_kernel(backend, spec)
+    # Canonical arguments first; collision-only arguments follow declaration order.
+    kernel!(f_out, ρ, ux, uy, uz, f_in, is_solid,
+            q_wall, uw_link_x, uw_link_y, uw_link_z, Nx, Ny, Nz,
+            Fx_field, Fy_field, Fz_field, model, sp_field, sm_field, ET(Λ);
+            ndrange=(Nx, Ny, Nz))
 end

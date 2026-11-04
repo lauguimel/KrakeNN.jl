@@ -1,0 +1,1112 @@
+{
+  "type": "code_run",
+  "source": "Basilisk src/test/poiseuille-oldroydb.{c,ref}",
+  "provenance": {
+    "basilisk_path": "/Users/guillaume/Documents/Recherche/Codes CFD/basilisk/src/test/poiseuille-oldroydb.c",
+    "basilisk_ref": "/Users/guillaume/Documents/Recherche/Codes CFD/basilisk/src/test/poiseuille-oldroydb.ref",
+    "doi": "n/a (open source code)",
+    "underlying_analytic": "Waters & King (1970), Rheologica Acta 9(3), 345-355"
+  },
+  "convergence_verified": true,
+  "convergence_evidence": "grid_converged_16x16_32x32_64x64",
+  "parameters": {
+    "mu0_total": 1.0,
+    "beta_solvent_ratio": 0.1111111111111111,
+    "mup_polymer_viscosity": 0.8888888888888888,
+    "mus_solvent_viscosity": 0.1111111111111111,
+    "lambda_relaxation": 1.0,
+    "u_avg_steady": 0.3333333333333333,
+    "Y_in_minus1_plus1": true,
+    "T_dimensionless": "T = t / lambda",
+    "modes_summed": 8
+  },
+  "values": {
+    "regression_table_5cols": [
+      {
+        "t_over_lambda": 0.0,
+        "u_centerline_over_u_avg_basilisk": 0.0,
+        "u_centerline_over_u_avg_analytic_waters_king": 0.000184744,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.2,
+        "u_centerline_over_u_avg_basilisk": 0.599892,
+        "u_centerline_over_u_avg_analytic_waters_king": 0.599738,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.4,
+        "u_centerline_over_u_avg_basilisk": 1.19735,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.19825,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.6,
+        "u_centerline_over_u_avg_basilisk": 1.7588,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.76311,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.8,
+        "u_centerline_over_u_avg_basilisk": 2.20164,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.20699,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.0,
+        "u_centerline_over_u_avg_basilisk": 2.46466,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.46619,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.2,
+        "u_centerline_over_u_avg_basilisk": 2.55382,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.55066,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.4,
+        "u_centerline_over_u_avg_basilisk": 2.51605,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.51044,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.6,
+        "u_centerline_over_u_avg_basilisk": 2.4006,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.39471,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.8,
+        "u_centerline_over_u_avg_basilisk": 2.24239,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.23695,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.0,
+        "u_centerline_over_u_avg_basilisk": 2.06323,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.05795,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.2,
+        "u_centerline_over_u_avg_basilisk": 1.87846,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.87279,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.4,
+        "u_centerline_over_u_avg_basilisk": 1.70151,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.69524,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.6,
+        "u_centerline_over_u_avg_basilisk": 1.54476,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5382,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.8,
+        "u_centerline_over_u_avg_basilisk": 1.41805,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.41177,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.0,
+        "u_centerline_over_u_avg_basilisk": 1.32691,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.32141,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.2,
+        "u_centerline_over_u_avg_basilisk": 1.272,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.26751,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.4,
+        "u_centerline_over_u_avg_basilisk": 1.24999,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.24647,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.6,
+        "u_centerline_over_u_avg_basilisk": 1.25503,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.2523,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.8,
+        "u_centerline_over_u_avg_basilisk": 1.28025,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.27811,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.0,
+        "u_centerline_over_u_avg_basilisk": 1.31878,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.31706,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.2,
+        "u_centerline_over_u_avg_basilisk": 1.36435,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.36292,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.4,
+        "u_centerline_over_u_avg_basilisk": 1.41156,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.41029,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.6,
+        "u_centerline_over_u_avg_basilisk": 1.45606,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.45481,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.8,
+        "u_centerline_over_u_avg_basilisk": 1.49465,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49328,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.0,
+        "u_centerline_over_u_avg_basilisk": 1.52532,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5237,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.2,
+        "u_centerline_over_u_avg_basilisk": 1.54716,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.54523,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.4,
+        "u_centerline_over_u_avg_basilisk": 1.56027,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.55798,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.6,
+        "u_centerline_over_u_avg_basilisk": 1.56547,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.56284,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.8,
+        "u_centerline_over_u_avg_basilisk": 1.56412,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.56118,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.0,
+        "u_centerline_over_u_avg_basilisk": 1.5578,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.55461,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.2,
+        "u_centerline_over_u_avg_basilisk": 1.54817,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5448,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.4,
+        "u_centerline_over_u_avg_basilisk": 1.53682,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.53333,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.6,
+        "u_centerline_over_u_avg_basilisk": 1.5251,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.52156,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.8,
+        "u_centerline_over_u_avg_basilisk": 1.51411,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.51057,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.0,
+        "u_centerline_over_u_avg_basilisk": 1.50463,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50114,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.2,
+        "u_centerline_over_u_avg_basilisk": 1.49713,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49373,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.4,
+        "u_centerline_over_u_avg_basilisk": 1.49181,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48854,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.6,
+        "u_centerline_over_u_avg_basilisk": 1.48866,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.4855,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.8,
+        "u_centerline_over_u_avg_basilisk": 1.48744,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48439,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.0,
+        "u_centerline_over_u_avg_basilisk": 1.48783,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48489,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.2,
+        "u_centerline_over_u_avg_basilisk": 1.48943,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48658,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.4,
+        "u_centerline_over_u_avg_basilisk": 1.49184,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48905,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.6,
+        "u_centerline_over_u_avg_basilisk": 1.49466,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49191,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.8,
+        "u_centerline_over_u_avg_basilisk": 1.49756,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49482,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.0,
+        "u_centerline_over_u_avg_basilisk": 1.50027,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49753,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.2,
+        "u_centerline_over_u_avg_basilisk": 1.50261,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49984,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.4,
+        "u_centerline_over_u_avg_basilisk": 1.50444,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50165,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.6,
+        "u_centerline_over_u_avg_basilisk": 1.50574,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5029,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.8,
+        "u_centerline_over_u_avg_basilisk": 1.5065,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50363,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 10.0,
+        "u_centerline_over_u_avg_basilisk": 1.50678,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50387,
+        "mesh_level": 4,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.0,
+        "u_centerline_over_u_avg_basilisk": 0.0,
+        "u_centerline_over_u_avg_analytic_waters_king": 0.000184744,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.2,
+        "u_centerline_over_u_avg_basilisk": 0.600012,
+        "u_centerline_over_u_avg_analytic_waters_king": 0.599738,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.4,
+        "u_centerline_over_u_avg_basilisk": 1.19805,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.19825,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.6,
+        "u_centerline_over_u_avg_basilisk": 1.76183,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.76311,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.8,
+        "u_centerline_over_u_avg_basilisk": 2.20549,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.20699,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.0,
+        "u_centerline_over_u_avg_basilisk": 2.46594,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.46619,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.2,
+        "u_centerline_over_u_avg_basilisk": 2.5518,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.55066,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.4,
+        "u_centerline_over_u_avg_basilisk": 2.51226,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.51044,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.6,
+        "u_centerline_over_u_avg_basilisk": 2.39654,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.39471,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.8,
+        "u_centerline_over_u_avg_basilisk": 2.23859,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.23695,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.0,
+        "u_centerline_over_u_avg_basilisk": 2.05948,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.05795,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.2,
+        "u_centerline_over_u_avg_basilisk": 1.87436,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.87279,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.4,
+        "u_centerline_over_u_avg_basilisk": 1.69691,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.69524,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.6,
+        "u_centerline_over_u_avg_basilisk": 1.5399,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5382,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.8,
+        "u_centerline_over_u_avg_basilisk": 1.41335,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.41177,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.0,
+        "u_centerline_over_u_avg_basilisk": 1.32276,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.32141,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.2,
+        "u_centerline_over_u_avg_basilisk": 1.26859,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.26751,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.4,
+        "u_centerline_over_u_avg_basilisk": 1.24732,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.24647,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.6,
+        "u_centerline_over_u_avg_basilisk": 1.25298,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.2523,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.8,
+        "u_centerline_over_u_avg_basilisk": 1.27867,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.27811,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.0,
+        "u_centerline_over_u_avg_basilisk": 1.31756,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.31706,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.2,
+        "u_centerline_over_u_avg_basilisk": 1.36339,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.36292,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.4,
+        "u_centerline_over_u_avg_basilisk": 1.41076,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.41029,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.6,
+        "u_centerline_over_u_avg_basilisk": 1.45532,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.45481,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.8,
+        "u_centerline_over_u_avg_basilisk": 1.49385,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49328,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.0,
+        "u_centerline_over_u_avg_basilisk": 1.52436,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5237,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.2,
+        "u_centerline_over_u_avg_basilisk": 1.54599,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.54523,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.4,
+        "u_centerline_over_u_avg_basilisk": 1.55884,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.55798,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.6,
+        "u_centerline_over_u_avg_basilisk": 1.5638,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.56284,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.8,
+        "u_centerline_over_u_avg_basilisk": 1.56221,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.56118,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.0,
+        "u_centerline_over_u_avg_basilisk": 1.55569,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.55461,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.2,
+        "u_centerline_over_u_avg_basilisk": 1.54592,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5448,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.4,
+        "u_centerline_over_u_avg_basilisk": 1.53446,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.53333,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.6,
+        "u_centerline_over_u_avg_basilisk": 1.52269,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.52156,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.8,
+        "u_centerline_over_u_avg_basilisk": 1.51169,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.51057,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.0,
+        "u_centerline_over_u_avg_basilisk": 1.50223,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50114,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.2,
+        "u_centerline_over_u_avg_basilisk": 1.49479,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49373,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.4,
+        "u_centerline_over_u_avg_basilisk": 1.48956,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48854,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.6,
+        "u_centerline_over_u_avg_basilisk": 1.48648,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.4855,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.8,
+        "u_centerline_over_u_avg_basilisk": 1.48535,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48439,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.0,
+        "u_centerline_over_u_avg_basilisk": 1.48582,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48489,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.2,
+        "u_centerline_over_u_avg_basilisk": 1.48749,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48658,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.4,
+        "u_centerline_over_u_avg_basilisk": 1.48995,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48905,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.6,
+        "u_centerline_over_u_avg_basilisk": 1.4928,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49191,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.8,
+        "u_centerline_over_u_avg_basilisk": 1.49572,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49482,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.0,
+        "u_centerline_over_u_avg_basilisk": 1.49843,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49753,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.2,
+        "u_centerline_over_u_avg_basilisk": 1.50075,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49984,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.4,
+        "u_centerline_over_u_avg_basilisk": 1.50257,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50165,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.6,
+        "u_centerline_over_u_avg_basilisk": 1.50384,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5029,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.8,
+        "u_centerline_over_u_avg_basilisk": 1.50457,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50363,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 10.0,
+        "u_centerline_over_u_avg_basilisk": 1.50483,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50387,
+        "mesh_level": 5,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.0,
+        "u_centerline_over_u_avg_basilisk": 0.0,
+        "u_centerline_over_u_avg_analytic_waters_king": 0.000184744,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.2,
+        "u_centerline_over_u_avg_basilisk": 0.599976,
+        "u_centerline_over_u_avg_analytic_waters_king": 0.599738,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.4,
+        "u_centerline_over_u_avg_basilisk": 1.19814,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.19825,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.6,
+        "u_centerline_over_u_avg_basilisk": 1.76249,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.76311,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 0.8,
+        "u_centerline_over_u_avg_basilisk": 2.20632,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.20699,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.0,
+        "u_centerline_over_u_avg_basilisk": 2.46608,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.46619,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.2,
+        "u_centerline_over_u_avg_basilisk": 2.55113,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.55066,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.4,
+        "u_centerline_over_u_avg_basilisk": 2.51117,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.51044,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.6,
+        "u_centerline_over_u_avg_basilisk": 2.39541,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.39471,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 1.8,
+        "u_centerline_over_u_avg_basilisk": 2.23754,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.23695,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.0,
+        "u_centerline_over_u_avg_basilisk": 2.05844,
+        "u_centerline_over_u_avg_analytic_waters_king": 2.05795,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.2,
+        "u_centerline_over_u_avg_basilisk": 1.87323,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.87279,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.4,
+        "u_centerline_over_u_avg_basilisk": 1.69567,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.69524,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.6,
+        "u_centerline_over_u_avg_basilisk": 1.5386,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5382,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 2.8,
+        "u_centerline_over_u_avg_basilisk": 1.4121,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.41177,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.0,
+        "u_centerline_over_u_avg_basilisk": 1.32165,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.32141,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.2,
+        "u_centerline_over_u_avg_basilisk": 1.26768,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.26751,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.4,
+        "u_centerline_over_u_avg_basilisk": 1.24659,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.24647,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.6,
+        "u_centerline_over_u_avg_basilisk": 1.25241,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.2523,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 3.8,
+        "u_centerline_over_u_avg_basilisk": 1.27824,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.27811,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.0,
+        "u_centerline_over_u_avg_basilisk": 1.31725,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.31706,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.2,
+        "u_centerline_over_u_avg_basilisk": 1.36322,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.36292,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.4,
+        "u_centerline_over_u_avg_basilisk": 1.41076,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.41029,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.6,
+        "u_centerline_over_u_avg_basilisk": 1.45559,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.45481,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 4.8,
+        "u_centerline_over_u_avg_basilisk": 1.49456,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49328,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.0,
+        "u_centerline_over_u_avg_basilisk": 1.52578,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5237,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.2,
+        "u_centerline_over_u_avg_basilisk": 1.54843,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.54523,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.4,
+        "u_centerline_over_u_avg_basilisk": 1.56251,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.55798,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.6,
+        "u_centerline_over_u_avg_basilisk": 1.56845,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.56284,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 5.8,
+        "u_centerline_over_u_avg_basilisk": 1.5673,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.56118,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.0,
+        "u_centerline_over_u_avg_basilisk": 1.56075,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.55461,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.2,
+        "u_centerline_over_u_avg_basilisk": 1.5506,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5448,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.4,
+        "u_centerline_over_u_avg_basilisk": 1.53856,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.53333,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.6,
+        "u_centerline_over_u_avg_basilisk": 1.52603,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.52156,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 6.8,
+        "u_centerline_over_u_avg_basilisk": 1.51408,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.51057,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.0,
+        "u_centerline_over_u_avg_basilisk": 1.50359,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50114,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.2,
+        "u_centerline_over_u_avg_basilisk": 1.49517,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49373,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.4,
+        "u_centerline_over_u_avg_basilisk": 1.48917,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48854,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.6,
+        "u_centerline_over_u_avg_basilisk": 1.48566,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.4855,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 7.8,
+        "u_centerline_over_u_avg_basilisk": 1.4844,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48439,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.0,
+        "u_centerline_over_u_avg_basilisk": 1.485,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48489,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.2,
+        "u_centerline_over_u_avg_basilisk": 1.48695,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48658,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.4,
+        "u_centerline_over_u_avg_basilisk": 1.48976,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.48905,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.6,
+        "u_centerline_over_u_avg_basilisk": 1.49298,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49191,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 8.8,
+        "u_centerline_over_u_avg_basilisk": 1.49622,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49482,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.0,
+        "u_centerline_over_u_avg_basilisk": 1.49919,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49753,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.2,
+        "u_centerline_over_u_avg_basilisk": 1.50171,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.49984,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.4,
+        "u_centerline_over_u_avg_basilisk": 1.50366,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50165,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.6,
+        "u_centerline_over_u_avg_basilisk": 1.50501,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.5029,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 9.8,
+        "u_centerline_over_u_avg_basilisk": 1.50579,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50363,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      },
+      {
+        "t_over_lambda": 10.0,
+        "u_centerline_over_u_avg_basilisk": 1.50607,
+        "u_centerline_over_u_avg_analytic_waters_king": 1.50387,
+        "mesh_level": 6,
+        "L2_flag": 1.0
+      }
+    ],
+    "columns": [
+      "t_over_lambda",
+      "u_centerline_over_u_avg_basilisk",
+      "u_centerline_over_u_avg_analytic_waters_king",
+      "mesh_level (4=16x16, 5=32x32, 6=64x64)",
+      "L2_flag (1 for Oldroyd-B)"
+    ],
+    "steady_u_centerline_over_u_avg_target": 1.5,
+    "row_count": 153
+  },
+  "tolerance_pass_fail": {
+    "u_centerline_at_t10_64x64_vs_analytic_abs": 0.005,
+    "u_centerline_at_t10_64x64_vs_analytic_rel": 0.005
+  },
+  "notes": "Domain Y in [-1, 1]; u nondimensionalised by u_avg_steady; the .ref pairs Basilisk vs Waters-King analytic at t/lambda in {0.0, 0.2, ..., 10.0}."
+}

@@ -45,6 +45,7 @@ const sectionedSidebar: Record<string, any[]> = {
   '/architecture': section('Guide'),
   '/users/krk-reference': section('Guide'),
   '/users/incompressible-navier-stokes': section('Guide'),
+  '/users/simulation-state-checkpoints': section('Guide'),
   // Examples (grouped by physics; two pages re-homed from users/tutorials/)
   '/users/tutorials/': section('Examples'),
   '/examples/': section('Examples'),
@@ -55,6 +56,7 @@ const sectionedSidebar: Record<string, any[]> = {
   '/krk/': section('Reference'),
   '/api/': section('Reference'),
   '/theory/': section('Reference'),
+  '/references': section('Reference'),
   '/': flatSidebar,
 }
 

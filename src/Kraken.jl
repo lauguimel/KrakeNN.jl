@@ -20,6 +20,7 @@ include("platform/contract.jl")
 include("platform/solution.jl")   # LBM, LBMSolution, solve
 include("platform/sample.jl")     # sample
 include("platform/observe.jl")    # observe, predict, Prediction, observables
+include("platform/state.jl")      # AbstractSimulationState, StateSnapshot, advance!
 export AbstractProblem, AbstractMethod, AbstractSolution, AbstractObservable, AbstractClosure
 export Capability, ForwardSolve, GPUExecution, SteadyAdjoint, TransientAdjoint, FiniteDiff, NeuralClosure, SteadyResidual
 export capabilities
@@ -28,6 +29,13 @@ export observe, predict, Prediction, FieldProbe, LineProfile, FieldReduction
 export residual, adjoint_vjp
 export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldParams
 export ParameterSpace, loss, fit, CalibResult
+export AbstractSimulationState, StateSnapshot, CheckpointError
+export init_state, advance!, solution, restore_state
+export update_parameter!, updatable_parameters, export_state, check_compatible
+# Client hooks stay unexported (extend as Kraken.snapshot, Kraken.validate_snapshot,
+# Kraken.at_boundary, Kraken.check_updatable, Kraken.migrate).
+export CHECKPOINT_CONTAINER_VERSION, write_checkpoint, read_checkpoint, checkpoint_info
+export save_checkpoint, load_checkpoint
 
 # --- Lattice definitions ---
 include("lattice/lattice.jl")
@@ -38,7 +46,9 @@ include("lattice/d3q19.jl")
 include("rheology/models.jl")
 include("rheology/viscosity.jl")
 include("rheology/strain_rate.jl")
+include("rheology/gnf_3d.jl")
 include("rheology/linalg.jl")
+include("rheology/linalg_3d.jl")
 
 # --- GPU kernels ---
 include("kernels/equilibrium_helpers.jl")
@@ -46,6 +56,7 @@ include("kernels/equilibrium_helpers_3d.jl")
 include("kernels/collide_stream_2d.jl")
 include("kernels/collide_stream_3d.jl")
 include("kernels/stream_periodic_2d.jl")
+include("kernels/stream_periodic_3d.jl")
 include("kernels/collide_guo_2d.jl")
 include("kernels/collide_guo_3d.jl")
 include("kernels/macroscopic.jl")
@@ -73,6 +84,9 @@ include("kernels/aa_bgk_2d.jl")
 include("kernels/persistent_bgk_2d.jl")
 include("kernels/advect_prescribed_2d.jl")
 include("kernels/collide_rheology_2d.jl")
+include("rheology/gnf_cell.jl")
+include("kernels/collide_gnf_cell_2d.jl")
+include("kernels/stream_transpose_2d.jl")
 include("kernels/collide_twophase_rheology_2d.jl")
 include("kernels/viscoelastic_2d.jl")
 
@@ -80,6 +94,7 @@ include("kernels/viscoelastic_2d.jl")
 include("kernels/dsl/lbm_spec.jl")
 include("kernels/dsl/bricks.jl")
 include("kernels/dsl/bricks_3d.jl")
+include("kernels/dsl/bricks_gnf_3d.jl")
 include("kernels/dsl/lbm_builder.jl")
 
 # --- Kernels built from the DSL (must come after li_bb_2d.jl + DSL) ---
@@ -150,14 +165,31 @@ include("kernels/enzyme_rules.jl")
 include("drivers/basic.jl")
 include("drivers/cylinder_libb.jl")
 include("drivers/thermal.jl")
+include("drivers/natconv_gnf_2d.jl")
 include("drivers/ehd_poisson.jl")
+include("drivers/ehd_phi_ddf.jl")
 include("drivers/ehd.jl")
+include("drivers/ehd_ec_state.jl")
+include("drivers/ehd_ec_checkpoint.jl")
 include("drivers/ehd_ec.jl")
 include("drivers/axisymmetric.jl")
 include("drivers/multiphase.jl")
 include("drivers/rheology.jl")
+include("drivers/gnf_periodic_steady.jl")
 include("drivers/viscoelastic_spec.jl")
 include("drivers/viscoelastic.jl")
+# --- 3D viscoelastic kernels (need OldroydB/LogConfOldroydB from
+#     viscoelastic_spec.jl; logconf kernels need rheology/linalg_3d.jl;
+#     all need li_bb_3d_v2 + D3Q19 symbols already included above) ---
+include("kernels/conformation_lbm_3d.jl")
+include("kernels/viscoelastic_3d.jl")
+include("kernels/logconformation_lbm_3d.jl")
+include("kernels/logconformation_fv_3d.jl")
+include("drivers/viscoelastic_3d.jl")
+include("drivers/viscoelastic_couette_3d.jl")
+include("drivers/viscoelastic_poiseuille_3d.jl")
+include("drivers/viscoelastic_fvfd_3d.jl")
+include("drivers/viscoelastic_fvfd_extensional_3d.jl")
 include("drivers/step_geometry_2d.jl")
 include("drivers/viscoelastic_logfv_2d.jl")
 
@@ -173,6 +205,11 @@ include("ad/ad_adjoint.jl")
 include("ad/ad_geometry.jl")
 include("ad/ad_api.jl")
 include("ad/ad_ve_geometry.jl")
+include("ad/gnf_adjoint.jl")       # steady GNF adjoint (Enzyme-free, any backend)
+include("ad/gnf_adjoint_operator.jl")
+include("ad/gnf_adjoint_gmres.jl")
+include("ad/gnf_adjoint_gradient.jl")
+include("ad/gnf_adjoint_solvers.jl")
 
 # Phase 2a platform residual/VJP seam depends on AD param types and step maps.
 include("platform/residual.jl")
@@ -243,6 +280,7 @@ include("refinement/conservative_tree_krk_validation_2d.jl")
 # --- I/O ---
 include("io/vtk_writer.jl")
 include("io/diagnostics.jl")
+include("io/checkpoint_hdf5.jl")  # write_checkpoint, read_checkpoint (only HDF5 user)
 
 # --- Spatial boundary kernels ---
 include("kernels/boundary_spatial_2d.jl")
@@ -250,6 +288,7 @@ include("kernels/boundary_spatial_2d.jl")
 # --- Geometry ---
 include("geometry/Geometry.jl")
 include("drivers/obstacle_3d.jl")
+include("drivers/gnf_3d.jl")
 
 # --- Carved .krk runner support ---
 include("kernels/mesh_drag_2d.jl")
@@ -282,11 +321,12 @@ export opposite, cs2, equilibrium
 # Kernels
 export stream_2d!, collide_2d!, stream_3d!, collide_3d!
 export stream_periodic_x_wall_y_2d!, stream_fully_periodic_2d!, stream_periodic_x_axisym_2d!
+export stream_periodic_xz_wall_y_3d!, stream_periodic_xz_movingwall_y_3d!
 export stream_axisym_inlet_2d!
 export collide_guo_2d!, collide_guo_field_2d!
 export collide_guo_3d!, collide_guo_field_3d!
 export compute_macroscopic_2d!, compute_macroscopic_3d!, compute_macroscopic_forced_2d!
-export compute_macroscopic_forced_3d!, compute_macroscopic_pressure_2d!
+export compute_macroscopic_forced_3d!, compute_macroscopic_forced_field_3d!, compute_macroscopic_pressure_2d!
 export apply_zou_he_north_2d!, apply_zou_he_south_2d!
 export apply_zou_he_west_2d!, apply_zou_he_pressure_east_2d!, apply_zou_he_pressure_west_2d!, apply_extrapolate_east_2d!
 export apply_zou_he_top_3d!
@@ -300,6 +340,7 @@ export apply_bounce_back_walls_2d!, apply_bounce_back_wall_2d!
 export LBMConfig, omega, reynolds
 export initialize_2d, initialize_3d
 export run_cavity_2d, run_cavity_3d
+export run_gnf_channel_3d
 export run_poiseuille_2d, run_couette_2d
 export initialize_taylor_green_2d, run_taylor_green_2d
 export initialize_cylinder_2d, run_cylinder_2d, compute_drag_mea_2d
@@ -312,9 +353,12 @@ export CutLinkList, CutLinkList3D, build_cut_link_list_2d, build_cut_link_list_3
 export collide_thermal_2d!, compute_temperature_2d!
 export apply_fixed_temp_south_2d!, apply_fixed_temp_north_2d!
 export apply_fixed_temp_west_2d!, apply_fixed_temp_east_2d!
+export apply_fixed_temp_2d!
 export run_rayleigh_benard_2d, run_natural_convection_2d, run_natural_convection_refined_2d
+export run_natural_convection_gnf_2d, gnf_reference_scales, cavity_powerlaw
 export run_natural_convection_3d
 export run_electroconvection_2d
+export ECState, ECSolution
 export ThermalPatchArrays, create_thermal_patch_arrays, advance_thermal_refined_step!
 export collide_boussinesq_2d!, collide_boussinesq_vt_2d!, collide_boussinesq_vt_modified_2d!
 export fused_natconv_step!, fused_natconv_vt_step!
@@ -322,6 +366,7 @@ export collide_thermal_3d!, compute_temperature_3d!, collide_boussinesq_3d!
 export apply_fixed_temp_west_3d!, apply_fixed_temp_east_3d!
 export apply_fixed_temp_south_3d!, apply_fixed_temp_north_3d!
 export apply_fixed_temp_bottom_3d!, apply_fixed_temp_top_3d!
+export apply_fixed_temp_3d!
 export fused_bgk_step!, aa_even_step!, aa_odd_step!
 export fused_trt_step!, trt_rates
 export fused_trt_libb_step!, fused_trt_libb_v2_step!, fused_trt_libb_v2_hermite_step!, fused_trt_libb_v2_guo_field_step!, fused_trt_libb_v2_step_3d!, precompute_q_wall_cylinder
@@ -629,11 +674,37 @@ export OldroydB, FENEP, Saramito
 export StressFormulation, LogConfFormulation
 export effective_viscosity, effective_viscosity_thermal, thermal_shift_factor
 export strain_rate_magnitude_2d, strain_rate_magnitude_3d
+export fused_trt_gnf_libb_guo_field_step_3d!
 export collide_rheology_2d!, collide_rheology_guo_2d!, collide_rheology_thermal_2d!
 export collide_twophase_rheology_2d!
+# Steady GNF (per-cell pure functions, split/fused kernels, periodic-x driver)
+export gnf_moments_cell, gnf_feq_cell, gnf_strain_rate_cell, gnf_collide_cell
+export gnf_viscosity, gnf_cell_update
+export gnf_strain_rate_2d!, closure_eval!, collide_gnf_cell_2d!, collide_gnf_fused_2d!
+export gnf_macroscopic_post_2d!, gnf_step!, gnf_rest_state, run_gnf_periodic_steady
+# Steady GNF adjoint (local blocks, JVP/VJP, gauge-bordered GMRES, parameter gradient)
+export stream_periodic_x_wall_y_transpose_2d!
+export GNFLinearisation, GNFStepOperator, GNFBorderedAdjoint, GNFVelocityObs
+export gnf_linearise, gnf_active_mask, gnf_post_moments, gnf_jvp!, gnf_vjp!, gnf_gmres!
+export gnf_obs_values, gnf_obs_objective, gnf_obs_rhs, gnf_adjoint_solve
+export gnf_parameter_gradient, gnf_steady_gradient, gnf_power_iteration, gnf_adjoint_series
+export gnf_pack_state, gnf_unpack_state, gnf_step_state
+export gnf_steady_adjoint, gnf_obs_grad_u, gnf_velocity_rhs, gnf_nu_sensitivity
+export GNFKStepAdjoint, gnf_adjoint_fixed_point, gnf_adjoint_kstep_solve, gnf_adjoint_power!, gnf_tangent_power!
 
 # Viscoelastic
 export eigen_sym2x2, mat_exp_sym2x2, mat_log_sym2x2, decompose_velocity_gradient
+# 3D viscoelastic (Oldroyd-B confined sphere + planar Couette)
+export run_conformation_sphere_libb_3d
+export run_conformation_couette_libb_3d
+export run_conformation_poiseuille_libb_3d
+export eigen_sym3x3, mat_exp_sym3x3, mat_log_spd_sym3x3
+export apply_hermite_source_3d!, update_polymer_stress_3d!
+export compute_polymeric_force_3d!, fused_trt_libb_v2_guo_field_step_3d!
+export init_conformation_field_3d!, collide_conformation_3d!
+export compute_conformation_macro_3d!, apply_cnebb_conformation_3d!
+export apply_cnebb_conformation_y_walls_3d!
+export reset_conformation_inlet_3d!, reset_conformation_outlet_3d!
 export compute_polymeric_force_2d!
 export evolve_stress_2d!, evolve_logconf_2d!
 export compute_stress_from_conf_2d!, compute_stress_from_logconf_2d!
@@ -673,8 +744,10 @@ export contraction_step_geometry_2d, backward_facing_step_geometry_2d,
        square_obstacle_channel_geometry_2d
 export transfer_step_geometry_2d, parabolic_face_profile_2d
 export oldroydb_inlet_conformation_profile_2d, default_step_bcspec_2d
-export AbstractPolymerModel, LogConfOldroydB, update_polymer_stress!
-export uses_log_conformation
+export AbstractPolymerModel, LogConfOldroydB, LogConfFENEP, LogConfGiesekus,
+       LogConfPTT, update_polymer_stress!
+export uses_log_conformation, polymer_max_extensibility, polymer_mobility,
+       polymer_ptt_epsilon, polymer_ptt_variant
 export AbstractPolymerWallBC, CNEBB, CNEBBQAware, CNEBBField,
        CNEBBFieldEquilibrium,
        CNEBBEqGradient, CNEBBCutLinkEqGradient, YLW_A, YLW_B, YLWBalanceOnly,

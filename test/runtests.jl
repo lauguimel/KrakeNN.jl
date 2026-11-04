@@ -1,9 +1,59 @@
 using Test
 using Kraken
 
+# KRAKEN_SKIP_AD=true drops every Enzyme-driven tier: the AD sensitivity tests
+# and the calibration twin experiments. Measured on 2026-09-15 (CI, Julia 1.11,
+# ubuntu-latest), those are 93 min of the suite's 165 min — 56% of wall-clock
+# for the seam that changes least often. The pull-request CI stage sets it; the
+# full suite on dev/platform and the nightly run do not.
+const SKIP_AD = get(ENV, "KRAKEN_SKIP_AD", "false") == "true"
+
+# KRAKEN_SKIP_VE3D=true drops the ten full 3D viscoelastic flow validations.
+# Measured 2026-09-16 on the non-AD suite, they are 52% of its wall-clock — and
+# unlike the cheap operator tests above them, their domain size IS the test:
+# shrinking them would mean loosening their analytical tolerances, which
+# AGENTS.md classes as a regression. So they move stage rather than shrink.
+const SKIP_VE3D = get(ENV, "KRAKEN_SKIP_VE3D", "false") == "true"
+
 if get(ENV, "KRAKEN_AD_ONLY", "false") == "true"
     include("ad/test_ad_sensitivity.jl")
     exit()
+end
+
+# KRAKEN_ONLY=<path relative to test/> runs a single test file and exits.
+#
+# Added because diagnosing the Enzyme segfault in ad/test_ad_ve_sensitivity.jl
+# had no cheap route: KRAKEN_AD_ONLY runs a different file, and reaching the
+# crashing one otherwise costs the whole suite — 2h45 on CI — per attempt.
+# The crash does not reproduce on macOS arm64 (verified 2026-09-16: 19/19 in
+# 22.5 s on Julia 1.11.9, with and without CUDA loaded), so it has to be
+# diagnosed on the CI platform itself.
+#
+#   KRAKEN_ONLY=ad/test_ad_ve_sensitivity.jl julia --project -e 'using Pkg; Pkg.test()'
+#
+# Or on CI: run the workflow manually and set the `only` input.
+let only = get(ENV, "KRAKEN_ONLY", "")
+    if !isempty(only)
+        isfile(only) || error("KRAKEN_ONLY: no such test file: $(only)")
+        @info "Running a single test file (KRAKEN_ONLY)" file=only
+        include(only)
+        exit()
+    end
+end
+
+# KRAKEN_ONLY=<relative path> runs a single test file and exits. Added because
+# diagnosing the Enzyme segfault in ad/test_ad_ve_sensitivity.jl had no cheap
+# route: KRAKEN_AD_ONLY runs a different file, and reaching the crashing one
+# otherwise means paying the whole suite (2h45 on CI) per attempt.
+#
+#   KRAKEN_ONLY=ad/test_ad_ve_sensitivity.jl julia --project -e 'using Pkg; Pkg.test()'
+let only = get(ENV, "KRAKEN_ONLY", "")
+    if !isempty(only)
+        isfile(only) || error("KRAKEN_ONLY: no such test file: $(only)")
+        @info "Running a single test file (KRAKEN_ONLY)" file=only
+        include(only)
+        exit()
+    end
 end
 
 # IncNS + solve-services tier (platform contract, linear-solve seam, Poisson
@@ -52,6 +102,7 @@ function run_incns_testset()
         include("analytical/incns_manifold.jl")   # fast (~4 s CPU): stays non-heavy
         include("analytical/incns_momentum_advection_order.jl")
         include("analytical/scalar_transport_heated_channel.jl")
+        include("analytical/scalar_transport_advection_order.jl")
 
         # Heavy validations (long CPU runs: Ghia cavities, MG MMS up to 512²) —
         # opt in via KRAKEN_TEST_HEAVY=true.
@@ -70,31 +121,52 @@ if get(ENV, "KRAKEN_INCNS_ONLY", "false") == "true"
     exit()
 end
 
+# Package metadata (offline, no GPU): weakdep UUIDs vs General registry (#61).
+include("platform/weakdeps_metadata_test.jl")
+
 @testset "Kraken.jl LBM" begin
     include("platform/contract_parity_test.jl")
+    include("platform/state_contract_test.jl")
     include("platform/residual_vjp_test.jl")
-    include("platform/calibration_test.jl")
-    include("platform/calibration_nufield_test.jl")
+    if SKIP_AD
+        @info "Skipping calibration twin experiments (KRAKEN_SKIP_AD=true)"
+    else
+        include("platform/calibration_test.jl")
+        include("platform/calibration_nufield_test.jl")
+    end
     include("test_lbm_basic.jl")
     include("test_poiseuille.jl")
     include("test_guo_convention_pairs.jl")
+    # Issue #67: TRT Guo-field brick injects exactly F per collision.
+    include("analytical/trt_guo_field_momentum.jl")
     # Issue #18: west/east pressure channel through the public .krk runner.
     include("analytical/H2-004-route.jl")
     include("test_poiseuille_3d.jl")
     include("test_couette.jl")
     include("test_taylor_green.jl")
     include("test_thermal.jl")
+    include("test_natconv_gnf.jl")
     # Issue #19: conduction .krk fallback honours nu, alpha and thermal faces.
     include("analytical/TH-002-route.jl")
     include("test_axisymmetric.jl")
     include("test_mrt.jl")
+    include("analytical/ehd_ec_split_parity_2d.jl")
+    include("analytical/EC-RESTART.jl")
+    include("analytical/EC-RESTART-CUDA.jl")
     include("analytical/ehd_hydrostatic_2d.jl")
+    include("analytical/ehd_static_moment_2d.jl")
+    include("analytical/ehd_transient_moment_2d.jl")
     include("analytical/ehd_krk_2d.jl")
+    include("analytical/EC-SIDEWALLS.jl") # Issue #21: selectable ECState flow walls.
     include("analytical/ehd_mapping_parity_2d.jl")
     include("analytical/ehd_mrt_smoke_2d.jl")
     # ~40 s: two 50k-cycle canaries bracketing the electroconvection onset.
     include("analytical/ehd_onset_2d.jl")
     include("analytical/ehd_phi_direct_2d.jl")
+    # Issue #23: the DDF potential solve stops on the field too. One case stays
+    # @test_broken (default settings, slow Poisson mode, issue #63).
+    include("analytical/ES-002-STOP.jl")
+    include("analytical/ehd_phi_ddf_solve_2d.jl")
     include("analytical/ehd_twin_parity_2d.jl")
     include("analytical/ehd_phi_gpu_parity_2d.jl")
     include("test_species.jl")
@@ -161,28 +233,91 @@ end
     include("test_twophase_rheology.jl")
     include("test_postprocess.jl")
     include("test_rheology.jl")
+    include("rheology/gnf_cell_test.jl")   # steady GNF forward (per-cell functions, driver)
+    include("ad/gnf_adjoint_test.jl")      # steady GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
+    include("analytical/gnf3d_strain_rate.jl")
+    include("analytical/gnf3d_channel_order.jl")
+    include("analytical/gnf3d_parity.jl")
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
+    # --- 3D viscoelastic tier (FVFD/FD transport + log-conformation, four
+    #     constitutive models, RheoTool cross-validation). This capability
+    #     lives only on this line; keep it registered here. ---
+    # Operator- and model-level 3D tests: cheap, and they are what catches a
+    # broken kernel. These always run.
+    include("test_fvfd_operators_3d.jl")
+    include("test_fvfd_boundary_stencils_3d.jl")
+    include("test_fvfd_logconf_3d.jl")
+    include("test_fvfd_fenep_3d.jl")
+    include("test_fvfd_giesekus_3d.jl")
+    include("test_fvfd_ptt_3d.jl")
+    include("test_fvfd_velocity_gradient_3d.jl")
+    # Known defects of the extensional driver (@test_broken), on a 12x12x4 box
+    # for 2 to 20 steps, so they run on the pull-request path and a fix shows
+    # its Unexpected Pass there:
+    # issue #68 (post-collision velocity read-back) and
+    # issue #69 (Zou-He faces skip k = 1 and k = Nz).
+    include("analytical/ve3d_ext_velocity_readback.jl")
+    include("analytical/ve3d_ext_zouhe_zplanes.jl")
+    # Full 3D flow validations: these must reach a developed state for the
+    # analytical comparison to mean anything, so they cannot be shrunk without
+    # loosening their gates. Measured 2026-09-16, they are 52% of the non-AD
+    # suite. KRAKEN_SKIP_VE3D=true moves them off the pull-request path; they
+    # still run on pushes to integration branches and nightly.
+    if SKIP_VE3D
+        @info "Skipping 3D viscoelastic flow validations (KRAKEN_SKIP_VE3D=true)"
+    else
+        include("test_viscoelastic_sphere_3d.jl")
+        include("test_viscoelastic_couette_3d.jl")
+        include("test_viscoelastic_poiseuille_3d.jl")
+        include("test_viscoelastic_fvfd_poiseuille_3d.jl")
+        include("test_fvfd_fenep_coupled_3d.jl")
+        include("test_fvfd_giesekus_coupled_3d.jl")
+        include("test_fvfd_ptt_coupled_3d.jl")
+        include("test_fvfd_poiseuille_payoff_3d.jl")
+        include("test_fvfd_extensional_3d.jl")
+        include("test_fvfd_fenep_extensional_3d.jl")
+    end
+    include("test_viscoelastic_extensional_krk.jl")
     # AD steady-sensitivity tests need the Enzyme extension (weakdep). Run only when Enzyme
     # is loadable in this environment; skip cleanly otherwise (guard the LOAD, not the tests,
     # so real AD test failures still surface when Enzyme IS present).
-    let enzyme_ok = try
-            @eval Main using Enzyme
-            true
-        catch
-            false
+    if SKIP_AD
+        @info "Skipping AD steady-sensitivity tests (KRAKEN_SKIP_AD=true)"
+    else
+        let enzyme_ok = try
+                @eval Main using Enzyme
+                true
+            catch
+                false
+            end
+            if enzyme_ok
+                include("ad/test_ad_sensitivity.jl")
+                include("ad/test_ad_ve_sensitivity.jl")
+                include("ad/test_ad_ve_fd_check.jl")
+                include("ad/gnf_adjoint_enzyme_test.jl")   # T4: GNF VJP vs Enzyme
+            else
+                @info "Skipping AD steady-sensitivity tests (Enzyme extension not loadable in this environment)"
+            end
         end
-        if enzyme_ok
-            include("ad/test_ad_sensitivity.jl")
-            include("ad/test_ad_ve_sensitivity.jl")
-        else
-            @info "Skipping AD steady-sensitivity tests (Enzyme extension not loadable in this environment)"
-        end
+    end
+
+    # Left-out modules: test files that exist but were never wired into the
+    # default run (conservative-tree AMR, multiblock extensions, SLBM + LI-BB,
+    # Gmsh drag, AMR-D publication checks). They are run only on request:
+    #   KRAKEN_TEST_EXPERIMENTAL=1 julia --project test/runtests.jl
+    # Their status is not guaranteed green; see the tracking issue before
+    # promoting one into the default list above.
+    if get(ENV, "KRAKEN_TEST_EXPERIMENTAL", "0") == "1"
+        include("experimental_tests.jl")
+    else
+        @info "Skipping experimental test modules (set KRAKEN_TEST_EXPERIMENTAL=1 to run)"
     end
 
     @testset "Kraken.Units" begin
         include("test_units.jl")
         include("test_units_stability.jl")
+        include("test_units_steady_state.jl")
         include("test_units_audit.jl")
         include("test_units_krk.jl")
         include("test_units_thermal.jl")

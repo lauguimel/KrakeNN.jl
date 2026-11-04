@@ -24,7 +24,7 @@ functions via `run_simulation`.
 | `compute_drag_mea_2d` | Drag coefficient via momentum-exchange (MEA) |
 | `run_rayleigh_benard_2d` | Rayleigh-Bénard convection driver |
 | `run_natural_convection_2d` | Natural convection driver — 2D |
-| `run_natural_convection_refined_2d` | Natural convection with nested grid refinement |
+| `run_natural_convection_refined_2d` | Natural convection with nested grid refinement (under development, not validated) |
 | `fused_natconv_step!` | Fused natconv collide+stream step |
 | `fused_natconv_vt_step!` | Fused natconv step (v/T formulation) |
 | `fused_bgk_step!` | Fused single-phase BGK collide+stream step |

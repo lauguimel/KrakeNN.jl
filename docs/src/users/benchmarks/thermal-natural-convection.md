@@ -23,6 +23,14 @@ and the crossing of the 1 % gate at N ≈ 384.
 | 10⁴  | Metal F32 | 320² | 2.259       | 2.238    | **+0.93 %** |
 | 10⁵  | Metal F32 | 384² | 4.544       | 4.509    | **+0.79 %** |
 
+!!! warning "Measured before the thermal walls moved (issue #97)"
+    The rows above, the convergence plot and the 3D numbers below were measured
+    when the thermal Dirichlet walls sat on the first and last nodes (cavity width
+    `N − 1`) while the no-slip walls sat half a spacing outside them (width `N`).
+    The thermal walls are now half-way too, so both cavities have width `N`. These
+    rows have not been re-run since; see
+    [Wall position](#wall-position-re-measured-on-cpu) for the numbers that have.
+
 Both mid-plane velocity extrema (`u_max*`, `v_max*`, normalised by `α/L`) are under
 1 % at every Ra. OpenFOAM independently corroborates de Vahl Davis at Ra = 10³
 (−0.56 %) and Ra = 10⁵ (−0.60 %) — two CFD codes (FVM SIMPLE and LBM) bracketing the
@@ -37,13 +45,49 @@ force `β g ∝ 1/N³ ≈ 10⁻⁹` LU sinks below the Float32 epsilon for `N �
 convection cell collapses toward conduction. Where both precisions are valid
 (Ra = 10⁴/10⁵ at N=128) **Metal-F32 and CPU-F64 agree on Nu to 0.07–0.09 %**.
 
+## Wall position (re-measured on CPU)
+
+The hot and cold walls use the half-way anti-bounce-back rule: each wall sits half
+a lattice spacing outside the first (last) node, exactly where the no-slip
+bounce-back wall of the flow sits. The cavity width is `H = N` for the flow, the
+temperature and the Rayleigh number. `Nu` is the hot-wall average of the
+second-order one-sided gradient through the wall value and the first two nodes,
+`∂T/∂n = (−8 T_w + 9 T_1 − T_2) / (3 Δx)`, over rows `2 … N − 1`.
+
+Measured 2026-11-03 with `run_natural_convection_2d`, CPU Float64, `ν = 0.05`,
+`Pr = 0.71`, run to a steady `Nu`: at `N = 64`, 30 000 steps at `Ra = 10³` and
+60 000 at `Ra = 10⁴`; doubling the step count moves `Nu` by less than `10⁻⁵` in
+both cases. The pure-conduction row uses `N = 32` and 40 000 steps; the `N = 96`
+rows ran 70 000 and 135 000 steps without a step-doubling check.
+
+| Case            | N  | Nu, on-node walls (before) | Nu, half-way walls (now) | Reference         |
+|-----------------|----|----------------------------|--------------------------|-------------------|
+| Ra = 0          | 32 | 1.0351                     | 1.0000049                | 1 (conduction)    |
+| Ra = 10³        | 64 | 1.1423 (+2.26 %)           | 1.1185 (+0.13 %)         | dVD Nu₀ = 1.117   |
+| Ra = 10⁴        | 64 | 2.3585 (+5.39 %)           | 2.2535 (+0.69 %)         | dVD Nu₀ = 2.238   |
+| Ra = 10³        | 96 | not measured               | 1.1183 (+0.12 %)         | dVD Nu₀ = 1.117   |
+| Ra = 10⁴        | 96 | not measured               | 2.2509 (+0.58 %)         | dVD Nu₀ = 2.238   |
+
+With the walls on the nodes, the thermal cavity was one spacing narrower than the
+flow cavity, an error of order `1/N` on `Nu`. Moving the walls removes it; at
+`N = 64` both Rayleigh numbers are now within 1 % of de Vahl Davis.
+
+In pure conduction the residual departure from `Nu = 1` does not come from the
+Dirichlet walls: with the other axes periodic, the half-way walls give the linear
+profile and `Nu = 1` to round-off (test suite, 2D and 3D). In the closed cavity the
+adiabatic bounce-back walls bend the profile near the top and bottom walls. The
+mid-height deviation from the linear profile decreases as `1/N²` (`5.2 × 10⁻⁵` at
+`N = 16`, `1.3 × 10⁻⁵` at `N = 32`), and `Nu − 1 = 3.1 × 10⁻⁴` at `N = 16`,
+`4.9 × 10⁻⁶` at `N = 32` (`1.4 × 10⁻³` for the 3D box at `N = 12`).
+
 ## Methodology
 
 **Kraken (thermal LBM, double-distribution D2Q9).** D2Q9 BGK flow + a second D2Q9
-distribution advecting temperature, with Boussinesq buoyancy `F = ρ β g (T − T₀)`
+distribution advecting temperature, with Boussinesq buoyancy `F = β g (T − T₀)` (the code applies no density factor)
 coupled back into the flow. Hot left wall (`T = 1`), cold right wall (`T = 0`),
-adiabatic top/bottom, all walls no-slip (halfway bounce-back). Driver
-`run_natural_convection_2d`, iterated to a steady Nusselt residual.
+adiabatic top/bottom, all walls no-slip (halfway bounce-back), hot and cold walls
+half-way anti-bounce-back (see [Wall position](#wall-position-re-measured-on-cpu)).
+Driver `run_natural_convection_2d`, iterated to a steady Nusselt residual.
 
 **OpenFOAM cross-check (`buoyantBoussinesqSimpleFoam`, FVM).** v2512 (local Docker),
 steady SIMPLE, laminar; Ra set by fixing `ν = 10⁻³`, `α = ν/Pr`, `β ΔT = 1`, varying
@@ -51,7 +95,7 @@ steady SIMPLE, laminar; Ra set by fixing `ν = 10⁻³`, `α = ν/Pr`, `β ΔT =
 
 **Reference.** de Vahl Davis, G. (1983), *Natural convection of air in a square cavity:
 a bench mark numerical solution*, Int. J. Numer. Methods Fluids 3, 249–264 — Pr = 0.71,
-Nu = 1.117 / 2.238 / 4.509 at Ra = 10³ / 10⁴ / 10⁵.
+hot-wall Nu₀ = 1.117 / 2.238 / 4.509 at Ra = 10³ / 10⁴ / 10⁵ (Table V; his cavity average Nu̅ is 1.118 / 2.243 / 4.519). Kraken computes a hot-wall mean, so this page compares with Nu₀.
 
 ## 3D — cubic cavity
 

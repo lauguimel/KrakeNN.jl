@@ -1,0 +1,24 @@
+# Giesekus 3D planar-extension canary for the KRK-VE-3D dispatch.
+# The production driver (run_viscoelastic_fvfd_extensional_3d) imposes the
+# planar-extension velocity field u = (epsilon_dot*x, -epsilon_dot*y, 0) on a
+# coarse box and advances psi = log(C) to the fixed point. No obstacle or
+# inflow/outflow geometry is needed: velocity_mode=:imposed.
+#
+# The Giesekus closure adds an anisotropic (quadratic) mobility term
+# controlled by alpha ∈ [0, 0.5]:
+#   dC/dt = ∇uᵀ·C + C·∇u − (1/λ)[ (C − I) + alpha·(C − I)² ].
+# At lambda = 50 and epsilon_dot = 0.005 (lambda*epsilon_dot = 0.25), Oldroyd-B
+# would reach C_xx = 1/(1 − 2*lambda*epsilon_dot) = 2.0; the mobility term
+# reduces this stretch (C_xx < 2). As alpha → 0 the result recovers the
+# Oldroyd-B planar-extension fixed point bit-identically.
+# beta = nu_s/(nu_s+nu_p) = 0.5 with nu_total = 0.1.
+Simulation extensional_giesekus D3Q19
+
+Define epsilon_dot = 0.005
+
+Domain L = 24 x 24 x 6  N = 24 x 24 x 6
+Physics epsilon_dot = epsilon_dot
+Rheology giesekus { nu_s = 0.05 nu_p = 0.05 lambda = 50 alpha = 0.2 }
+Module viscoelastic
+
+Run 1000 steps

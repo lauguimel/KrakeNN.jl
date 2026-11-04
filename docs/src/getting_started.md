@@ -115,9 +115,6 @@ populations.
 - Interested in thermal / buoyant flows?
   [Heat conduction](examples/07_heat_conduction.md),
   [Rayleigh–Bénard convection](examples/08_rayleigh_benard.md).
-- Need localized resolution?
-  [Grid refinement on the cavity](examples/10_krk_config.md) shows the
-  Filippova–Hänel patch mechanism.
 - Want to write your own case? Every example in the tutorial corpus is
   built from a `.krk` file, and the DSL is documented inline in the
   example pages.

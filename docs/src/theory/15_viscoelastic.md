@@ -43,7 +43,7 @@ derivative**:
 ```math
 \overset{\nabla}{\boldsymbol{\tau}_p}
     = \frac{\partial \boldsymbol{\tau}_p}{\partial t}
-    + \mathbf{u} \cdot \nabla \boldsymbol{\tau}_p}
+    + \mathbf{u} \cdot \nabla \boldsymbol{\tau}_p
     - \boldsymbol{\tau}_p \cdot \nabla\mathbf{u}
     - (\nabla\mathbf{u})^T \cdot \boldsymbol{\tau}_p
 ```
@@ -138,6 +138,26 @@ decompose_velocity_gradient(...)   # → (Ω12, B11, B22)
 
 All use analytical closed-form expressions with `atan`-based eigenvector
 computation, avoiding branches that would cause GPU warp divergence.
+
+## Which code path uses which model
+
+Two implementations coexist in `src/`:
+
+- The explicit-Euler upwind kernels described in the rest of this page
+  (`evolve_stress_2d!`, `evolve_logconf_2d!`, `compute_polymeric_force_2d!`)
+  are driven by `run_viscoelastic_cylinder_2d`, which selects the
+  formulation with a symbol (`formulation=:logconf`), not with the
+  `OldroydB`/`FENEP` structs above.
+- The production 2D and 3D drivers (`run_viscoelastic_logfv_*`,
+  `run_viscoelastic_fvfd_*` and the `.krk` viscoelastic dispatch in
+  `simulation_runner.jl`) evolve the log-conformation on a finite-volume
+  grid, with MUSCL-superbee advection by default, and take a polymer
+  closure of type `LogConfOldroydB`, `LogConfFENEP`, `LogConfGiesekus`
+  or `LogConfPTT` (`src/drivers/viscoelastic_spec.jl`). The 3D sphere
+  driver only accepts `OldroydBSpec` (Oldroyd-B in direct conformation form);
+  it refuses log-conformation models.
+- `Saramito` exists as a type and can be built from a `.krk` file, but
+  no viscoelastic driver consumes it yet.
 
 ## Coupling with LBM
 

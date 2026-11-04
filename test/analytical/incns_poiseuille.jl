@@ -86,7 +86,9 @@ end
     @test c.res.iters == 2
     @test maximum(c.res.u) ≈ 0.12499999999999806 atol=1e-14
     @test sum(c.res.u) ≈ 21.374999999999662 atol=1e-11
-    @test c.res.residual_history[end] ≈ 4.475027051936657e-16 atol=1e-28
+    # Round-off of a direct solve: about 4.5e-16 on macOS arm64, 5.1e-16 on
+    # Linux x86_64 (different BLAS/SuiteSparse kernels). A bound, not a literal.
+    @test c.res.residual_history[end] < 1e-13
 
     @test_throws ArgumentError incns_poiseuille_case(;
         nx = 4, ny = 8, momentum_advection = :quick)

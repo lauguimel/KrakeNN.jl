@@ -9,7 +9,8 @@ The log-conformation finite-volume viscoelastic solver (`_logfv`) **runs on this
 branch**: the driver `run_viscoelastic_logfv_cylinder_coupled_2d` is shipped and
 dispatched through the `viscoelastic` module, and a coarse smoke `.krk` is included
 so you can run the case end-to-end (see [Reproduce](@ref) below). The production
-`R = 50` tables were re-validated against rheoTool to **≤ 1 % on `C_d`** (Wi ≤ 1).
+`R = 50` tables were re-validated against rheoTool to **≤ 1 % on `C_d`** (`β = 0.59`,
+Wi ≤ 1).
 
 !!! note "Coarse smoke vs the production sweep"
     The shipped `.krk` is a *quick smoke* (240×32, R = 8, 20 steps) confirming the
@@ -47,14 +48,15 @@ fine-mesh **rheoTool** (OpenFOAM-based, Oldroyd-B log-conformation) reference ru
 
 This is the benchmark gate. At cylinder resolution `R = 50` (the production mesh),
 Kraken's drag matches the rheoTool fine-mesh references to **≤ 1 %** across the
-validated Weissenberg range, with the default half-way bounce-back wall treatment,
-in Float64:
+validated Weissenberg range (`β = 0.59`), with the default wall treatment (half-way
+bounce-back on the channel walls, interpolated bounce-back on the cylinder), in Float64 (values re-measured on 2026-10-14 after the TRT Guo forcing fix,
+#67; see the [Viscoelastic cylinder benchmark](../benchmarks/viscoelastic-cylinder.md)):
 
 | Wi  | rheoTool fine-mesh `C_d` | Kraken `C_d` vs reference |
 |-----|--------------------------|---------------------------|
-| 0.1 | 130.43                   | ≤ 1 %                     |
-| 0.5 | 119.71                   | ≤ 1 %                     |
-| 1.0 | 120.40                   | ≤ 1 %                     |
+| 0.1 | 130.43                   | −0.37 %                   |
+| 0.5 | 119.71                   | −0.66 %                   |
+| 1.0 | 120.40                   | −0.75 %                   |
 
 The drag-vs-`Wi` curve shows the expected non-monotone shape — a minimum near
 `Wi ≈ 0.5` followed by an upturn — reproducing the qualitative behaviour known for
@@ -62,14 +64,15 @@ this benchmark.
 
 ### Viscosity-ratio (`β`) cross-validation
 
-Sweeping the solvent fraction `β`, Kraken and rheoTool agree to **≤ 1 % at
-β = 0.3** (and at `β = 0.59`). Both codes diverge from each other at `β ≤ 0.1`,
-which is therefore a *cross-code-validated* hard regime — a shared wall, not a
-Kraken-specific defect.
+At `β = 0.3` (`R = 50`) Kraken's `C_d` is −1.33 % from rheoTool at `Wi = 0.5` and
++1.24 % at `Wi = 1`, outside the 1 % band that holds at `β = 0.59`. The rheoTool
+`β = 0.3`, `Wi = 1` reference is not steady at `t = 20` (`C_d` 109.7 → 106.8 → 107.3
+over `t = 15–20`), so that cell is not a validation point. At `β ≤ 0.1` Kraken returns
+NaN and rheoTool aborts, a regime neither code handles, not a Kraken-specific defect.
 
 ### Stability is not the same as convergence
 
-Kraken's half-way bounce-back cylinder is **NaN-free up to `Wi = 10`** at both
+Kraken's cylinder (interpolated bounce-back wall) is **NaN-free up to `Wi = 10`** at both
 `R = 30` and `R = 50` — well past the `Wi ≈ 1` ceiling typical of the
 LBM-viscoelastic literature, and without the High-Weissenberg-Number-Problem
 blow-up that limits many solvers.
@@ -121,8 +124,9 @@ CI-reproducible — they require an A100-class run.
 ## Summary
 
 - **Quantitative gate: passed.** `C_d` matches fine-mesh rheoTool to ≤ 1 % at
-  `Wi ∈ {0.1, 0.5, 1.0}`, `R = 50`, `Re = 1`, half-way bounce-back, Float64.
-- **`β` cross-validated** to ≤ 1 % at `β = 0.3`; shared divergence at `β ≤ 0.1`.
+  `Wi ∈ {0.1, 0.5, 1.0}`, `R = 50`, `Re = 1`, `β = 0.59`, default walls (half-way channel, interpolated cylinder), Float64.
+- **`β = 0.3`:** −1.33 % (`Wi = 0.5`) and +1.24 % (`Wi = 1`, unsteady rheoTool
+  reference) — outside the 1 % band; shared divergence at `β ≤ 0.1`.
 - **Stable (NaN-free) to `Wi = 10`**, but high-Wi `C_d` is resolution-divergent and
   unconverged — validated only for `Wi ≤ 1` (the qualitative min+upturn is
   reproduced).

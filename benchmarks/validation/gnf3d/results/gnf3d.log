@@ -1,0 +1,69 @@
+timestamp_utc=2026-11-02T15:01:37.780 julia=1.12.5 backend=CUDABackend smoke=false
+mode=GPU validation
+cuda_loaded=true
+CUDA toolchain: 
+- runtime 13.2, artifact installation
+- driver 610.57.4 for 13.3
+- compiler 13.3, artifact installation
+
+CUDA libraries: 
+- CUBLAS: 13.4.0
+- CURAND: 10.4.2
+- CUFFT: 12.2.0
+- CUSOLVER: 12.2.0
+- CUSPARSE: 12.7.10
+- CUPTI: 2026.1.1 (API 13.2.1)
+- NVML: 13.0.0+610.57.4
+
+Julia packages: 
+- CUDA: 5.11.3
+- GPUArrays: 11.5.16
+- GPUCompiler: 1.15.2
+- KernelAbstractions: 0.9.45
+- CUDA_Driver_jll: 13.3.6+0
+- CUDA_Compiler_jll: 0.4.4+1
+- CUDA_Runtime_jll: 0.21.0+1
+
+Toolchain:
+- Julia: 1.12.5
+- LLVM: 18.1.7
+
+Environment:
+- JULIA_CUDA_USE_COMPAT: false
+
+1 device:
+  0: NVIDIA A100-SXM4-40GB (sm_80, 39.512 GiB / 40.000 GiB available)
+Warm up model/precision kernels before measured runs.
+law=carreau q_w=0.5 N=32 FT=Float64 H=32.0 steps=19000 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10411206525287721, 0.2991911805931866) fluid_nu_range=(0.10411205369795185, 0.2991911399505496) finite=true
+err_L2=1.1582798852894317e-03 err_Linf=1.0802760079698709e-03 p_observed=NaN wall_s=4.681324 MLUPS=2.207922
+law=carreau q_w=0.5 N=64 FT=Float64 H=64.0 steps=60200 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10277532235250773, 0.2997975540282507) fluid_nu_range=(0.10277532163117871, 0.2997975514377247) finite=true
+err_L2=2.8958963528562899e-04 err_Linf=2.7059388466223834e-04 p_observed=1.9999020336 wall_s=13.820707 MLUPS=4.599707
+law=carreau q_w=0.5 N=128 FT=Float64 H=128.0 steps=179200 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10212191901270264, 0.29994937346872835) fluid_nu_range=(0.10212191939360767, 0.29994937330669597) finite=true
+err_L2=7.2407316983828061e-05 err_Linf=6.7718695398230296e-05 p_observed=1.9998025692 wall_s=41.203455 MLUPS=9.046232
+law=carreau q_w=0.5 N=256 FT=Float64 H=256.0 steps=471800 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10179886549250078, 0.29998734242778335) fluid_nu_range=(0.10179886723578724, 0.299987342418272) finite=true
+err_L2=1.8137407705075015e-05 err_Linf=1.6939074335960505e-05 p_observed=1.9971672205 wall_s=108.678802 MLUPS=17.920610
+law=carreau q_w=0.3 N=32 FT=Float64 H=31.6 steps=20800 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10305957039791507, 0.29917060820992963) fluid_nu_range=(0.10305955611439425, 0.2991705694384115) finite=true
+err_L2=1.7286829698563110e-03 err_Linf=1.5766013804238397e-03 p_observed=NaN wall_s=4.759722 MLUPS=2.377282
+law=carreau q_w=0.3 N=64 FT=Float64 H=63.6 steps=68800 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10225672692131507, 0.29979500055545316) fluid_nu_range=(0.1022567260518853, 0.29979499815254923) finite=true
+err_L2=4.2819180957335098e-04 err_Linf=3.9116177420586685e-04 p_observed=1.9951836316 wall_s=15.744828 MLUPS=4.614391
+law=carreau q_w=0.3 N=128 FT=Float64 H=127.6 steps=215600 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10186449613146371, 0.29994905559516616) fluid_nu_range=(0.10186449649286407, 0.2999490554469322) finite=true
+err_L2=1.0654637886723083e-04 err_Linf=9.7406390298251816e-05 p_observed=1.9977266190 wall_s=49.643196 MLUPS=9.033423
+law=carreau q_w=0.3 N=256 FT=Float64 H=255.6 steps=620800 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10167061808049678, 0.29998730278095365) fluid_nu_range=(0.101670619792113, 0.299987302772548) finite=true
+err_L2=2.6536603475006652e-05 err_Linf=2.4264206287574903e-05 p_observed=2.0009048716 wall_s=142.538537 MLUPS=17.978734
+law=power_thin q_w=0.5 N=32 FT=Float64 H=32.0 steps=18000 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10136995758535595, 0.441635805469525) fluid_nu_range=(0.101369917602391, 0.44154997123609246) finite=true
+err_L2=6.8560445143317028e-04 err_Linf=5.5507157614368514e-04 p_observed=NaN wall_s=4.101888 MLUPS=2.387193
+law=power_thin q_w=0.5 N=64 FT=Float64 H=64.0 steps=57600 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10067721236690305, 0.5943977156547796) fluid_nu_range=(0.10067720968101697, 0.5943355465928389) finite=true
+err_L2=1.7137590835894701e-04 err_Linf=1.3939930868018635e-04 p_observed=2.0002121636 wall_s=13.171265 MLUPS=4.618053
+law=power_thin q_w=0.5 N=128 FT=Float64 H=128.0 steps=174200 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10033670174806711, 0.8000000000000003) fluid_nu_range=(0.10033670181613548, 0.7999584981744849) finite=true
+err_L2=4.2848815477358289e-05 err_Linf=3.4974985556520496e-05 p_observed=1.9998370851 wall_s=40.109407 MLUPS=9.033691
+law=power_thick q_w=0.5 N=32 FT=Float64 H=32.0 steps=12800 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.03149802624737184, 0.09894729024201016) fluid_nu_range=(0.031506604174872645, 0.098947307613597) finite=true
+err_L2=7.8228731862107050e-04 err_Linf=1.2797608617602999e-03 p_observed=NaN wall_s=2.917403 MLUPS=2.386781
+law=power_thick q_w=0.5 N=64 FT=Float64 H=64.0 steps=41400 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.02500000000000001, 0.09947643019740982) fluid_nu_range=(0.02500285721436542, 0.09947643123640926) finite=true
+err_L2=2.0248574337928453e-04 err_Linf=4.1441528528069236e-04 p_observed=1.9498782439 wall_s=9.435921 MLUPS=4.633188
+law=power_thick q_w=0.5 N=128 FT=Float64 H=128.0 steps=129400 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.0198425131496025, 0.09973890220607257) fluid_nu_range=(0.019843441360510417, 0.09973890203919862) finite=true
+err_L2=5.1965903922706069e-05 err_Linf=1.3343244669613541e-04 p_observed=1.9621830824 wall_s=29.563726 MLUPS=9.104130
+law=power_thick q_w=0.5 N=256 FT=Float64 H=256.0 steps=374800 converged=true tol_ss=1.0e-10 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.015749013123685922, 0.09986962175567521) fluid_nu_range=(0.015749310624896373, 0.09986962080767163) finite=true
+err_L2=1.3236103890468372e-05 err_Linf=4.2737895864360269e-05 p_observed=1.9730868262 wall_s=83.328186 MLUPS=18.567240
+law=carreau q_w=0.5 N=128 FT=Float32 H=128.0 steps=4000 converged=true tol_ss=0.0002 check_every=200 reference_valid=true bounds_valid=true clamp_active=false reference_nu_range=(0.10212191901270264, 0.29994937346872835) fluid_nu_range=(0.10395414f0, 0.29994515f0) finite=true
+err_L2=1.0825863081328839e-02 err_Linf=1.3147481423466492e-02 p_observed=NaN wall_s=0.901351 MLUPS=9.230590
+rows_written=true validation_failures=0 csv=~/kraken_gnf3d/out/gnf3d_order.csv

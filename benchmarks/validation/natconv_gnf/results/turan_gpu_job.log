@@ -1,0 +1,416 @@
+gpu0n009
+1c70037
+Wed Nov  4 02:00:58 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 610.57.04              KMD Version: 610.57.04     CUDA UMD Version: 13.3     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-40GB          On  |   00000000:0B:00.0 Off |                    0 |
+| N/A   49C    P0             59W /  400W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+Precompiling packages...
+   2222.3 ms  ✓ IteratorInterfaceExtensions
+   2353.1 ms  ✓ LLVMLoopInfo
+   2290.0 ms  ✓ LaTeXStrings
+   2494.7 ms  ✓ OpenSSL_jll
+   2007.0 ms  ✓ Logging
+   2264.1 ms  ✓ ExprTools
+   2050.0 ms  ✓ UUIDs
+   2517.6 ms  ✓ NetworkOptions
+   2090.2 ms  ✓ MozillaCACerts_jll
+   2625.7 ms  ✓ AbstractFFTs
+   2259.1 ms  ✓ Statistics
+   2294.2 ms  ✓ CompilerSupportLibraries_jll
+   2588.1 ms  ✓ Serialization
+   1959.4 ms  ✓ TableTraits
+   2152.4 ms  ✓ nghttp2_jll
+   2104.1 ms  ✓ Reexport
+   2410.3 ms  ✓ Unicode
+   2266.7 ms  ✓ Zlib_jll
+   2605.2 ms  ✓ SuiteSparse_jll
+   2893.9 ms  ✓ LibSSH2_jll
+   2690.0 ms  ✓ HashArrayMappedTries
+   2648.1 ms  ✓ Adapt
+   5950.5 ms  ✓ CEnum
+   2627.1 ms  ✓ Base64
+   2007.0 ms  ✓ DataValueInterfaces
+   2462.4 ms  ✓ DataAPI
+   5185.4 ms  ✓ RandomNumbers
+   2796.7 ms  ✓ StaticArraysCore
+   7464.8 ms  ✓ ArgTools
+   3202.8 ms  ✓ p7zip_jll
+   3333.0 ms  ✓ Printf
+   6418.3 ms  ✓ CUDA_Runtime_Discovery
+   2537.9 ms  ✓ LibGit2_jll
+   2604.4 ms  ✓ LibCURL_jll
+   2659.9 ms  ✓ ScopedValues
+   4448.7 ms  ✓ Requires
+   3144.3 ms  ✓ GPUArraysCore
+  10645.9 ms  ✓ UnsafeAtomics
+   3189.6 ms  ✓ Tar
+   4604.2 ms  ✓ Random123
+   2951.0 ms  ✓ LibCURL
+   7649.8 ms  ✓ OrderedCollections
+   1852.5 ms  ✓ Atomix
+   9238.3 ms  ✓ Crayons
+   5579.6 ms  ✓ BFloat16s
+  12125.6 ms  ✓ MacroTools
+   4408.2 ms  ✓ Tables
+   8410.1 ms  ✓ Dates
+   7987.1 ms  ✓ LibGit2
+   1452.6 ms  ✓ TOML
+   1495.1 ms  ✓ Scratch
+   6249.0 ms  ✓ Downloads
+  13125.0 ms  ✓ SparseArrays
+    909.7 ms  ✓ Preferences
+    775.5 ms  ✓ Adapt → AdaptSparseArraysExt
+    844.6 ms  ✓ Statistics → SparseArraysExt
+    754.1 ms  ✓ PrecompileTools
+    917.6 ms  ✓ JLLWrappers
+   3037.3 ms  ✓ demumble_jll
+  21151.4 ms  ✓ StyledStrings
+   3245.9 ms  ✓ LibTracyClient_jll
+   3300.1 ms  ✓ NVTX_jll
+   4935.4 ms  ✓ CUDA_Driver_jll
+   1784.1 ms  ✓ Tracy
+   3001.5 ms  ✓ JuliaSyntaxHighlighting
+   4999.5 ms  ✓ StringManipulation
+   7064.8 ms  ✓ Markdown
+  13863.7 ms  ✓ StaticArrays
+    733.5 ms  ✓ StaticArrays → StaticArraysStatisticsExt
+    718.9 ms  ✓ Adapt → AdaptStaticArraysExt
+   2507.5 ms  ✓ InteractiveUtils
+   4976.6 ms  ✓ KernelAbstractions
+    849.1 ms  ✓ KernelAbstractions → LinearAlgebraExt
+   1085.8 ms  ✓ KernelAbstractions → SparseArraysExt
+  38314.6 ms  ✓ REPL
+  44734.8 ms  ✓ PrettyTables
+  90510.0 ms  ✓ Pkg
+   1004.5 ms  ✓ LazyArtifacts
+   1025.3 ms  ✓ JuliaNVTXCallbacks_jll
+   1592.0 ms  ✓ LLVMExtra_jll
+   1423.7 ms  ✓ NVTX
+   3292.3 ms  ✓ CUDA_Runtime_jll
+   6033.7 ms  ✓ Pkg → REPLExt
+  12569.4 ms  ✓ LLVM
+   1370.4 ms  ✓ LLVM → BFloat16sExt
+   1736.3 ms  ✓ GPUToolbox
+   1973.6 ms  ✓ UnsafeAtomics → UnsafeAtomicsLLVM
+   6639.7 ms  ✓ GPUArrays
+  32344.9 ms  ✓ CUDA_Compiler_jll
+  38998.0 ms  ✓ GPUCompiler
+  48682.6 ms  ✓ CUDA
+   4960.7 ms  ✓ Atomix → AtomixCUDAExt
+  92 dependencies successfully precompiled in 235 seconds
+CUDA toolchain: 
+- runtime 13.2, artifact installation
+- driver 610.57.4 for 13.3
+- compiler 13.3, artifact installation
+
+CUDA libraries: 
+- CUBLAS: 13.4.0
+- CURAND: 10.4.2
+- CUFFT: 12.2.0
+- CUSOLVER: 12.2.0
+- CUSPARSE: 12.7.10
+- CUPTI: 2026.1.1 (API 13.2.1)
+- NVML: 13.0.0+610.57.4
+
+Julia packages: 
+- CUDA: 5.11.3
+- GPUArrays: 11.5.16
+- GPUCompiler: 1.15.2
+- KernelAbstractions: 0.9.45
+- CUDA_Driver_jll: 13.3.6+0
+- CUDA_Compiler_jll: 0.4.4+1
+- CUDA_Runtime_jll: 0.21.0+1
+
+Toolchain:
+- Julia: 1.12.5
+- LLVM: 18.1.7
+
+Environment:
+- JULIA_CUDA_USE_COMPAT: false
+
+1 device:
+  0: NVIDIA A100-SXM4-40GB (sm_80, 39.512 GiB / 40.000 GiB available)
+Precompiling packages...
+   2566.0 ms  ✓ OpenLibm_jll
+   2834.0 ms  ✓ GMP_jll
+   3103.2 ms  ✓ VTKBase
+   2930.9 ms  ✓ Mmap
+   2853.9 ms  ✓ PCRE2_jll
+   2802.3 ms  ✓ Ratios
+   2577.9 ms  ✓ DiffResults
+   2929.3 ms  ✓ TranscodingStreams
+   2771.2 ms  ✓ CommonSubexpressions
+   2867.3 ms  ✓ WoodburyMatrices
+   4165.7 ms  ✓ FillArrays
+   4431.5 ms  ✓ OffsetArrays
+   5060.7 ms  ✓ DocStringExtensions
+   2875.1 ms  ✓ dlfcn_win32_jll
+   3149.8 ms  ✓ MPIPreferences
+   3191.5 ms  ✓ LLVMOpenMP_jll
+   3312.0 ms  ✓ Libmount_jll
+   3352.9 ms  ✓ aws_c_common_jll
+   3328.9 ms  ✓ Xorg_libpciaccess_jll
+   3564.3 ms  ✓ Bzip2_jll
+   3880.6 ms  ✓ libaec_jll
+   3316.5 ms  ✓ s2n_tls_jll
+   4119.8 ms  ✓ METIS_jll
+   8110.3 ms  ✓ IrrationalConstants
+   3437.8 ms  ✓ Xorg_libXau_jll
+   3460.2 ms  ✓ libpng_jll
+   3420.4 ms  ✓ Xorg_libXdmcp_jll
+   3199.3 ms  ✓ Xorg_xtrans_jll
+   3756.9 ms  ✓ LinearElasticity_jll
+   3648.4 ms  ✓ Expat_jll
+   3940.9 ms  ✓ JpegTurbo_jll
+   7297.9 ms  ✓ NaNMath
+   3971.4 ms  ✓ XZ_jll
+   7734.0 ms  ✓ Compat
+   3478.2 ms  ✓ Libiconv_jll
+   3387.8 ms  ✓ Libffi_jll
+  10677.6 ms  ✓ ChainRulesCore
+   3619.2 ms  ✓ FFTW_jll
+   3742.7 ms  ✓ OpenSpecFun_jll
+   3604.5 ms  ✓ Libuuid_jll
+   2503.7 ms  ✓ FillArrays → FillArraysStatisticsExt
+  13061.8 ms  ✓ Distributed
+   2244.7 ms  ✓ Compat → CompatLinearAlgebraExt
+   2888.9 ms  ✓ CodecZlib
+   2748.4 ms  ✓ FillArrays → FillArraysStaticArraysExt
+   3586.6 ms  ✓ AxisAlgorithms
+   3404.0 ms  ✓ FillArrays → FillArraysSparseArraysExt
+   3283.6 ms  ✓ Pixman_jll
+   5757.1 ms  ✓ IntelOpenMP_jll
+   2260.7 ms  ✓ CodecBzip2
+   3399.7 ms  ✓ aws_c_cal_jll
+   4863.4 ms  ✓ MPItrampoline_jll
+   2657.2 ms  ✓ LogExpFunctions
+   4121.6 ms  ✓ aws_checksums_jll
+   3072.4 ms  ✓ aws_c_sdkutils_jll
+   3111.2 ms  ✓ FreeType2_jll
+   6335.4 ms  ✓ LLVMDowngrader_jll
+   4109.3 ms  ✓ aws_c_compression_jll
+   7251.5 ms  ✓ oneTBB_jll
+   6322.8 ms  ✓ MicrosoftMPI_jll
+   2276.5 ms  ✓ OffsetArrays → OffsetArraysAdaptExt
+   2261.2 ms  ✓ AbstractFFTs → AbstractFFTsChainRulesCoreExt
+   4478.3 ms  ✓ SCOTCH_jll
+   3715.5 ms  ✓ XML2_jll
+   3217.9 ms  ✓ SharedArrays
+   3997.5 ms  ✓ GettextRuntime_jll
+   3484.4 ms  ✓ aws_c_io_jll
+   2240.8 ms  ✓ LightXML
+   7623.6 ms  ✓ Xorg_libxcb_jll
+   4502.2 ms  ✓ Fontconfig_jll
+   5489.7 ms  ✓ LogExpFunctions → LogExpFunctionsChainRulesCoreExt
+   3036.1 ms  ✓ Hwloc_jll
+   6716.2 ms  ✓ ChainRulesCore → ChainRulesCoreSparseArraysExt
+   5442.0 ms  ✓ MKL_jll
+   7117.7 ms  ✓ StaticArrays → StaticArraysChainRulesCoreExt
+   3364.2 ms  ✓ aws_c_http_jll
+   4323.5 ms  ✓ MMG_jll
+   4336.8 ms  ✓ Glib_jll
+   2821.8 ms  ✓ MPICH_jll
+   3364.6 ms  ✓ OpenMPI_jll
+   3846.2 ms  ✓ Xorg_libX11_jll
+   2825.1 ms  ✓ aws_c_auth_jll
+   8942.4 ms  ✓ SpecialFunctions
+   3994.9 ms  ✓ MPIABI_jll
+   5804.6 ms  ✓ WriteVTK
+   2678.5 ms  ✓ Xorg_libXrender_jll
+   2697.7 ms  ✓ Xorg_libXext_jll
+   2824.9 ms  ✓ Xorg_libXfixes_jll
+   2503.0 ms  ✓ DiffRules
+   3075.4 ms  ✓ aws_c_s3_jll
+   4157.8 ms  ✓ mpif_jll
+  14343.7 ms  ✓ CUDA → ChainRulesCoreExt
+   2708.1 ms  ✓ Xorg_libXinerama_jll
+   3446.9 ms  ✓ Xorg_libXft_jll
+   5898.3 ms  ✓ SpecialFunctions → SpecialFunctionsChainRulesCoreExt
+   3736.4 ms  ✓ Libglvnd_jll
+  22261.3 ms  ✓ ObjectiveC
+   9274.1 ms  ✓ Interpolations
+   4089.0 ms  ✓ Cairo_jll
+   2021.3 ms  ✓ GLU_jll
+   2469.2 ms  ✓ FLTK_jll
+   4688.7 ms  ✓ HDF5_jll
+  13464.6 ms  ✓ CUDA → SpecialFunctionsExt
+  17036.8 ms  ✓ FFTW
+   8232.9 ms  ✓ OCCT_jll
+  12134.9 ms  ✓ ForwardDiff
+    972.5 ms  ✓ ForwardDiff → ForwardDiffStaticArraysExt
+   1243.0 ms  ✓ Interpolations → InterpolationsForwardDiffExt
+   6219.0 ms  ✓ gmsh_jll
+  12217.7 ms  ✓ HDF5
+   2744.2 ms  ✓ Gmsh
+  34541.4 ms  ✓ Metal
+   2902.8 ms  ✓ Atomix → AtomixMetalExt
+   2884.6 ms  ✓ Metal → SpecialFunctionsExt
+  26566.0 ms  ✓ Kraken
+  115 dependencies successfully precompiled in 99 seconds. 92 already precompiled.
+┌ Info: Turan comparison hardware
+└   hardware = "device=NVIDIA A100-SXM4-40GB, Julia=1.12.5, precision=Float64, source=1c70037, thermal walls half-way (H = N)"
+┌ Info: Turan comparison row
+│   case = "RA3_N06"
+│   N = 64
+│   Nu = 1.9930759112886007
+│   steps = 46444
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 25.047778844833374
+┌ Info: Turan comparison row
+│   case = "RA3_N10"
+│   N = 64
+│   Nu = 1.1201025871897121
+│   steps = 61470
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 1.3325719833374023
+┌ Info: Turan comparison row
+│   case = "RA3_N18"
+│   N = 64
+│   Nu = 1.0088546741319178
+│   steps = 327680
+│   converged = true
+│   clamped = 0.0009765625
+└   wall_s = 6.964983940124512
+┌ Info: Turan comparison row
+│   case = "RA4_N06"
+│   N = 64
+│   Nu = 5.367834738786592
+│   steps = 38248
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 0.837568998336792
+┌ Info: Turan comparison row
+│   case = "RA4_N10"
+│   N = 64
+│   Nu = 2.298015031201991
+│   steps = 42346
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 0.921165943145752
+┌ Info: Turan comparison row
+│   case = "RA4_N18"
+│   N = 64
+│   Nu = 1.0880200444645751
+│   steps = 819200
+│   converged = false
+│   clamped = 0.001708984375
+└   wall_s = 17.30787491798401
+┌ Info: Turan comparison row
+│   case = "RA3_N06"
+│   N = 128
+│   Nu = 1.991695029024802
+│   steps = 180246
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 3.840862989425659
+┌ Info: Turan comparison row
+│   case = "RA3_N10"
+│   N = 128
+│   Nu = 1.1186468398878373
+│   steps = 245790
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 5.2330920696258545
+┌ Info: Turan comparison row
+│   case = "RA3_N18"
+│   N = 128
+│   Nu = 1.0087304068523353
+│   steps = 1376256
+│   converged = true
+│   clamped = 0.000244140625
+└   wall_s = 29.36343789100647
+┌ Info: Turan comparison row
+│   case = "RA4_N06"
+│   N = 128
+│   Nu = 5.3827737512403635
+│   steps = 152936
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 3.272233009338379
+┌ Info: Turan comparison row
+│   case = "RA4_N10"
+│   N = 128
+│   Nu = 2.28242303119102
+│   steps = 147474
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 3.16306209564209
+┌ Info: Turan comparison row
+│   case = "RA4_N18"
+│   N = 128
+│   Nu = 1.07139659514765
+│   steps = 3276800
+│   converged = false
+│   clamped = 0.05902099609375
+└   wall_s = 69.63855195045471
+┌ Info: Turan comparison row
+│   case = "RA3_N06"
+│   N = 256
+│   Nu = 1.9905309518190244
+│   steps = 720918
+│   converged = true
+│   clamped = 6.103515625e-5
+└   wall_s = 20.27741503715515
+┌ Info: Turan comparison row
+│   case = "RA3_N10"
+│   N = 256
+│   Nu = 1.1181441791281932
+│   steps = 1004916
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 28.170736074447632
+┌ Info: Turan comparison row
+│   case = "RA3_N18"
+│   N = 256
+│   Nu = 1.0086781222821184
+│   steps = 5636096
+│   converged = true
+│   clamped = 0.0001220703125
+└   wall_s = 158.84881210327148
+┌ Info: Turan comparison row
+│   case = "RA4_N06"
+│   N = 256
+│   Nu = 5.384026529603071
+│   steps = 611688
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 17.173907995224
+┌ Info: Turan comparison row
+│   case = "RA4_N10"
+│   N = 256
+│   Nu = 2.277413162584621
+│   steps = 567996
+│   converged = true
+│   clamped = 0.0
+└   wall_s = 15.821535110473633
+┌ Info: Turan comparison row
+│   case = "RA4_N18"
+│   N = 256
+│   Nu = 1.0645497066024785
+│   steps = 13107200
+│   converged = false
+│   clamped = 0.0802001953125
+└   wall_s = 365.2103669643402
+
+PBS Job 27562783.aqua
+CPU time         : 00:27:15
+Wall time        : 00:19:48
+Mem usage        : 3169104kb

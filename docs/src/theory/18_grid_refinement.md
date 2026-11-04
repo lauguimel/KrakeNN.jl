@@ -4,6 +4,9 @@ EditURL = "18_grid_refinement.jl"
 
 # Patch-Based Grid Refinement
 
+!!! warning "Under development"
+    Grid refinement (patch and conservative AMR) is under development and not validated; it is not part of the supported feature set. This page is unlisted and kept for reference only; see [Limitations](10_limitations.md).
+
 Uniform LBM grids are wasteful when the flow contains localized features
 (boundary layers, interfaces, wakes) that require high resolution.
 Kraken implements **patch-based static grid refinement** where

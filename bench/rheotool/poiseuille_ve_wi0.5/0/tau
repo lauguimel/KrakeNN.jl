@@ -1,0 +1,42 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|    \\/     M anipulation  | Version:  9                                     |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       volSymmTensorField;
+    object      tau;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [1 -1 -2 0 0 0 0];
+
+internalField   uniform (0 0 0 0 0 0);
+
+boundaryField
+{
+    inlet
+    {
+        type            cyclic;
+    }
+
+    outlet
+    {
+        type            cyclic;
+    }
+
+    walls
+    {
+        type            linearExtrapolation;
+        value           uniform (0 0 0 0 0 0);
+    }
+
+    frontAndBack
+    {
+        type            empty;
+    }
+}
+
+// ************************************************************************* //

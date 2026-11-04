@@ -1,16 +1,56 @@
 name: CI
 on:
+  # Integration branches only. Work branches are covered by pull_request,
+  # so listing them here too would run every suite twice.
   push:
-    branches: [main, lbm]
+    branches: [main, lbm, dev/platform]
   pull_request:
-    branches: [main]
+    branches: [main, dev/platform]
+  schedule:
+    # Nightly full suite on the default branch, 02:00 UTC.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Run a single test file (path relative to test/), e.g. ad/test_ad_ve_sensitivity.jl. Leave empty for the full suite.'
+        required: false
+        default: ''
+      check_bounds:
+        description: "Bounds checking for a single-file run: yes (what Pkg.test does), auto (honour @inbounds, as in production) or no."
+        required: false
+        default: 'yes'
+
+
+# A new push supersedes the run already in flight for the same PR or branch.
+# Without this, pushing four times in an hour queues four 2h45 suites and the
+# first three are already obsolete when they finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  # Pull-request stage. Drops the two most expensive tiers, both covered by
+  # `full` after merge and nightly:
+  #   - Enzyme-driven (AD sensitivity + calibration twins): 93 of 165 min,
+  #     measured 2026-09-15 on Julia 1.11.
+  #   - 3D viscoelastic flow validations: 52% of what remains, measured
+  #     2026-09-16.
+  # Neither is shrunk — their size is what they validate. Run the full suite on
+  # a PR on demand with workflow_dispatch.
+  quick:
+    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        julia-version: ['1.11', '1']
+        # Pin explicit versions instead of '1'. '1' tracks the latest 1.x
+        # (currently 1.13), which is outside the [compat] bounds declared in
+        # Project.toml and segfaults under Enzyme.
+        julia-version: ['1.11', '1.12']
         os: [ubuntu-latest]
+    env:
+      KRAKEN_SKIP_AD: "true"
+      KRAKEN_SKIP_VE3D: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -19,3 +59,86 @@ jobs:
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+
+  # README quickstart: the exact file the README shows, run on CPU. Fast
+  # (seconds after compilation), so it runs on every event.
+  quickstart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.11'
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      - name: Run examples/quickstart.jl
+        run: julia --project=. examples/quickstart.jl
+
+  # Everything else: pushes to integration branches, the nightly schedule, and
+  # manual dispatch. Full suite, AD included.
+  full:
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.os }}
+    env:
+      KRAKEN_ONLY: ${{ github.event.inputs.only }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.11', '1.12']
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      # Everything except the Enzyme-driven tiers, with bounds checks on (the
+      # Pkg.test default), or the single file named by the `only` input.
+      - uses: julia-actions/julia-runtest@v1
+        env:
+          KRAKEN_SKIP_AD: ${{ github.event.inputs.only == '' && 'true' || 'false' }}
+        with:
+          check_bounds: ${{ github.event.inputs.check_bounds || 'yes' }}
+      # The Enzyme-driven tiers, one file per step, with bounds checks as in
+      # production (auto). Under --check-bounds=yes Enzyme's reverse mode
+      # miscompiles the viscoelastic coupled step (#41) and the shape
+      # sensitivity thunks (#39): segfault or LLVM crash on x64 Linux, wrong
+      # gradient on arm64 macOS. The same reverse call is exact with the
+      # checks off (run 35586342207, both Julia versions).
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: platform/calibration_test.jl
+        with:
+          check_bounds: auto
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: platform/calibration_nufield_test.jl
+        with:
+          check_bounds: auto
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: ad/test_ad_sensitivity.jl
+        with:
+          check_bounds: auto
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: ad/test_ad_ve_sensitivity.jl
+        with:
+          check_bounds: auto
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: ad/test_ad_ve_fd_check.jl
+        with:
+          check_bounds: auto
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: ad/gnf_adjoint_enzyme_test.jl
+        with:
+          check_bounds: auto

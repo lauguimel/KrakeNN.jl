@@ -1,0 +1,3 @@
+* text eol=lf
+# Original NumPy exports used CRLF; preserve their frozen byte hashes.
+scalar/reference/*.csv -text

@@ -45,11 +45,29 @@ emit_code(::PullSLBM_3D) = quote
     fp19 = trilinear_f(f_in, i_dep[i,j,k,19], j_dep[i,j,k,19], k_dep[i,j,k,19], 19, Nx, Ny, Nz, periodic_ξ, periodic_η, periodic_ζ)
 end
 
-"Pull-stream D3Q19 with halfway-BB fallback at domain edges."
-struct PullHalfwayBB_3D <: LBMBrick end
+"""
+Pull-stream D3Q19 with halfway-BB fallback at domain edges.
+
+Parametrised by a compile-time `Bool` flag `PeriodicZ` selecting the z-boundary
+treatment (GPU-safe, zero-cost — the flag is a type parameter, so each variant
+compiles to a distinct branchless kernel, mirroring the M1 Val-dispatched scheme):
+
+- `PullHalfwayBB_3D()` ≡ `PullHalfwayBB_3D{false}()` (DEFAULT): no-slip
+  halfway-BB at k=1/k=Nz (and on the xz/yz edges that cross those z-faces).
+  Bit-identical to the original brick — sphere/obstacle callers are unaffected.
+- `PullHalfwayBB_3D{true}()`: PERIODIC z-wrap (km/kp addressing mirrored from
+  `stream_periodic_xz_wall_y_3d_kernel!` in stream_periodic_3d.jl). The x/y faces
+  keep the no-slip halfway-BB fallback; only the z-coupled populations
+  (fp6/fp7, fp12-15, fp16-19) wrap instead of bouncing. For the extensional
+  driver whose FVFD polymer side is already fully z-periodic.
+"""
+struct PullHalfwayBB_3D{PeriodicZ} <: LBMBrick end
+PullHalfwayBB_3D() = PullHalfwayBB_3D{false}()
 required_args(::PullHalfwayBB_3D) = (:f_in, :Nx, :Ny, :Nz)
 phase(::PullHalfwayBB_3D) = :pre_solid
-emit_code(::PullHalfwayBB_3D) = quote
+
+# DEFAULT (no-slip z): unchanged numerics — sphere/obstacle bit-identity.
+emit_code(::PullHalfwayBB_3D{false}) = quote
     # Neighbour indices are clamped (min/max) so the EAGER ifelse branch
     # (Julia `ifelse` evaluates BOTH arms) never reads out of bounds at a
     # domain edge — without the clamp, `f_in[i-1,...]` at i=1 segfaults
@@ -79,6 +97,42 @@ emit_code(::PullHalfwayBB_3D) = quote
     fp17 = ifelse(j < Ny && k > 1,    f_in[i,           min(j+1,Ny),  max(k-1,1),   17], f_in[i, j, k, 18])
     fp18 = ifelse(j > 1  && k < Nz,   f_in[i,           max(j-1,1),   min(k+1,Nz),  18], f_in[i, j, k, 17])
     fp19 = ifelse(j < Ny && k < Nz,   f_in[i,           min(j+1,Ny),  min(k+1,Nz),  19], f_in[i, j, k, 16])
+end
+
+# PERIODIC z: the z-coupled pops wrap (km/kp) instead of bouncing. x/y faces keep
+# the no-slip halfway-BB fallback identical to the {false} variant. km/kp mirror
+# `stream_periodic_xz_wall_y_3d_kernel!` (stream_periodic_3d.jl:32-33). The clamp
+# on i/j neighbours is retained for the same eager-ifelse safety reason.
+emit_code(::PullHalfwayBB_3D{true}) = quote
+    # Periodic z wrap source indices (pull from node − c_q in z).
+    kmz = ifelse(k > 1,  k - 1, Nz)   # source for +z populations (fp6, …)
+    kpz = ifelse(k < Nz, k + 1, 1)    # source for -z populations (fp7, …)
+    fp1  = f_in[i, j, k, 1]
+    # Axis-aligned x/y (no-slip halfway-BB, unchanged)
+    fp2  = ifelse(i > 1,              f_in[max(i-1,1),  j,            k,            2],  f_in[i, j, k, 3])
+    fp3  = ifelse(i < Nx,             f_in[min(i+1,Nx), j,            k,            3],  f_in[i, j, k, 2])
+    fp4  = ifelse(j > 1,              f_in[i,           max(j-1,1),   k,            4],  f_in[i, j, k, 5])
+    fp5  = ifelse(j < Ny,             f_in[i,           min(j+1,Ny),  k,            5],  f_in[i, j, k, 4])
+    # Axis z (PERIODIC wrap — no bounce)
+    fp6  = f_in[i, j, kmz, 6]
+    fp7  = f_in[i, j, kpz, 7]
+    # Edge xy: unchanged (no z component)
+    fp8  = ifelse(i > 1  && j > 1,    f_in[max(i-1,1),  max(j-1,1),   k,            8],  f_in[i, j, k, 11])
+    fp9  = ifelse(i < Nx && j > 1,    f_in[min(i+1,Nx), max(j-1,1),   k,            9],  f_in[i, j, k, 10])
+    fp10 = ifelse(i > 1  && j < Ny,   f_in[max(i-1,1),  min(j+1,Ny),  k,            10], f_in[i, j, k, 9])
+    fp11 = ifelse(i < Nx && j < Ny,   f_in[min(i+1,Nx), min(j+1,Ny),  k,            11], f_in[i, j, k, 8])
+    # Edge xz: both x and z periodic-ish — x keeps no-slip fallback, z wraps.
+    # When the x-fallback would fire (i at edge) we still bounce that link;
+    # otherwise pull from the x-neighbour at the z-wrapped plane.
+    fp12 = ifelse(i > 1,  f_in[max(i-1,1),  j, kmz, 12], f_in[i, j, k, 15])
+    fp13 = ifelse(i < Nx, f_in[min(i+1,Nx), j, kmz, 13], f_in[i, j, k, 14])
+    fp14 = ifelse(i > 1,  f_in[max(i-1,1),  j, kpz, 14], f_in[i, j, k, 13])
+    fp15 = ifelse(i < Nx, f_in[min(i+1,Nx), j, kpz, 15], f_in[i, j, k, 12])
+    # Edge yz: y keeps no-slip fallback, z wraps.
+    fp16 = ifelse(j > 1,  f_in[i, max(j-1,1),  kmz, 16], f_in[i, j, k, 19])
+    fp17 = ifelse(j < Ny, f_in[i, min(j+1,Ny), kmz, 17], f_in[i, j, k, 18])
+    fp18 = ifelse(j > 1,  f_in[i, max(j-1,1),  kpz, 18], f_in[i, j, k, 17])
+    fp19 = ifelse(j < Ny, f_in[i, min(j+1,Ny), kpz, 19], f_in[i, j, k, 16])
 end
 
 "Solid cells are INERT: rest-equilibrium populations on D3Q19."
@@ -172,6 +226,93 @@ emit_code(::CollideTRTDirect_3D) = quote
     f_out[i, j, k, 19] = fp19 - a * (fp19 - feq19) - b * (fp16 - feq16)
     f_out[i, j, k, 17] = fp17 - a * (fp17 - feq17) - b * (fp18 - feq18)
     f_out[i, j, k, 18] = fp18 - a * (fp18 - feq18) - b * (fp17 - feq17)
+end
+
+"TRT collision on D3Q19 with a per-cell Guo body force field (Fx_field, Fy_field, Fz_field), written directly to f_out. 3D analogue of `CollideTRTDirectGuoField` (D2Q9): the polymer ∇·τ_p body force enters EXACTLY ONCE, fused into the collision at the solvent rate, NO extra denominator. The Guo source is split into its even part (prefactor `1-s_plus/2`) and its odd part (prefactor `1-s_minus/2`), so the collision adds exactly F to the momentum for any TRT rates."
+struct CollideTRTDirectGuoField_3D <: LBMBrick end
+required_args(::CollideTRTDirectGuoField_3D) =
+    (:f_out, :s_plus, :s_minus, :Fx_field, :Fy_field, :Fz_field)
+emit_code(::CollideTRTDirectGuoField_3D) = quote
+    fx = Fx_field[i, j, k]
+    fy = Fy_field[i, j, k]
+    fz = Fz_field[i, j, k]
+    if fx != zero(T) || fy != zero(T) || fz != zero(T)
+        inv_ρ = one(T) / ρ
+        ux = (ρ * ux + fx / T(2)) * inv_ρ
+        uy = (ρ * uy + fy / T(2)) * inv_ρ
+        uz = (ρ * uz + fz / T(2)) * inv_ρ
+        usq = ux * ux + uy * uy + uz * uz
+    end
+
+    feq1  = feq_3d(Val(1),  ρ, ux, uy, uz, usq)
+    feq2  = feq_3d(Val(2),  ρ, ux, uy, uz, usq)
+    feq3  = feq_3d(Val(3),  ρ, ux, uy, uz, usq)
+    feq4  = feq_3d(Val(4),  ρ, ux, uy, uz, usq)
+    feq5  = feq_3d(Val(5),  ρ, ux, uy, uz, usq)
+    feq6  = feq_3d(Val(6),  ρ, ux, uy, uz, usq)
+    feq7  = feq_3d(Val(7),  ρ, ux, uy, uz, usq)
+    feq8  = feq_3d(Val(8),  ρ, ux, uy, uz, usq)
+    feq9  = feq_3d(Val(9),  ρ, ux, uy, uz, usq)
+    feq10 = feq_3d(Val(10), ρ, ux, uy, uz, usq)
+    feq11 = feq_3d(Val(11), ρ, ux, uy, uz, usq)
+    feq12 = feq_3d(Val(12), ρ, ux, uy, uz, usq)
+    feq13 = feq_3d(Val(13), ρ, ux, uy, uz, usq)
+    feq14 = feq_3d(Val(14), ρ, ux, uy, uz, usq)
+    feq15 = feq_3d(Val(15), ρ, ux, uy, uz, usq)
+    feq16 = feq_3d(Val(16), ρ, ux, uy, uz, usq)
+    feq17 = feq_3d(Val(17), ρ, ux, uy, uz, usq)
+    feq18 = feq_3d(Val(18), ρ, ux, uy, uz, usq)
+    feq19 = feq_3d(Val(19), ρ, ux, uy, uz, usq)
+    a = (s_plus + s_minus) * T(0.5)
+    b = (s_plus - s_minus) * T(0.5)
+
+    wr = T(1.0/3.0); wa = T(1.0/18.0); we = T(1.0/36.0)
+    t3 = T(3); t9 = T(9)
+    # Guo source S_q = w_q·[3·(c_q-u)·F + 9·(c_q·u)(c_q·F)]  (D3Q19), split into
+    # its even part S⁺_q = w_q·[9·(c_q·u)(c_q·F) - 3·u·F] (second moment uF + Fu)
+    # and its odd part S⁻_q = 3·w_q·c_q·F (first moment F). Each part takes the
+    # Crank–Nicolson factor of the rate that relaxes it:
+    #   (1 - s_plus/2)·S⁺_q + (1 - s_minus/2)·S⁻_q
+    # (TRT form of the MRT source (I - D/2)·M·S, D the diagonal matrix of
+    # relaxation rates; Silva 2020, Comput. Fluids 203, 104537,
+    # doi:10.1016/j.compfluid.2020.104537). With the F/2 equilibrium
+    # shift above, the first moment gains exactly F per collision for any
+    # (s_plus, s_minus); one (1 - s_plus/2) factor on the whole S_q injected
+    # (1 + (s_minus - s_plus)/2)·F. Pairs (q, q̄) share S⁺ and flip S⁻.
+    guo_even = one(T) - s_plus / T(2)
+    guo_odd  = one(T) - s_minus / T(2)
+    uF = ux*fx + uy*fy + uz*fz
+
+    Sp1     = wr * (-uF) * t3
+    Sp_2_3  = wa * (ux * fx * t9 - uF * t3);                Sm_2_3  = wa * fx * t3          # c2  = ( 1, 0, 0)
+    Sp_4_5  = wa * (uy * fy * t9 - uF * t3);                Sm_4_5  = wa * fy * t3          # c4  = ( 0, 1, 0)
+    Sp_6_7  = wa * (uz * fz * t9 - uF * t3);                Sm_6_7  = wa * fz * t3          # c6  = ( 0, 0, 1)
+    Sp_8_11 = we * ((ux+uy) * (fx+fy) * t9 - uF * t3);      Sm_8_11 = we * (fx+fy) * t3     # c8  = ( 1, 1, 0)
+    Sp_9_10 = we * ((-ux+uy) * (-fx+fy) * t9 - uF * t3);    Sm_9_10 = we * (-fx+fy) * t3    # c9  = (-1, 1, 0)
+    Sp_12_15 = we * ((ux+uz) * (fx+fz) * t9 - uF * t3);     Sm_12_15 = we * (fx+fz) * t3    # c12 = ( 1, 0, 1)
+    Sp_13_14 = we * ((-ux+uz) * (-fx+fz) * t9 - uF * t3);   Sm_13_14 = we * (-fx+fz) * t3   # c13 = (-1, 0, 1)
+    Sp_16_19 = we * ((uy+uz) * (fy+fz) * t9 - uF * t3);     Sm_16_19 = we * (fy+fz) * t3    # c16 = ( 0, 1, 1)
+    Sp_17_18 = we * ((-uy+uz) * (-fy+fz) * t9 - uF * t3);   Sm_17_18 = we * (-fy+fz) * t3   # c17 = ( 0,-1, 1)
+
+    f_out[i, j, k, 1]  = fp1  - s_plus * (fp1 - feq1)                     + guo_even * Sp1
+    f_out[i, j, k, 2]  = fp2  - a * (fp2  - feq2)  - b * (fp3  - feq3)  + guo_even * Sp_2_3   + guo_odd * Sm_2_3
+    f_out[i, j, k, 3]  = fp3  - a * (fp3  - feq3)  - b * (fp2  - feq2)  + guo_even * Sp_2_3   - guo_odd * Sm_2_3
+    f_out[i, j, k, 4]  = fp4  - a * (fp4  - feq4)  - b * (fp5  - feq5)  + guo_even * Sp_4_5   + guo_odd * Sm_4_5
+    f_out[i, j, k, 5]  = fp5  - a * (fp5  - feq5)  - b * (fp4  - feq4)  + guo_even * Sp_4_5   - guo_odd * Sm_4_5
+    f_out[i, j, k, 6]  = fp6  - a * (fp6  - feq6)  - b * (fp7  - feq7)  + guo_even * Sp_6_7   + guo_odd * Sm_6_7
+    f_out[i, j, k, 7]  = fp7  - a * (fp7  - feq7)  - b * (fp6  - feq6)  + guo_even * Sp_6_7   - guo_odd * Sm_6_7
+    f_out[i, j, k, 8]  = fp8  - a * (fp8  - feq8)  - b * (fp11 - feq11) + guo_even * Sp_8_11  + guo_odd * Sm_8_11
+    f_out[i, j, k, 11] = fp11 - a * (fp11 - feq11) - b * (fp8  - feq8)  + guo_even * Sp_8_11  - guo_odd * Sm_8_11
+    f_out[i, j, k, 9]  = fp9  - a * (fp9  - feq9)  - b * (fp10 - feq10) + guo_even * Sp_9_10  + guo_odd * Sm_9_10
+    f_out[i, j, k, 10] = fp10 - a * (fp10 - feq10) - b * (fp9  - feq9)  + guo_even * Sp_9_10  - guo_odd * Sm_9_10
+    f_out[i, j, k, 12] = fp12 - a * (fp12 - feq12) - b * (fp15 - feq15) + guo_even * Sp_12_15 + guo_odd * Sm_12_15
+    f_out[i, j, k, 15] = fp15 - a * (fp15 - feq15) - b * (fp12 - feq12) + guo_even * Sp_12_15 - guo_odd * Sm_12_15
+    f_out[i, j, k, 13] = fp13 - a * (fp13 - feq13) - b * (fp14 - feq14) + guo_even * Sp_13_14 + guo_odd * Sm_13_14
+    f_out[i, j, k, 14] = fp14 - a * (fp14 - feq14) - b * (fp13 - feq13) + guo_even * Sp_13_14 - guo_odd * Sm_13_14
+    f_out[i, j, k, 16] = fp16 - a * (fp16 - feq16) - b * (fp19 - feq19) + guo_even * Sp_16_19 + guo_odd * Sm_16_19
+    f_out[i, j, k, 19] = fp19 - a * (fp19 - feq19) - b * (fp16 - feq16) + guo_even * Sp_16_19 - guo_odd * Sm_16_19
+    f_out[i, j, k, 17] = fp17 - a * (fp17 - feq17) - b * (fp18 - feq18) + guo_even * Sp_17_18 + guo_odd * Sm_17_18
+    f_out[i, j, k, 18] = fp18 - a * (fp18 - feq18) - b * (fp17 - feq17) + guo_even * Sp_17_18 - guo_odd * Sm_17_18
 end
 
 "TRT collision on D3Q19 with PER-CELL relaxation rates s_plus[i,j,k], s_minus[i,j,k]. Writes directly to f_out[i,j,k,:]. Used by SLBM 3D on stretched curvilinear meshes (compute_local_omega_3d)."

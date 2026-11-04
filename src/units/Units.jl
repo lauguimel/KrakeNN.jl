@@ -195,6 +195,7 @@ function _shared_validation_issues(units::LBMUnits, spec::AbstractPhysicsSpec,
                                    disc::DiscretizationConfig, ::Type{T}) where {T}
     issues = Issue[]
     append!(issues, intrinsic_unit_issues(units, T))
+    append!(issues, steady_state_issues(units, geom, spec))
     append!(issues, check_stability(units, geom, bc, spec))
     append!(issues, audit_stl(geom, units).issues)
     append!(issues, check_bc_consistency(bc))
@@ -285,6 +286,7 @@ end
 
 include("physics_registry.jl")
 include("lattice_units.jl")
+include("steady_state.jl")
 include("stability_cone.jl")
 include("stl_audit.jl")
 include("bc_consistency.jl")

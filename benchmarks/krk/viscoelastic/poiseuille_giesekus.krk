@@ -1,0 +1,21 @@
+# Giesekus 3D planar-Poiseuille coupled canary for the KRK-VE-3D dispatch.
+# The production driver (run_viscoelastic_fvfd_poiseuille_3d) drives a periodic
+# x/z, no-slip half-way bounce-back y-wall channel with a D3Q19 solvent at nu_s
+# and a polymer feedback F_poly = ∇·τ_p. The conformation state is advanced in
+# symmetric log form ψ = log(C). The Giesekus closure adds an anisotropic
+# (quadratic) mobility term controlled by alpha ∈ [0, 0.5], which enhances
+# relaxation of stretched modes — producing shear-thinning and a bounded steady
+# response (reduced polymer stress / N1 relative to Oldroyd-B at the same Wi).
+# At alpha → 0 the result recovers Oldroyd-B bit-identically.
+#
+# beta = nu_s/(nu_s+nu_p) = 0.5, nu_total = 0.1, lambda = 10, Fx = 1e-5.
+Simulation poiseuille_giesekus D3Q19
+
+Define Fx = 1e-5
+
+Domain L = 6 x 32 x 6  N = 6 x 32 x 6
+Physics Fx = Fx
+Rheology giesekus { nu_s = 0.05 nu_p = 0.05 lambda = 10 alpha = 0.2 }
+Module viscoelastic
+
+Run 4000 steps

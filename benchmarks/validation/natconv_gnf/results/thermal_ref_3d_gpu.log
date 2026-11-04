@@ -1,0 +1,32 @@
+backend=cuda, Julia=1.12.5
+=== 3D Thermal Refinement — GPU validation (N=16, Float64) ===
+
+E.1 Pure conduction + west wall patch (β_g=0)
+  5000 steps in 12.0s (418 steps/s)
+  T error: 3.5102e-02, |ux|=6.94e-18
+  T range: [0.0268, 0.9876]
+  → FAILED
+
+E.2 Natural convection + wall patches (Ra=1e3)
+  step     1: |ux|=0.0000 |uy|=0.0005 T=[0.0222,0.9577] ✓
+  step   500: |ux|=0.1431 |uy|=0.2786 T=[0.0008,0.9518] ✓
+  step  1000: |ux|=0.1884 |uy|=0.5445 T=[0.0007,0.9419] ✓
+  step  1500: |ux|=0.2449 |uy|=0.4450 T=[0.0056,0.9004] ✓
+  step  2000: |ux|=0.3783 |uy|=0.2346 T=[0.0137,0.8401] ✓
+  step  2500: |ux|=0.3279 |uy|=0.2192 T=[0.0068,0.8663] ✓
+  step  3000: |ux|=0.2825 |uy|=0.1932 T=[0.0024,0.8887] ✓
+  step  3500: |ux|=0.2160 |uy|=0.1564 T=[0.0007,0.9284] ✓
+  step  4000: |ux|=0.1550 |uy|=0.2613 T=[0.0005,0.9515] ✓
+  step  4500: |ux|=0.1716 |uy|=0.3589 T=[0.0012,0.9463] ✓
+  step  5000: |ux|=0.1783 |uy|=0.3369 T=[0.0016,0.9443] ✓
+  5000 steps in 9.8s (511 steps/s)
+  T range: [0.0016, 0.9443]
+  |ux|=0.1783, |uy|=0.3369
+
+  Nu comparison (Ra=1e3, N=16):
+    Fusegi ref:       1.0850
+    Uniform:          1.0729  (err 1.12%)
+    Refined coarse:   7.1203  (err 556.25%)
+    Refined fine:     0.0857  (err 92.11%)
+
+  → STABLE (5000 steps)

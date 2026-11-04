@@ -201,6 +201,53 @@ const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
         @test :thermal in setup.modules
     end
 
+    @testset "Backend directive" begin
+        base = """
+        Simulation backend_test D2Q9
+        Domain L = 1 x 1  N = 8 x 8
+        Physics nu = 0.1
+        %BACKEND%
+        Boundary north velocity(ux = 0.1, uy = 0)
+        Boundary south wall
+        Boundary east  wall
+        Boundary west  wall
+        Run 5 steps
+        """
+
+        # No Backend directive at all -> setup.backend stays nothing (caller/
+        # default decides; a bare .krk file still defaults to CPU downstream).
+        no_backend_text = replace(base, "%BACKEND%\n" => "")
+        setup_nobackend = parse_kraken(no_backend_text)
+        @test setup_nobackend.backend === nothing
+
+        # Explicit cpu/cuda/metal all parse and are stored verbatim.
+        for name in ("cpu", "cuda", "metal")
+            setup = parse_kraken(replace(base, "%BACKEND%" => "Backend $name"))
+            @test setup.backend === Symbol(name)
+        end
+
+        # Case-insensitive.
+        setup_upper = parse_kraken(replace(base, "%BACKEND%" => "Backend CUDA"))
+        @test setup_upper.backend === :cuda
+
+        # Unknown backend name -> clear, actionable ArgumentError naming the
+        # offending token (never a silent fallback to cpu).
+        err = try
+            parse_kraken(replace(base, "%BACKEND%" => "Backend tpu"))
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin("tpu", err.msg)
+        @test occursin("cpu", err.msg)  # names the supported values
+
+        # A second Backend directive is rejected (mirrors the "only one
+        # Sensitivity/Units block" rule).
+        @test_throws ArgumentError parse_kraken(
+            replace(base, "%BACKEND%" => "Backend cpu\nBackend metal"))
+    end
+
     @testset "Error handling" begin
         # Missing Simulation line
         @test_throws ArgumentError parse_kraken("Domain L = 1 x 1 N = 32 x 32\nRun 100 steps")

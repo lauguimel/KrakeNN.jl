@@ -264,7 +264,7 @@ function validate_thermal_refinement_3d(; N=16, max_steps=3000)
     g_out = zeros(FT, Nx, Ny, Nz, 19)
     Temp  = zeros(FT, Nx, Ny, Nz)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT * (i - 1) / (Nx - 1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)   # half-way walls at x = 0.5, Nx + 0.5
         for q in 1:19; g_in[i,j,k,q] = FT(w[q]) * T_init; end
     end; copyto!(g_out, g_in)
 
@@ -306,9 +306,11 @@ function validate_thermal_refinement_3d(; N=16, max_steps=3000)
         collide_3d!(fo, is_solid, ω_f)
     end
 
+    # Post-restriction thermal call on the patched (west) face only: the
+    # half-way kernel flips the incoming slots, so the unpatched east wall,
+    # already set post-stream in the fused step, must not get a second call.
     bc_coarse = (f, g, Te, nx, ny, nz) -> begin
         apply_fixed_temp_west_3d!(g, T_hot, ny, nz)
-        apply_fixed_temp_east_3d!(g, T_cold, nx, ny, nz)
     end
 
     for step in 1:max_steps
@@ -326,7 +328,7 @@ function validate_thermal_refinement_3d(; N=16, max_steps=3000)
     T_cpu = Array(Temp)
     jm = N ÷ 2; km = N ÷ 2
     T_line = T_cpu[:, jm, km]
-    T_exact = [FT(T_hot - ΔT * (i - 1) / (Nx - 1)) for i in 1:Nx]
+    T_exact = [FT(T_hot - ΔT * (i - 0.5) / Nx) for i in 1:Nx]
     max_err = maximum(abs.(T_line .- T_exact))
     ux_max = maximum(abs, ux); uy_max = maximum(abs, uy)
     @printf("  T profile error: %.4e, |ux|=%.2e, |uy|=%.2e\n", max_err, ux_max, uy_max)
@@ -346,7 +348,7 @@ function validate_thermal_refinement_3d(; N=16, max_steps=3000)
     g_out2 = zeros(FT, Nx, Ny, Nz, 19)
     Temp2  = zeros(FT, Nx, Ny, Nz)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
-        T_init = FT(T_hot - ΔT * (i - 1) / (Nx - 1))
+        T_init = FT(T_hot - ΔT * (i - 0.5) / Nx)   # half-way walls at x = 0.5, Nx + 0.5
         for q in 1:19; g_in2[i,j,k,q] = FT(w[q]) * T_init; end
     end; copyto!(g_out2, g_in2)
 
@@ -392,6 +394,7 @@ function validate_thermal_refinement_3d(; N=16, max_steps=3000)
         collide_boussinesq_3d!(fo, Te, is_solid2, ω_f, β_g, T_ref)
     end
 
+    # Both walls carry a patch here, so both get the post-restriction call.
     bc_coarse2 = (f, g, Te, nx, ny, nz) -> begin
         apply_fixed_temp_west_3d!(g, T_hot, ny, nz)
         apply_fixed_temp_east_3d!(g, T_cold, nx, ny, nz)

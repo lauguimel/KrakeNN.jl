@@ -159,6 +159,46 @@ function compute_macroscopic_forced_3d!(ρ, ux, uy, uz, f, Fx, Fy, Fz)
     kernel!(ρ, ux, uy, uz, f, Fx, Fy, Fz; ndrange=(Nx, Ny, Nz))
 end
 
+# --- 3D force-corrected macroscopic with a per-cell force FIELD ---
+
+@kernel function compute_macroscopic_forced_field_3d_kernel!(ρ, ux, uy, uz, @Const(f),
+                                                              @Const(Fx), @Const(Fy), @Const(Fz))
+    i, j, k = @index(Global, NTuple)
+    @inbounds begin
+        T = eltype(f)
+        f1  = f[i,j,k,1];  f2  = f[i,j,k,2];  f3  = f[i,j,k,3]
+        f4  = f[i,j,k,4];  f5  = f[i,j,k,5];  f6  = f[i,j,k,6]
+        f7  = f[i,j,k,7];  f8  = f[i,j,k,8];  f9  = f[i,j,k,9]
+        f10 = f[i,j,k,10]; f11 = f[i,j,k,11]; f12 = f[i,j,k,12]
+        f13 = f[i,j,k,13]; f14 = f[i,j,k,14]; f15 = f[i,j,k,15]
+        f16 = f[i,j,k,16]; f17 = f[i,j,k,17]; f18 = f[i,j,k,18]
+        f19 = f[i,j,k,19]
+
+        ρ_local = f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8 + f9 + f10 +
+                  f11 + f12 + f13 + f14 + f15 + f16 + f17 + f18 + f19
+        inv_ρ = one(ρ_local) / ρ_local
+        ρ[i,j,k] = ρ_local
+        fx = Fx[i,j,k]; fy = Fy[i,j,k]; fz = Fz[i,j,k]
+        ux[i,j,k] = ((f2 - f3 + f8 - f9 + f10 - f11 + f12 - f13 + f14 - f15) + fx / T(2)) * inv_ρ
+        uy[i,j,k] = ((f4 - f5 + f8 + f9 - f10 - f11 + f16 - f17 + f18 - f19) + fy / T(2)) * inv_ρ
+        uz[i,j,k] = ((f6 - f7 + f12 + f13 - f14 - f15 + f16 + f17 - f18 - f19) + fz / T(2)) * inv_ρ
+    end
+end
+
+"""
+    compute_macroscopic_forced_field_3d!(ρ, ux, uy, uz, f, Fx, Fy, Fz)
+
+3D force-corrected macroscopic moments with PER-CELL force fields
+`Fx, Fy, Fz` (standard Guo `u = (Σf·c + F/2)/ρ` readout). Field analogue of
+`compute_macroscopic_forced_3d!`, consistent with `collide_guo_field_3d!`.
+"""
+function compute_macroscopic_forced_field_3d!(ρ, ux, uy, uz, f, Fx, Fy, Fz)
+    backend = KernelAbstractions.get_backend(f)
+    Nx, Ny, Nz = size(ρ)
+    kernel! = compute_macroscopic_forced_field_3d_kernel!(backend)
+    kernel!(ρ, ux, uy, uz, f, Fx, Fy, Fz; ndrange=(Nx, Ny, Nz))
+end
+
 # --- Pressure-based macroscopic (He-Chen-Zhang model) ---
 #
 # In the pressure-based formulation for two-phase flows:
