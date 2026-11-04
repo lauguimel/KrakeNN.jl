@@ -309,31 +309,34 @@ using Kraken
     end
 
     @testset "Pure conduction in the cavity drivers (Ra = 0)" begin
-        # Hot west and cold east half-way walls, adiabatic bounce-back on the
-        # other walls. The profile is not linear to round-off here: bounce-back
-        # of the diagonal populations at an adiabatic wall does not carry the
-        # wall-parallel gradient exactly, which bends the profile near the
-        # adiabatic walls (row 1 deviates by 2e-3 at N = 16, 1e-3 at N = 32).
-        # That floor is second order in the bulk. Measured 2026-11-03, CPU
-        # Float64; the former on-node walls (H = N - 1 profile, 3-point Nu)
-        # gave Nu - 1 = 7.2e-2 (2D, N = 16) and 1.07e-1 (3D, N = 12), and a
-        # mid-row deviation of 3.1e-2 from the half-way profile.
+        # Hot west and cold east half-way walls; the other walls are adiabatic
+        # and reflect the thermal populations specularly (v0.7), which keeps
+        # the wall-parallel flux: the profile is linear on every row, the
+        # wall rows included. What is left after these step counts is the
+        # decay of the initial transient (N = 32) or round-off; the steady
+        # round-off gates are in analytical/thermal_adiabatic_walls.jl.
+        # Measured 2026-11-04, CPU Float64. History: the former bounce-back
+        # of the diagonals bent the profile near the adiabatic walls (row 1
+        # off by 2e-3 at N = 16; Nu - 1 = -1.1e-2 at N = 16 and -2.9e-2 in 3D
+        # with Nu averaged over all rows), and the on-node walls before that
+        # gave Nu - 1 = 7.2e-2 (2D, N = 16) and 1.07e-1 (3D, N = 12).
         r16 = run_natural_convection_2d(; N=16, Ra=0.0, Pr=0.71, max_steps=8000)
         r32 = run_natural_convection_2d(; N=32, Ra=0.0, Pr=0.71, max_steps=20000)
-        middev(r, N) = maximum(abs(r.Temp[i, N ÷ 2] - (1 - (i - 0.5) / N)) for i in 1:N)
-        d16, d32 = middev(r16, 16), middev(r32, 32)
-        @test abs(r16.Nu - 1) < 1e-3     # measured 3.1e-4
-        @test abs(r32.Nu - 1) < 1e-4     # measured 4.9e-6
-        @test d16 < 1e-4                 # measured 5.2e-5
-        @test d16 / d32 > 3.5            # measured 4.04: second order
+        alldev(r, N) = maximum(abs(r.Temp[i, j] - (1 - (i - 0.5) / N)) for i in 1:N, j in 1:N)
+        d16, d32 = alldev(r16, 16), alldev(r32, 32)
+        @test abs(r16.Nu - 1) < 1e-11    # measured 6.9e-13
+        @test abs(r32.Nu - 1) < 1e-8     # measured 1.05e-9 (transient)
+        @test d16 < 1e-11                # measured 2.0e-13
+        @test d32 < 3e-9                 # measured 3.3e-10 (transient)
         @info "Cavity pure conduction: Nu-1 = $(r16.Nu - 1) (N=16), $(r32.Nu - 1) (N=32); " *
-              "mid-row deviation $(d16), $(d32)"
+              "max deviation over all rows $(d16), $(d32)"
 
         r3 = run_natural_convection_3d(; N=12, Ra=0.0, Pr=0.71, max_steps=6000)
-        d3 = maximum(abs(r3.Temp[i, 6, 6] - (1 - (i - 0.5) / 12)) for i in 1:12)
-        @test abs(r3.Nu - 1) < 3e-3      # measured 1.40e-3
-        @test d3 < 4e-4                  # measured 1.78e-4
-        @info "Box pure conduction: Nu-1 = $(r3.Nu - 1), mid-line deviation $(d3) (N=12)"
+        d3 = maximum(abs(r3.Temp[i, j, k] - (1 - (i - 0.5) / 12))
+                     for i in 1:12, j in 1:12, k in 1:12)
+        @test abs(r3.Nu - 1) < 1e-12     # measured 5.4e-14
+        @test d3 < 1e-13                 # measured 3.1e-15
+        @info "Box pure conduction: Nu-1 = $(r3.Nu - 1), max deviation $(d3) (N=12)"
     end
 
     @testset "Rayleigh-Bénard onset" begin
@@ -396,8 +399,10 @@ using Kraken
 
         Nu_ref = 1.118  # De Vahl Davis (1983)
         rel_err = abs(result.Nu - Nu_ref) / Nu_ref
-        # Measured 2026-11-03 (CPU Float64): Nu = 1.11851, +0.045 %. The former
-        # on-node walls gave 1.14226 (+2.17 %).
+        # Measured 2026-11-04 (CPU Float64), v0.7 (Nu averaged over all rows
+        # 1:N, specular adiabatic walls): Nu = 1.11754, -0.04 %. Before v0.7
+        # (rows 2:N-1, bounce-back of the diagonals at the adiabatic walls):
+        # 1.11851 (+0.045 %); the former on-node walls gave 1.14226 (+2.17 %).
         @test rel_err < 0.005
         @info "Natural convection Ra=1e3: Nu = $(round(result.Nu, digits=4)) " *
               "(ref = $Nu_ref, error = $(round(100*rel_err, digits=2))%)"

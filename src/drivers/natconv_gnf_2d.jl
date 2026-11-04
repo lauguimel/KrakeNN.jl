@@ -101,17 +101,20 @@ function cavity_powerlaw(n; nu0=0.05, alpha, H, nu_min=1e-4, nu_max=1.0)
     return PowerLaw(K, T(n); nu_min=T(nu_min), nu_max=T(nu_max))
 end
 
-# Exterior-link bounce-back belongs to stream_pull_node. Every stored node is
-# fluid, including the wall-adjacent nodes: no second solid-node bounce-back.
-# apply_thermal_bc_cavity is the half-way anti-bounce-back of fused_natconv_step!
-# (walls at x = 0.5 and N + 0.5), applied once per step after streaming.
+# Exterior-link bounce-back of the flow belongs to stream_pull_node. Every
+# stored node is fluid, including the wall-adjacent nodes: no second solid-node
+# bounce-back. The thermal populations stream as in fused_natconv_step!:
+# stream_pull_thermal_node reflects them specularly at the adiabatic top and
+# bottom walls (zero normal heat flux, tangential flux kept), and
+# apply_thermal_bc_cavity is the half-way anti-bounce-back of the Dirichlet
+# walls at x = 0.5 and N + 0.5, applied once per step after streaming.
 @kernel function _natconv_gnf_transport!(f_out, @Const(f_in), g_out, @Const(g_in),
                                         Temp, rho, ux_field, uy_field, Fx, Fy,
                                         N, omega_T, beta_g, T_ref, T_hot, T_cold)
     i, j = @index(Global, NTuple)
     @inbounds begin
         fp = stream_pull_node(f_in, i, j, N, N)
-        gp = apply_thermal_bc_cavity(stream_pull_node(g_in, i, j, N, N),
+        gp = apply_thermal_bc_cavity(stream_pull_thermal_node(g_in, i, j, N, N),
                                      i, j, N, N, T_hot, T_cold)
         temperature = gp[1]+gp[2]+gp[3]+gp[4]+gp[5]+gp[6]+gp[7]+gp[8]+gp[9]
         density, ux, uy, fy = macroscopic_boussinesq(fp, temperature, beta_g, T_ref)
@@ -127,17 +130,10 @@ end
     end
 end
 
-# Hot wall at x = 0.5 (half-way), nodes 1 and 2 at 0.5 and 1.5 spacings from it:
-# second-order one-sided gradient dT/dx|wall = (-8 T_w + 9 T_1 - T_2)/3, as in
-# run_natural_convection_2d; rows 2:N-1 averaged.
-function _gnf_hot_wall_nusselt(Temp, H, T_hot, delta_T)
-    T = eltype(Temp)
-    total = zero(T)
-    for j in 2:size(Temp, 2)-1
-        total += -H * (-8T_hot + 9Temp[1,j] - Temp[2,j]) / T(3) / delta_T
-    end
-    return total / (size(Temp, 2) - 2)
-end
+# Hot wall at x = 0.5 (half-way): same Nu as run_natural_convection_2d, the
+# second-order one-sided gradient averaged over all rows 1:N.
+_gnf_hot_wall_nusselt(Temp, H, T_hot, delta_T) =
+    _hot_wall_nusselt_2d(Temp, H, T_hot, delta_T)
 
 _gnf_clamped_fraction(::GeneralizedNewtonian, tau) = 0.0
 function _gnf_clamped_fraction(model::PowerLaw, tau)
@@ -155,8 +151,9 @@ end
 Run a differentially heated D2Q9 cavity with generalized Newtonian viscosity.
 Ra and Pr use the reference viscosity `nu0`, through [`gnf_reference_scales`](@ref);
 the local viscosity of `rheology` changes the flow but not the definition of
-Ra and Pr. West/east temperatures are fixed; top/bottom are adiabatic; all
-walls are no-slip. Thermal advection uses the pre-collision Guo velocity
+Ra and Pr. West/east temperatures are fixed; top/bottom are adiabatic (thermal
+populations reflected specularly, as in [`run_natural_convection_2d`](@ref));
+all walls are no-slip. Thermal advection uses the pre-collision Guo velocity
 `j/rho+F/(2rho)`. Each step streams both populations, computes the
 temperature from the thermal populations, applies the Boussinesq force, then
 calls `collide_rheology_thermal_2d!` for the viscosity-dependent collision.
@@ -194,7 +191,9 @@ Returns:
     by the last collision. `clamped_fraction` counts the final PowerLaw nodes
     at either cutoff divided by all N*N fluid nodes, not time-accumulated;
     models without explicit clamps report zero. `converged` concerns Nu only.
-    `Nu` is the hot-wall Nusselt number.
+    `Nu` is the hot-wall Nusselt number, with the definition of
+    `run_natural_convection_2d` (second-order one-sided wall gradient,
+    averaged over all rows `1:N`).
 
 Examples:
 ```julia

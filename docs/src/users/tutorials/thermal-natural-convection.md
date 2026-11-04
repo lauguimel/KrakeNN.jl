@@ -81,9 +81,11 @@ reproduce.
     This table was measured when the hot and cold walls sat on the first and last
     nodes, one lattice spacing closer together than the no-slip walls (issue #97).
     They now sit half a spacing outside those nodes, like the no-slip walls, and the
-    first-order error this caused is gone: on CPU Float64 at `N = 64`, `Nu` is
-    within 0.13 % (`Ra = 10³`) and 0.69 % (`Ra = 10⁴`) of de Vahl Davis. The
-    meshes above have not been re-measured.
+    first-order error this caused is gone. Since v0.7 the adiabatic walls also
+    reflect the thermal populations specularly and `Nu` is averaged over all
+    rows: on CPU Float64 at `N = 64`, `Nu` is within 0.05 % (`Ra = 10³`) and
+    0.23 % (`Ra = 10⁴`) of de Vahl Davis. The meshes above have not been
+    re-measured.
 
 ## Running it
 
@@ -129,8 +131,9 @@ that sharpen as `Ra` increases. The headline metric is the average **Nusselt
 number** `Nu` on the hot wall (the dimensionless wall heat flux). As reported on the
 [benchmark page](../benchmarks/thermal-natural-convection.md), Kraken lands at a
 Nu error of **+0.79 % / +0.93 % / +0.79 %** at `Ra = 10³ / 10⁴ / 10⁵` (measured
-with the former on-node thermal walls; with the current half-way walls, `N = 64`
-gives +0.13 % and +0.69 % at `Ra = 10³` and `10⁴`) versus de
+with the former on-node thermal walls; with the current half-way walls and
+the v0.7 adiabatic walls, `N = 64` gives +0.05 % and +0.23 % at `Ra = 10³` and
+`10⁴`) versus de
 Vahl Davis 1983, with both mid-plane velocity extrema under 1 %. OpenFOAM
 `buoyantBoussinesqSimpleFoam` independently corroborates the reference at the
 flanking `Ra = 10³` (−0.56 %) and `Ra = 10⁵` (−0.60 %).

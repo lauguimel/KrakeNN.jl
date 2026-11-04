@@ -90,10 +90,23 @@ T_i = T_{\mathrm{hot}} - (T_{\mathrm{hot}} - T_{\mathrm{cold}})\,\frac{i - 1/2}{
 ```
 
 and between two such walls with periodic side boundaries the scheme
-reproduces it to round-off. In a closed cavity the adiabatic side walls
-use bounce-back, which adds a small second-order departure along the
-side walls (``\mathrm{Nu} - 1 \approx 3\times10^{-4}`` at ``N = 16``,
-``5\times10^{-6}`` at ``N = 32``).
+reproduces it to round-off.
+
+In a closed cavity the side walls with no fixed temperature are
+adiabatic. There the thermal populations are reflected specularly: a
+population whose source lies across the wall takes the value of its
+mirror image: the post-collision population of the wall row, one step
+upstream along the wall, whose wall-normal velocity component is
+reversed. At the south wall, for instance,
+``g_6(i, 1) = g^*_9(i - 1, 1)`` and ``g_7(i, 1) = g^*_8(i + 1, 1)``. The
+normal heat flux through the wall is zero and the flux along it is
+kept, so the linear conduction profile is reproduced to round-off on
+every row, the wall rows included. Bouncing these diagonal populations
+back instead (Kraken before v0.7) reverses the flux along the wall on
+the wall rows and bends the profile there
+(``\mathrm{Nu} - 1 = -1.1\times10^{-2}`` at ``N = 16`` with Nu averaged
+over all rows). A population crossing a fixed-temperature wall keeps
+the anti-bounce-back rule above, corners included.
 
 Where two Dirichlet walls meet at a corner (an edge in 3D), the diagonal
 population whose link crosses both walls is an unknown of both, and
