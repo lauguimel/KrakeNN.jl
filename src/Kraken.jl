@@ -127,6 +127,7 @@ include("methods/inc_ns/manifold_flow.jl")
 include("methods/scalar_transport/thermal_transport.jl")
 include("methods/inc_ns/method.jl")   # platform-contract wrapper (IncNS <: AbstractMethod)
 include("methods/inc_ns/fv_steady_residual.jl")   # C1: steady FV residual (KA kernel, generic eltype)
+include("methods/inc_ns/fv_newton.jl")   # C2: coloured dual Jacobian + Newton on the seam
 
 # IncNS platform contract
 export IncNS, IncNSSolution
@@ -136,6 +137,11 @@ export FVGrid2D, FVSteadyProblem2D, fv_steady_problem, fv_residual!, fv_residual
        fv_index, fv_nunknowns,
        FV_BC_WALL, FV_BC_INLET, FV_BC_OUTLET, FV_BC_PERIODIC,
        FV_CELL_FLUID, FV_CELL_SOLID, FV_CELL_PINNED
+# Coloured dual Jacobian + Newton on the steady FV residual (C2)
+export fv_jacobian_pattern, fv_jacobian_coloring, FVJacobianTag, FVJacobianAssembler,
+       fv_jacobian_assembler, fv_assemble_jacobian!, fv_jacobian_chunk,
+       FVNewtonSolver, fv_newton_solver, fv_jacobian!, fv_newton!, fv_newton_finalize!,
+       solve_incns_fv_newton
 # IncNS / scalar-transport drivers
 export solve_incns_simple, solve_incns_cavity, solve_incns_cavity_mg,
        solve_incns_projection, solve_incns_manifold, manifold_full_cell_mask,
