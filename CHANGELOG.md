@@ -36,6 +36,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   Opt-in analytic diagnostics use wall-node coordinates (`y_mapping=:wall_nodes`),
   not the legacy interior half-link mapping; their errors are not directly
   comparable across closures. This does not establish complete EHD validation.
+- Linear-solve seam, opt-in additions (the existing `lin_factorize` /
+  `lin_solve!(cache, b)` calls are unchanged): `lin_refactorize!(cache[, A_new])`
+  re-runs the numeric factorization with new values on the same sparsity pattern,
+  reusing the symbolic analysis (CPU CHOLMOD/UMFPACK and cuDSS); in-place
+  `lin_solve!(x, cache, b)`; multiple right-hand sides `lin_solve!(cache, B)`;
+  transposed solves `lin_solve!(...; transpose = true)` and
+  `lin_supports_transpose(cache)`. On cuDSS the in-place solve and the device-side
+  refactorization allocate nothing on the Kraken side (preallocated staging
+  buffers). The cuDSS transposed solve requires CUDSS.jl >= 1.0: older versions
+  silently ignore the transpose mode, so Kraken raises an explicit error there
+  instead of returning `A \ b`. A different sparsity pattern is refused.
 - 3D generalised-Newtonian (GNF) flow on D3Q19 with TRT collision, linearly
   interpolated bounce-back walls and Guo forcing: `run_gnf_channel_3d` and the fused
   step `fused_trt_gnf_libb_guo_field_step_3d!`. Supports `PowerLaw`, `CarreauYasuda`
@@ -68,6 +79,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.
+- Compat widened to `CUDA = "5, 6"` and `CUDSS = "0.3, 0.4, 0.5, 0.6, 1"`
+  (CUDSS.jl 1.0 requires CUDA.jl 6). Existing CUDA.jl 5 environments keep
+  resolving; a fresh environment now resolves to CUDA.jl 6. LinearSolve.jl does
+  not yet allow CUDSS.jl 1.0, so an environment with both stays on CUDSS.jl <= 0.8
+  (no cuDSS transposed solve).
+- The EHD direct Poisson GPU solve writes into a preallocated device buffer
+  (`EhdPoissonSetupGPU.sol`) instead of allocating a vector each step.
 - Jiachen Zhao (Queensland University of Technology) joins the authors, second position, in `CITATION.cff`, `Project.toml` and the BibTeX entries of the README and the documentation home page. `CITATION.cff` now carries the ORCIDs of J. Zhao and E. Sauret.
 - Electroconvection `.krk` cases now apply paired `Boundary west wall` / `Boundary east wall` as stationary no-slip sidewalls instead of ignoring them; omitted sides retain free slip. Explicit non-lateral `Boundary` declarations are rejected because electrode/plate conditions are built into this driver.
 - Documentation numbers re-measured after the TRT Guo forcing fix (#67), same settings

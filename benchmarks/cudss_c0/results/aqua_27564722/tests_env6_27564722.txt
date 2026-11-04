@@ -1,0 +1,663 @@
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0
+
+--- poisson_cudss_gpu.jl ---
+┌ Info: cuDSS GPU Poisson parity
+│   N = 64
+│   Linf_dirichlet = 3.941291737419306e-14
+└   Linf_neumann = 1.5856205237696486e-12
+
+--- linear_solve_refactor_transpose.jl ---
+
+--- linear_solve_cudss_c0_gpu.jl ---
+┌ Info: cuDSS C0 GPU
+│   CUDA = v"6.4.1"
+│   CUDSS = v"1.0.0"
+└   transpose_native = true
+┌ Info: cuDSS C0 per-iteration CUDA.@allocated (bytes)
+│   allocs =
+│    10-element Vector{Int64}:
+│     0
+│     0
+│     0
+│     0
+│     ⋮
+│     0
+│     0
+└     0
+
+--- ehd_phi_gpu_parity_2d.jl ---
+┌ Info: EHD cuDSS GPU phi parity
+│   Nx = 31
+│   Ny = 48
+└   Linf = 2.1094237467877974e-14
+
+--- ehd_transient_moment_2d.jl ---
+┌ Info: Transient injector dispatch regression
+│   electrode_difference = 0.00028525019630253057
+└   roundoff_margin = 3.290241621673552e-16
+
+--- EC-SIDEWALLS.jl ---
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :bgk
+│   L = 8
+│   nu = 0.16666666666666666
+│   nsteps = 768
+│   err = 2.640911652439247e-9
+└   residual = 3.290951990086999e-8
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :bgk
+│   L = 8
+│   nu = 0.1
+│   nsteps = 1280
+│   err = 2.250536924862386e-9
+└   residual = 8.680519150705557e-9
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :bgk
+│   L = 16
+│   nu = 0.16666666666666666
+│   nsteps = 3072
+│   err = 2.6647449098178993e-9
+└   residual = 2.4806984591507764e-9
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :bgk
+│   L = 16
+│   nu = 0.1
+│   nsteps = 5120
+│   err = 2.5614219511342667e-9
+└   residual = 1.2477165134416879e-9
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :mrt
+│   L = 8
+│   nu = 0.16666666666666666
+│   nsteps = 768
+│   err = 3.13827543198653e-7
+└   residual = 3.290970239377966e-8
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :mrt
+│   L = 8
+│   nu = 0.1
+│   nsteps = 1280
+│   err = 1.8309036943307553e-7
+└   residual = 9.702667315425462e-9
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :mrt
+│   L = 16
+│   nu = 0.16666666666666666
+│   nsteps = 3072
+│   err = 7.536191433513172e-8
+└   residual = 2.4806746934391555e-9
+┌ Info: EC sidewall Poiseuille
+│   FT = Float64
+│   scheme = :mrt
+│   L = 16
+│   nu = 0.1
+│   nsteps = 5120
+│   err = 4.328587992143154e-8
+└   residual = 1.2839470805992015e-9
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float64, 3}
+│   FT = Float64
+│   scheme = :bgk
+│   force = -0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 8.367577250586267e-14
+│   gradient_error = 4.802824804528427e-13
+│   speed = 1.8964914559179232e-16
+│   density_change = 0.0
+│   velocity_change = 0.0
+└   mean_density = 0.9999999999995048
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float64, 3}
+│   FT = Float64
+│   scheme = :bgk
+│   force = 0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 1.1445589026483666e-13
+│   gradient_error = 6.299405441723138e-13
+│   speed = 2.312348789734361e-16
+│   density_change = 0.0
+│   velocity_change = 0.0
+└   mean_density = 0.9999999999994862
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float64, 3}
+│   FT = Float64
+│   scheme = :mrt
+│   force = -0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 1.4319043172098453e-12
+│   gradient_error = 3.220534949832654e-12
+│   speed = 5.147651993694308e-16
+│   density_change = 1.6884641832840921e-12
+│   velocity_change = 1.997203122452935e-15
+└   mean_density = 0.9999999999994309
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float64, 3}
+│   FT = Float64
+│   scheme = :mrt
+│   force = 0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 1.4171013831100633e-12
+│   gradient_error = 3.5904612616377563e-12
+│   speed = 6.193629668431664e-16
+│   density_change = 1.850371707708594e-12
+│   velocity_change = 2.1131956909635132e-15
+└   mean_density = 0.9999999999994328
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :bgk
+│   L = 8
+│   nu = 0.16666667f0
+│   nsteps = 768
+│   err = 5.411792f-5
+└   residual = 0.0f0
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :bgk
+│   L = 8
+│   nu = 0.1f0
+│   nsteps = 1280
+│   err = 8.420857f-5
+└   residual = 0.0f0
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :bgk
+│   L = 16
+│   nu = 0.16666667f0
+│   nsteps = 3072
+│   err = 0.00011092577f0
+└   residual = 0.0f0
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :bgk
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 5120
+│   err = 0.00043677728f0
+└   residual = 0.0f0
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :mrt
+│   L = 8
+│   nu = 0.16666667f0
+│   nsteps = 768
+│   err = 7.383507f-5
+└   residual = 1.4901161f-6
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :mrt
+│   L = 8
+│   nu = 0.1f0
+│   nsteps = 1280
+│   err = 0.00011263255f0
+└   residual = 6.798655f-6
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :mrt
+│   L = 16
+│   nu = 0.16666667f0
+│   nsteps = 3072
+│   err = 0.0002655717f0
+└   residual = 1.3038516f-6
+┌ Info: EC sidewall Poiseuille
+│   FT = Float32
+│   scheme = :mrt
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 5120
+│   err = 0.0004818145f0
+└   residual = 5.2154064f-6
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float32, 3}
+│   FT = Float32
+│   scheme = :bgk
+│   force = -0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 6.639849493820974e-5
+│   gradient_error = 0.0005633289059130409
+│   speed = 2.023653564720007e-7
+│   density_change = 0.0
+│   velocity_change = 0.0
+└   mean_density = 1.0000604706652023
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float32, 3}
+│   FT = Float32
+│   scheme = :bgk
+│   force = 0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 8.49742750557349e-5
+│   gradient_error = 0.0006287640197095712
+│   speed = 1.5915192532461864e-7
+│   density_change = 0.0
+│   velocity_change = 9.500041037247e-9
+└   mean_density = 1.0000488898333382
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float32, 3}
+│   FT = Float32
+│   scheme = :mrt
+│   force = -0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 0.00011238295914855467
+│   gradient_error = 0.0007620110601833652
+│   speed = 2.0211122375712876e-7
+│   density_change = 0.00034769376997326206
+│   velocity_change = 2.6034985722844795e-7
+└   mean_density = 1.0001158188371098
+┌ Info: EC sidewall hydrostatic
+│   backend = CPU(false)
+│   population_type = Array{Float32, 3}
+│   FT = Float32
+│   scheme = :mrt
+│   force = 0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 0.00012046618066081607
+│   gradient_error = 0.0014234926367913125
+│   speed = 1.2216437033079088e-7
+│   density_change = 0.00018626451962853324
+│   velocity_change = 3.3526930836391737e-7
+└   mean_density = 1.0000824507545023
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: LBM parameters
+│   N = 9×17, lattice = D2Q9
+│   Ma = 0.1732, U_ref = 0.1
+│   Modules: ehd
+└   Steps: 2
+┌ Warning: Sanity check [resolution]: N = 9 is very coarse — insufficient for quantitative results.
+└ @ Kraken ~/kraken_c0/src_c0/src/io/krk/diagnostics.jl:331
+┌ Info: EC-SIDEWALLS CUDA identity
+│   julia_version = v"1.12.5"
+│   kraken_path = "~/kraken_c0/src_c0/src/Kraken.jl"
+└   device = CuDevice(0): NVIDIA A100-SXM4-40GB
+CUDA toolchain: 
+- runtime 13.4.0, artifact installation
+- driver 610.57.4 for CUDA 13.3
+- compiler 13.4.92, artifact installation
+
+CUDA libraries: 
+- cuBLAS: 13.8.0
+- cuSPARSE: 12.8.6
+- cuSOLVER: 12.3.5
+- cuFFT: 12.4.0
+- cuRAND: 10.4.4
+- CUPTI: 2026.3.1 (API 13.4.1)
+- NVML: 13.0.0+610.57.4
+
+Julia packages: 
+- CUDACore: 6.4.1
+- GPUArrays: 11.5.16
+- GPUCompiler: 2.10.0
+- KernelAbstractions: 0.9.45
+- CUDA_Driver_jll: 13.3.6+0
+- CUDA_Compiler_jll: 0.6.3+2
+- CUDA_Runtime_jll: 0.25.0+3
+- NVPTX_LLVM_Backend_jll: 23.1.2+2
+
+Toolchain:
+- Julia: 1.12.5
+- LLVM: 18.1.7
+
+Environment:
+- JULIA_CUDA_USE_COMPAT: false
+
+1 device:
+  0: NVIDIA A100-SXM4-40GB (sm_80, 39.009 GiB / 40.000 GiB available)
+     compiles to sm_80 / PTX 9.4 (LLVM: sm_80 / PTX 9.2)
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float64, 3, CUDACore.DeviceMemory}
+│   FT = Float64
+│   scheme = :bgk
+│   force = -0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 9.107417055919952e-14
+│   gradient_error = 2.5979218776228663e-13
+│   speed = 8.893591378067796e-17
+│   density_change = 0.0
+│   velocity_change = 0.0
+└   mean_density = 0.9999999999995048
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float64
+│   scheme = :bgk
+│   force_sign = -1
+│   density_parity = 6.076524259964237e-14
+│   velocity_parity = 1.8407908735137497e-16
+│   cpu_du100 = 0.0
+└   cuda_du100 = 0.0
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float64, 3, CUDACore.DeviceMemory}
+│   FT = Float64
+│   scheme = :bgk
+│   force = 0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 9.339496826817607e-14
+│   gradient_error = 8.504308368628699e-13
+│   speed = 1.3408448847802532e-16
+│   density_change = 0.0
+│   velocity_change = 0.0
+└   mean_density = 0.9999999999994529
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float64
+│   scheme = :bgk
+│   force_sign = 1
+│   density_parity = 8.395924816246015e-14
+│   velocity_parity = 3.296276060666288e-16
+│   cpu_du100 = 0.0
+└   cuda_du100 = 0.0
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float64, 3, CUDACore.DeviceMemory}
+│   FT = Float64
+│   scheme = :mrt
+│   force = -0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 1.3203882810647386e-12
+│   gradient_error = 2.850386593422627e-12
+│   speed = 9.523439596386823e-16
+│   density_change = 1.4802973661668753e-12
+│   velocity_change = 1.6182224023516806e-15
+└   mean_density = 0.9999999999994391
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float64
+│   scheme = :mrt
+│   force_sign = -1
+│   density_parity = 2.505415136046074e-13
+│   velocity_parity = 5.413961433480692e-16
+│   cpu_du100 = 1.997203122452935e-15
+└   cuda_du100 = 1.6182224023516806e-15
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float64, 3, CUDACore.DeviceMemory}
+│   FT = Float64
+│   scheme = :mrt
+│   force = 0.0001
+│   L = 16
+│   nu = 0.1
+│   nsteps = 10240
+│   profile_error = 1.557404575271007e-12
+│   gradient_error = 3.5904612616377563e-12
+│   speed = 8.687915296038604e-16
+│   density_change = 1.9660199394403812e-12
+│   velocity_change = 1.9504173989128273e-15
+└   mean_density = 0.9999999999994341
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float64
+│   scheme = :mrt
+│   force_sign = 1
+│   density_parity = 3.004934663491829e-13
+│   velocity_parity = 3.399215256331602e-16
+│   cpu_du100 = 2.1131956909635132e-15
+└   cuda_du100 = 1.9504173989128273e-15
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float32, 3, CUDACore.DeviceMemory}
+│   FT = Float32
+│   scheme = :bgk
+│   force = -0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 6.593391926211384e-5
+│   gradient_error = 0.0007620110601833652
+│   speed = 1.7971082399981242e-7
+│   density_change = 0.0
+│   velocity_change = 0.0
+└   mean_density = 1.000026169945212
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float32
+│   scheme = :bgk
+│   force_sign = -1
+│   density_parity = 4.842313757386587e-5
+│   velocity_parity = 1.6744045048519912e-7
+│   cpu_du100 = 0.0
+└   cuda_du100 = 0.0
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float32, 3, CUDACore.DeviceMemory}
+│   FT = Float32
+│   scheme = :bgk
+│   force = 0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 8.109454572070176e-5
+│   gradient_error = 0.0006287640197095712
+│   speed = 1.6649612915113077e-7
+│   density_change = 0.0
+│   velocity_change = 0.0
+└   mean_density = 1.0000299881486332
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float32
+│   scheme = :bgk
+│   force_sign = 1
+│   density_parity = 5.543718864031108e-5
+│   velocity_parity = 2.0125215895857054e-7
+│   cpu_du100 = 9.500041037247e-9
+└   cuda_du100 = 0.0
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float32, 3, CUDACore.DeviceMemory}
+│   FT = Float32
+│   scheme = :mrt
+│   force = -0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 0.0001204948683078076
+│   gradient_error = 0.0014234926367913125
+│   speed = 1.126311914845246e-7
+│   density_change = 0.00029802323140565323
+│   velocity_change = 2.2696015000919582e-7
+└   mean_density = 1.0000793723499073
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float32
+│   scheme = :mrt
+│   force_sign = -1
+│   density_parity = 0.00012908918362290902
+│   velocity_parity = 1.9014941435413459e-7
+│   cpu_du100 = 2.6034985722844795e-7
+└   cuda_du100 = 2.2696015000919582e-7
+┌ Info: EC sidewall hydrostatic
+│   backend = CUDABackend(false, false, false)
+│   population_type = CuArray{Float32, 3, CUDACore.DeviceMemory}
+│   FT = Float32
+│   scheme = :mrt
+│   force = 0.0001f0
+│   L = 16
+│   nu = 0.1f0
+│   nsteps = 10240
+│   profile_error = 0.00012493810727660427
+│   gradient_error = 0.0010261283282504419
+│   speed = 1.1641245631041559e-7
+│   density_change = 0.00018626451962853324
+│   velocity_change = 2.1952918694363554e-7
+└   mean_density = 1.000033957116744
+┌ Info: EC sidewall hydrostatic CPU/CUDA parity
+│   FT = Float32
+│   scheme = :mrt
+│   force_sign = 1
+│   density_parity = 0.00021190578823589897
+│   velocity_parity = 2.3854769182209457e-7
+│   cpu_du100 = 3.3526930836391737e-7
+└   cuda_du100 = 2.1952918694363554e-7
+
+--- EC-RESTART-CUDA.jl ---
+CUDA restart FT=Float64 wall=free_slip differing keys=String[]
+  Fx_prev max_abs_restart_difference=0.0
+  Fy_prev max_abs_restart_difference=0.0
+  f_in max_abs_restart_difference=0.0
+  phi_f_in max_abs_restart_difference=0.0
+  q_f_in max_abs_restart_difference=0.0
+CUDA T provenance FT=Float64 wall=free_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+CUDA T provenance FT=Float64 wall=free_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+CUDA restart FT=Float64 wall=no_slip differing keys=String[]
+  Fx_prev max_abs_restart_difference=0.0
+  Fy_prev max_abs_restart_difference=0.0
+  f_in max_abs_restart_difference=0.0
+  phi_f_in max_abs_restart_difference=0.0
+  q_f_in max_abs_restart_difference=0.0
+CUDA T provenance FT=Float64 wall=no_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+CUDA T provenance FT=Float64 wall=no_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+CUDA restart FT=Float32 wall=free_slip differing keys=String[]
+  Fx_prev max_abs_restart_difference=0.0
+  Fy_prev max_abs_restart_difference=0.0
+  f_in max_abs_restart_difference=0.0
+  phi_f_in max_abs_restart_difference=0.0
+  q_f_in max_abs_restart_difference=0.0
+CUDA T provenance FT=Float32 wall=free_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+CUDA T provenance FT=Float32 wall=free_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+CUDA restart FT=Float32 wall=no_slip differing keys=String[]
+  Fx_prev max_abs_restart_difference=0.0
+  Fy_prev max_abs_restart_difference=0.0
+  f_in max_abs_restart_difference=0.0
+  phi_f_in max_abs_restart_difference=0.0
+  q_f_in max_abs_restart_difference=0.0
+CUDA T provenance FT=Float32 wall=no_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+CUDA T provenance FT=Float32 wall=no_slip cycle=7 history=[(0, 190.0), (7, 180.0)]
+Test Summary:   | Pass  Total     Time
+C0 GPU receipts | 7850   7850  2m39.9s
+DONE

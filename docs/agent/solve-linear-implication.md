@@ -3,7 +3,7 @@ module: solve-linear
 path: src/solve/linear_solve.jl; src/solve/linear_solve_cuda.jl; src/solve/linear_solve_frontend.jl; ext/KrakenLinearSolveExt.jl; ext/KrakenCUDSSExt.jl
 owner_concern: backend-dispatch
 status: implemented
-last_verified: 2026-07-22
+last_verified: 2026-11-02
 depends_on:
   - solve-poisson
 ---
@@ -83,6 +83,20 @@ discretization.
   plus an `A_unpinned` keyword (pinning is a CPU CSC routine); `lin_solve!`
   returns a `CuVector{Float64}` and pins the RHS on device
   (`@allowscalar bdev[k0] = 0`).
+- C0 additions (opt-in, the two-function contract above is unchanged):
+  `lin_solve!(cache, B::AbstractMatrix)` (multiple right-hand sides, one per
+  column); in-place `lin_solve!(x, cache, b)` (vector or matrix, `b` not
+  mutated); keyword `transpose=true` solves `Aᵀx = b` on the same factors;
+  `lin_supports_transpose(cache)`; `lin_refactorize!(cache[, A_new])`
+  re-runs the numeric factorization with new values on the SAME sparsity
+  pattern, reusing the symbolic analysis (CPU: `cholesky!`/`ldlt!`/`lu!`;
+  cuDSS: `cholesky!`/`lu!`). `A_new` is copied into `cache.A_unpinned` and
+  re-pinned; without `A_new` the values already written into `cache.A` are
+  used. `LinearSolveCache` gains a 7th field `work` (backend scratch; the
+  6-argument constructor sets `nothing`). The cuDSS cache preallocates its RHS
+  staging buffers there, so the in-place solve and `lin_refactorize!` with
+  device values allocate nothing on the Kraken side (`CUDA.@allocated == 0`,
+  receipt `test/analytical/linear_solve_cudss_c0_gpu.jl`).
 
 ## Reads from
 
@@ -98,8 +112,10 @@ it lives in the Aqua GPU job's environment).
 No globals, no I/O. `lin_factorize` allocates the factorization (CHOLMOD
 workspace on CPU; cuDSS device factors on GPU — ~15 GB resident at 16M DOF, see
 the MG results note) and returns a fresh cache. `lin_solve!` allocates the
-result vector per call; despite the `!` it does NOT mutate `b` or the cache
-(the name reserves the in-place contract).
+result vector per call; the in-place `lin_solve!(x, cache, b)` (C0) does
+not, and `lin_refactorize!` overwrites the factor and the cache matrices in
+place (on CPU the matrix originally passed to `lin_factorize` is the cache
+matrix, so it is overwritten too, as with `lu!`). No solve mutates `b`.
 
 ## Backend constraints
 
@@ -141,6 +157,17 @@ result vector per call; despite the `!` it does NOT mutate `b` or the cache
 - **Weakdeps gotcha**: after adding/altering [weakdeps], run `Pkg.resolve()`
   before `Pkg.precompile()` (same as the KrakenOptimExt rollout) or the ext
   will silently not load.
+
+- **cuDSS transposed solve needs CUDSS.jl >= 1.0**: CUDSS.jl 0.6.5 (libcudss
+  0.7.1) silently ignores `solve_mode = 'T'` and returns `A \ b` (J0, 2026-11-02).
+  The cuDSS backend therefore raises an `ErrorException` naming the loaded
+  version below `CUDSS_TRANSPOSE_MIN_VERSION`; Cholesky caches (`spd=true`)
+  solve `Aᵀ = A` normally on any version. CUDSS.jl 1.0 requires CUDA.jl 6,
+  hence compat `CUDA = "5, 6"`, `CUDSS = "..., 1"`.
+- **`lin_refactorize!` refuses** a different sparsity pattern (`ArgumentError`,
+  never a silently wrong factor), non-symmetric values on an LDLᵀ cache, a
+  backend without numeric refactorization, and device-side values on a pinned
+  cuDSS cache (re-pinning is a CPU CSC routine: pass the unpinned host CSC).
 
 ## Touch order
 
