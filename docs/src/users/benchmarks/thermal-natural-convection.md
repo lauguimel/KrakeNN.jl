@@ -83,7 +83,7 @@ mid-height deviation from the linear profile decreases as `1/N²` (`5.2 × 10⁻
 ## Methodology
 
 **Kraken (thermal LBM, double-distribution D2Q9).** D2Q9 BGK flow + a second D2Q9
-distribution advecting temperature, with Boussinesq buoyancy `F = ρ β g (T − T₀)`
+distribution advecting temperature, with Boussinesq buoyancy `F = β g (T − T₀)` (the code applies no density factor)
 coupled back into the flow. Hot left wall (`T = 1`), cold right wall (`T = 0`),
 adiabatic top/bottom, all walls no-slip (halfway bounce-back), hot and cold walls
 half-way anti-bounce-back (see [Wall position](#wall-position-re-measured-on-cpu)).
@@ -95,7 +95,7 @@ steady SIMPLE, laminar; Ra set by fixing `ν = 10⁻³`, `α = ν/Pr`, `β ΔT =
 
 **Reference.** de Vahl Davis, G. (1983), *Natural convection of air in a square cavity:
 a bench mark numerical solution*, Int. J. Numer. Methods Fluids 3, 249–264 — Pr = 0.71,
-Nu = 1.117 / 2.238 / 4.509 at Ra = 10³ / 10⁴ / 10⁵.
+hot-wall Nu₀ = 1.117 / 2.238 / 4.509 at Ra = 10³ / 10⁴ / 10⁵ (Table V; his cavity average Nu̅ is 1.118 / 2.243 / 4.519). Kraken computes a hot-wall mean, so this page compares with Nu₀.
 
 ## 3D — cubic cavity
 

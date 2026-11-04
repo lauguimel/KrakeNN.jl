@@ -1,5 +1,5 @@
 # Kraken Oldroyd-B cylinder drag, R=50, beta=0.59, diffusive scaling (nu_total=0.15, tau=0.95)
-# halfwayBB wall, D/H=0.5 blockage, +-15R up/downstream, 300k steps, CUDA Float64 (Aqua A100)
+# interpolated bounce-back cylinder wall (wall_bc=halfwayBB), D/H=0.5 blockage, +-15R up/downstream, 300k steps, CUDA Float64 (Aqua A100)
 # Re-measured 2026-10-14 after the TRT Guo forcing fix (#67): source edbc20916, jobs 26763246/47/48,
 # same settings as job 22199679. Pre-fix values (job 22199679): Cd 129.9155 / 118.6770 / 119.2410.
 # Cd = total drag coefficient (Cd_kraken, col 26); Cd_s/Cd_p are the raw solvent/polymer

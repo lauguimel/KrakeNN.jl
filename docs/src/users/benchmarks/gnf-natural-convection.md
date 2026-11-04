@@ -80,7 +80,10 @@ equations with a finite-volume code on a 100 × 100 non-uniform mesh):
 - the buoyancy reference temperature: Kraken uses ``(T_\text{hot}+T_\text{cold})/2``,
   the paper ``T_C``. The difference is a uniform body force, balanced by pressure;
 - `PowerLaw` clips the viscosity to `[nu_min, nu_max]`, the paper does not. The
-  result reports `clamped_fraction`; it was 0 in every case below;
+  result reports `clamped_fraction`; it was 0 in the CPU runs below, but not in every GPU run:
+  in `benchmarks/validation/natconv_gnf/results/turan_comparison.csv` it is 6e-5 at
+  Ra = 10³, n = 0.6, N = 256, 1.2e-4 to 9.8e-4 at Ra = 10³, n = 1.8, and 0.17 % to 8 % at
+  Ra = 10⁴, n = 1.8 (N = 64 to 256, runs that did not converge);
 - the fixed-temperature walls are half-way anti-bounce-back walls, half a lattice
   spacing outside the first and last nodes, at the same place as the no-slip
   walls; Ra, Pr and Nu use the cavity width ``H = N``, and Nu is the mean of a
@@ -161,7 +164,8 @@ reading uncertainty in brackets; page numbers are journal pages. Kraken: CPU,
 Float64, `nu_min = 1e-3`, `nu_max = 2.0`, stopping after three successive
 1000-step relative Nu changes below 1e-6 (1e-5 for N = 32 and 48 at Ra = 10⁴,
 the settings of the unit test). Every run listed converged and had no node at a
-viscosity cutoff, unless stated.
+viscosity cutoff, unless stated (the CSV above lists the GPU runs where some nodes sit at
+a cutoff).
 
 | Ra | ``n`` | Paper Nu (source) | N | `nu0` | Kraken Nu | Kraken − paper |
 |---|---|---|---|---|---|---|
@@ -265,7 +269,7 @@ this page; all 52 assertions passed (76 s).
 | Check (testset) | Measured | Gate |
 |---|---|---|
 | ``n = 1`` against the Newtonian driver `run_natural_convection_2d`, N = 64, Ra = 10³ ("Newtonian limit and De Vahl Davis") | Nu = 1.1185 for both, relative gap 0 (4.0e-16 after 60 000 steps) | gap < 1e-6 |
-| Nu against De Vahl Davis (1983), Nu = 1.118, same case | +0.05 % | < 0.5 % (same frozen gate as `test_thermal.jl`) |
+| Nu against De Vahl Davis (1983), hot-wall Nu₀ = 1.117 (cavity average 1.118; the test gate uses 1.118), same case | +0.13 % against 1.117 (+0.05 % against 1.118) | < 0.5 % (same frozen gate as `test_thermal.jl`) |
 | Nu against the power-law index, N = 32, Ra = 10⁴, Pr = 0.71 ("QUALITATIVE literature trend") | Nu = 3.057 / 2.260 / 1.699 for ``n`` = 0.8 / 1.0 / 1.2 | Nu(0.8) > Nu(1.0) > Nu(1.2); Nu drift < 1e-5 over three successive 1000-step checks; clamped fraction < 1 % (measured 0.0) |
 | Turan et al. (2011), Ra = 10⁴, Pr = 10, ``n`` = 0.6, N = 32 and 48 extrapolated in 1/N² ("Turan et al. (2011) power-law points, CPU") | Nu = 5.393, −0.13 % against 5.40 | < 1 %: the reference's own uncertainty (figure reading ± 0.02, i.e. 0.37 %, plus their mesh uncertainty ≤ 0.35 %), rounded up; converged; clamped fraction 0 |
 | Same testset, Ra = 10³, ``n`` = 0.6, N = 48 | Nu = 1.9933 (−3.7 % against 2.07) | within 0.1 % of Kraken's own converged value 1.99332 (regression gate); the gap to the paper is documented above, not gated |
