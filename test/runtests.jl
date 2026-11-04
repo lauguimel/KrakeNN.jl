@@ -105,6 +105,12 @@ function run_incns_testset()
         include("analytical/incns_unsteady_startup_channel.jl")
         include("analytical/incns_manifold.jl")   # fast (~4 s CPU): stays non-heavy
         include("analytical/incns_momentum_advection_order.jl")
+        # C1 steady FV residual (KA kernel, generic eltype): exact discrete
+        # solutions, MMS orders, duals vs FD, SIMPLE cavity agreement (~15 s CPU)
+        include("analytical/incns_fv_steady_residual.jl")
+        # its GPU parity + zero-allocation contract — self-gated on CUDA;
+        # KRAKEN_REQUIRE_GPU=1 makes a skip fail
+        include("analytical/incns_fv_steady_residual_gpu.jl")
         include("analytical/scalar_transport_heated_channel.jl")
         include("analytical/scalar_transport_advection_order.jl")
 
