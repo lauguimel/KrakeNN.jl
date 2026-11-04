@@ -76,6 +76,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `benchmarks/validation/natconv_gnf/results/`; the code that ran is kept reachable
   by the tag `archive/gnf-thermal-turan-gpu`. No 3D, no grid refinement. See
   `docs/src/users/benchmarks/gnf-natural-convection.md`.
+- Steady 2D colocated finite-volume residual of the incompressible Navier–Stokes
+  (or Stokes) equations, `fv_residual!(R, U, prob)`, written as one
+  KernelAbstractions kernel that runs unchanged on CPU and GPU and is generic in
+  the element type (Float64, Float32, ForwardDiff duals in the state or in the
+  parameter arrays). It is step C1 of the FV Newton roadmap: the residual that
+  the coming Newton solve (Jacobian by coloured duals) and discrete adjoint will
+  differentiate. Discretisation: first-order upwind convection on Rhie–Chow face
+  fluxes with `d_f = h²/(4ν_f + |ū_f|h)`, full viscous stress tensor with a cell
+  viscosity field, body/mass sources, wall / inlet / outlet / periodic sides,
+  solid mask, one pressure pin per closed fluid pocket (`fv_pressure_pins!`).
+  Problems are built with `fv_steady_problem` and moved to a device with
+  `fv_adapt`. `capabilities(::IncNS)` now includes `SteadyResidual`
+  (`residual(prob::FVSteadyProblem2D, ::IncNS, U)`); this is the residual of the
+  coupled FV discretisation, not of the SIMPLE drivers. Checked on CPU against the
+  J0 prototype (identical residuals on 11 configurations), exact discrete
+  solutions (R = 0), manufactured solutions with variable viscosity (velocity
+  order 2 for Stokes; the pressure is first order in the wall cells), duals
+  against finite differences, and the SIMPLE cavity (centreline difference
+  1.2e-3 at 32², Re = 100). No Newton solver yet: nothing user-facing solves
+  with it.
 
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.

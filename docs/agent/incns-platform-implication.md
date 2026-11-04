@@ -30,8 +30,11 @@ solver math lives here; every driver call is a verbatim keyword forward.
 Contract wrapper (`src/methods/inc_ns/method.jl`):
 - `IncNS(driver::Symbol) <: AbstractMethod`, driver ∈
   `{:simple, :cavity, :cavity_mg, :projection, :manifold}` (constructor-validated).
-- `capabilities(::IncNS) = Set((ForwardSolve,))` — ONLY ForwardSolve; no
+- `capabilities(::IncNS) = Set((ForwardSolve, SteadyResidual))` — no
   GPU/adjoint over-claiming (the CUDA seam files are manual-load).
+  `SteadyResidual` = the C1 steady colocated FV residual
+  (`residual(prob::FVSteadyProblem2D, ::IncNS, U)`, map
+  `incns-fv-steady-residual-implication.md`), not the SIMPLE drivers' residual.
 - `IncNSSolution{R} <: AbstractSolution` — NamedTuple wrapper; `sample`
   pass-through (`getproperty`, `:`, `idx::Tuple`), like `LBMSolution`.
 - `solve(params::NamedTuple, m::IncNS) -> IncNSSolution` — splats `params` into
