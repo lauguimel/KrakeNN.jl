@@ -189,6 +189,7 @@ makedocs(;
             "Validation matrix" => "users/benchmarks/validation-matrix.md",
             "Cartesian cavity" => "users/benchmarks/cartesian-cavity.md",
             "Thermal natural convection" => "users/benchmarks/thermal-natural-convection.md",
+            "Generalised Newtonian natural convection" => "users/benchmarks/gnf-natural-convection.md",
             "Sphere drag 3D" => "users/benchmarks/sphere-drag-3d.md",
             "Viscoelastic cylinder (Oldroyd-B)" => "users/benchmarks/viscoelastic-cylinder.md",
             "Viscoelastic constitutive models" => "users/benchmarks/ve-constitutive-models.md",

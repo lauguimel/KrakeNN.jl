@@ -46,6 +46,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   that ran is kept reachable by the tag `archive/gnf3d-gpu-sweep`). Float32 was only
   run through on the GPU, not validated. See
   `docs/src/users/benchmarks/gnf3d-channel-convergence.md`.
+- `run_natural_convection_gnf_2d`, `gnf_reference_scales` and `cavity_powerlaw`:
+  differentially heated D2Q9 cavity for generalised Newtonian fluids, driving
+  `collide_rheology_thermal_2d!` with the thermal double-distribution populations.
+  Ra and Pr are defined with the reference kinematic viscosity `nu0`; with
+  `cavity_powerlaw` they are the power-law definitions of Turan et al. (2011).
+  A `.krk` `natural_convection` case with a non-Newtonian `Rheology` block now
+  routes to this driver. Thermal walls half-way, as in the Newtonian driver
+  (H = N). 2D only, Float64. n = 1 reproduces the Newtonian driver to round-off
+  (Nu = 1.1185 at N = 64, Ra = 1e3; De Vahl Davis 1.118). Against Turan et al.
+  (Pr = 10, figure readings) on CPU: Nu = 5.393 vs 5.40 at Ra = 1e4, n = 0.6
+  (N = 32/48 extrapolated). On one A100 (CUDA Float64, N = 64/128/256): Ra = 1e4,
+  n = 0.6 and 1.0 within 0.6 % at every N; Ra = 1e3, n = 1.8 within 0.13 %;
+  Ra = 1e3, n = 1.0 gives 1.12 vs 1.14 (-1.7 % to -1.9 %, paper value read to ±0.02);
+  Ra = 1e3, n = 0.6 gives 1.99 vs 2.07 (-3.8 %), grid-converged and the same on CPU,
+  gap documented and not explained; Ra = 1e4, n = 1.8 did not converge and is not a
+  validated point. GPU and CPU agree at N = 64 to 2e-5 in Nu. Results in
+  `benchmarks/validation/natconv_gnf/results/`; the code that ran is kept reachable
+  by the tag `archive/gnf-thermal-turan-gpu`. No 3D, no grid refinement. See
+  `docs/src/users/benchmarks/gnf-natural-convection.md`.
 
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.

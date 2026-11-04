@@ -145,6 +145,7 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_couette.jl")
     include("test_taylor_green.jl")
     include("test_thermal.jl")
+    include("test_natconv_gnf.jl")
     # Issue #19: conduction .krk fallback honours nu, alpha and thermal faces.
     include("analytical/TH-002-route.jl")
     include("test_axisymmetric.jl")
