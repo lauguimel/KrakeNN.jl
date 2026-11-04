@@ -45,7 +45,7 @@ sphere drivers and is called from Julia, not selected from `.krk`. D3Q27 is not 
 | Velocity (Zou-He) | ✓ | ✓ | ✓ | ✓ | `Boundary west velocity(ux=4*U*y*(H-y)/H^2)` |
 | Pressure/density outlet | ✓ (west, east) | ~ (east and top faces only; one no-NaN smoke test; see issue #20) | ~ | ✓ | `Boundary east pressure(rho=1.0)` |
 | Periodic | ✓ | ✓ | — | — | `Boundary x periodic` |
-| Fixed temperature (Dirichlet) | ✓ | ✓ | ✗ | ✗ | `Boundary west wall(T=1.0)` |
+| Fixed temperature (Dirichlet) | ✓ | ✓ | ✗ | ✗ | `Boundary west wall(T=1.0)`; from `.krk`, read only by `heat_conduction` cases (see the note below) |
 | Adiabatic (zero-flux) | ✓ | ✓ | — | — | default when no `T=` specified |
 | Outflow / Neumann / symmetry | ~ | ~ | — | — | recognized, partial |
 
@@ -54,7 +54,7 @@ sphere drivers and is called from Julia, not selected from `.krk`. D3Q27 is not 
 - Expression whitelist: arithmetic, `sin/cos/tan/exp/log/sqrt/abs/clamp`,
   variables `x, y, z, t, Lx, Ly, Lz, Nx, Ny, Nz, dx, dy, dz` + `Define`d vars.
 
-**Limitations:** thermal BCs are scalar only (no `T = f(x,y,t)`).
+**Limitations:** thermal BCs are scalar only (no `T = f(x,y,t)`). In a `.krk` file the `T = ...` values on `Boundary` lines are used by `heat_conduction` cases only (one opposing pair of faces). The `natural_convection` and `rayleigh_benard` cases ignore them and use the driver values (hot = 1, cold = 0; hot west and cold east for natural convection, hot south and cold north for Rayleigh-Bénard).
 Outflow/Neumann/symmetry are recognized by the parser but kernels are
 minimal — use with caution.
 
@@ -63,14 +63,14 @@ minimal — use with caution.
 | Capability | 2D | 3D | Refined | GPU | .krk | Theory / Example |
 |---|:-:|:-:|:-:|:-:|:-:|---|
 | Passive scalar transport (DDF) | ✓ | ✓ | in development | ✓ | `Module thermal` | [08 thermal DDF](theory/08_thermal_ddf.md) |
-| Boussinesq buoyancy | ✓ | ✓ | in development | ✓ | auto when hot/cold BCs set | [Rayleigh-Bénard](examples/08_rayleigh_benard.md) |
+| Boussinesq buoyancy | ✓ | ✓ | in development | ✓ | built into the `natural_convection` and `rayleigh_benard` cases, chosen by the `Simulation` name (not enabled by the BCs); Ra and Pr come from `Physics`/`Setup` | [Rayleigh-Bénard](examples/08_rayleigh_benard.md) |
 | Heat conduction (pure) | ✓ | ✓ | — | ✓ | ✓ | [Heat conduction](examples/07_heat_conduction.md) |
 | Natural convection (cavity) | ✓ | ✓ | in development | ✓ | ✓ | driver `run_natural_convection_2d/3d` |
 | Natural convection, generalised Newtonian (power law, Carreau-Yasuda…) | ✓ | ✗ | ✗ | ✓ (one A100, Float64) | ✓ | [GNF natural convection](users/benchmarks/gnf-natural-convection.md); driver `run_natural_convection_gnf_2d` |
 | ν(T) Arrhenius (kernel) | ✓ | ✗ | ✗ | ✓ | ✗ | code: `collide_boussinesq_vt_2d!` |
 | ν(T) modified Arrhenius (Rc) | ✓ | ✗ | ✗ | ✓ | ✗ | driver via `Rc` keyword |
 | α(T), κ(T) variable diffusivity | ✗ | ✗ | — | — | ✗ | not implemented |
-| Validation vs De Vahl Davis (Ra=1e3) | ✓ 1.4% | — | in development | ✓ | — | Nu = 1.118 ref |
+| Validation vs De Vahl Davis (Ra=1e3) | ✓ +0.13 % (N = 64) | — | in development | ✓ | — | hot-wall Nu₀ = 1.117 ref |
 | Validation vs Fusegi (3D Ra=1e3) | — | ~ 5% | in development | ✓ | — | Nu = 1.085 ref |
 
 **Limitations:**
@@ -196,13 +196,13 @@ via `run_natural_convection_gnf_2d`, 2D natural convection, reachable from `.krk
 
 | Model | 2D | 3D | GPU | Thermal coupling |
 |---|:-:|:-:|:-:|:-:|
-| Newtonian | ✓ | ✓ | ✓ | kernel only (no driver) |
-| Power-law | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
-| Carreau-Yasuda | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
+| Newtonian | ✓ | ✓ | ✓ | — (constant viscosity; `n = 1` power law in the GNF thermal driver) |
+| Power-law | ✓ | ✓ (isothermal; Julia API) | ✓ | ✓ 2D natural convection, `run_natural_convection_gnf_2d` |
+| Carreau-Yasuda | ✓ | ✓ (isothermal; Julia API) | ✓ | accepted by `run_natural_convection_gnf_2d`; only a run-through test, no reference comparison |
 | Carreau-Yasuda steady adjoint (`gnf_steady_gradient`; tests `test/ad/gnf_adjoint_test.jl`, `test/ad/gnf_adjoint_enzyme_test.jl`; one A100, Float64, run archived under `benchmarks/validation/gnf_adjoint/results/`) | ✓ | ✗ | ✓ (one A100) | — |
-| Cross | ✓ | ✓ (isothermal; Julia API) | ✓ | kernel only (no driver) |
-| Bingham (Papanastasiou) | ✓ | ✗ | ✓ | kernel only (no driver) |
-| Herschel–Bulkley | ✓ | ✗ | ✓ | kernel only (no driver) |
+| Cross | ✓ | ✓ (isothermal; Julia API) | ✓ | accepted by `run_natural_convection_gnf_2d`, not tested there |
+| Bingham (Papanastasiou) | ✓ | ✗ | ✓ | accepted by `run_natural_convection_gnf_2d`, not tested there |
+| Herschel–Bulkley | ✓ | ✗ | ✓ | accepted by `run_natural_convection_gnf_2d`, not tested there |
 | Oldroyd-B (log-conf) | ✓ | ✓ (FVFD) | ✓ | ✗ |
 | FENE-P | ✓ | ✓ (FVFD) | ✓ | ✗ |
 | Saramito (EVP) | model type and `.krk` parsing only | ✗ | ✗ (no solver kernel) | ✗ |
@@ -220,8 +220,11 @@ Herschel-Bulkley have no 3D path. See
 **3D viscoelastic (since v0.5.0).** Oldroyd-B, FENE-P, Giesekus and PTT (linear and
 exponential) run in 3D in log-conformation form on the FVFD path only
 (`run_viscoelastic_fvfd_poiseuille_3d`, `run_viscoelastic_fvfd_extensional_3d`). Oldroyd-B
-is validated against analytic solutions and RheoTool on periodic Poiseuille and planar
-extension; FENE-P, Giesekus and PTT against their closed-form simple-shear fixed points
+is validated against analytic solutions and RheoTool on periodic Poiseuille and, with the
+velocity imposed, planar extension. The coupled planar-extension mode is not validated: two
+known defects of its driver (a velocity read-back after collision, issue #68, and Zou-He face
+rebuilds that skip the periodic z planes, issue #69) are open and recorded as broken tests.
+FENE-P, Giesekus and PTT against their closed-form simple-shear fixed points
 (FENE-P also against its transcendental planar-extension fixed point), and in the coupled
 flows through their Oldroyd-B limit and qualitative trends — see
 [Viscoelastic constitutive models](users/benchmarks/ve-constitutive-models.md). The 3D
