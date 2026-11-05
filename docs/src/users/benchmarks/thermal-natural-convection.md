@@ -30,8 +30,8 @@ and the crossing of the 1 % gate at N ≈ 384.
     The thermal walls are now half-way too, so both cavities have width `N`. They
     also predate v0.7, in which the adiabatic walls reflect the thermal
     populations specularly instead of bouncing the diagonals back and `Nu` is
-    averaged over all rows. These rows will be recomputed in the next GPU
-    campaign; see [Wall position](#wall-position-re-measured-on-cpu) for the
+    averaged over all rows. Until they are re-measured on GPU, treat them
+    as pre-v0.7 values; see [Wall position](#wall-position-re-measured-on-cpu) for the
     numbers that have been re-run.
 
 Both mid-plane velocity extrema (`u_max*`, `v_max*`, normalised by `α/L`) are under

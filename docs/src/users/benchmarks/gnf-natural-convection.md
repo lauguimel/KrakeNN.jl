@@ -22,8 +22,8 @@ shear-rate-dependent collision of the rheology chapter of the theory section
     bottom walls bounced back the diagonal thermal populations. Since v0.7,
     Nu is averaged over all rows and the adiabatic walls reflect these
     populations specularly (see the
-    [thermal theory page](../../theory/08_thermal_ddf.md)). These numbers will
-    be recomputed, the GPU ones in the next GPU campaign. On CPU at N = 48,
+    [thermal theory page](../../theory/08_thermal_ddf.md)). Until they are
+    re-measured (the GPU ones on GPU), treat them as pre-v0.7 values. On CPU at N = 48,
     the change moves Nu from 1.9933 to 1.9843 at Ra = 10³, ``n`` = 0.6, and
     the Ra = 10⁴ extrapolated value from 5.393 to 5.3765. The code outputs and
     the [What was validated](#What-was-validated) table are re-measured for

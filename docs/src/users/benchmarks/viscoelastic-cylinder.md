@@ -22,8 +22,9 @@ The strict **< 1 % on `Cd`** gate is met across `Wi ≤ 1` (R = 50, β = 0.59, R
 | 0.5 | 118.92    | 119.71      | **−0.66 %** |
 | 1.0 | 119.49    | 120.40      | **−0.75 %** |
 
-!!! warning "Computed before the 0.7 inlet fix; recomputed for 0.7"
+!!! warning "Computed before the v0.7 inlet fix"
     These `Cd` values used a parabolic inlet whose flow rate was low by `1/(Ny − 1)`.
+    Until they are re-measured on GPU, treat them as pre-v0.7 values.
 
 !!! note "Re-measured after the TRT Guo forcing fix (2026-10-14)"
     The `Cd` values on this page were re-measured on 2026-10-14 after the fix of the
