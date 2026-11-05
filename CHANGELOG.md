@@ -38,7 +38,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   on cuDSS follows the CPU residual history at 64² (one symbolic analysis, then
   refactorizations; direct and transposed solves of the finalized factors), and
   assembly, refactorization, solve and whole Newton iterations allocate 0 device
-  bytes. Timings at 512² and 1024² are not measured yet.
+  bytes. Lid-driven cavity from rest on an A100 (Aqua job 27631719): 512²,
+  Re = 100 in 5 iterations and 12.6 s, Re = 1000 in 12 iterations and 15.3 s
+  (symbolic analysis 10 s once, refactorization 0.43 s); 1024², Re = 100 in 5
+  iterations and 56 s, Re = 1000 in 11 iterations and 69 s (analysis 44 s once,
+  refactorization 2.3 s, 22 GiB with the factors resident).
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`

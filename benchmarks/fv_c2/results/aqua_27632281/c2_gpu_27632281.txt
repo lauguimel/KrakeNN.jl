@@ -95,11 +95,11 @@ The function `lin_factorize` exists, but no method is defined for this combinati
 
 Closest candidates are:
   lin_factorize(!Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; backend, spd, pin_k0, A_unpinned)
-   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:76
+   @ KrakenCUDSSExt ~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:76
   lin_factorize(!Matched::CUDABackendTag, !Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; spd, pin_k0, A_unpinned) got unsupported keyword argument "backend"
-   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:88
+   @ KrakenCUDSSExt ~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:88
   lin_factorize(!Matched::SparseMatrixCSC{Float64, Int64}; backend, spd, pin_k0)
-   @ Kraken /mnt/hpccs01~/kraken_c2/src_c2/src/solve/linear_solve.jl:121
+   @ Kraken ~/kraken_c2/src_c2/src/solve/linear_solve.jl:121
   ...
 
 PIN SCALING FAILED N=512: MethodError: no method matching lin_factorize(::SparseMatrixCSC{Float64, Int32}; backend::CUDABackendTag, spd::Bool)
@@ -107,11 +107,11 @@ The function `lin_factorize` exists, but no method is defined for this combinati
 
 Closest candidates are:
   lin_factorize(!Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; backend, spd, pin_k0, A_unpinned)
-   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:76
+   @ KrakenCUDSSExt ~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:76
   lin_factorize(!Matched::CUDABackendTag, !Matched::cuSPARSE.CuSparseMatrixCSR{Float64, Int32}; spd, pin_k0, A_unpinned) got unsupported keyword argument "backend"
-   @ KrakenCUDSSExt /mnt/hpccs01~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:88
+   @ KrakenCUDSSExt ~/kraken_c2/src_c2/ext/KrakenCUDSSExt.jl:88
   lin_factorize(!Matched::SparseMatrixCSC{Float64, Int64}; backend, spd, pin_k0)
-   @ Kraken /mnt/hpccs01~/kraken_c2/src_c2/src/solve/linear_solve.jl:121
+   @ Kraken ~/kraken_c2/src_c2/src/solve/linear_solve.jl:121
   ...
 
 DONE status=1
