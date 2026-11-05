@@ -23,6 +23,8 @@ using ForwardDiff
 using Kraken
 using Kraken.SparseArrays
 
+include(joinpath(@__DIR__, "incns_fv_adjoint_compiler.jl"))
+
 if !isdefined(@__MODULE__, :_fvc2_ghia_error)
     include(joinpath(@__DIR__, "fv_newton_helpers.jl"))
 end
@@ -135,6 +137,43 @@ _fvc4_dense_cot(p, map, U, θ, λ) =
         # flow rate: h Σ u over the fluid cells of the column
         @test fv_objective(fv_flow_rate(p, 9), U, p) ≈
               p.grid.h * sum(U[fv_index(p.grid, 9, j, 1)] for j in 1:8)
+    end
+
+    @testset "local wall-force derivatives preserve every face closure" begin
+        rng = MersenneTwister(33)
+        solid = falses(5, 4); solid[3, 2:3] .= true
+        cases = (
+            fv_steady_problem(5, 4; solid, nu = (x, y) -> 0.03 + 0.02x + 0.01y,
+                bc = (W = :inlet, E = :outlet, S = :wall, N = :wall),
+                boundary_velocity = (side, x, y) -> (0.1 + x * y, 0.2 - y)),
+            fv_steady_problem(5, 4; nu = (x, y) -> 0.04 + 0.01x,
+                boundary_velocity = (side, x, y) -> (x + y, x - y)),
+            fv_steady_problem(2, 4; nu = (x, y) -> 0.04 + 0.01y,
+                bc = (W = :periodic, E = :periodic, S = :wall, N = :wall)),
+            fv_steady_problem(1, 4; nu = (x, y) -> 0.04 + 0.01y,
+                bc = (W = :periodic, E = :periodic, S = :wall, N = :wall)),
+            fv_steady_problem(4, 2; nu = (x, y) -> 0.04 + 0.01x,
+                bc = (W = :wall, E = :wall, S = :periodic, N = :periodic)),
+        )
+        for (case, p) in enumerate(cases), dir in 1:2,
+            region in (:solid, :E, :W, :N, :S), pressure in (:cell, :linear)
+            @testset "case=$case dir=$dir region=$region pressure=$pressure" begin
+                obj = FVWallForce(dir; region, pressure)
+                U = randn(rng, fv_nunknowns(p))
+                J, gU = Kraken._fv_objective_grad_u(obj, U, p)
+                ref = ForwardDiff.gradient(X -> fv_objective(obj, X, p), U)
+                @test J ≈ fv_objective(obj, U, p) rtol = 1e-14 atol = 1e-14
+                @test norm(gU - ref, Inf) <= 1e-13 * max(norm(ref, Inf), 1)
+                for (map, θ) in ((FVViscosityField(), vec(copy(p.nu))),
+                                 (FVSideVelocity(p, :W), [1.3]),
+                                 (FVUniformViscosity(), [0.05]),
+                                 (FVUniformSource(1), [0.7]))
+                    ge = Kraken._fv_objective_grad_theta(obj, map, U, p, θ)
+                    refθ = ForwardDiff.gradient(t -> fv_objective(obj, U, fv_param_problem(map, p, t)), θ)
+                    @test norm(ge - refθ, Inf) <= 1e-13 * max(norm(refθ, Inf), 1)
+                end
+            end
+        end
     end
 
     @testset "cavity NS 24²: adjoint vs FD, tangent, factor reuse" begin

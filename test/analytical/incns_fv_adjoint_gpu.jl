@@ -94,6 +94,26 @@ _fvc4_host(J) = sparse(transpose(SparseMatrixCSC(size(J)..., Array(J.rowPtr), Ar
             end
         end
 
+        @testset "uniform viscosity CPU/GPU gradient parity" begin
+            # Solve at the uniform parameter itself; the main case has a
+            # spatial viscosity field and cannot reuse that state here.
+            q = fv_steady_problem(N, N; nu = 0.01, boundary_velocity = _fvc2_lid)
+            snc = fv_newton_solver(q)
+            sng = fv_newton_solver(q; to = CU.CuArray, linsolve = CUDABackendTag())
+            Unc = copy(Uc); Ung = copy(Ug)
+            @test fv_newton!(snc, Unc; newton...).converged
+            @test fv_newton!(sng, Ung; newton...).converged
+            map = FVUniformViscosity()
+            ws = fv_adjoint_workspace(sng, map)
+            for (_, obj) in objs
+                rc = fv_steady_gradient(snc, Unc, [0.01], obj; params = map)
+                rg = fv_steady_gradient(sng, Ung, [0.01], obj; params = map, ws)
+                @test norm(rg.grad - rc.grad, Inf) <= 1e-8 * norm(rc.grad, Inf)
+                @test _fvc4_gpu_allocated(() -> fv_steady_gradient(sng, Ung, [0.01], obj;
+                                                                  params = map, ws)) == 0
+            end
+        end
+
         @testset "zero device allocation with a workspace" begin
             obj = FVWallForce(1; region = :N)
             wsf = fv_adjoint_workspace(sg, FVViscosityField())
@@ -106,9 +126,16 @@ _fvc4_host(J) = sparse(transpose(SparseMatrixCSC(size(J)..., Array(J.rowPtr), Ar
                                              CU.synchronize())) == 0
             @test _fvc4_gpu_allocated(() -> Kraken._fv_param_cotangent!(wsf, FVViscosityField(), sg, Ug, nothing)) == 0
             @test _fvc4_gpu_allocated(() -> Kraken._fv_param_cotangent!(wss, map, sg, Ug, [1.0])) == 0
+            @test _fvc4_gpu_allocated(() -> Kraken._fv_state_sig(sg.norms, 0.0, Ug)) == 0
             @test _fvc4_gpu_allocated(() -> fv_steady_adjoint(sg, Ug, gU; params = FVViscosityField(), ws = wsf)) == 0
             @test _fvc4_gpu_allocated(() -> fv_steady_gradient(sg, Ug, nothing, obj;
                                                                params = FVViscosityField(), ws = wsf)) == 0
+            fv_steady_gradient(sg, Ug, nothing, obj;
+                               params = FVViscosityField(), ws = wsf, finalize = false)
+            @test _fvc4_gpu_allocated(() -> fv_steady_gradient(sg, Ug, nothing, obj;
+                               params = FVViscosityField(), ws = wsf, finalize = false)) == 0
+            @test _fvc4_gpu_allocated(() -> fv_steady_gradient(sg, Ug, [1.0], obj;
+                                                               params = map, ws = wss)) == 0
             frees = Int[]
             for it in 1:10
                 fv_steady_gradient(sg, Ug, nothing, obj; params = FVViscosityField(), ws = wsf)

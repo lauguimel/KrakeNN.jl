@@ -355,7 +355,37 @@ mutable struct FVNewtonSolver{P,A,M,V,NB,B}
     fac_sig::NTuple{3,Float64}
 end
 
-_fv_state_sig(shift, U) = (Float64(shift), Float64(sum(U)), Float64(sum(abs2, U)))
+# Reuse the norm workspace for the two state checksums. GPU `sum` allocates
+# reduction storage; these fixed partial sums keep finalization allocation-free.
+@kernel function _fv_state_sig_kernel!(Pt, @Const(U), ncell, per)
+    t = @index(Global)
+    su = 0.0; sq = 0.0
+    k0 = 3 * (t - 1) * per + 1
+    k1 = 3 * min(t * per, ncell)
+    @inbounds for k in k0:k1
+        u = Float64(U[k])
+        su += u
+        sq += u * u
+    end
+    @inbounds begin
+        Pt[1, t] = su
+        Pt[2, t] = sq
+    end
+end
+
+function _fv_state_sig(nb::_FVNormBuffers, shift, U)
+    ncell = length(U) ÷ 3
+    backend = KernelAbstractions.get_backend(U)
+    _fv_state_sig_kernel!(backend, 64)(nb.dev, U, ncell, nb.per; ndrange = size(nb.dev, 2))
+    KernelAbstractions.synchronize(backend)
+    H = nb.dev isa Array ? nb.dev : copyto!(nb.host, nb.dev)
+    su = 0.0; sq = 0.0
+    @inbounds for t in axes(H, 2)
+        su += H[1, t]
+        sq += H[2, t]
+    end
+    return Float64(shift), su, sq
+end
 
 """
     _fv_device_csr(tag, rowptr, colval, n) -> (J, nzval)
@@ -415,7 +445,7 @@ Assemble `∂R/∂U` at `U` into `solver.J` (values only; pattern fixed).
 """
 function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0)
     fv_assemble_jacobian!(s.nzval, s.asm, U, s.prob; sync = shift == 0)
-    s.asm_sig = _fv_state_sig(shift, U)
+    s.asm_sig = _fv_state_sig(s.norms, shift, U)
     if shift != 0
         backend = KernelAbstractions.get_backend(U)
         _fv_diag_shift_kernel!(backend, 256)(s.nzval, s.asm.diag, Float64(shift);

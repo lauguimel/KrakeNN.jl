@@ -15,7 +15,8 @@
 # objective / finalize / transposed solve / parameter cotangent / explicit
 # term, then the median of 5 hot gradients with a workspace and finalize =
 # false, the ratios to the Newton solve and to one Newton iteration, and
-# CUDA.@allocated of a hot gradient.
+# CUDA.@allocated of a hot gradient and each constituent phase. The built-in
+# hot paths must allocate zero device bytes; host result arrays are excluded.
 const CPU = get(ENV, "C4_BENCH_CPU", "0") in ("1", "true")
 if !CPU
     using CUDA
@@ -52,6 +53,29 @@ sync() = CPU || CUDA.synchronize()
 CPU ? (devalloc(f) = -1) : @eval(devalloc(f) = CUDA.@allocated f())
 gib(x) = x / 2^30
 
+function allocation_phases(s, U, θ, obj, m, ws)
+    hp = Kraken._fv_host_problem(s.prob)
+    Uh = Vector{Float64}(Array(U))
+    _, gU = Kraken._fv_objective_grad_u(obj, Uh, hp)
+    θh = m isa FVViscosityField ? vec(hp.nu) : Vector{Float64}(θ)
+    phases = (
+        ("signature", () -> Kraken._fv_state_sig(s.norms, 0.0, U)),
+        ("host copies", () -> (Kraken._fv_host_problem(s.prob), Array(U))),
+        ("objective", () -> Kraken._fv_objective_grad_u(obj, Uh, hp)),
+        ("RHS copy", () -> copyto!(ws.g, gU)),
+        ("transpose", () -> lin_solve!(ws.λ, s.cache, ws.g; transpose = true)),
+        ("cotangent", () -> Kraken._fv_param_cotangent!(ws, m, s, U, θ)),
+        ("residual", () -> fv_residual!(s.R, U, s.prob)),
+        ("norms", () -> Kraken._fv_norms(s.norms, s.R)),
+        ("explicit", () -> Kraken._fv_objective_grad_theta(obj, m, Uh, hp, θh)))
+    for (name, f) in phases
+        sync()
+        bytes = devalloc(f)
+        @printf("    hot device allocation %-11s %d B\n", name, bytes)
+        bytes == 0 || (STATUS[] = 1)
+    end
+end
+
 function bench(N, Re)
     println("\n================ cavity N = $(N)², Re = $Re (from rest) ================"); flush(stdout)
     GC.gc(); CPU || CUDA.reclaim()
@@ -80,15 +104,23 @@ function bench(N, Re)
             tw = @elapsed (ws = fv_adjoint_workspace(s, m); sync())
             fv_steady_gradient(s, U, θ, obj; params = m, ws, finalize = false)  # warm
             hot = Float64[]
+            hot_obj = Float64[]; hot_explicit = Float64[]
             for _ in 1:5
-                t1 = time_ns(); fv_steady_gradient(s, U, θ, obj; params = m, ws, finalize = false); sync()
+                t1 = time_ns(); rh = fv_steady_gradient(s, U, θ, obj; params = m, ws, finalize = false); sync()
                 push!(hot, (time_ns() - t1) / 1e9)
+                push!(hot_obj, rh.t_objective); push!(hot_explicit, rh.t_explicit)
             end
             th = median(hot)
             a = devalloc(() -> fv_steady_gradient(s, U, θ, obj; params = m, ws, finalize = false))
             @printf("  %-10s | %-9s | %.3f (%.3f / %.3f / %.3f / %.3f / %.3f) | %.3f | %.4f | %.3f | %.2f | %d\n",
                     mname, oname, tf, r.t_objective, r.t_finalize, r.t_solve, r.t_param, r.t_explicit,
                     tw, th, th / t_newton, th / t_it, a)
+            @printf("    hot objective %.6f s | explicit %.6f s | (objective + explicit)/iteration %.4f\n",
+                    median(hot_obj), median(hot_explicit), median(hot_obj .+ hot_explicit) / t_it)
+            if !CPU
+                a == 0 || (STATUS[] = 1)
+                allocation_phases(s, U, θ, obj, m, ws)
+            end
         catch err
             println("  GRADIENT FAILED $mname / $oname: ", sprint(showerror, err)); STATUS[] = 1
         end

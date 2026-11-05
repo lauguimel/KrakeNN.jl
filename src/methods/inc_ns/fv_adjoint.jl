@@ -19,7 +19,8 @@
 #   gradient (roadmap V5).
 # - 𝒥 is evaluated on the host (objectives are small reductions); its
 #   gradients ∂𝒥/∂U and ∂𝒥/∂θ come from ForwardDiff restricted to the unknowns
-#   (and cells) the objective reads.
+#   (and cells) the objective reads. Wall forces differentiate each local face
+#   stencil once, so their cost does not multiply grid size by wall support.
 
 # ------------------------------------------------------------------ parameters
 """
@@ -415,48 +416,63 @@ function _fv_wall_face(g, tag, i, j, d, region)
     end
 end
 
-function fv_objective(f::FVWallForce, U, prob)
-    g = prob.grid; tag = prob.tag; nu = prob.nu; bvel = prob.bvel
+# One shared face flux for objective values and local derivatives. Keeping ν_P
+# as an argument also permits a single local viscosity dual for the field map.
+@inline function _fv_wall_force_face(f::FVWallForce, U, prob, i, j, d, nuP = prob.nu[i, j])
+    g = prob.grid; tag = prob.tag; bvel = prob.bvel
     h = g.h
-    T = promote_type(eltype(U), eltype(nu), eltype(bvel))
-    F = zero(T)
-    for j in 1:g.Ny, i in 1:g.Nx
+    isx = d <= 2
+    sx = (d == 1 || d == 3) ? 1 : -1
+    uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2); pP = _fv_val(U, g, i, j, 3)
+    gP = _fv_cell_grad(U, tag, bvel, g, i, j)
+    uw, vw = _fv_dirichlet_velocity(g, bvel, i, j, d)
+    dun = (uw - uP) * 2 / h
+    dvn = (vw - vP) * 2 / h
+    if isx
+        tx = 2 * nuP * dun
+        ty = nuP * (dvn + sx * gP[2])
+    else
+        tx = nuP * (dun + sx * gP[3])
+        ty = 2 * nuP * dvn
+    end
+    pf = pP
+    if f.pressure === :linear
+        # Second cell away from the wall; retain the C1 fallback at corners.
+        dop = d == 1 ? 2 : d == 2 ? 1 : d == 3 ? 4 : 3
+        kind, ii, jj = _fv_face_kind(g, tag, i, j, dop)
+        if kind == _FV_F_INT
+            pf = pP + (pP - _fv_val(U, g, ii, jj, 3)) / 2
+        end
+    end
+    return f.dir == 1 ? -h * tx + (isx ? h * sx * pf : zero(pf)) :
+                        -h * ty + (isx ? zero(pf) : h * sx * pf)
+end
+
+function _fv_wall_faces(f::FVWallForce, prob)
+    g = prob.grid; tag = prob.tag
+    faces = NTuple{3,Int}[]
+    # A domain-side objective only reads that side; solid faces can be anywhere.
+    ir = f.region === :E ? (g.Nx:g.Nx) : f.region === :W ? (1:1) : (1:g.Nx)
+    jr = f.region === :N ? (g.Ny:g.Ny) : f.region === :S ? (1:1) : (1:g.Ny)
+    for j in jr, i in ir
         tag[i, j] == FV_CELL_SOLID && continue
         for d in 1:4
-            _fv_wall_face(g, tag, i, j, d, f.region) || continue
-            isx = d <= 2
-            sx = (d == 1 || d == 3) ? 1 : -1
-            uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2); pP = _fv_val(U, g, i, j, 3)
-            gP = _fv_cell_grad(U, tag, bvel, g, i, j)
-            nuP = nu[i, j]
-            uw, vw = _fv_dirichlet_velocity(g, bvel, i, j, d)
-            dun = (uw - uP) * 2 / h
-            dvn = (vw - vP) * 2 / h
-            if isx
-                tx = 2 * nuP * dun
-                ty = nuP * (dvn + sx * gP[2])
-            else
-                tx = nuP * (dun + sx * gP[3])
-                ty = 2 * nuP * dvn
-            end
-            pf = pP
-            if f.pressure === :linear
-                # second cell away from the wall: neighbour through the opposite face
-                dop = d == 1 ? 2 : d == 2 ? 1 : d == 3 ? 4 : 3
-                kind, ii, jj = _fv_face_kind(g, tag, i, j, dop)
-                if kind == _FV_F_INT
-                    pf = pP + (pP - _fv_val(U, g, ii, jj, 3)) / 2
-                end
-            end
-            if f.dir == 1
-                F += -h * tx + (isx ? h * sx * pf : zero(pf))
-            else
-                F += -h * ty + (isx ? zero(pf) : h * sx * pf)
-            end
+            _fv_wall_face(g, tag, i, j, d, f.region) && push!(faces, (i, j, d))
         end
+    end
+    return faces
+end
+
+function _fv_wall_force_sum(f, U, prob, faces)
+    T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel))
+    F = zero(T)
+    for (i, j, d) in faces
+        F += _fv_wall_force_face(f, U, prob, i, j, d)
     end
     return F
 end
+
+fv_objective(f::FVWallForce, U, prob) = _fv_wall_force_sum(f, U, prob, _fv_wall_faces(f, prob))
 
 function fv_objective_support(f::FVWallForce, prob)
     g = prob.grid; tag = Array(prob.tag)
@@ -475,6 +491,46 @@ end
 
 # ∂𝒥/∂U on the host: forward duals seeded on the support only, `chunk` at a time
 struct _FVObjTag end
+
+# Host-only lazy state duals: one fixed stencil, never a full-grid dual vector.
+# Repeated periodic neighbours are removed before seeding and scattering.
+struct _FVWallState{A} <: AbstractVector{ForwardDiff.Dual{_FVObjTag,Float64,15}}
+    values::A
+    index::NTuple{15,Int}
+end
+Base.size(U::_FVWallState) = size(U.values)
+@inline function Base.getindex(U::_FVWallState, k::Int)
+    return ForwardDiff.Dual{_FVObjTag}(U.values[k],
+        ForwardDiff.Partials(ntuple(s -> U.index[s] == k ? 1.0 : 0.0, Val(15))))
+end
+
+function _fv_wall_state(U, prob, i, j)
+    g = prob.grid
+    raw = ntuple(Val(5)) do k
+        k == 1 && return i + (j - 1) * g.Nx
+        kind, ii, jj = _fv_face_kind(g, prob.tag, i, j, k - 1)
+        return kind == _FV_F_INT ? ii + (jj - 1) * g.Nx : 0
+    end
+    cells = ntuple(k -> any(l -> raw[l] == raw[k], 1:(k - 1)) ? 0 : raw[k], Val(5))
+    indices = ntuple(k -> 3 * (cells[(k - 1) ÷ 3 + 1] - 1) + mod1(k, 3), Val(15))
+    return _FVWallState(U, indices)
+end
+
+function _fv_objective_grad_u(obj::FVWallForce, Uh::Vector{Float64}, hprob; chunk::Int = 8)
+    gU = zeros(Float64, length(Uh))
+    J = 0.0
+    for (i, j, d) in _fv_wall_faces(obj, hprob)
+        Ud = _fv_wall_state(Uh, hprob, i, j)
+        v = _fv_wall_force_face(obj, Ud, hprob, i, j, d)
+        J += ForwardDiff.value(v)
+        pd = ForwardDiff.partials(v)
+        for k in 1:15
+            q = Ud.index[k]
+            q > 0 && (gU[q] += pd[k])
+        end
+    end
+    return J, gU
+end
 
 function _fv_objective_grad_u(obj::FVObjective, Uh::Vector{Float64}, hprob; chunk::Int = 8)
     supp = fv_objective_support(obj, hprob)
@@ -542,6 +598,26 @@ function _fv_objective_grad_theta(obj::FVObjective, ::FVViscosityField, Uh, hpro
     end
     return gθ
 end
+
+# A face force reads just its own cell viscosity. One local dual per face
+# replaces support-sized chunks of full-grid dual fields and objective scans.
+function _fv_wall_nu_gradient(obj, m, Uh, hprob, θ)
+    gθ = zeros(Float64, fv_nparams(m, hprob))
+    for (i, j, d) in _fv_wall_faces(obj, hprob)
+        ν = m isa FVUniformViscosity ? θ[1] : hprob.nu[i, j]
+        νd = ForwardDiff.Dual{_FVObjTag}(ν, 1.0)
+        v = _fv_wall_force_face(obj, Uh, hprob, i, j, d, νd)
+        q = m isa FVViscosityField ? i + (j - 1) * hprob.grid.Nx : 1
+        gθ[q] += ForwardDiff.partials(v)[1]
+    end
+    return gθ
+end
+
+_fv_objective_grad_theta(obj::FVWallForce, m::FVViscosityField, Uh, hprob, θ; chunk::Int = 8) =
+    _fv_wall_nu_gradient(obj, m, Uh, hprob, θ)
+_fv_objective_grad_theta(obj::FVWallForce, m::FVUniformViscosity, Uh, hprob, θ; chunk::Int = 8) =
+    _fv_wall_nu_gradient(obj, m, Uh, hprob, θ)
+_fv_objective_grad_theta(::FVWallForce, ::FVUniformSource, Uh, hprob, θ; chunk::Int = 8) = zeros(1)
 
 # ------------------------------------------------------------------ workspace
 """
@@ -634,7 +710,11 @@ _fv_ws_chunk(::FVAdjointWorkspace{N}) where {N} = N
     @inbounds for r in r0:r1
         l = λ[r]
         pv = ForwardDiff.partials(Rd[r])
-        acc = ntuple(k -> acc[k] + l * pv[k], Val(N))
+        # bind the accumulator so the closure does not capture a reassigned
+        # variable (Core.Box, rejected by the GPU compiler)
+        acc = let a = acc
+            ntuple(k -> a[k] + l * pv[k], Val(N))
+        end
     end
     @inbounds for k in 1:N
         Pt[k, t] = acc[k]
@@ -750,7 +830,7 @@ _fv_host_problem(p::FVSteadyProblem2D) = p.nu isa Array ? p : fv_adapt(Array, p)
 # and (ΣU, ΣU²) recorded when the factors were made; two O(N) reductions)
 function _fv_check_factors(s::FVNewtonSolver, U)
     shift, su, sq = s.fac_sig
-    cur = _fv_state_sig(0.0, U)
+    cur = _fv_state_sig(s.norms, 0.0, U)
     ok(a, b) = isfinite(a) && abs(a - b) <= 1e-12 * max(abs(a), abs(b), 1.0)
     if !(shift == 0.0 && ok(su, cur[2]) && ok(sq, cur[3]))
         why = isnan(shift) ? "no factors recorded for a state (or the parameters changed since)" :
@@ -835,7 +915,9 @@ by [`fv_set_params!`](@ref)) and `U` its converged state ([`fv_newton!`](@ref)).
     d𝒥/dθ = ∂𝒥/∂θ − λᵀ ∂R/∂θ,   Jᵀ λ = ∂𝒥/∂U
 
 `∂𝒥/∂U` and the explicit `∂𝒥/∂θ` come from host duals restricted to the
-objective's support; the adjoint is [`fv_steady_adjoint`](@ref) (one
+objective's support. Wall forces use local face stencils for state and
+viscosity derivatives, and parameter chunks for other maps. The adjoint is
+[`fv_steady_adjoint`](@ref) (one
 refactorization of the Newton Jacobian at `U`, no new symbolic analysis, one
 transposed solve, `⌈P/chunk⌉` or `⌈ncolours/chunk⌉` dual residual evaluations).
 
