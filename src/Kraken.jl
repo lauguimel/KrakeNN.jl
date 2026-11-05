@@ -22,7 +22,7 @@ include("platform/sample.jl")     # sample
 include("platform/observe.jl")    # observe, predict, Prediction, observables
 include("platform/state.jl")      # AbstractSimulationState, StateSnapshot, advance!
 export AbstractProblem, AbstractMethod, AbstractSolution, AbstractObservable, AbstractClosure
-export Capability, ForwardSolve, GPUExecution, SteadyAdjoint, TransientAdjoint, FiniteDiff, NeuralClosure, SteadyResidual
+export Capability, ForwardSolve, GPUExecution, SteadyAdjoint, TransientAdjoint, FiniteDiff, NeuralClosure, SteadyResidual, AssembledJacobian
 export capabilities
 export LBM, LBMSolution, solve, sample
 export observe, predict, Prediction, FieldProbe, LineProfile, FieldReduction
@@ -129,6 +129,7 @@ include("methods/inc_ns/method.jl")   # platform-contract wrapper (IncNS <: Abst
 include("methods/inc_ns/fv_steady_residual.jl")   # C1: steady FV residual (KA kernel, generic eltype)
 include("methods/inc_ns/fv_newton.jl")   # C2: coloured dual Jacobian + Newton on the seam
 include("methods/inc_ns/fv_gnf.jl")   # C3: generalised-Newtonian face viscosity + its Jacobian pattern
+include("methods/inc_ns/fv_adjoint.jl")   # C4: steady discrete adjoint on the Newton factors
 
 # IncNS platform contract
 export IncNS, IncNSSolution
@@ -146,6 +147,13 @@ export fv_jacobian_pattern, fv_jacobian_coloring, FVJacobianTag, FVJacobianAssem
 # Generalised-Newtonian viscosity in the steady FV residual and Newton (C3)
 export FVNewtonianViscosity, FVGNFViscosity, fv_gnf_parameters, fv_gnf_parameter_names,
        fv_with_gnf_parameters
+# Steady discrete adjoint on the FV Newton solver (C4)
+export FVParamTag, FVParameterMap, FVUniformViscosity, FVViscosityField, FVSideVelocity,
+       FVUniformSource, FVProblemMap, fv_nparams, fv_param_problem, fv_set_params!,
+       FVObjective, FVStateObs, FVLinearFunctional, FVWallForce, fv_objective,
+       fv_objective_support, fv_objective_explicit, fv_obs_values, fv_flow_rate,
+       fv_pressure_drop, FVAdjointWorkspace, fv_adjoint_workspace, fv_nu_coloring,
+       fv_steady_adjoint, fv_steady_gradient, fv_steady_tangent
 # IncNS / scalar-transport drivers
 export solve_incns_simple, solve_incns_cavity, solve_incns_cavity_mg,
        solve_incns_projection, solve_incns_manifold, manifold_full_cell_mask,

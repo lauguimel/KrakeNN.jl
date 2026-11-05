@@ -205,7 +205,7 @@ end
     end
 
     @testset "platform contract: IncNS(:fv_newton)" begin
-        @test capabilities(IncNS(:fv_newton)) == Set((ForwardSolve, SteadyResidual))
+        @test capabilities(IncNS(:fv_newton)) == Set((ForwardSolve, SteadyResidual, SteadyAdjoint, AssembledJacobian))
         @test SteadyResidual ∉ capabilities(IncNS(:cavity))
         p = fv_steady_problem(16, 16; nu = 0.01, boundary_velocity = _fvc2_lid)
         sol = solve((; problem = p), IncNS(:fv_newton))
