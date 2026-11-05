@@ -34,7 +34,9 @@ Boundary north wall T = 0.0
 **Notes**
 
 - Standard half-way bounce-back. No kwargs needed for isothermal cases.
-- With `Module thermal`, the `T` kwarg is forwarded to the thermal DDF.
+- With `Module thermal`, the `T` kwarg is read for `heat_conduction` cases only (one opposing
+  pair of faces). The `natural_convection` and `rayleigh_benard` cases ignore it and use the
+  driver's own wall temperatures (hot = 1, cold = 0).
 
 ## `velocity`
 

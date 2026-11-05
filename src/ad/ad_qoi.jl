@@ -141,10 +141,11 @@ end
 """
     nu_driver(w, p::ADNatconvParams; q_hot=0.5, L=p.Nx)
 
-Hot-wall Nusselt number of the thermal state `w`, averaged over rows
-`2:Ny-1`, for a hot wall at distance `q_hot` from the first node and a cavity
-of width `L` (lattice units). The defaults (`q_hot = 0.5`, `L = Nx`) give the
-formula of `run_natural_convection_2d`. `nu_pure` evaluates the same formula
+Hot-wall Nusselt number of the thermal state `w`, averaged over all rows
+`1:Ny` (each row covers one spacing of the wall), for a hot wall at distance
+`q_hot` from the first node and a cavity of width `L` (lattice units). The
+defaults (`q_hot = 0.5`, `L = Nx`) give the formula of
+`run_natural_convection_2d`. `nu_pure` evaluates the same formula
 with `q_hot` and `L` read from the cut-link fractions, so that it is
 differentiable with respect to the wall positions.
 """
@@ -157,7 +158,7 @@ function nu_driver(w, p::ADNatconvParams; q_hot::Real=0.5,
     delta = Float64(q_hot)
     L_f = Float64(L)
     s = 0.0
-    @inbounds for j in 2:(Ny - 1)
+    @inbounds for j in 1:Ny
         T1 = 0.0
         T2 = 0.0
         for q in 1:9
@@ -166,7 +167,7 @@ function nu_driver(w, p::ADNatconvParams; q_hot::Real=0.5,
         end
         s += _nu_hot_wall_row(T1, T2, p.T_hot, delta, L_f, delta_T)
     end
-    return s / (Ny - 2)
+    return s / Ny
 end
 
 # Nusselt QoI of the AD chain. Row j reads the hot-wall fraction
@@ -180,7 +181,7 @@ function nu_pure(w, q_wall, p::ADNatconvParams)
     goff = ad_thermal_nlat(p)
     delta_T = p.T_hot - p.T_cold
     s = 0.0
-    @inbounds for j in 2:(Ny - 1)
+    @inbounds for j in 1:Ny
         T1 = 0.0
         T2 = 0.0
         for q in 1:9
@@ -191,7 +192,7 @@ function nu_pure(w, q_wall, p::ADNatconvParams)
         L = Float64(Nx - 1) + delta + q_wall[Nx, j, 2]
         s += _nu_hot_wall_row(T1, T2, p.T_hot, delta, L, delta_T)
     end
-    return s / (Ny - 2)
+    return s / Ny
 end
 
 function ad_thermal_lambda_dot_G_value(w_star, lambda, q_flow, q_therm,

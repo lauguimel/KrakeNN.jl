@@ -1,0 +1,40 @@
+#!/bin/bash -l
+#PBS -N kraken_c1_fv
+#PBS -l select=1:ncpus=8:ngpus=1:mem=32GB:gpu_id=A100:host=gpu0n009
+#PBS -l walltime=01:00:00
+#PBS -j oe
+
+# C1 (steady FV residual) GPU validation. WORKDIR (default ~/kraken_c1) holds,
+# prepared on the login node (Pkg.instantiate + precompile there, private depot):
+#   src_c1 = feat/fv-c1 (git archive),  env = Kraken dev'd by path + CUDA.jl 6 +
+#   ForwardDiff + KernelAbstractions + Test,  depot = private JULIA_DEPOT_PATH.
+# The job runs Pkg offline: C1 test files with KRAKEN_REQUIRE_GPU=1, then the
+# residual timing / allocation bench at 512² and 1024².
+# The host is pinned: gpu0n001 fails cuInit. The project code is passed on the
+# qsub command line only:  qsub -P <RPID> c1_gpu.pbs
+
+WORKDIR=${WORKDIR:-$HOME/kraken_c1}
+cd "$WORKDIR" || exit 2
+LOGDIR=$WORKDIR/logs
+mkdir -p "$LOGDIR"
+TAG=${PBS_JOBID%%.*}
+
+echo "========================================"
+echo "Job: $PBS_JOBID   Node: $(hostname)   Start: $(date)"
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || { echo "ERROR: no GPU"; exit 1; }
+echo "========================================"
+
+export PATH=$HOME/.juliaup/bin:$PATH
+export JULIA_DEPOT_PATH=$WORKDIR/depot
+export JULIA_CUDA_USE_COMPAT=false
+export JULIA_PKG_OFFLINE=true
+export JULIA_PKG_PRECOMPILE_AUTO=0
+export JULIA_NUM_THREADS=${NCPUS:-8}
+
+KRAKEN_REQUIRE_GPU=1 julia --project=env src_c1/benchmarks/fv_c1/c1_gpu.jl 2>&1 | tee "$LOGDIR/c1_gpu_$TAG.txt"
+STATUS=${PIPESTATUS[0]}
+
+echo "========================================"
+echo "End: $(date)  status=$STATUS"
+echo "========================================"
+exit $STATUS

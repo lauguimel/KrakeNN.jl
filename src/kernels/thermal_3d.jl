@@ -154,6 +154,67 @@ function compute_temperature_3d!(Temp, g)
     kernel!(Temp, g; ndrange=(Nx, Ny, Nz))
 end
 
+# --- Thermal streaming of the x-heated box (D3Q19) ---
+#
+# Pull streaming of the thermal populations of a box whose west and east faces
+# carry a fixed temperature and whose four other faces are adiabatic, with
+# the slot numbering of `stream_3d!`. At an adiabatic face (y = 0.5,
+# y = Ny + 0.5, z = 0.5, z = Nz + 0.5) a population whose source lies across
+# the wall is the mirror image, wall-normal component flipped, of the one
+# leaving the same wall layer towards it: zero normal heat flux, tangential
+# flux kept (bounce-back would reverse the tangential flux of the wall layer).
+# A link through an edge of two adiabatic faces is mirrored on both, which is
+# the node's own opposite population. A slot whose source lies across the west
+# or east face keeps the bounced value g*_opp(x_b), which
+# `apply_fixed_temp_west_3d!` / `apply_fixed_temp_east_3d!` turn into the
+# Dirichlet rule (edge slots included). On a wall layer jm/jp (km/kp) is the
+# layer itself, so the mirrored slot is read there.
+
+@kernel function stream_thermal_cavity_3d_kernel!(g_out, @Const(g_in), Nx, Ny, Nz)
+    i, j, k = @index(Global, NTuple)
+
+    @inbounds begin
+        im = max(i-1, 1); ip = min(i+1, Nx)
+        jm = max(j-1, 1); jp = min(j+1, Ny)
+        km = max(k-1, 1); kp = min(k+1, Nz)
+        jlo = j > 1; jhi = j < Ny; klo = k > 1; khi = k < Nz
+
+        g_out[i,j,k,1] = g_in[i,j,k,1]
+
+        g_out[i,j,k,2] = ifelse(i > 1,  g_in[im,j,k,2], g_in[i,j,k,3])
+        g_out[i,j,k,3] = ifelse(i < Nx, g_in[ip,j,k,3], g_in[i,j,k,2])
+        g_out[i,j,k,4] = ifelse(jlo, g_in[i,jm,k,4], g_in[i,j,k,5])
+        g_out[i,j,k,5] = ifelse(jhi, g_in[i,jp,k,5], g_in[i,j,k,4])
+        g_out[i,j,k,6] = ifelse(klo, g_in[i,j,km,6], g_in[i,j,k,7])
+        g_out[i,j,k,7] = ifelse(khi, g_in[i,j,kp,7], g_in[i,j,k,6])
+
+        # Edge xy: 8 (+x,+y), 9 (-x,+y), 10 (+x,-y), 11 (-x,-y)
+        g_out[i,j,k,8]  = ifelse(i > 1,  g_in[im,jm,k,ifelse(jlo, 8, 10)],  g_in[i,j,k,11])
+        g_out[i,j,k,9]  = ifelse(i < Nx, g_in[ip,jm,k,ifelse(jlo, 9, 11)],  g_in[i,j,k,10])
+        g_out[i,j,k,10] = ifelse(i > 1,  g_in[im,jp,k,ifelse(jhi, 10, 8)],  g_in[i,j,k,9])
+        g_out[i,j,k,11] = ifelse(i < Nx, g_in[ip,jp,k,ifelse(jhi, 11, 9)],  g_in[i,j,k,8])
+
+        # Edge xz: 12 (+x,+z), 13 (-x,+z), 14 (+x,-z), 15 (-x,-z)
+        g_out[i,j,k,12] = ifelse(i > 1,  g_in[im,j,km,ifelse(klo, 12, 14)], g_in[i,j,k,15])
+        g_out[i,j,k,13] = ifelse(i < Nx, g_in[ip,j,km,ifelse(klo, 13, 15)], g_in[i,j,k,14])
+        g_out[i,j,k,14] = ifelse(i > 1,  g_in[im,j,kp,ifelse(khi, 14, 12)], g_in[i,j,k,13])
+        g_out[i,j,k,15] = ifelse(i < Nx, g_in[ip,j,kp,ifelse(khi, 15, 13)], g_in[i,j,k,12])
+
+        # Edge yz: 16 (+y,+z), 17 (-y,+z), 18 (+y,-z), 19 (-y,-z); both
+        # components can be mirrored.
+        g_out[i,j,k,16] = g_in[i,jm,km,ifelse(jlo, ifelse(klo, 16, 18), ifelse(klo, 17, 19))]
+        g_out[i,j,k,17] = g_in[i,jp,km,ifelse(jhi, ifelse(klo, 17, 19), ifelse(klo, 16, 18))]
+        g_out[i,j,k,18] = g_in[i,jm,kp,ifelse(jlo, ifelse(khi, 18, 16), ifelse(khi, 19, 17))]
+        g_out[i,j,k,19] = g_in[i,jp,kp,ifelse(jhi, ifelse(khi, 19, 17), ifelse(khi, 18, 16))]
+    end
+end
+
+function stream_thermal_cavity_3d!(g_out, g_in, Nx, Ny, Nz)
+    backend = KernelAbstractions.get_backend(g_in)
+    kernel! = stream_thermal_cavity_3d_kernel!(backend)
+    kernel!(g_out, g_in, Nx, Ny, Nz; ndrange=(Nx, Ny, Nz))
+end
+
 # --- Fixed temperature BCs (half-way anti-bounce-back Dirichlet, D3Q19) ---
 #
 # The wall sits half a lattice spacing outside the boundary node (x = 0.5 and

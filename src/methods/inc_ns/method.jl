@@ -20,9 +20,12 @@ with `driver` one of:
 - `:projection` → [`solve_incns_projection`](@ref) (unsteady fractional-step)
 - `:manifold`   → [`solve_incns_manifold`](@ref) (inlet/outlet manifold SIMPLE)
 
-Declares [`capabilities`](@ref) `Set((ForwardSolve,))` only: the CPU forward
-solve is the validated path (the CUDA seam methods are manual-load, so
-`GPUExecution` is deliberately NOT claimed).
+Declares [`capabilities`](@ref) `Set((ForwardSolve, SteadyResidual))`: the CPU
+forward solve is the validated path (the CUDA seam methods are manual-load, so
+`GPUExecution` is deliberately NOT claimed). `SteadyResidual` is the steady
+colocated FV residual of `fv_steady_residual.jl` (C1 of the FV Newton roadmap),
+reached as `residual(prob::FVSteadyProblem2D, ::IncNS, U)`; it is the residual
+of that coupled discretisation, not of the SIMPLE drivers.
 """
 struct IncNS <: AbstractMethod
     driver::Symbol
@@ -34,7 +37,7 @@ struct IncNS <: AbstractMethod
     end
 end
 
-capabilities(::IncNS) = Set((ForwardSolve,))
+capabilities(::IncNS) = Set((ForwardSolve, SteadyResidual))
 
 """
     IncNSSolution{R} <: AbstractSolution
