@@ -1,0 +1,180 @@
+CUDA.functional() = true
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0  threads 8
+
+--- C2 test files ---
+
+--- incns_fv_newton.jl ---
+┌ Info: C2 Newton, cavity Re=100 32² (CPU)
+│   residual_2norm =
+│    6-element Vector{Float64}:
+│     0.11313708498984758
+│     ⋮
+│   inf_norm =
+│    5-element Vector{Float64}:
+│     0.003861603096183006
+│     ⋮
+│   alpha =
+│    4-element Vector{Float64}:
+│     1.0
+└     ⋮
+
+--- incns_fv_newton_gpu.jl ---
+┌ Info: C2 Newton, cavity Re=100 64² (GPU, cuDSS)
+│   residual_2norm =
+│    6-element Vector{Float64}:
+│     0.16000000000000006
+│     0.00865236943164847
+│     0.0007887504455023275
+│     1.647322092819219e-5
+│     7.809198535740389e-10
+└     8.471389787507422e-17
+┌ Info: C2 GPU hot loop
+└   free_memory_spread_MiB = 0.0
+Test Summary:   | Pass  Total   Time
+C2 GPU receipts |  132    132  52.3s
+
+================ cavity N = 512², Re = 100.0 (from rest) ================
+  unknowns 786432 | nnz 15953920 (20.3/row) | colours 39 | chunk 4 -> 10 dual passes
+  set-up (CPU pattern 0.24 s, colouring 0.96 s, total incl. upload 1.63 s)
+  converged true in 5 iterations, 12.64 s wall (n_factorize 1, n_refactorize 4)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 4.525e-01 |  4.525e-01 |  0.000e+00 | 2.000e-02 |
+   1 | 1.431e-03 |  1.431e-03 |  6.153e-06 | 2.453e-04 | 1.000 |      11.32 |      10.607 |   234.99 |     0.31
+   2 | 1.116e-04 |  1.116e-04 |  8.998e-10 | 2.119e-06 | 1.000 |       8.80 |       0.426 |     7.00 |     0.26
+   3 | 2.110e-06 |  2.110e-06 |  3.137e-11 | 1.439e-07 | 1.000 |       8.79 |       0.428 |     7.02 |     0.25
+   4 | 1.661e-09 |  1.661e-09 |  4.896e-14 | 8.366e-10 | 1.000 |       8.79 |       0.429 |     6.98 |     0.26
+   5 | 4.210e-16 |  4.193e-16 |  3.821e-17 | 1.041e-17 | 1.000 |       8.81 |       0.428 |     7.03 |     0.26
+  first factorization (analysis + numeric) 10.61 s | median refactorization 0.428 s | analysis (deduced) 10.18 s
+  per Newton iteration (median, it >= 2): assembly 8.80 ms | refactorize 0.428 s | solve 7.01 ms | line search 0.26 ms
+  Ghia (1982) max |Δu| on x=1/2 0.0033, max |Δv| on y=1/2 0.0082 (lid units)
+  cuDSS memory_estimates: permanent device 4.51 GiB, peak device 4.51 GiB, peak host 0.26 GiB
+  cuDSS lu_nnz 493755294 (fill ratio 30.9 vs nnz(J))
+  device memory used: after set-up 0.41 GiB | after Newton (factors resident) 4.94 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 34.104
+     2 | 0 | 0 | 0 | 0 | 34.104
+     3 | 0 | 0 | 0 | 0 | 34.104
+     4 | 0 | 0 | 0 | 0 | 34.104
+     5 | 0 | 0 | 0 | 0 | 34.104
+     6 | 0 | 0 | 0 | 0 | 34.104
+     7 | 0 | 0 | 0 | 0 | 34.104
+     8 | 0 | 0 | 0 | 0 | 34.104
+     9 | 0 | 0 | 0 | 0 | 34.104
+    10 | 0 | 0 | 0 | 0 | 34.104
+  free-memory spread over the 10 hot iterations: 0.0 MiB | CUDA.@allocated of 3 full Newton iterations from a perturbed state: 0 B
+  Jacobian GPU vs CPU: max |Δ| / max |J| = 0.0e+00 (CPU KA assembly 0.24 s)
+
+================ cavity N = 1024², Re = 100.0 (from rest) ================
+  unknowns 3145728 | nnz 63889408 (20.3/row) | colours 39 | chunk 4 -> 10 dual passes
+  set-up (CPU pattern 0.93 s, colouring 3.67 s, total incl. upload 5.89 s)
+  converged true in 5 iterations, 56.35 s wall (n_factorize 1, n_refactorize 4)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 6.400e-01 |  6.400e-01 |  0.000e+00 | 2.000e-02 |
+   1 | 7.648e-04 |  7.648e-04 |  1.549e-06 | 1.227e-04 | 1.000 |      36.33 |      46.745 |    28.13 |     0.62
+   2 | 5.601e-05 |  5.601e-05 |  6.518e-11 | 6.135e-07 | 1.000 |      33.36 |       2.319 |    28.28 |     0.69
+   3 | 9.821e-07 |  9.821e-07 |  2.857e-12 | 3.732e-08 | 1.000 |      33.71 |       2.323 |    28.17 |     0.62
+   4 | 9.780e-10 |  9.780e-10 |  4.605e-15 | 2.903e-10 | 1.000 |      33.35 |       2.324 |    28.45 |     0.65
+   5 | 8.348e-16 |  8.339e-16 |  3.853e-17 | 6.939e-18 | 1.000 |      33.71 |       2.321 |    28.16 |     0.64
+  first factorization (analysis + numeric) 46.74 s | median refactorization 2.322 s | analysis (deduced) 44.42 s
+  per Newton iteration (median, it >= 2): assembly 33.53 ms | refactorize 2.322 s | solve 28.23 ms | line search 0.64 ms
+  Ghia (1982) max |Δu| on x=1/2 0.0042, max |Δv| on y=1/2 0.0087 (lid units)
+  cuDSS memory_estimates: permanent device 20.20 GiB, peak device 20.20 GiB, peak host 1.03 GiB
+  cuDSS lu_nnz 2359541640 (fill ratio 36.9 vs nnz(J))
+  device memory used: after set-up 1.56 GiB | after Newton (factors resident) 21.84 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 17.198
+     2 | 0 | 0 | 0 | 0 | 17.198
+     3 | 0 | 0 | 0 | 0 | 17.198
+     4 | 0 | 0 | 0 | 0 | 17.198
+     5 | 0 | 0 | 0 | 0 | 17.198
+     6 | 0 | 0 | 0 | 0 | 17.198
+     7 | 0 | 0 | 0 | 0 | 17.198
+     8 | 0 | 0 | 0 | 0 | 17.198
+     9 | 0 | 0 | 0 | 0 | 17.198
+    10 | 0 | 0 | 0 | 0 | 17.198
+  free-memory spread over the 10 hot iterations: 0.0 MiB | CUDA.@allocated of 3 full Newton iterations from a perturbed state: 0 B
+
+================ cavity N = 512², Re = 1000.0 (from rest) ================
+  unknowns 786432 | nnz 15953920 (20.3/row) | colours 39 | chunk 4 -> 10 dual passes
+  set-up (CPU pattern 0.24 s, colouring 0.96 s, total incl. upload 1.57 s)
+  converged true in 12 iterations, 15.34 s wall (n_factorize 1, n_refactorize 11)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 4.525e-02 |  4.525e-02 |  0.000e+00 | 2.000e-03 |
+   1 | 1.431e-03 |  1.430e-03 |  5.460e-05 | 2.424e-04 | 1.000 |       9.11 |      10.433 |     7.06 |     0.33
+   2 | 8.816e-04 |  8.812e-04 |  2.729e-05 | 1.215e-04 | 0.500 |       8.81 |       0.427 |     7.08 |     0.56
+   3 | 3.815e-04 |  3.815e-04 |  1.629e-07 | 6.542e-06 | 1.000 |       8.81 |       0.427 |     7.03 |     0.33
+   4 | 3.706e-04 |  3.706e-04 |  9.793e-08 | 2.772e-06 | 1.000 |       8.81 |       0.428 |     7.05 |     0.32
+   5 | 1.590e-04 |  1.590e-04 |  1.743e-07 | 4.206e-06 | 1.000 |       8.81 |       0.430 |     7.04 |     0.31
+   6 | 1.429e-04 |  1.429e-04 |  1.072e-07 | 2.278e-06 | 0.500 |       8.82 |       0.428 |     7.06 |     0.58
+   7 | 1.366e-04 |  1.366e-04 |  5.752e-08 | 3.229e-06 | 1.000 |       8.81 |       0.430 |     7.02 |     0.30
+   8 | 2.601e-05 |  2.601e-05 |  1.228e-08 | 5.260e-07 | 1.000 |       8.81 |       0.427 |     7.11 |     0.32
+   9 | 2.393e-06 |  2.393e-06 |  2.375e-09 | 4.893e-08 | 1.000 |       8.82 |       0.428 |     7.02 |     0.30
+  10 | 1.679e-08 |  1.679e-08 |  4.847e-12 | 4.066e-09 | 1.000 |       8.81 |       0.427 |     7.05 |     0.31
+  11 | 3.338e-12 |  3.338e-12 |  4.225e-15 | 2.347e-12 | 1.000 |       8.81 |       0.429 |     7.06 |     0.31
+  12 | 7.883e-17 |  6.345e-17 |  4.678e-17 | 1.260e-18 | 1.000 |       8.81 |       0.428 |     7.03 |     0.30
+  first factorization (analysis + numeric) 10.43 s | median refactorization 0.428 s | analysis (deduced) 10.01 s
+  per Newton iteration (median, it >= 2): assembly 8.81 ms | refactorize 0.428 s | solve 7.05 ms | line search 0.31 ms
+  Ghia (1982) max |Δu| on x=1/2 0.0192, max |Δv| on y=1/2 0.0191 (lid units)
+  cuDSS memory_estimates: permanent device 4.51 GiB, peak device 4.51 GiB, peak host 0.26 GiB
+  cuDSS lu_nnz 493755294 (fill ratio 30.9 vs nnz(J))
+  device memory used: after set-up 0.44 GiB | after Newton (factors resident) 4.97 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 34.073
+     2 | 0 | 0 | 0 | 0 | 34.073
+     3 | 0 | 0 | 0 | 0 | 34.073
+     4 | 0 | 0 | 0 | 0 | 34.073
+     5 | 0 | 0 | 0 | 0 | 34.073
+     6 | 0 | 0 | 0 | 0 | 34.073
+     7 | 0 | 0 | 0 | 0 | 34.073
+     8 | 0 | 0 | 0 | 0 | 34.073
+     9 | 0 | 0 | 0 | 0 | 34.073
+    10 | 0 | 0 | 0 | 0 | 34.073
+  free-memory spread over the 10 hot iterations: 0.0 MiB | CUDA.@allocated of 3 full Newton iterations from a perturbed state: 0 B
+  Jacobian GPU vs CPU: max |Δ| / max |J| = 4.3e-19 (CPU KA assembly 0.24 s)
+
+================ cavity N = 1024², Re = 1000.0 (from rest) ================
+  unknowns 3145728 | nnz 63889408 (20.3/row) | colours 39 | chunk 4 -> 10 dual passes
+  set-up (CPU pattern 0.90 s, colouring 3.65 s, total incl. upload 5.75 s)
+  converged true in 11 iterations, 69.23 s wall (n_factorize 1, n_refactorize 10)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 6.400e-02 |  6.400e-02 |  0.000e+00 | 2.000e-03 |
+   1 | 7.647e-04 |  7.645e-04 |  1.456e-05 | 1.219e-04 | 1.000 |      42.70 |      45.337 |    28.36 |     0.64
+   2 | 4.687e-04 |  4.686e-04 |  7.278e-06 | 6.100e-05 | 0.500 |      33.64 |       2.318 |    28.12 |     1.20
+   3 | 2.192e-04 |  2.192e-04 |  3.849e-08 | 1.842e-06 | 1.000 |      33.40 |       2.321 |    28.16 |     0.61
+   4 | 1.306e-04 |  1.306e-04 |  1.991e-08 | 9.220e-07 | 0.500 |      33.35 |       2.318 |    28.33 |     1.19
+   5 | 8.900e-05 |  8.900e-05 |  9.907e-09 | 4.668e-07 | 1.000 |      33.65 |       2.321 |    28.32 |     0.64
+   6 | 7.228e-05 |  7.228e-05 |  6.120e-09 | 3.382e-07 | 0.500 |      33.64 |       2.321 |    28.24 |     1.20
+   7 | 5.624e-05 |  5.624e-05 |  4.400e-09 | 5.235e-07 | 1.000 |      33.47 |       2.318 |    28.55 |     0.65
+   8 | 1.111e-05 |  1.111e-05 |  1.271e-09 | 7.577e-08 | 1.000 |      33.69 |       2.320 |    28.36 |     0.63
+   9 | 5.921e-07 |  5.921e-07 |  2.801e-11 | 9.923e-09 | 1.000 |      33.64 |       2.319 |    28.38 |     0.63
+  10 | 2.662e-09 |  2.662e-09 |  2.267e-13 | 5.957e-10 | 1.000 |      33.72 |       2.321 |    28.51 |     0.61
+  11 | 1.114e-14 |  1.114e-14 |  5.992e-17 | 2.149e-16 | 1.000 |      33.67 |       2.319 |    28.32 |     0.62
+  first factorization (analysis + numeric) 45.34 s | median refactorization 2.320 s | analysis (deduced) 43.02 s
+  per Newton iteration (median, it >= 2): assembly 33.64 ms | refactorize 2.320 s | solve 28.32 ms | line search 0.64 ms
+  Ghia (1982) max |Δu| on x=1/2 0.0075, max |Δv| on y=1/2 0.0145 (lid units)
+  cuDSS memory_estimates: permanent device 20.20 GiB, peak device 20.20 GiB, peak host 1.03 GiB
+  cuDSS lu_nnz 2359541640 (fill ratio 36.9 vs nnz(J))
+  device memory used: after set-up 1.56 GiB | after Newton (factors resident) 21.84 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 17.198
+     2 | 0 | 0 | 0 | 0 | 17.198
+     3 | 0 | 0 | 0 | 0 | 17.198
+     4 | 0 | 0 | 0 | 0 | 17.198
+     5 | 0 | 0 | 0 | 0 | 17.198
+     6 | 0 | 0 | 0 | 0 | 17.198
+     7 | 0 | 0 | 0 | 0 | 17.198
+     8 | 0 | 0 | 0 | 0 | 17.198
+     9 | 0 | 0 | 0 | 0 | 17.198
+    10 | 0 | 0 | 0 | 0 | 17.198
+  free-memory spread over the 10 hot iterations: 0.0 MiB | CUDA.@allocated of 3 full Newton iterations from a perturbed state: 0 B
+
+--- pressure-pin row scale on cuDSS ---
+  pin  128² Re=  100 scale 1         | backward err 4.5e-14 | rel. diff vs scale 1 0.0e+00
+  pin  128² Re=  100 scale 0.00449   | backward err 4.6e-14 | rel. diff vs scale 1 4.1e-14
+  pin  128² Re=  100 scale 1e-06     | backward err 4.6e-14 | rel. diff vs scale 1 6.1e-14
+  pin  128² Re=  100 scale 1e+06     | backward err 4.5e-14 | rel. diff vs scale 1 2.9e-14
+  pin  512² Re= 1000 scale 1         | backward err 1.8e-13 | rel. diff vs scale 1 0.0e+00
+  pin  512² Re= 1000 scale 0.00278   | backward err 1.8e-13 | rel. diff vs scale 1 2.3e-14
+  pin  512² Re= 1000 scale 1e-06     | backward err 1.8e-13 | rel. diff vs scale 1 2.0e-15
+  pin  512² Re= 1000 scale 1e+06     | backward err 1.8e-13 | rel. diff vs scale 1 3.4e-14
+DONE status=0
