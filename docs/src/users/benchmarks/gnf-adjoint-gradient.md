@@ -193,7 +193,29 @@ not used by this script. Provenance details are in the README of that directory.
 
 What this does not show: only this one problem size, on one A100, in one run (no H100,
 no repeat); no timing or speed-up claim; Float32 has no gate and no Float32 finite
-difference check was made; only the default solver was run on the GPU.
+difference check was made; only the bordered-GMRES solver (`gnf_adjoint_solve`, the
+`:gmres` option) was run on the GPU, not the `:kstep` default of `gnf_steady_gradient`.
+
+## Calibration and cost scripts
+
+Two scripts in `benchmarks/validation/gnf_calibration/` use this gradient on the same
+obstacle channel; their results will be published with v0.7.
+
+- `calibrate_carreau.jl` fits the three Carreau parameters (ln η∞*, ln k*, n), with
+  a = 2 fixed, to synthetic steady velocity fields computed at known parameters for
+  three body forces. It minimises the velocity misfit with the adjoint gradient and a
+  small BFGS minimiser written in the script, from five fixed starts without noise and
+  from one start with Gaussian noise of 0.1 %, 1 % and 5 % of the reference velocity
+  (ten fixed seeds per level). It reports the parameter errors, the residual, and the
+  numbers of forward and adjoint solves.
+- `cost_bench.jl` times one forward solve and one adjoint gradient separately on the
+  grids 32×16 to 256×128, against the 2p forward solves of a central finite-difference
+  gradient: p = 4 at the interior point a = 2.5, p = 3 at the calibration point.
+
+`run_gnf_adjoint_gpu.jl` now also takes the test point (`--a`, default 2.5), the grid
+and a finite-difference step sweep (three steps per decade from 1e-2 to 1e-5), and
+reports the tolerance and zero-shear-branch checks. The README of each directory gives
+the commands and the output columns.
 
 ## Not yet verified
 
