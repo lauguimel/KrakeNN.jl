@@ -66,7 +66,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   the LBM GNF adjoint tests, FV and LBM velocities differ by 16.7 %, 5.0 % and
   1.6 % (relative L2) at 4, 8 and 16 cells per unit length. The PowerLaw
   `nu_min`/`nu_max` clamp is applied as written and stalls Newton where
-  active. GPU: test written, not yet run on a GPU.
+  active. FV viscosity-type promotion now uses the law's numeric field types
+  (excluding `thermal`), keeping the residual accumulators concrete for scalar
+  and ForwardDiff dual states. CPU inference guards cover all six law types,
+  mixed law/regularisation precisions and dual law parameters. The first A100
+  run failed during residual compilation because this promotion was dynamic;
+  GPU validation after the fix is still pending.
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`

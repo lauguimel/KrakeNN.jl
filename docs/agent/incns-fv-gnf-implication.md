@@ -56,18 +56,29 @@ values. The pattern builder returns a new host matrix.
 
 - The law and `eps` are isbits kernel arguments; same kernel on CPU and GPU.
   GPU parity, cuDSS Newton and zero-allocation checks in
-  `test/analytical/incns_fv_gnf_gpu.jl` (`KRAKEN_REQUIRE_GPU=1`); not yet run
-  on a GPU at the time of writing (job prepared in `benchmarks/fv_c3/`).
+  `test/analytical/incns_fv_gnf_gpu.jl` (`KRAKEN_REQUIRE_GPU=1`). The first
+  A100 run failed during residual compilation (CUDA 6.4.1, KA 0.9.45,
+  ForwardDiff 1.4.7); GPU validation after the type-promotion fix is pending.
 - Pattern: u and v at the 3 × 3 cell block for the momentum rows (all
   non-outlet faces) and for the continuity row (interior faces, Rhie–Chow
   coefficient); 27 entries per interior row (Newtonian: 23/23/15). Narrower
   than the radius-2 diamond of a cell-centred viscosity (J0 measured 35/row).
   Colours 33–34 on the test grids.
 - Residual promotion includes the law's number type (`_fv_visc_eltype`), so
-  `fv_residual(U, prob)` with a dual law returns duals.
+  `fv_residual(U, prob)` with a dual law returns duals. Promotion is resolved
+  from the field types of the law and the type of `eps`, excluding `thermal`,
+  without collecting law values inside the residual kernel. CPU inference
+  guards cover all six laws, scalar and dual state gradients, mixed
+  law/regularisation precisions, and dual law parameters.
 
 ## Failure modes
 
+- **Dynamic viscosity promotion**: collecting a filtered tuple of law field
+  values inside `_fv_visc_eltype` loses the tuple's concrete type. Then
+  `_fv_visc_zero` and the cell accumulators infer as `Any`; CUDA rejects the
+  resulting dynamic conversion when the kernel writes the residual. Keep
+  promotion in the type domain; successful CPU arithmetic alone does not
+  establish GPU compilability.
 - **PowerLaw clamp**: `nu_min`/`nu_max` are applied as written (bounds in FV
   units; LBM defaults 1e-6 / 10). Where active the derivative is 0 and Newton
   stalls: pass `nu_min = 0, nu_max = Inf` unless the clamp is intended.
@@ -89,5 +100,6 @@ values. The pattern builder returns a new host matrix.
 2. `src/methods/inc_ns/fv_gnf.jl` — model, pattern rule, parameter helpers.
 3. `src/Kraken.jl` — include after `fv_newton.jl`, exports.
 4. `test/analytical/incns_fv_gnf.jl` — dense-Jacobian parity (catches dropped
-   entries), parameters, n = 1, Poiseuille, cavity, LBM obstacle channel.
+   entries), concrete viscosity/residual inference, parameters, n = 1,
+   Poiseuille, cavity, LBM obstacle channel.
 5. `test/analytical/incns_fv_gnf_gpu.jl`, `benchmarks/fv_c3/` — GPU receipts.

@@ -82,7 +82,14 @@ end
 
 _fv_law_params(m::GeneralizedNewtonian) =
     Tuple(getfield(m, f) for f in fieldnames(typeof(m)) if f !== :thermal)
-_fv_visc_eltype(v::FVGNFViscosity) = promote_type(typeof(v.eps), map(typeof, _fv_law_params(v.law))...)
+# Resolve promotion from field types, not a runtime filtered parameter tuple:
+# the zero initializes residual accumulators inside the CPU/GPU kernel.
+@inline function _fv_visc_eltype(::FVGNFViscosity{L,T}) where {L,T}
+    types = ntuple(Val(fieldcount(L))) do k
+        fieldname(L, k) === :thermal ? T : fieldtype(L, k)
+    end
+    return promote_type(T, types...)
+end
 @inline _fv_visc_zero(v::FVGNFViscosity) = zero(_fv_visc_eltype(v))
 
 # a steady FV problem whose viscosity model is GNF
