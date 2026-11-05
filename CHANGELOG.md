@@ -52,6 +52,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `run_gnf_adjoint_gpu.jl` takes the test point, grid and finite-difference
   step sweep as options. CPU smoke runs pass; GPU results are not yet
   produced (#124).
+- Generalised-Newtonian viscosity in the steady FV residual and its Newton
+  solver (step C3 of the FV Newton roadmap):
+  `fv_steady_problem(...; rheology = law, gnf_eps = ε)` with the existing
+  `PowerLaw`, `CarreauYasuda`, `Cross`, `Bingham`, `HerschelBulkley` and
+  `Newtonian` laws (kinematic units, the same law objects and the same
+  `gnf_viscosity` evaluation as the LBM GNF drivers). The face viscosity is the
+  law at the face strain rate `γ̇_ε = √(2 S:S + ε²)` (full strain-rate tensor;
+  `ε > 0` is a change of model, required except for Carreau–Yasuda with
+  `a ≥ 2`). The Jacobian includes `∂ν/∂U` because the residual kernel computes
+  ν itself; its sparsity pattern is derived from the exact stencil of the face
+  strain rate (3 × 3 cell block, 27 entries per interior row instead of 23).
+  `fv_gnf_parameters` / `fv_with_gnf_parameters` expose the law parameters as
+  a vector that may hold duals (for the coming adjoint). A `PowerLaw` with finite
+  clamp bounds (zero derivative where active, Newton may stall) triggers one `@warn`. Checked on CPU: the
+  assembled Jacobian equals the dense ForwardDiff Jacobian bit for bit for five
+  laws on four configurations; power-law Poiseuille (n = 0.5 and 1.5) within
+  1.3 % of the regularised 1D reference at 16 cells across and second order
+  under refinement, tending to the analytical power-law profile as ε → 0;
+  quadratic Newton convergence from rest (5–7 iterations); n = 1 gives the
+  Newtonian residual bit for bit; on the Carreau–Yasuda obstacle channel of
+  the LBM GNF adjoint tests, FV and LBM velocities differ by 16.7 %, 5.0 % and
+  1.6 % (relative L2) at 4, 8 and 16 cells per unit length. The PowerLaw
+  `nu_min`/`nu_max` clamp is applied as written and stalls Newton where
+  active. FV viscosity-type promotion now uses the law's numeric field types
+  (excluding `thermal`), keeping the residual accumulators concrete for scalar
+  and ForwardDiff dual states. CPU inference guards cover all six law types,
+  mixed law/regularisation precisions and dual law parameters. On an A100
+  (Aqua job 27701869) the GPU tests pass (CPU/GPU parity of the GNF residual,
+  Jacobian and dual-law residual; Newton on cuDSS against the CPU history;
+  0 device bytes in the hot loop). Power-law cavity n = 0.5 from rest: 256² in
+  13 iterations and 3.3 s, 512² in 32 iterations and 20.3 s, 1024² in 22
+  iterations and 83 s (first factorization 31.6 s, refactorization 2.4 s,
+  23 GiB with the factors resident).
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`

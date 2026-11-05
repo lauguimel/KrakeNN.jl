@@ -18,7 +18,12 @@
 #   face velocity (Rhie-Chow, decision D-RC (ii)):
 #              u_f . n = mean(u) . n - d_f * [ (p_N - p_P)/h - mean(grad p) . n ]
 #              d_f = h^2 / (4 nu_f + conv * |mean(u) . n| * h)
-#   nu_f = arithmetic mean of the two cell viscosities.
+#   nu_f = arithmetic mean of the two cell viscosities (Newtonian, prob.nu), or
+#          the generalised-Newtonian law at the face strain rate (C3,
+#          fv_gnf.jl): the face velocity gradient is the compact normal
+#          difference plus the mean of the two cell gradients tangentially;
+#          a wall face uses the one-sided normal difference and the cell
+#          gradient. The hook is _fv_face_nu / _fv_wall_nu on prob.visc.
 #   Pinned cell (one per closed fluid pocket): the continuity row is replaced
 #   by p_P = 0. Solid cells carry identity rows (u, v, p) = 0; a fluid face next
 #   to a solid cell is a no-slip wall.
@@ -65,7 +70,7 @@ struct FVGrid2D{T}
 end
 
 """
-    FVSteadyProblem2D(grid, tag, nu, bvel, src)
+    FVSteadyProblem2D(grid, tag, nu, bvel, src[, visc])
 
 Everything the steady FV residual needs besides the state, as device (or host)
 arrays plus the isbits [`FVGrid2D`](@ref). Each array may have its own element
@@ -81,17 +86,23 @@ type; the residual is evaluated in the promoted type, so a parameter array of
 - `src::AbstractVector` (length `3 Nx Ny`, unknown ordering): volumetric
   sources `(s_x, s_y, s_mass)`; momentum rows subtract `h² s_x`, `h² s_y`,
   continuity rows `h² s_mass` (zero for a physical flow; MMS uses it).
+- `visc`: viscosity model, [`FVNewtonianViscosity`](@ref) (default: the cell
+  field `nu`) or [`FVGNFViscosity`](@ref) (generalised-Newtonian law of the
+  face strain rate; `nu` is then not read). Its parameters may be duals too.
 
 Build with [`fv_steady_problem`](@ref); move to a device with
 [`fv_adapt`](@ref).
 """
-struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA}
+struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V}
     grid::G
     tag::TA
     nu::NA
     bvel::BA
     src::SA
+    visc::V
 end
+FVSteadyProblem2D(grid, tag, nu, bvel, src) =
+    FVSteadyProblem2D(grid, tag, nu, bvel, src, FVNewtonianViscosity())
 
 fv_nunknowns(g::FVGrid2D) = 3 * g.Nx * g.Ny
 fv_nunknowns(p::FVSteadyProblem2D) = fv_nunknowns(p.grid)
@@ -103,6 +114,25 @@ Position of unknown `comp` (1 = u, 2 = v, 3 = p) of cell `(i, j)` in the state
 vector: `3 (i - 1 + (j - 1) Nx) + comp`.
 """
 @inline fv_index(g::FVGrid2D, i, j, comp) = 3 * (i - 1 + (j - 1) * g.Nx) + comp
+
+# ------------------------------------------------------------------ viscosity hooks
+"""
+    FVNewtonianViscosity()
+
+Viscosity model of an [`FVSteadyProblem2D`](@ref) whose viscosity is the cell
+field `prob.nu`, independent of the state (C1/C2): face value = arithmetic mean
+of the two cells, wall face = the cell value. The generalised-Newtonian model
+is [`FVGNFViscosity`](@ref) (C3).
+"""
+struct FVNewtonianViscosity end
+
+# face viscosity from the two cell values and the face velocity gradient
+# (ux, uy, vx, vy); wall face: from the cell value and the wall-face gradient
+@inline _fv_face_nu(::FVNewtonianViscosity, nuP, nuN, ux, uy, vx, vy) = (nuP + nuN) / 2
+@inline _fv_wall_nu(::FVNewtonianViscosity, nuP, ux, uy, vx, vy) = nuP
+# zero carrying the number type of the model's parameters (Bool: neutral)
+@inline _fv_visc_zero(::FVNewtonianViscosity) = false
+_fv_visc_eltype(::FVNewtonianViscosity) = Bool
 
 # ------------------------------------------------------------------ geometry
 @inline _fv_val(U, g, i, j, comp) = @inbounds U[fv_index(g, i, j, comp)]
@@ -176,19 +206,21 @@ end
 @inline _fv_negp(F) = (F - abs(F)) / 2
 
 """
-    fv_cell_residual(U, tag, nu, bvel, src, grid, i, j) -> (Ru, Rv, Rc)
+    fv_cell_residual(U, tag, nu, bvel, src, grid, i, j[, visc]) -> (Ru, Rv, Rc)
 
 Residual of the three equations of cell `(i, j)`. Branches depend only on the
 integer geometry (tags, boundary codes), never on the values of `U`, `nu`,
 `bvel` or `src`, so the function is traceable by global sparsity detectors and
 differentiable by dual numbers through every branch (the upwind switch is
-written with `abs`).
+written with `abs`). `visc` is the viscosity model (default
+[`FVNewtonianViscosity`](@ref)).
 """
-@inline function fv_cell_residual(U, tag, nu, bvel, src, g, i, j)
+@inline function fv_cell_residual(U, tag, nu, bvel, src, g, i, j,
+                                  visc = FVNewtonianViscosity())
     uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2); pP = _fv_val(U, g, i, j, 3)
     h = g.h
     @inbounds nuP = nu[i, j]
-    z = zero(uP) + zero(nuP) + zero(eltype(bvel)) + zero(eltype(src))
+    z = zero(uP) + zero(nuP) + zero(eltype(bvel)) + zero(eltype(src)) + _fv_visc_zero(visc)
     @inbounds tP = tag[i, j]
     if tP == FV_CELL_SOLID
         return z + uP, z + vP, z + pP
@@ -203,7 +235,17 @@ written with `abs`).
             uN = _fv_val(U, g, ii, jj, 1); vN = _fv_val(U, g, ii, jj, 2); pN = _fv_val(U, g, ii, jj, 3)
             gN = _fv_cell_grad(U, tag, bvel, g, ii, jj)
             @inbounds nuN = nu[ii, jj]
-            nuf = (nuP + nuN) / 2
+            dun = (uN - uP) / h
+            dvn = (vN - vP) / h
+            # face velocity gradient: compact normal difference, mean of the
+            # two cell gradients tangentially (read by a GNF model only)
+            if isx
+                nuf = _fv_face_nu(visc, nuP, nuN, sx * dun, (gP[2] + gN[2]) / 2,
+                                  sx * dvn, (gP[4] + gN[4]) / 2)
+            else
+                nuf = _fv_face_nu(visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
+                                  (gP[3] + gN[3]) / 2, sx * dvn)
+            end
             ubn = sx * (isx ? (uP + uN) / 2 : (vP + vN) / 2)
             # Rhie-Chow coefficient, decision D-RC (ii)
             df = h * h / (4 * nuf + g.conv * abs(ubn) * h)
@@ -212,8 +254,6 @@ written with `abs`).
             F = h * (ubn - df * (dpc - dpa))
             Ru += g.conv * (_fv_posp(F) * uP + _fv_negp(F) * uN)
             Rv += g.conv * (_fv_posp(F) * vP + _fv_negp(F) * vN)
-            dun = (uN - uP) / h
-            dvn = (vN - vP) / h
             if isx
                 tx = 2 * nuf * dun
                 ty = nuf * (dvn + sx * (gP[2] + gN[2]) / 2)
@@ -238,11 +278,13 @@ written with `abs`).
             dun = (uw - uP) * 2 / h
             dvn = (vw - vP) * 2 / h
             if isx
-                tx = 2 * nuP * dun
-                ty = nuP * (dvn + sx * gP[2])
+                nuw = _fv_wall_nu(visc, nuP, sx * dun, gP[2], sx * dvn, gP[4])
+                tx = 2 * nuw * dun
+                ty = nuw * (dvn + sx * gP[2])
             else
-                tx = nuP * (dun + sx * gP[3])
-                ty = 2 * nuP * dvn
+                nuw = _fv_wall_nu(visc, nuP, gP[1], sx * dun, gP[3], sx * dvn)
+                tx = nuw * (dun + sx * gP[3])
+                ty = 2 * nuw * dvn
             end
             Ru -= h * tx; Rv -= h * ty
             pf = pP
@@ -267,9 +309,9 @@ written with `abs`).
 end
 
 @kernel function _fv_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
-                                      @Const(bvel), @Const(src), g)
+                                      @Const(bvel), @Const(src), g, visc)
     i, j = @index(Global, NTuple)
-    ru, rv, rc = fv_cell_residual(U, tag, nu, bvel, src, g, i, j)
+    ru, rv, rc = fv_cell_residual(U, tag, nu, bvel, src, g, i, j, visc)
     b = fv_index(g, i, j, 0)
     @inbounds R[b + 1] = ru
     @inbounds R[b + 2] = rv
@@ -296,7 +338,7 @@ function fv_residual!(R, U, prob::FVSteadyProblem2D; workgroup::Int = 64, sync::
     length(R) == n || throw(DimensionMismatch("length(R) = $(length(R)), expected $n"))
     backend = KernelAbstractions.get_backend(U)
     _fv_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
-                                             prob.src, g; ndrange = (g.Nx, g.Ny))
+                                             prob.src, g, prob.visc; ndrange = (g.Nx, g.Ny))
     sync && KernelAbstractions.synchronize(backend)
     return R
 end
@@ -308,7 +350,8 @@ Allocating convenience wrapper of [`fv_residual!`](@ref); `R` has the promoted
 element type of `U` and of the arrays of `prob`.
 """
 function fv_residual(U, prob::FVSteadyProblem2D)
-    T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel), eltype(prob.src))
+    T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel), eltype(prob.src),
+                     _fv_visc_eltype(prob.visc))
     R = similar(U, T)
     return fv_residual!(R, U, prob)
 end
@@ -383,6 +426,11 @@ Build the host-side problem of the steady FV residual.
   centres, or a length-`3 Nx Ny` vector.
 - `conv`: `true` (Navier-Stokes, default) or `false` (Stokes).
 - `T`: element type of the arrays (default `Float64`).
+- `rheology`: `nothing` (default; Newtonian, viscosity `nu`) or a
+  generalised-Newtonian law of `src/rheology/models.jl` (`PowerLaw`,
+  `CarreauYasuda`, `Cross`, `Bingham`, `HerschelBulkley`, `Newtonian`) in
+  kinematic FV units; `nu` is then ignored. `gnf_eps` is the strain-rate
+  regularisation `ε` of [`FVGNFViscosity`](@ref) (`γ̇_ε = √(2 S:S + ε²)`).
 
 Pressure pins are set by [`fv_pressure_pins!`](@ref). Cell centres are at
 `((i - 1/2) h, (j - 1/2) h)`.
@@ -391,7 +439,8 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
                            bc = (W = :wall, E = :wall, S = :wall, N = :wall),
                            boundary_velocity = (side, x, y) -> (0.0, 0.0),
                            solid = nothing, source = nothing, conv::Bool = true,
-                           T::Type{<:Real} = Float64)
+                           T::Type{<:Real} = Float64, rheology = nothing,
+                           gnf_eps::Real = 0.0)
     Nx = Int(Nx); Ny = Int(Ny)
     (_fv_bc_code(bc.W) == FV_BC_PERIODIC) == (_fv_bc_code(bc.E) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic W/E sides must be paired"))
@@ -446,7 +495,8 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
         end
         s
     end
-    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv)
+    visc = rheology === nothing ? FVNewtonianViscosity() : FVGNFViscosity(rheology, T(gnf_eps))
+    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc)
 end
 
 """
@@ -456,7 +506,7 @@ Copy the arrays of `prob` with the array constructor `to` (e.g. `CuArray`,
 or `Array` to come back to the host). The grid is passed through.
 """
 fv_adapt(to, p::FVSteadyProblem2D) =
-    FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src))
+    FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), p.visc)
 
 """
     fv_state(prob, u, v, p) -> Vector

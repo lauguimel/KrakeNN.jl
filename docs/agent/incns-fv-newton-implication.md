@@ -3,7 +3,7 @@ module: incns-fv-newton
 path: src/methods/inc_ns/fv_newton.jl
 owner_concern: steady-newton
 status: implemented
-last_verified: 2026-11-04
+last_verified: 2026-11-05
 depends_on:
   - incns-fv-steady-residual
   - solve-linear
@@ -25,7 +25,8 @@ factors for `Jᵀ λ = g`.
 
 - Set-up (CPU, once per geometry): `fv_jacobian_pattern(prob) ->
   SparseMatrixCSC{Bool}` built from the stencil (not traced: 44 s at 1024² in
-  J0), Newtonian only; `fv_jacobian_coloring(S) -> (colors, ncolors)`
+  J0); a GNF problem dispatches to the C3 method (`fv_gnf.jl`, wider
+  pattern); `fv_jacobian_coloring(S) -> (colors, ncolors)`
   (SparseMatrixColorings, greedy LargestFirst column colouring);
   `fv_jacobian_assembler(S, colors, ncolors; to, order = :csc | :csr, chunk = 4)
   -> FVJacobianAssembler`.
@@ -75,10 +76,12 @@ No globals.
 
 ## Failure modes
 
-- **GNF (C3)**: the pattern builder assumes ν independent of U. A
-  shear-dependent ν widens the support (J0: 35/row); a pattern too narrow
-  silently drops entries (assembly writes only listed positions). Rebuild the
-  pattern rule before C3.
+- **Pattern too narrow drops entries silently** (assembly writes only listed
+  positions). The Newtonian rule assumes ν independent of U; a GNF problem
+  uses the C3 method of `fv_jacobian_pattern` (27/row, exact stencil of the
+  face strain rate; map `incns-fv-gnf-implication.md`). Any change to the
+  face-gradient or viscosity stencil must update that method; the dense-parity
+  tests of C2 and C3 catch a dropped entry.
 - **Doubly periodic**: uniform (u, v) is a null mode; Newton needs a
   mean-velocity constraint (not provided).
 - **PTC shift**: with `dtau0` set the shift is dropped only once
