@@ -126,16 +126,23 @@ include("methods/inc_ns/projection.jl")
 include("methods/inc_ns/manifold_flow.jl")
 include("methods/scalar_transport/thermal_transport.jl")
 include("methods/inc_ns/method.jl")   # platform-contract wrapper (IncNS <: AbstractMethod)
+include("methods/inc_ns/fv_steady_residual.jl")   # C1: steady FV residual (KA kernel, generic eltype)
 
 # IncNS platform contract
 export IncNS, IncNSSolution
+# Steady colocated FV residual (C1 of the FV Newton roadmap)
+export FVGrid2D, FVSteadyProblem2D, fv_steady_problem, fv_residual!, fv_residual,
+       fv_cell_residual, fv_pressure_pins!, fv_adapt, fv_state, fv_fields,
+       fv_index, fv_nunknowns,
+       FV_BC_WALL, FV_BC_INLET, FV_BC_OUTLET, FV_BC_PERIODIC,
+       FV_CELL_FLUID, FV_CELL_SOLID, FV_CELL_PINNED
 # IncNS / scalar-transport drivers
 export solve_incns_simple, solve_incns_cavity, solve_incns_cavity_mg,
        solve_incns_projection, solve_incns_manifold, manifold_full_cell_mask,
        solve_scalar_transport
 # Linear-solve seam (factorize-once)
-export lin_factorize, lin_solve!, LinearSolveCache, LinearSolveBackend,
-       CPUBackendTag, CUDABackendTag
+export lin_factorize, lin_solve!, lin_refactorize!, lin_supports_transpose,
+       LinearSolveCache, LinearSolveBackend, CPUBackendTag, CUDABackendTag
 # LinearSolve.jl / cuDSS front-ends (ext-backed; see [weakdeps])
 export PoissonLinearSolve, solve_poisson_direct
 # Elliptic (Poisson) services

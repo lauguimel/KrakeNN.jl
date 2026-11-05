@@ -141,10 +141,13 @@ Each constitutive closure is validated independently before it appears here:
   simple-shear fixed point in a dedicated single-cell canary
   (`test/test_fvfd_{logconf,fenep,giesekus,ptt}_3d.jl`): Giesekus and PTT to a
   steady-equation residual `≤ 1e-6`, FENE-P and the Oldroyd-B limit to `≤ 1e-3`.
-- **Oldroyd-B limit recovered bit-identically.** Setting `α = 0` (Giesekus),
-  `ε = 0` (PTT, both variants) or `L² → ∞` (FENE-P) makes the relaxation
-  factor exactly `1`, so the integrator visits the *same* floating-point
-  trajectory as the dedicated Oldroyd-B kernel — verified byte-for-byte.
+- **Oldroyd-B limit.** Setting `α = 0` (Giesekus) or `ε = 0` (PTT, both
+  variants) makes the relaxation factor exactly `1`, so the integrator follows
+  the same floating-point trajectory as the dedicated Oldroyd-B kernel. FENE-P
+  only tends to that limit as `L² → ∞` (the factor is `(L²−3)/(L²−tr C)`, never
+  exactly `1`): the FENE-P test uses `L² = 1e8` and accepts an error of `1e-3`
+  on `C_xy` and `C_xx` against the Oldroyd-B fixed point, so it is not a
+  byte-identical check.
 - **External cross-validation (RheoTool).** The Oldroyd-B planar-extension
   conformation matches RheoTool's `rheoTestFoam` to machine precision in the
   Hookean (`L² → ∞`) limit. For finite `L²`, Kraken's FENE-P and RheoTool's

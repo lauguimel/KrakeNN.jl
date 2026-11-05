@@ -20,14 +20,15 @@ Run on the Aqua (QUT) cluster, node `gpu0n009`, an **NVIDIA A100-40GB** (HBM2e,
 
 ## Roofline / reference constants
 
-LBM is bandwidth-bound; a D2Q9 BGK F64 step moves `2 × 19 × 8 = 304 bytes/update`,
-so `MLUPS_ceiling = peak_BW / 304 / 1e6`. The reference bars in the figure are
+LBM is bandwidth-bound; a D2Q9 BGK F64 step moves `2 × 9 × 8 = 144 bytes/update`
+(9 populations read and written; 304 bytes is the D3Q19 count), so
+`MLUPS_ceiling = peak_BW / 144 / 1e6`. The reference bars in the figure are
 **literature / derived constants** (documented here, not fitted from the CSV):
 
 | Reference | MLUPS | Type |
 |-----------|------:|------|
-| A100-40GB roofline (1.555 TB/s) | 5115 | bandwidth ceiling |
-| A100-80GB roofline (2.039 TB/s) | 6707 | bandwidth ceiling |
+| A100-40GB roofline (1.555 TB/s) | 10799 | bandwidth ceiling |
+| A100-80GB roofline (2.039 TB/s) | 14160 | bandwidth ceiling |
 | Palabos single-GPU F64 D3Q19 TRT | 4656 | published real code (Latt et al. 2021) |
 
 ## Files
@@ -40,14 +41,15 @@ so `MLUPS_ceiling = peak_BW / 304 / 1e6`. The reference bars in the figure are
   uses the `run_taylor_green_2d` Julia driver, not the `.krk` runner.
 - `comparison.png` — left: sustained MLUPS vs N (colour = N via `crest`); right:
   Kraken best vs the roofline ceilings and Palabos as a horizontal bar chart.
-  Also copied to the page PNG.
+  (The page figure `docs/src/users/benchmarks/gpu-certification.png` is a separate plot.)
 
 ## Headline result
 
-Best sustained throughput is **3461 MLUPS** at N = 2048: **0.68 of the
-A100-40GB roofline** (5115 MLUPS ceiling) and **0.74 of the Palabos** single-GPU
-F64 number — clearing the `≥ 0.5 of roofline` gate. Robust even against the
-stricter 80 GB ceiling (ratio 0.52).
+Best sustained throughput is **3461 MLUPS** at N = 2048: **0.32 of the
+A100-40GB roofline** (10799 MLUPS ceiling), below the `≥ 0.5 of roofline` gate, and
+0.24 of the 80 GB ceiling. The Palabos number (4656 MLUPS) is for D3Q19, which moves
+about twice the bytes per update, so the ratio 0.74 to it is not a like-for-like
+comparison.
 
 ## Reference
 

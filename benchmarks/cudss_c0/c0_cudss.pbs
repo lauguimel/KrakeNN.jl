@@ -1,0 +1,72 @@
+#!/bin/bash -l
+#PBS -N kraken_c0_cudss
+#PBS -l select=1:ncpus=8:ngpus=1:mem=64GB:gpu_id=H100
+#PBS -l walltime=02:00:00
+#PBS -j oe
+
+# C0 (cuDSS path) GPU validation. WORKDIR holds three source trees and
+# environments prepared on the login node (Pkg.instantiate + precompile there);
+# the job runs Pkg offline:
+#   src_c0   = feat/cudss-c0,        envs env6 (CUDA.jl 6 / CUDSS.jl 1.0) and env5 (CUDA.jl 5 / CUDSS.jl 0.6.5)
+#   src_base = origin/dev/platform,  env env5_base (CUDA.jl 5 / CUDSS.jl 0.6.5)  -> "before" EHD timing
+# Stages: GPU tests (env6, env5), cuDSS bench 512²/1024² (env6, env5),
+# EHD step before/after (env5_base, env5, env6).
+# The project code is passed on the qsub command line only.
+#
+# Variables (qsub -v): C0_SIZES (default 512,1024), C0_EHD_STEPS (default 2000)
+
+WORKDIR=${WORKDIR:-$HOME/kraken_c0}
+cd "$WORKDIR" || exit 2
+LOGDIR=$WORKDIR/logs
+mkdir -p "$LOGDIR"
+TAG=${PBS_JOBID%%.*}
+T0=$(date +%s)
+stage() { echo "STAGE $1: $(( $(date +%s) - T0 )) s since job start  ($(date +%H:%M:%S))"; }
+
+echo "========================================"
+echo "Job: $PBS_JOBID   Node: $(hostname)   Start: $(date)"
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || { echo "ERROR: no GPU"; exit 1; }
+echo "========================================"
+
+export PATH=$HOME/.juliaup/bin:$PATH
+export JULIA_CUDA_USE_COMPAT=false
+export JULIA_PKG_OFFLINE=true
+export JULIA_NUM_THREADS=${NCPUS:-8}
+export C0_SIZES=${C0_SIZES:-512,1024}
+export C0_EHD_STEPS=${C0_EHD_STEPS:-2000}
+STATUS=0
+
+for E in env6 env5 env5_base; do
+    stage "precompile $E"
+    julia --project=$E -e 'using Pkg; Pkg.precompile(); using CUDA, CUDSS, Kraken; println(pkgversion(CUDA), " ", pkgversion(CUDSS))' 2>&1 || STATUS=1
+done
+
+for E in env6 env5; do
+    stage "GPU tests $E"
+    KRAKEN_REQUIRE_GPU=1 KRAKEN_TEST_EHD_SIDEWALLS_CUDA=true KRAKEN_TEST_EC_RESTART_CUDA=true \
+        julia --project=$E src_c0/benchmarks/cudss_c0/c0_gpu_tests.jl 2>&1 | tee "$LOGDIR/tests_${E}_$TAG.txt"
+    [ "${PIPESTATUS[0]}" -eq 0 ] || STATUS=1
+done
+
+nvidia-smi --query-gpu=timestamp,memory.used,memory.total --format=csv,noheader,nounits -lms 500 \
+    > "$LOGDIR/nvsmi_mem_$TAG.csv" &
+NVSMI_PID=$!
+for E in env6 env5; do
+    stage "cuDSS bench $E"
+    julia --project=$E src_c0/benchmarks/cudss_c0/c0_cudss_bench.jl 2>&1 | tee "$LOGDIR/bench_${E}_$TAG.txt"
+    [ "${PIPESTATUS[0]}" -eq 0 ] || STATUS=1
+done
+kill $NVSMI_PID
+
+for E in env5_base env5 env6; do
+    stage "EHD step $E"
+    julia --project=$E src_c0/benchmarks/cudss_c0/c0_ehd_step_bench.jl 2>&1 | tee "$LOGDIR/ehd_${E}_$TAG.txt"
+    [ "${PIPESTATUS[0]}" -eq 0 ] || STATUS=1
+done
+
+stage "done"
+echo "nvidia-smi peak memory.used (MiB) during the benches: $(sort -t, -k2 -n "$LOGDIR/nvsmi_mem_$TAG.csv" | tail -1)"
+echo "========================================"
+echo "End: $(date)  status=$STATUS"
+echo "========================================"
+exit $STATUS

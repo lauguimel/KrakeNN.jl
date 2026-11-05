@@ -20,12 +20,13 @@ using Test, Kraken
         result = run_natural_convection_gnf_2d(; N=64, Ra=1e3, Pr, nu0,
             rheology=PowerLaw(nu0, 1.0), max_steps=30000)
         gap = abs(result.Nu - reference.Nu) / abs(reference.Nu)
-        # Identical discrete problem (same half-way thermal walls, initial profile
-        # and Nu formula): any gap above round-off is a mismatch between the two
-        # drivers. Measured 2026-11-03, CPU Float64: gap 0 (Nu = 1.11851 both;
-        # 4.0e-16 after 60000 steps).
+        # Identical discrete problem (same half-way thermal walls, specular
+        # adiabatic walls, initial profile and Nu formula): any gap above
+        # round-off is a mismatch between the two drivers. Measured 2026-11-04,
+        # CPU Float64: gap 0 (Nu = 1.11754 both; 1.11851 before v0.7).
         @test gap < 1e-6
-        # De Vahl Davis (1983), DOI 10.1002/fld.1650030305, Nu=1.118;
+        # De Vahl Davis (1983), DOI 10.1002/fld.1650030305, cavity-average Nu=1.118
+        # (hot-wall Nu0 = 1.117; Kraken computes the hot-wall mean, gate unchanged);
         # same frozen 0.5% N64 gate as test_thermal.jl (docs/refs.bib: devahldavis1983).
         @test abs(result.Nu - 1.118) / 1.118 < 0.005
         @test all(isfinite, result.Temp)
@@ -90,27 +91,35 @@ using Test, Kraken
         # Ra = 1e4 against Fig. 10 (p. 1060), Nu = 5.40: the precise reading.
         # Second-order Richardson extrapolation from N = 32 and 48 (grid and
         # compressibility errors both scale as 1/N^2 at fixed nu0). Measured on
-        # CPU, Float64, nu0 = 0.3: N = 32/48/64/96 give 5.2934/5.3487/5.3678/5.3796
-        # and the pairs extrapolate to 5.393/5.393/5.389.
+        # CPU, Float64, nu0 = 0.3 (2026-11-04, v0.7: Nu averaged over all rows,
+        # specular adiabatic walls): N = 32/48 give 5.2280/5.3105, extrapolated
+        # 5.3765. Before v0.7 (rows 2:N-1, bounce-back of the diagonals at the
+        # adiabatic walls): N = 32/48/64/96 gave 5.2934/5.3487/5.3678/5.3796
+        # and the pairs extrapolated to 5.393/5.393/5.389.
         coarse, fine = turan_run(1e4, 32), turan_run(1e4, 48)
         Nu_ext = (48^2 * fine.Nu - 32^2 * coarse.Nu) / (48^2 - 32^2)
         # Frozen gate from the reference's own uncertainty: figure reading
-        # +/-0.02 (0.37%) plus their mesh-M2 uncertainty <= 0.35% (Table 2),
-        # rounded up to 1%. Measured 2026-11-03, Apple-silicon Mac, CPU Float64:
-        # Nu_ext = 5.393 (-0.13%).
+        # +/-0.02 (0.37%) plus a 0.35% mesh allowance (not from Turan's Table 2,
+        # which covers Ra = 1e6, Pr = 100 only), rounded up to 1%. Measured
+        # 2026-11-04, Apple-silicon Mac, CPU Float64: Nu_ext = 5.3765 (-0.44%);
+        # 5.393 (-0.13%) before v0.7.
         @test abs(Nu_ext - 5.40) / 5.40 < 0.01
         @info "GNF Turan point Ra=1e4" Nu_32=coarse.Nu Nu_48=fine.Nu Nu_ext steps=(coarse.steps, fine.steps)
 
         # Ra = 1e3 against Fig. 9a (p. 1059), Nu = 2.07 +/- 0.07 (axis 0-40).
-        # Kraken is grid-converged here (N = 48/64/96: 1.9933/1.9931/1.9923;
-        # nu0 = 0.1 at N = 64: 1.9914) and sits 3.7% below that reading, just
-        # outside its +/-0.07 band, while the same driver is within 0.2% of the
-        # Ra = 1e4 point above. The gap is documented, not gated (see
+        # Kraken was grid-converged here before v0.7 (N = 48/64/96:
+        # 1.9933/1.9931/1.9923; nu0 = 0.1 at N = 64: 1.9914), 3.7% below that
+        # reading, just outside its +/-0.07 band, while the same driver is
+        # within 0.5% of the Ra = 1e4 point above. With v0.7 (all rows, specular
+        # adiabatic walls) N = 48 gives 1.98434, 4.1% below. The gap is
+        # documented, not gated (see
         # docs/src/users/benchmarks/gnf-natural-convection.md). Frozen regression
-        # gate on Kraken's own value instead: measured 2026-11-03, Apple-silicon
-        # Mac, CPU Float64, N = 48: Nu = 1.99332; 0.1% covers the stopping rule.
+        # gate on Kraken's own value instead: measured 2026-11-04, Apple-silicon
+        # Mac, CPU Float64, N = 48: Nu = 1.98434; 0.1% covers the stopping rule.
+        # (Before v0.7: 1.99332; the baseline moved with the Nusselt average
+        # and the adiabatic walls, the tolerance did not.)
         result = turan_run(1e3, 48)
-        @test abs(result.Nu - 1.99332) / 1.99332 < 1e-3
+        @test abs(result.Nu - 1.98434) / 1.98434 < 1e-3
         @info "GNF Turan point Ra=1e3" Nu=result.Nu turan_gap=(result.Nu - 2.07) / 2.07 steps=result.steps
     end
 

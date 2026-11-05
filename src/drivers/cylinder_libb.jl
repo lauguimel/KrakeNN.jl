@@ -161,12 +161,20 @@ end
 Zou-He velocity inlet, Zou-He pressure outlet; both reconstructed from
 pre-step populations to bypass the kernel's halfway-BB fallback
 corruption at the non-wall boundaries. Top / bottom channel walls are
-halfway-BB via the kernel's fallback at j=1 and j=Ny.
+halfway-BB via the kernel's fallback at j=1 and j=Ny, so they sit at
+y = -1/2 and y = Ny - 1/2 (node j at y = j - 1) and the channel height is Ny.
 
 Arguments:
-- `u_in`: centerline u_max for `:parabolic` inlet; uniform u for `:uniform`.
+- `u_in`: for the `:parabolic` inlet, the centreline velocity U_m of the
+  channel parabola, i.e. 3/2 of the delivered mean velocity (the sampled
+  peak is `u_in · Ny² / (Ny² + 1/2)`); uniform u for `:uniform`.
 - `inlet`: `:parabolic` (Schäfer-Turek 2D convention) or `:uniform`.
 - `ρ_out`: outlet density for the Zou-He pressure BC (default 1).
+
+The `:parabolic` profile vanishes on the half-way walls and its row sum is
+exactly `u_ref · Ny`, `u_ref = (2/3) u_in`:
+`u(j) = 4 u_in (j - 1/2)(Ny + 1/2 - j) / (Ny² + 1/2)`. The Zou-He rebuild
+imposes it on every row `1:Ny`, rows 1 and Ny included.
 
 Returns a NamedTuple with:
 - `ρ`, `ux`, `uy`, `is_solid`, `q_wall`, `u_ref`, `D`, `Fx`, `Fy`
@@ -193,7 +201,10 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
     q_wall_h, is_solid_h = precompute_q_wall_cylinder(Nx, Ny, cx, cy, radius; FT=T)
 
     u_prof_h = if inlet === :parabolic
-        [T(4) * T(u_in) * T(j - 1) * T(Ny - j) / T(Ny - 1)^2 for j in 1:Ny]
+        # Half-way channel walls at y = -1/2 and Ny - 1/2 (node j at y = j - 1):
+        # the parabola vanishes on them and its row sum is exactly
+        # (2/3) u_in Ny, i.e. a mean velocity of u_ref over the height Ny.
+        _halfway_poiseuille_profile(T, Ny, (2 / 3) * Float64(u_in))
     elseif inlet === :uniform
         fill(T(u_in), Ny)
     else
@@ -230,7 +241,7 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
     for step in 1:max_steps
         fused_trt_libb_v2_step!(f_out, f_in, ρ, ux, uy, is_solid,
                                  q_wall, uw_x, uw_y, Nx, Ny, T(ν))
-        # Pre-collision Zou-He rebuild at i=1 and i=Nx (j=2..Ny-1)
+        # Pre-collision Zou-He rebuild at i=1 and i=Nx (j=1..Ny)
         rebuild_inlet_outlet_libb_2d!(f_out, f_in, u_profile, ρ_out, ν, Nx, Ny)
 
         if step > max_steps - avg_window

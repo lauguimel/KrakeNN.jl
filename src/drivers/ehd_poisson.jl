@@ -31,6 +31,7 @@ struct EhdPoissonSetupGPU{C<:LinearSolveCache,V<:AbstractVector{Float64}}
     xbc::Symbol
     cache::C
     rhs::V
+    sol::V      # preallocated device solution (allocation-free per-step solve)
 end
 
 const _EHD_CUDSS_FALLBACK_WARNED = Ref(false)
@@ -98,7 +99,8 @@ function ehd_poisson_setup(Nx::Integer, Ny::Integer, eps; xbc::Symbol = :neumann
             cache = lin_factorize(A; backend = CUDABackendTag(), spd = false,
                                   pin_k0 = 0)
             rhs = KernelAbstractions.zeros(backend, Float64, Nx * Ny)
-            return EhdPoissonSetupGPU(Nx, Ny, eps64, xbc, cache, rhs)
+            sol = KernelAbstractions.zeros(backend, Float64, Nx * Ny)
+            return EhdPoissonSetupGPU(Nx, Ny, eps64, xbc, cache, rhs, sol)
         catch err
             if occursin("Load CUDA and CUDSS", sprint(showerror, err))
                 if !_EHD_CUDSS_FALLBACK_WARNED[]
@@ -148,8 +150,8 @@ end
 
 Rebuild the RHS for `laplacian(phi) = -q/eps` and reuse the cached
 factorization. CPU setups keep the historical host UMFPACK solve. GPU setups
-fill the RHS on device, call the cuDSS-backed linear-solve seam with a device
-RHS, and copy the device solution into `phi_device`.
+fill the RHS on device, solve in place into the preallocated device solution
+`setup.sol` (no device allocation per step), and copy it into `phi_device`.
 """
 function ehd_poisson_solve!(phi_device, setup::EhdPoissonSetup, q_device)
     copyto!(setup.q_host, q_device)
@@ -162,7 +164,7 @@ end
 
 function ehd_poisson_solve!(phi_device, setup::EhdPoissonSetupGPU, q_device)
     _ehd_poisson_fill_rhs_gpu!(setup.rhs, q_device, setup)
-    x = lin_solve!(setup.cache, setup.rhs)
-    copyto!(phi_device, reshape(x, setup.Nx, setup.Ny))
+    lin_solve!(setup.sol, setup.cache, setup.rhs)
+    copyto!(phi_device, reshape(setup.sol, setup.Nx, setup.Ny))
     return phi_device
 end
