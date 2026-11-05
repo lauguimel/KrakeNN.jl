@@ -70,10 +70,13 @@ minimal — use with caution.
 | ν(T) Arrhenius (kernel) | ✓ | ✗ | ✗ | ✓ | ✗ | code: `collide_boussinesq_vt_2d!` |
 | ν(T) modified Arrhenius (Rc) | ✓ | ✗ | ✗ | ✓ | ✗ | driver via `Rc` keyword |
 | α(T), κ(T) variable diffusivity | ✗ | ✗ | — | — | ✗ | not implemented |
-| Validation vs De Vahl Davis (Ra=1e3) | ✓ +0.13 % (N = 64) | — | in development | ✓ | — | hot-wall Nu₀ = 1.117 ref |
+| Validation vs De Vahl Davis (Ra=1e3) | ✓ +0.05 % (N = 64, CPU) | — | in development | ✓ | — | hot-wall Nu₀ = 1.117 ref |
 | Validation vs Fusegi (3D Ra=1e3) | — | ~ 5% | in development | ✓ | — | Nu = 1.085 ref |
 
 **Limitations:**
+- The 3D Fusegi figure (~ 5 %) was measured before v0.7, when the adiabatic
+  faces bounced the thermal populations back instead of reflecting them
+  specularly; it will be recomputed.
 - ν(T) is wired at the **driver** level (`run_natural_convection_2d(; Rc=5)`)
   but **not yet dispatched from .krk**. Adding `Rc = 5` in `Physics {}` does
   not activate the variable-viscosity kernel. Workaround: call the Julia

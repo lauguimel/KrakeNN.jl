@@ -15,6 +15,20 @@ shear-rate-dependent collision of the rheology chapter of the theory section
 > N = 64, 128 and 256 (see [the GPU comparison](#Comparison-with-Turan-et-al.-(2011),-GPU)).
 > One of the six, Ra = 10⁴ with ``n`` = 1.8, is not converged.
 
+!!! warning "Turan et al. comparisons measured before v0.7"
+    The two Turan et al. (2011) tables, the `nu0` check of the correspondence
+    section and the readings that follow each table were measured before
+    v0.7: Nu was averaged over rows `2 … N − 1`, and the adiabatic top and
+    bottom walls bounced back the diagonal thermal populations. Since v0.7,
+    Nu is averaged over all rows and the adiabatic walls reflect these
+    populations specularly (see the
+    [thermal theory page](../../theory/08_thermal_ddf.md)). Until they are
+    re-measured (the GPU ones on GPU), treat them as pre-v0.7 values. On CPU at N = 48,
+    the change moves Nu from 1.9933 to 1.9843 at Ra = 10³, ``n`` = 0.6, and
+    the Ra = 10⁴ extrapolated value from 5.393 to 5.3765. The code outputs and
+    the [What was validated](#What-was-validated) table are re-measured for
+    v0.7.
+
 ## Definitions
 
 Ra and Pr are defined with the **reference kinematic viscosity** ``\nu_0``
@@ -86,9 +100,10 @@ equations with a finite-volume code on a 100 × 100 non-uniform mesh):
   Ra = 10⁴, n = 1.8 (N = 64 to 256, runs that did not converge);
 - the fixed-temperature walls are half-way anti-bounce-back walls, half a lattice
   spacing outside the first and last nodes, at the same place as the no-slip
-  walls; Ra, Pr and Nu use the cavity width ``H = N``, and Nu is the mean of a
-  second-order one-sided wall gradient. These are the walls and the Nu formula of
-  the Newtonian driver;
+  walls; the adiabatic walls reflect the thermal populations specularly; Ra, Pr
+  and Nu use the cavity width ``H = N``, and Nu is the mean over all rows
+  `1 … N` of a second-order one-sided wall gradient. These are the walls and the
+  Nu formula of the Newtonian driver;
 - the paper's power-law data are for Pr ≥ 10; Pr = 0.71 is used here only for the
   Newtonian benchmark.
 
@@ -112,12 +127,12 @@ for n in (0.8, 1.0, 1.2)
 end
 ```
 
-Output measured when this page was written (CPU, Float64):
+Output measured on 2026-11-04 (v0.7, CPU, Float64):
 
 ```
-n=0.8 Nu=3.057 steps=8000 converged=true clamped=0.0
-n=1.0 Nu=2.26 steps=8000 converged=true clamped=0.0
-n=1.2 Nu=1.699 steps=8000 converged=true clamped=0.0
+n=0.8 Nu=3.013 steps=8000 converged=true clamped=0.0
+n=1.0 Nu=2.239 steps=8000 converged=true clamped=0.0
+n=1.2 Nu=1.689 steps=8000 converged=true clamped=0.0
 ```
 
 Pr = 0.71 lies outside the power-law data of Turan et al. (2011), so these values
@@ -128,7 +143,7 @@ Pr, nu0, N = 10.0, 0.3, 48
 model = cavity_powerlaw(0.6; nu0, alpha=nu0/Pr, H=N, nu_min=1e-3, nu_max=2.0)
 r = run_natural_convection_gnf_2d(; N, Ra=1e3, Pr, nu0, rheology=model,
     max_steps=60000, check_every=1000, convergence_rtol=1e-5, min_steps=5000)
-r.Nu   # 1.993 measured; the paper gives 2.07 ± 0.07 (Fig. 9a), see below
+r.Nu   # 1.984 measured (v0.7); the paper gives 2.07 ± 0.07 (Fig. 9a), see below
 ```
 
 The result is a `NamedTuple` with `Nu`, `Temp`, `ux`, `uy`, `rho`, the viscosity
@@ -152,7 +167,7 @@ Run 3000 steps
 ```
 
 Parsed with `parse_kraken` and run with `run_simulation(setup)`, this snippet ran on
-CPU and returned `Nu = 1.045` after 3000 steps. In this route `K` is the value you
+CPU and returned `Nu = 1.043` after 3000 steps (v0.7). In this route `K` is the value you
 write in the block; the `cavity_powerlaw` scaling is not applied, so Ra and Pr
 follow the Turan definitions only if you write ``K = \nu_0(\alpha/H^2)^{1-n}``
 yourself.
@@ -263,16 +278,16 @@ and not validated (issue #98).
 
 ## What was validated
 
-All checks are in `test/test_natconv_gnf.jl` (CPU, Float64), run on the date of
-this page; all 52 assertions passed (76 s).
+All checks are in `test/test_natconv_gnf.jl` (CPU, Float64), run on 2026-11-04
+with v0.7; all 52 assertions passed (83 s).
 
 | Check (testset) | Measured | Gate |
 |---|---|---|
-| ``n = 1`` against the Newtonian driver `run_natural_convection_2d`, N = 64, Ra = 10³ ("Newtonian limit and De Vahl Davis") | Nu = 1.1185 for both, relative gap 0 (4.0e-16 after 60 000 steps) | gap < 1e-6 |
-| Nu against De Vahl Davis (1983), hot-wall Nu₀ = 1.117 (cavity average 1.118; the test gate uses 1.118), same case | +0.13 % against 1.117 (+0.05 % against 1.118) | < 0.5 % (same frozen gate as `test_thermal.jl`) |
-| Nu against the power-law index, N = 32, Ra = 10⁴, Pr = 0.71 ("QUALITATIVE literature trend") | Nu = 3.057 / 2.260 / 1.699 for ``n`` = 0.8 / 1.0 / 1.2 | Nu(0.8) > Nu(1.0) > Nu(1.2); Nu drift < 1e-5 over three successive 1000-step checks; clamped fraction < 1 % (measured 0.0) |
-| Turan et al. (2011), Ra = 10⁴, Pr = 10, ``n`` = 0.6, N = 32 and 48 extrapolated in 1/N² ("Turan et al. (2011) power-law points, CPU") | Nu = 5.393, −0.13 % against 5.40 | < 1 %: the reference's own uncertainty (figure reading ± 0.02, i.e. 0.37 %, plus their mesh uncertainty ≤ 0.35 %), rounded up; converged; clamped fraction 0 |
-| Same testset, Ra = 10³, ``n`` = 0.6, N = 48 | Nu = 1.9933 (−3.7 % against 2.07) | within 0.1 % of Kraken's own converged value 1.99332 (regression gate); the gap to the paper is documented above, not gated |
+| ``n = 1`` against the Newtonian driver `run_natural_convection_2d`, N = 64, Ra = 10³ ("Newtonian limit and De Vahl Davis") | Nu = 1.1175 for both, relative gap 0 | gap < 1e-6 |
+| Nu against De Vahl Davis (1983), hot-wall Nu₀ = 1.117 (cavity average 1.118; the test gate uses 1.118), same case | +0.05 % against 1.117 (−0.04 % against 1.118) | < 0.5 % (same frozen gate as `test_thermal.jl`) |
+| Nu against the power-law index, N = 32, Ra = 10⁴, Pr = 0.71 ("QUALITATIVE literature trend") | Nu = 3.013 / 2.239 / 1.689 for ``n`` = 0.8 / 1.0 / 1.2 | Nu(0.8) > Nu(1.0) > Nu(1.2); Nu drift < 1e-5 over three successive 1000-step checks; clamped fraction < 1 % (measured 0.0) |
+| Turan et al. (2011), Ra = 10⁴, Pr = 10, ``n`` = 0.6, N = 32 and 48 extrapolated in 1/N² ("Turan et al. (2011) power-law points, CPU") | Nu = 5.3765, −0.44 % against 5.40 | < 1 %: the reference's own uncertainty (figure reading ± 0.02, i.e. 0.37 %, plus their mesh uncertainty ≤ 0.35 %), rounded up; converged; clamped fraction 0 |
+| Same testset, Ra = 10³, ``n`` = 0.6, N = 48 | Nu = 1.9843 (−4.1 % against 2.07) | within 0.1 % of Kraken's own converged value 1.98434 (regression gate); the gap to the paper is documented above, not gated |
 | Carreau-Yasuda, N = 8, 5 steps ("Carreau-Yasuda cavity API") | finite fields, viscosity between ``\eta_\infty`` and ``\eta_0`` | smoke test only |
 | `.krk` case reaches the driver ("Parsed thermal rheology reaches run_simulation") | `power_law` block routed, 5 steps, finite fields | smoke test only |
 
@@ -280,19 +295,20 @@ Reading of the table:
 
 - The ``n = 1`` row shows that the new driver and the Newtonian driver solve the
   same discrete problem; it does not validate the non-Newtonian physics.
-- The De Vahl Davis row is a 0.05 % agreement on a 64² mesh at Ra = 10³; at
-  Ra = 10⁴ the same comparison (not in the test) gives 2.2535 against 2.238,
-  +0.7 %.
+- The De Vahl Davis row is a 0.04 % agreement on a 64² mesh at Ra = 10³; at
+  Ra = 10⁴ the same comparison (not in the test) gives 2.2432 against 2.238,
+  +0.23 %.
 - The trend row says that shear-thinning raises the heat transfer and
   shear-thickening lowers it, as expected physically; Pr = 0.71 has no published
   power-law counterpart.
 - The two Turan rows split the comparison on purpose. At Ra = 10⁴ the figure
-  is read to 0.4 % and Kraken agrees with it, so the test gates Kraken against
-  the paper with a 1 % gate set by the paper's precision. At Ra = 10³ a gate
-  against 2.07 would have to be at least 4 %, which would mostly test the
-  reading of a figure and would let a 3 % change of Kraken's solution pass
-  unseen; the test therefore freezes Kraken's own converged value, so that any
-  change of the discrete solution fails, and the 3.7 % gap stays documented.
+  is read to 0.4 % and Kraken agrees with it within 0.5 %, so the test gates
+  Kraken against the paper with a 1 % gate set by the paper's precision. At
+  Ra = 10³ a gate against 2.07 would have to be at least 5 %, which would mostly
+  test the reading of a figure and would let a 4 % change of Kraken's solution
+  pass unseen; the test therefore freezes Kraken's own converged value, so that
+  any change of the discrete solution fails, and the 4.1 % gap stays
+  documented.
 
 ## Not yet verified
 

@@ -1,10 +1,11 @@
 # Residual-converged steady forward solve for the AD cylinder path.
 # CPU Float64 only; this iterates the inline AD step, not the fused kernel.
 
+# Same profile as `run_cylinder_libb_2d`: zero on the half-way channel walls,
+# row sum exactly u_ref * Ny with u_ref = (2/3) u_in.
 function ad_inlet_profile(Ny::Int, u_in::Real, inlet::Symbol)
     if inlet === :parabolic
-        return [4.0 * Float64(u_in) * Float64(j - 1) * Float64(Ny - j) /
-                Float64(Ny - 1)^2 for j in 1:Ny]
+        return _halfway_poiseuille_profile(Float64, Ny, (2 / 3) * Float64(u_in))
     elseif inlet === :uniform
         return fill(Float64(u_in), Ny)
     end

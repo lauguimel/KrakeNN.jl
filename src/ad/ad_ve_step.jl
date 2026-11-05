@@ -19,7 +19,8 @@
 #   (2) psi-advection edge BC = production Dirichlet (west_phi=0, east_phi=psi[Nx,:],
 #       south/north wall mirror) + the WEST embedded face velocity = inlet profile.
 #   (3) fused ZouHe rebuild on f cols i=1 (west velocity profile) and i=Nx (east
-#       pressure rho_out=1), rows j=2..Ny-1, reading the PRE-stream f, via the
+#       pressure rho_out=1), rows j=1..Ny (half-way bounce-back on the wall
+#       rows, as in `_xface_rows_2d`), reading the PRE-stream f, via the
 #       regularized TRT collide — fused into the same pass to match the production
 #       kernel order (fused step -> apply_bc_rebuild).
 #
@@ -332,16 +333,20 @@ function ad_ve_coupled_step!(w_out, w_in, g::ADVEEmbeddedGeom, q_wall::Array{Flo
 
     # ============================================================
     # (3) FUSED ZouHe rebuild on f cols i=1 (west velocity) and i=Nx (east pressure),
-    # rows j=2..Ny-1, reading PRE-stream f (w_in). Mirrors apply_bc_rebuild_2d!.
+    # rows j=1..Ny, reading PRE-stream f (w_in). Mirrors apply_bc_rebuild_2d! with
+    # half-way walls south and north: on rows 1 and Ny the links pulled across the
+    # wall are the half-way bounce-back of the same node, as in the bulk pull above.
     # ============================================================
-    @inbounds for j in 2:(Ny-1)
+    @inbounds for j in 1:Ny
+        bs = j == 1
+        bn = j == Ny
         # WEST velocity (i=1): unknown q=2,6,9 after pull
         fp1 = w_in[foff + ad_ve_fpop(1, j,   1, Nx, Ny)]
-        fp3 = w_in[foff + ad_ve_fpop(1, j-1, 3, Nx, Ny)]
+        fp3 = bs ? w_in[foff + ad_ve_fpop(1, j, 5, Nx, Ny)] : w_in[foff + ad_ve_fpop(1, j-1, 3, Nx, Ny)]
         fp4 = w_in[foff + ad_ve_fpop(2, j,   4, Nx, Ny)]
-        fp5 = w_in[foff + ad_ve_fpop(1, j+1, 5, Nx, Ny)]
-        fp7 = w_in[foff + ad_ve_fpop(2, j-1, 7, Nx, Ny)]
-        fp8 = w_in[foff + ad_ve_fpop(2, j+1, 8, Nx, Ny)]
+        fp5 = bn ? w_in[foff + ad_ve_fpop(1, j, 3, Nx, Ny)] : w_in[foff + ad_ve_fpop(1, j+1, 5, Nx, Ny)]
+        fp7 = bs ? w_in[foff + ad_ve_fpop(1, j, 9, Nx, Ny)] : w_in[foff + ad_ve_fpop(2, j-1, 7, Nx, Ny)]
+        fp8 = bn ? w_in[foff + ad_ve_fpop(1, j, 6, Nx, Ny)] : w_in[foff + ad_ve_fpop(2, j+1, 8, Nx, Ny)]
         u_in = u_profile[j]
         rho_w = (fp1 + fp3 + fp5 + 2.0*(fp4 + fp7 + fp8)) / (1.0 - u_in)
         fp2 = fp4 + (2.0/3.0)*rho_w*u_in
@@ -360,10 +365,10 @@ function ad_ve_coupled_step!(w_out, w_in, g::ADVEEmbeddedGeom, q_wall::Array{Flo
         # EAST pressure (i=Nx): unknown q=4,7,8 after pull
         gp1 = w_in[foff + ad_ve_fpop(Nx,   j,   1, Nx, Ny)]
         gp2 = w_in[foff + ad_ve_fpop(Nx-1, j,   2, Nx, Ny)]
-        gp3 = w_in[foff + ad_ve_fpop(Nx,   j-1, 3, Nx, Ny)]
-        gp5 = w_in[foff + ad_ve_fpop(Nx,   j+1, 5, Nx, Ny)]
-        gp6 = w_in[foff + ad_ve_fpop(Nx-1, j-1, 6, Nx, Ny)]
-        gp9 = w_in[foff + ad_ve_fpop(Nx-1, j+1, 9, Nx, Ny)]
+        gp3 = bs ? w_in[foff + ad_ve_fpop(Nx, j, 5, Nx, Ny)] : w_in[foff + ad_ve_fpop(Nx,   j-1, 3, Nx, Ny)]
+        gp5 = bn ? w_in[foff + ad_ve_fpop(Nx, j, 3, Nx, Ny)] : w_in[foff + ad_ve_fpop(Nx,   j+1, 5, Nx, Ny)]
+        gp6 = bs ? w_in[foff + ad_ve_fpop(Nx, j, 8, Nx, Ny)] : w_in[foff + ad_ve_fpop(Nx-1, j-1, 6, Nx, Ny)]
+        gp9 = bn ? w_in[foff + ad_ve_fpop(Nx, j, 7, Nx, Ny)] : w_in[foff + ad_ve_fpop(Nx-1, j+1, 9, Nx, Ny)]
         u_x = -1.0 + (gp1 + gp3 + gp5 + 2.0*(gp2 + gp6 + gp9)) / rho_out
         gp4 = gp2 - (2.0/3.0)*rho_out*u_x
         gp7 = gp9 - 0.5*(gp3 - gp5) - (1.0/6.0)*rho_out*u_x

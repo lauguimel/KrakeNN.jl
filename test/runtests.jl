@@ -156,6 +156,12 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_taylor_green.jl")
     include("test_thermal.jl")
     include("test_natconv_gnf.jl")
+    # v0.7: parabolic inlets carry the exact flow rate between half-way walls.
+    include("analytical/halfway_inlet_flux.jl")
+    # v0.7: the hot-wall Nusselt average covers every row.
+    include("analytical/hot_wall_nusselt_average.jl")
+    # v0.7: adiabatic walls reflect the thermal populations specularly.
+    include("analytical/thermal_adiabatic_walls.jl")
     # Issue #19: conduction .krk fallback honours nu, alpha and thermal faces.
     include("analytical/TH-002-route.jl")
     include("test_axisymmetric.jl")

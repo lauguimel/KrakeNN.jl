@@ -27,6 +27,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - The EHD direct Poisson GPU solve writes into a preallocated device buffer
   (`EhdPoissonSetupGPU.sol`) instead of allocating a vector each step (#104).
 
+### Fixed
+- Parabolic inlets now deliver the nominal flow rate between half-way walls. The
+  profile of `run_cylinder_libb_2d`, `parabolic_face_profile_2d`,
+  `run_sphere_libb_3d`, `run_conformation_sphere_libb_3d` and the AD cylinder and
+  viscoelastic models is sampled with an exact discrete mean, and the Zou-He inlet
+  rebuild (2D, 3D and the AD copies) now imposes the profile on every row,
+  including the rows next to the walls; in 3D, `apply_bc_rebuild_3d!` takes an
+  opt-in `halfway_walls` argument that covers edges and corners. The delivered
+  flow-rate error of `run_cylinder_libb_2d` at Ny = 24/40/80 drops from
+  -0.89/-0.32/-0.081 % to +0.032/+0.012/+0.0029 % (parabolic) and from
+  -7.9/-4.7/-2.4 % to +0.43/+0.26/+0.13 % (uniform); the 3D doubly parabolic inlet
+  at N = 16 from -12.45 % to +0.12 %. Drag coefficients of cylinder and sphere
+  runs change accordingly (R = 3, Ny = 40: parabolic Cd 24.056 to 24.083, uniform
+  16.08 to 17.02); published values that used the old inlet are marked in the
+  documentation as measured before v0.7 (#111, #115, #119).
+- Adiabatic walls of the thermal solver reflect the thermal populations
+  specularly (zero normal heat flux, tangential flux kept) instead of bouncing the
+  diagonals back, in the fused 2D kernels, the GNF natural-convection transport,
+  the CPU step used for gradients, the 3D thermal kernels and the Rayleigh-Benard
+  horizontal walls. Pure conduction is now exact on every row and the Ra = 1e3
+  Nusselt numbers converge at second order. Thermal results change; GPU numbers
+  in the documentation measured before this fix are marked as such (#113, #119).
+- The hot-wall Nusselt number of `run_natural_convection_2d`,
+  `run_natural_convection_gnf_2d` and the 3D cavity is averaged over all wall rows
+  instead of rows 2 to N-1. At N = 64, Ra = 1e3 the 2D cavity gives Nu = 1.1175
+  (De Vahl Davis hot-wall Nu₀ = 1.117) (#119).
+
 ## [0.6.0] — 2026-11-04
 
 This release corrects a forcing defect that changed viscoelastic results, and repairs
