@@ -30,7 +30,8 @@ Module thermal
 **What it activates**
 
 - Allocation of a second DDF for temperature transport.
-- Acceptance of the `T = <expr>` kwarg on `Boundary <face> wall` directives.
+- Acceptance of the `T = <expr>` kwarg on `Boundary <face> wall` directives (used by
+  `heat_conduction` cases only; the natural-convection and Rayleigh-Bénard cases ignore the values).
   This is *not* a separate BC type — the parser re-uses the trailing-kwarg
   form of the `wall` simple parser. Example: `Boundary south wall T = 1.0`.
 - Forwarding of `Pr`, `Ra`, `alpha`, `gbeta_DT` from `Physics` to the thermal

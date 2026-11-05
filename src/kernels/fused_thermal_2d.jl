@@ -24,12 +24,56 @@ using KernelAbstractions
     return (fp1, fp2, fp3, fp4, fp5, fp6, fp7, fp8, fp9)
 end
 
-# --- Thermal BCs: anti-bounce-back for Dirichlet (west/east), bounce-back elsewhere ---
+# --- Stream thermal: pull with specular reflection at the adiabatic walls ---
+#
+# The top and bottom walls (y = 0.5 and y = Ny + 0.5) are adiabatic: zero normal
+# heat flux, tangential flux kept. A diagonal population whose source lies
+# across such a wall is the mirror image of the one leaving the same row
+# towards it: at j = 1, g6(i) = g9*(i-1) and g7(i) = g8*(i+1); at j = Ny,
+# g8(i) = g7*(i+1) and g9(i) = g6*(i-1). Bounce-back (g6 = g8* etc.) would
+# reverse the x-flux of the wall rows. The axis populations g3/g5 are the same
+# under both rules. A slot whose source lies across the west or east wall keeps
+# the bounced value, which `apply_thermal_bc_cavity` turns into the Dirichlet
+# rule (corner slots included).
+
+@inline function stream_pull_thermal_node(g_in, i, j, Nx, Ny)
+    im = max(i - 1, 1); ip = min(i + 1, Nx)
+    jm = max(j - 1, 1); jp = min(j + 1, Ny)
+
+    gp1 = g_in[i, j, 1]
+    gp2 = ifelse(i > 1,  g_in[im, j,  2], g_in[i, j, 4])
+    gp3 = ifelse(j > 1,  g_in[i,  jm, 3], g_in[i, j, 5])
+    gp4 = ifelse(i < Nx, g_in[ip, j,  4], g_in[i, j, 2])
+    gp5 = ifelse(j < Ny, g_in[i,  jp, 5], g_in[i, j, 3])
+    # On a wall row jm (jp) is the row itself, so the mirrored slot is read there.
+    gp6 = ifelse(i > 1,  g_in[im, jm, ifelse(j > 1,  6, 9)], g_in[i, j, 8])
+    gp7 = ifelse(i < Nx, g_in[ip, jm, ifelse(j > 1,  7, 8)], g_in[i, j, 9])
+    gp8 = ifelse(i < Nx, g_in[ip, jp, ifelse(j < Ny, 8, 7)], g_in[i, j, 6])
+    gp9 = ifelse(i > 1,  g_in[im, jp, ifelse(j < Ny, 9, 6)], g_in[i, j, 7])
+
+    return (gp1, gp2, gp3, gp4, gp5, gp6, gp7, gp8, gp9)
+end
+
+# The same pull as a stream kernel, for drivers that apply the Dirichlet walls
+# with `apply_fixed_temp_west_2d!` / `apply_fixed_temp_east_2d!` after streaming.
+@kernel function stream_thermal_cavity_2d_kernel!(g_out, @Const(g_in), Nx, Ny)
+    i, j = @index(Global, NTuple)
+    @inbounds write_populations!(g_out, i, j,
+                                 stream_pull_thermal_node(g_in, i, j, Nx, Ny))
+end
+
+function stream_thermal_cavity_2d!(g_out, g_in, Nx, Ny)
+    backend = KernelAbstractions.get_backend(g_in)
+    kernel! = stream_thermal_cavity_2d_kernel!(backend)
+    kernel!(g_out, g_in, Nx, Ny; ndrange=(Nx, Ny))
+end
+
+# --- Thermal BCs: anti-bounce-back for Dirichlet (west/east) ---
 #
 # Half-way anti-bounce-back: the Dirichlet walls sit at x = 0.5 and x = Nx + 0.5,
 # the same place as the half-way no-slip walls of the flow, so the thermal and
-# fluid cavities share the width H = Nx. `stream_pull_node` has already put
-# the bounced post-collision value g*_opp(x_b) into each wall-crossing slot;
+# fluid cavities share the width H = Nx. `stream_pull_thermal_node` has already
+# put the bounced post-collision value g*_opp(x_b) into each wall-crossing slot;
 # anti-bounce-back flips its sign and adds the wall term:
 #   g_q(x_b, t+1) = -g*_opp(x_b, t) + 2 w_q T_wall.
 # Diagonals crossing a corner take the west/east Dirichlet rule.
@@ -52,7 +96,7 @@ end
         g8 = -g8 + T(2) * T(1.0/36.0) * T_cold
     end
 
-    # Top/bottom: adiabatic (bounce-back already handled by stream_pull_node)
+    # Top/bottom: adiabatic (specular reflection done by stream_pull_thermal_node)
     return (g1, g2, g3, g4, g5, g6, g7, g8, g9)
 end
 
@@ -184,7 +228,7 @@ end
     @inbounds begin
         # 1. Stream both populations
         fp = stream_pull_node(f_in, i, j, Nx, Ny)
-        gp = stream_pull_node(g_in, i, j, Nx, Ny)
+        gp = stream_pull_thermal_node(g_in, i, j, Nx, Ny)
 
         # 2. Thermal BCs (Dirichlet west/east, adiabatic top/bottom)
         gp = apply_thermal_bc_cavity(gp, i, j, Nx, Ny, T_hot, T_cold)
@@ -219,7 +263,7 @@ end
 
     @inbounds begin
         fp = stream_pull_node(f_in, i, j, Nx, Ny)
-        gp = stream_pull_node(g_in, i, j, Nx, Ny)
+        gp = stream_pull_thermal_node(g_in, i, j, Nx, Ny)
 
         gp = apply_thermal_bc_cavity(gp, i, j, Nx, Ny, T_hot, T_cold)
 

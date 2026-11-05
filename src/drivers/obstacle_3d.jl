@@ -151,7 +151,10 @@ function run_obstacle_libb_3d(setup;
         fused_trt_libb_v2_step_3d!(f_out, f_in, ρ, ux, uy, uz, is_solid,
                                     q_wall, uw_x, uw_y, uw_z,
                                     Nx, Ny, Nz, ν)
-        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν, Nx, Ny, Nz)
+        # Every lateral face is a half-way wall of the fused step (periodic
+        # faces are refused above), so the inlet/outlet rim is rebuilt too.
+        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν, Nx, Ny, Nz;
+                             halfway_walls=(:south, :north, :bottom, :top))
 
         if step > setup.max_steps - avg_window
             drag = compute_drag_libb_3d(f_out, q_wall, Nx, Ny, Nz)

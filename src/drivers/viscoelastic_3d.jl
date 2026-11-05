@@ -43,6 +43,10 @@ via the Hermite source. CNEBB is applied at sphere-adjacent fluid cells.
 `u_in` is the inlet centreline velocity for `:parabolic_y` (default —
 y-only parabolic profile uniform in z; analog of the 2D channel),
 `:parabolic` for fully 3D doubly parabolic, or `:uniform` for plug flow.
+The y and z domain walls are half-way, so a parabolic direction of `N` nodes
+is sampled as `6 ū (j - 1/2)(N + 1/2 - j) / (N² + 1/2)` with discrete mean
+`ū = (2/3) u_in` (the product of two such factors for `:parabolic`, mean
+`(4/9) u_in`); these are the `u_ref` used for Re, Wi and Cd.
 
 Returns NamedTuple `(ux, uy, uz, ρ, C_xx, C_xy, C_xz, C_yy, C_yz, C_zz,
                      tau_p_*, q_wall, is_solid, Cd, Fx, Fy, Fz,
@@ -101,23 +105,24 @@ function run_conformation_sphere_libb_3d(;
                                                         Float64(radius); FT=FT)
 
     # --- Inlet velocity + conformation profiles ---
+    # The y and z domain walls are half-way (PullHalfwayBB_3D): node j sits
+    # at y = j - 1/2 and the walls at y = 0 and y = Ny, so the channel height
+    # is Ny (Nz in z) and the profiles are sampled on that layout, with a
+    # discrete mean of exactly (2/3) u_in per parabolic direction (u_ref).
     u_profile_h = zeros(FT, Ny, Nz)
-    Hy = FT(Ny - 1); Hz = FT(Nz - 1)
+    Hy = FT(Ny - 1)   # still used by the inlet conformation below
     if inlet === :uniform
         fill!(u_profile_h, FT(u_in))
     elseif inlet === :parabolic
+        s_y = _halfway_poiseuille_profile(Float64, Ny, 2 / 3)
+        s_z = _halfway_poiseuille_profile(Float64, Nz, 2 / 3)
         for k in 1:Nz, j in 1:Ny
-            yy = FT(j - 1); zz = FT(k - 1)
-            u_profile_h[j, k] = FT(16) * FT(u_in) *
-                                yy * (Hy - yy) * zz * (Hz - zz) / (Hy^2 * Hz^2)
+            u_profile_h[j, k] = FT(Float64(u_in) * s_y[j] * s_z[k])
         end
     elseif inlet === :parabolic_y
-        for j in 1:Ny
-            yy = FT(j - 1)
-            val = FT(4) * FT(u_in) * yy * (Hy - yy) / Hy^2
-            for k in 1:Nz
-                u_profile_h[j, k] = val
-            end
+        prof = _halfway_poiseuille_profile(FT, Ny, (2 / 3) * Float64(u_in))
+        for k in 1:Nz, j in 1:Ny
+            u_profile_h[j, k] = prof[j]
         end
     else
         error("unknown inlet $(inlet); expected :uniform|:parabolic|:parabolic_y")
@@ -241,8 +246,10 @@ function run_conformation_sphere_libb_3d(;
                                                q_wall, uw_x, uw_y, uw_z,
                                                Fx_poly, Fy_poly, Fz_poly,
                                                Nx, Ny, Nz, FT(ν_s))
-        # Pre-collision Zou-He rebuild at inlet/outlet
-        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν_s, Nx, Ny, Nz)
+        # Pre-collision Zou-He rebuild at inlet/outlet, on every node of the
+        # face: the four lateral faces are half-way walls of the fused step.
+        apply_bc_rebuild_3d!(f_out, f_in, bcspec, ν_s, Nx, Ny, Nz;
+                             halfway_walls=(:south, :north, :bottom, :top))
 
         # Drag (standard halfway-BB MEA on post-collision f) — note:
         # `compute_drag_libb_3d` reads f_out only and integrates over

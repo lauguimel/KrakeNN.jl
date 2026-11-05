@@ -1,0 +1,10 @@
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0
+phi setup type: EhdPoissonSetupGPU
+EHD 197x321 :direct  2000 steps  18.212 ms/step
+fingerprint phi sum = 3.77997375312255390e+04  bits hash = 843b25c03a1ecc5d
+fingerprint q   sum = 2.94944798209234250e+02  bits hash = 398b4e9241836d2b
+fingerprint ux  sum = 1.01366791550649982e-04  bits hash = 0c162f9a8b021ce9
+fingerprint uy  sum = 3.04842870523739512e-06  bits hash = e0e004364e7da581
+fingerprint Ex  sum = 1.09583747712212257e-02  bits hash = 39910732c740807e
+fingerprint Ey  sum = 1.97488891344292540e+02  bits hash = bd70299bcba898aa
+DONE

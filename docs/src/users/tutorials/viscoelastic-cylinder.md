@@ -48,8 +48,8 @@ fine-mesh **rheoTool** (OpenFOAM-based, Oldroyd-B log-conformation) reference ru
 
 This is the benchmark gate. At cylinder resolution `R = 50` (the production mesh),
 Kraken's drag matches the rheoTool fine-mesh references to **≤ 1 %** across the
-validated Weissenberg range (`β = 0.59`), with the default half-way bounce-back wall
-treatment, in Float64 (values re-measured on 2026-10-14 after the TRT Guo forcing fix,
+validated Weissenberg range (`β = 0.59`), with the default wall treatment (half-way
+bounce-back on the channel walls, interpolated bounce-back on the cylinder), in Float64 (values re-measured on 2026-10-14 after the TRT Guo forcing fix,
 #67; see the [Viscoelastic cylinder benchmark](../benchmarks/viscoelastic-cylinder.md)):
 
 | Wi  | rheoTool fine-mesh `C_d` | Kraken `C_d` vs reference |
@@ -72,7 +72,7 @@ NaN and rheoTool aborts, a regime neither code handles, not a Kraken-specific de
 
 ### Stability is not the same as convergence
 
-Kraken's half-way bounce-back cylinder is **NaN-free up to `Wi = 10`** at both
+Kraken's cylinder (interpolated bounce-back wall) is **NaN-free up to `Wi = 10`** at both
 `R = 30` and `R = 50` — well past the `Wi ≈ 1` ceiling typical of the
 LBM-viscoelastic literature, and without the High-Weissenberg-Number-Problem
 blow-up that limits many solvers.
@@ -124,7 +124,7 @@ CI-reproducible — they require an A100-class run.
 ## Summary
 
 - **Quantitative gate: passed.** `C_d` matches fine-mesh rheoTool to ≤ 1 % at
-  `Wi ∈ {0.1, 0.5, 1.0}`, `R = 50`, `Re = 1`, `β = 0.59`, half-way bounce-back, Float64.
+  `Wi ∈ {0.1, 0.5, 1.0}`, `R = 50`, `Re = 1`, `β = 0.59`, default walls (half-way channel, interpolated cylinder), Float64.
 - **`β = 0.3`:** −1.33 % (`Wi = 0.5`) and +1.24 % (`Wi = 1`, unsteady rheoTool
   reference) — outside the 1 % band; shared divergence at `β ≤ 0.1`.
 - **Stable (NaN-free) to `Wi = 10`**, but high-Wi `C_d` is resolution-divergent and

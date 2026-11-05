@@ -1,0 +1,96 @@
+GPU: NVIDIA A100-SXM4-40GB
+CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0  native transpose: true
+
+=== ehd 512² : n = 262144  nnz = 1305604  symmetric = false ===
+  CPU UMFPACK lu: 1.20 s
+  cuDSS raw phases: analysis 1.20 s  factorization 0.250 s
+  lin_factorize (analysis+factorization): 1.18 s
+  solve        :     2.04 ms  |x - x_umf|/|x_umf| = 1.7e-12  ok
+  solve 4 RHS  :     3.39 ms  rel err = 1.7e-12  ok
+  solve Aᵀ     :     2.05 ms  rel err vs Aᵀ\b = 1.7e-12  ok  (vs A\b: 3.1e-02)
+  refactorize (device values):     18.2 ms  rel err vs lu(A2) = 2.0e-11  ok
+  Aᵀ after refactorize        : rel err = 3.0e-11  ok
+  refactorize (host CSC upload):  194.2 ms  rel err = 1.3e-11  ok
+  R11 iter | CUDA.@allocated B (refactorize + solve [+ Aᵀ] + 4 RHS) | device free GiB
+         1 | 0 | 38.661
+         2 | 0 | 38.661
+         3 | 0 | 38.661
+         4 | 0 | 38.661
+         5 | 0 | 38.661
+         6 | 0 | 38.661
+         7 | 0 | 38.661
+         8 | 0 | 38.661
+         9 | 0 | 38.661
+        10 | 0 | 38.661
+  R11 reduced contract: allocations 0 (ok), free-memory spread (iters 2-10) = 0.0 MiB
+
+=== ehd 1024² : n = 1048576  nnz = 5232644  symmetric = false ===
+  CPU UMFPACK lu: 5.54 s
+  cuDSS raw phases: analysis 4.86 s  factorization 0.080 s
+  lin_factorize (analysis+factorization): 4.92 s
+  solve        :     5.39 ms  |x - x_umf|/|x_umf| = 6.7e-12  ok
+  solve 4 RHS  :     9.88 ms  rel err = 6.7e-12  ok
+  solve Aᵀ     :     5.37 ms  rel err vs Aᵀ\b = 6.7e-12  ok  (vs A\b: 2.2e-02)
+  refactorize (device values):     60.1 ms  rel err vs lu(A2) = 1.1e-10  FAILED
+  Aᵀ after refactorize        : rel err = 7.1e-11  ok
+  refactorize (host CSC upload):  117.7 ms  rel err = 1.0e-10  FAILED
+  R11 iter | CUDA.@allocated B (refactorize + solve [+ Aᵀ] + 4 RHS) | device free GiB
+         1 | 0 | 37.602
+         2 | 0 | 37.602
+         3 | 0 | 37.602
+         4 | 0 | 37.602
+         5 | 0 | 37.602
+         6 | 0 | 37.602
+         7 | 0 | 37.602
+         8 | 0 | 37.602
+         9 | 0 | 37.602
+        10 | 0 | 37.602
+  R11 reduced contract: allocations 0 (ok), free-memory spread (iters 2-10) = 0.0 MiB
+
+=== convdiff 512² : n = 262144  nnz = 1308672  symmetric = false ===
+  CPU UMFPACK lu: 0.99 s
+  cuDSS raw phases: analysis 1.11 s  factorization 0.022 s
+  lin_factorize (analysis+factorization): 1.13 s
+  solve        :     2.02 ms  |x - x_umf|/|x_umf| = 8.1e-14  ok
+  solve 4 RHS  :     3.36 ms  rel err = 8.6e-14  ok
+  solve Aᵀ     :     2.02 ms  rel err vs Aᵀ\b = 9.0e-14  ok  (vs A\b: 9.2e-01)
+  refactorize (device values):     17.8 ms  rel err vs lu(A2) = 3.9e-10  FAILED
+  Aᵀ after refactorize        : rel err = 1.9e-10  FAILED
+  refactorize (host CSC upload):   23.3 ms  rel err = 3.9e-10  FAILED
+  R11 iter | CUDA.@allocated B (refactorize + solve [+ Aᵀ] + 4 RHS) | device free GiB
+         1 | 0 | 38.661
+         2 | 0 | 38.661
+         3 | 0 | 38.661
+         4 | 0 | 38.661
+         5 | 0 | 38.661
+         6 | 0 | 38.661
+         7 | 0 | 38.661
+         8 | 0 | 38.661
+         9 | 0 | 38.661
+        10 | 0 | 38.661
+  R11 reduced contract: allocations 0 (ok), free-memory spread (iters 2-10) = 0.0 MiB
+
+=== convdiff 1024² : n = 1048576  nnz = 5238784  symmetric = false ===
+  CPU UMFPACK lu: 4.94 s
+  cuDSS raw phases: analysis 5.01 s  factorization 0.065 s
+  lin_factorize (analysis+factorization): 4.93 s
+  solve        :     5.89 ms  |x - x_umf|/|x_umf| = 3.5e-12  ok
+  solve 4 RHS  :    10.81 ms  rel err = 3.6e-12  ok
+  solve Aᵀ     :     5.34 ms  rel err vs Aᵀ\b = 3.8e-12  ok  (vs A\b: 9.2e-01)
+  refactorize (device values):     59.2 ms  rel err vs lu(A2) = 5.1e-09  FAILED
+  Aᵀ after refactorize        : rel err = 5.7e-09  FAILED
+  refactorize (host CSC upload):  117.4 ms  rel err = 5.2e-09  FAILED
+  R11 iter | CUDA.@allocated B (refactorize + solve [+ Aᵀ] + 4 RHS) | device free GiB
+         1 | 0 | 37.610
+         2 | 0 | 37.610
+         3 | 0 | 37.610
+         4 | 0 | 37.610
+         5 | 0 | 37.610
+         6 | 0 | 37.610
+         7 | 0 | 37.610
+         8 | 0 | 37.610
+         9 | 0 | 37.610
+        10 | 0 | 37.610
+  R11 reduced contract: allocations 0 (ok), free-memory spread (iters 2-10) = 0.0 MiB
+
+DONE

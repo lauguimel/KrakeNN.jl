@@ -84,18 +84,12 @@ end
 """
     ad_ve_poiseuille_profile(Ny, u_mean) -> Vector{Float64}
 
-Parabolic west-face profile over the channel (zero at j=1,Ny walls), mean u_mean.
-Mirror of scratch `c3m_poiseuille_profile`.
+Parabolic west-face profile over the channel, zero on the half-way walls at
+y = -1/2 and Ny - 1/2 (node j at y = j - 1), with row sum exactly `Ny * u_mean`.
+Same construction as `parabolic_face_profile_2d` on a channel open over all
+rows (the production viscoelastic cylinder).
 """
-function ad_ve_poiseuille_profile(Ny, u_mean)
-    prof = zeros(Float64, Ny)
-    H = Float64(Ny - 1)
-    @inbounds for j in 1:Ny
-        y = (Float64(j) - 1.0) / H
-        prof[j] = 6.0 * u_mean * y * (1.0 - y)
-    end
-    return prof
-end
+ad_ve_poiseuille_profile(Ny, u_mean) = _halfway_poiseuille_profile(Float64, Ny, u_mean)
 
 """
     ad_ve_build_geom(Nx, Ny, cx, cy, R; samples=16, u_mean=2e-4) -> ADVEGeom
