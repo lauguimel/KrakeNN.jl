@@ -94,6 +94,12 @@ the pin marks of a host `tag` in place.
   variable ν (velocity stays order 2): MMS measured 2026-11-04. Kept as is
   by decision 2026-11-04 (Guillaume); revisit before C4 (adjoint objectives
   on wall pressure / wall shear would inherit the first-order error).
+  Measured for C4 (2026-11-05, `benchmarks/fv_c4/wall_closure.jl`, Stokes
+  obstacle channel N = 8…128, ν constant and ν varying ×3): drag, interior Δp
+  and their adjoint gradients all converge at observed order ≈ 1.4, the same
+  for constant and variable ν; the gradient has the same relative error as J
+  (≈ 0.7 % at N = 128). The variable-ν wall pressure is not the leading error
+  there; closure unchanged, decision on options pending (C4 report).
 - **Pins**: a closed pocket without a pin makes the Jacobian singular; always
   build through `fv_steady_problem` or call `fv_pressure_pins!` after editing
   `tag`. Pinned row is `p_P = 0` (not `p_P − p_ref`).

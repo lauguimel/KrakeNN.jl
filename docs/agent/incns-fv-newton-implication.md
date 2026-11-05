@@ -91,7 +91,12 @@ No globals.
   solutions (scale 1e-6…1e6 give identical δ, `benchmarks/fv_c2/results/`);
   cuDSS checked in the A100 job.
 - **Wall pressure order** (inherited from C1, kept by decision 2026-11-04):
-  first order at walls with variable ν; revisit before C4.
+  first order at walls with variable ν; measured in C4 (see
+  `incns-fv-steady-residual-implication.md`): not the leading error of drag /
+  Δp or their gradients on the obstacle channel.
+- **Adjoint (C4)**: `fv_adjoint.jl` reads `s.cache`, `s.J`, `s.asm` and calls
+  `fv_newton_finalize!`; any change to the finalize contract (unshifted J,
+  refactorized, `n_factorize` unchanged) breaks the adjoint.
 
 ## Touch order
 

@@ -252,6 +252,28 @@ own that went through these paths with a nonzero force and `ν ≠ √3/12` shou
   bytes per call, and takes 0.43 ms at 1024² in Float64 (2.4 ms in Dual{4}).
   No Newton solver yet: nothing user-facing solves with it.
 
+- Steady discrete adjoint on the FV Newton solver (step C4 of the FV Newton
+  roadmap), `src/methods/inc_ns/fv_adjoint.jl`. `fv_steady_gradient(solver, U,
+  θ, objective; params)` re-assembles the unshifted Jacobian at the converged
+  state, refactorizes it (no new symbolic analysis), solves Jᵀλ = ∂J/∂U with
+  the Newton factors (UMFPACK on CPU, cuDSS with CUDSS.jl ≥ 1.0 on GPU) and
+  returns dJ/dθ = ∂J/∂θ − λᵀ∂R/∂θ, with ∂R/∂θ from parameter duals through
+  the same residual kernel. Parameters: uniform viscosity, viscosity field
+  (coloured, one cotangent per cell), side velocity (e.g. lid speed or inlet
+  amplitude), uniform source, or any `FVProblemMap(f, n)` building the problem
+  from θ. Objectives: state misfit (`FVStateObs`, also from a `LineProfile`),
+  linear functionals (`fv_flow_rate`, `fv_pressure_drop`) and wall force
+  (`FVWallForce`, drag/lift on the solid mask or a side). Also
+  `fv_steady_adjoint` (any ∂J/∂U), `fv_steady_tangent` (forward sensitivity)
+  and `fv_adjoint_workspace` (preallocated buffers). New capability value
+  `AssembledJacobian`; `IncNS(:fv_newton)` now also declares `SteadyAdjoint`.
+  Checked on CPU against dense forward-mode Jacobians (parameter cotangent to
+  2e-15), central finite differences (worst relative gap 9e-9 over the tested
+  directions) and the forward tangent (6e-16); dQ/dν = −Q/ν in Stokes flow.
+  GPU paths are tested by an opt-in test (`KRAKEN_REQUIRE_GPU=1`) that has not
+  run yet. Wall-closure study in `benchmarks/fv_c4/`: drag, pressure drop and
+  their gradients converge at order ≈ 1.4 whether ν is constant or variable.
+
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature (#103).
 - CI builds the documentation on pull requests into `dev/platform` with a pinned Vitepress npm tree (#81); the contributor guide states the full-suite gate as CI actually runs it (#59).

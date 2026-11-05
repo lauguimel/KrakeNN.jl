@@ -25,7 +25,10 @@ Defined under `src/platform/`, re-exported by `Kraken`:
 Phase 0 (`contract.jl`):
 - `AbstractProblem`, `AbstractMethod`, `AbstractSolution`, `AbstractObservable`, `AbstractClosure`.
 - `@enum Capability` = `ForwardSolve`, `GPUExecution`, `SteadyAdjoint`, `TransientAdjoint`,
-  `FiniteDiff`, `NeuralClosure`, `SteadyResidual`.
+  `FiniteDiff`, `NeuralClosure`, `SteadyResidual`, `AssembledJacobian` (C4,
+  2026-11-05: the method assembles the exact sparse ∂R/∂U and solves with its
+  transpose; declared by `IncNS(:fv_newton)` only, appended last so existing
+  enum integer values are unchanged).
 - `capabilities(m::AbstractMethod) -> Set{Capability}` — default empty; a method opts in.
 
 Phase 0b (`solution.jl`, `sample.jl`):
