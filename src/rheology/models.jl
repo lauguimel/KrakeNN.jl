@@ -26,8 +26,14 @@ struct IsothermalCoupling <: AbstractThermalCoupling end
 """
     ArrheniusCoupling(T_ref, E_a)
 
-Arrhenius-type thermal shift: `p(T) = p_ref · exp(E_a · (1/T - 1/T_ref))`.
-All rheological parameters (η, λ, K, τ_y, …) are shifted by the same factor `a_T`.
+Arrhenius-type thermal shift: `a_T = exp(E_a · (1/T - 1/T_ref))`, so that
+`p(T) = p_ref · a_T`. All rheological parameters (η, λ, K, τ_y, …) are shifted
+by the same factor `a_T`.
+
+`T` and `T_ref` are absolute temperatures (kelvin, strictly positive) and
+`E_a` is an activation temperature `E_a/R` in kelvin. The shift is undefined
+for `T ≤ 0`; drivers and the `.krk` loader refuse such temperatures at set-up
+time (the kernel itself performs no check).
 """
 struct ArrheniusCoupling{T} <: AbstractThermalCoupling
     T_ref::T
@@ -37,7 +43,14 @@ end
 """
     WLFCoupling(T_ref, C1, C2)
 
-Williams-Landel-Ferry shift: `log(a_T) = -C1·(T - T_ref) / (C2 + T - T_ref)`.
+Williams-Landel-Ferry shift with the published (Williams, Landel and Ferry,
+1955) base-10 constants:
+`log10(a_T) = -C1·(T - T_ref) / (C2 + T - T_ref)`, i.e.
+`a_T = 10^(-C1·(T - T_ref) / (C2 + T - T_ref))`.
+
+`C1` is dimensionless (the `.krk` default is 8.86), `C2` is a temperature
+difference in the same unit as `T` (the default is 101.6 K), and `T_ref` is the
+reference temperature at which `a_T = 1`.
 """
 struct WLFCoupling{T} <: AbstractThermalCoupling
     T_ref::T
@@ -237,7 +250,12 @@ end
 
 FENE-P model: finitely extensible nonlinear elastic with Peterlin closure.
 - `L_max`: maximum extensibility of polymer chains
-- Peterlin function: `f(tr(C)) = L²/(L² - tr(C))`
+- Peterlin function, as used by the kernels: the 2D log-conformation
+  finite-volume kernels and the 3D kernels use `f = (L² - d)/(L² - tr(C))`, with
+  `d` the space dimension, in both the relaxation term and the polymer stress
+  `τ_p = G·(f·C - I)`, so that `f = 1` and `τ_p = 0` at `C = I`. The legacy 2D
+  kernels (`kernels/viscoelastic_2d.jl`) use `f = L²/(L² - tr(C))` with
+  `τ_p = G·f·(C - I)`.
 - Reduces to Oldroyd-B when `L_max → ∞`.
 """
 struct FENEP{T,F<:VEFormulation,TC<:AbstractThermalCoupling} <: Viscoelastic
@@ -286,7 +304,10 @@ end
     thermal_shift_factor(tc, T_local) → a_T
 
 Compute the thermal shift factor for a given local temperature.
-All rheological parameters are multiplied by `a_T`.
+All rheological parameters are multiplied by `a_T`. Arrhenius requires
+`T_local > 0` (absolute temperature); WLF is base 10 (see [`WLFCoupling`](@ref)).
+No check is made here (this runs inside GPU kernels): see
+`_check_arrhenius_temperatures` for the set-up check.
 """
 @inline thermal_shift_factor(::IsothermalCoupling, T_local) = one(T_local)
 
@@ -296,5 +317,28 @@ end
 
 @inline function thermal_shift_factor(tc::WLFCoupling, T_local)
     dT = T_local - tc.T_ref
-    return exp(-tc.C1 * dT / (tc.C2 + dT))
+    return oftype(dT, 10)^(-tc.C1 * dT / (tc.C2 + dT))
+end
+
+"""
+    _check_arrhenius_temperatures(tc, temperatures...; context="")
+
+Set-up-time guard (never call it from a kernel): when `tc` is an
+[`ArrheniusCoupling`](@ref), throw an `ArgumentError` unless `T_ref`, `E_a` and
+every entry of `temperatures` are finite and the temperatures strictly positive.
+Other couplings are accepted unchanged.
+"""
+_check_arrhenius_temperatures(::AbstractThermalCoupling, temperatures...; context="") = nothing
+
+function _check_arrhenius_temperatures(tc::ArrheniusCoupling, temperatures...; context="")
+    where = isempty(context) ? "" : " ($context)"
+    (isfinite(tc.T_ref) && tc.T_ref > 0) || throw(ArgumentError(
+        "ArrheniusCoupling needs absolute temperatures > 0, got T_ref = $(tc.T_ref)$where"))
+    isfinite(tc.E_a) || throw(ArgumentError(
+        "ArrheniusCoupling needs a finite E_a, got $(tc.E_a)$where"))
+    for t in temperatures
+        (isfinite(t) && t > 0) || throw(ArgumentError(
+            "ArrheniusCoupling needs absolute temperatures > 0, got T = $t$where"))
+    end
+    return nothing
 end

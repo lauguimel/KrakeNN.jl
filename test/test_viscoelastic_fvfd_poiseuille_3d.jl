@@ -60,4 +60,17 @@ using KernelAbstractions
     println("C2 nu_eff=$(ν_eff) nu_total=$(ν_total) rel_err_percent=$(100 * rel_ν_err)")
     println("profile ratios j=4:$(ratio_at(4)) j=8:$(ratio_at(8)) j=$(jc):$(ratio_at(jc)) j=$(Ny-3):$(ratio_at(Ny - 3))")
     println("centreline Cxx=$(res.Cxx_prof[jc]) Cxy=$(res.Cxy_prof[jc]) max_substeps=$(res.max_substeps_observed)")
+
+    @testset "C3 no spurious wall-normal polymer stress" begin
+        # Without u_y = 0 at the half-way wall in the gradient, tau_yy grew
+        # exponentially (about 1e2 after 4000 steps) in this channel.
+        res3 = Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+            Nx=6, Ny=12, Nz=6, Fx=1.0e-5, ν_s=0.05, ν_p=0.05, lambda=5.0,
+            max_steps=4000, backend, FT,
+        )
+        ratio = maximum(abs, res3.tau_p_yy) / maximum(abs, res3.tau_p_xy)
+        println("C3 max|tau_yy|/max|tau_xy| = $(ratio)")
+        @test all(isfinite, res3.tau_p_yy)
+        @test ratio <= 1.0e-10
+    end
 end

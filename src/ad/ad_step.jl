@@ -203,15 +203,21 @@ function ad_bulk_v2_step!(out, f, q_wall, is_solid, s_plus, s_minus, Nx::Int, Ny
     return nothing
 end
 
+# Mirror of the x-face Zou-He kernels in `src/bc/rebuild_2d.jl` with half-way
+# walls south and north (`_xface_rows_2d`): all rows 1:Ny are rebuilt, and on
+# rows 1 and Ny the populations pulled across the wall are the half-way
+# bounce-back of the same node, as in `ad_bulk_v2_step!`.
 function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
                                   Nx::Int, Ny::Int)
-    @inbounds for j in 2:(Ny - 1)
+    @inbounds for j in 1:Ny
+        bs = j == 1   # south wall row: links from j - 1 bounce back (half-way)
+        bn = j == Ny  # north wall row: links from j + 1 bounce back
         fp1 = f[1, j, 1]
-        fp3 = f[1, j - 1, 3]
+        fp3 = bs ? f[1, j, 5] : f[1, j - 1, 3]
         fp4 = f[2, j, 4]
-        fp5 = f[1, j + 1, 5]
-        fp7 = f[2, j - 1, 7]
-        fp8 = f[2, j + 1, 8]
+        fp5 = bn ? f[1, j, 3] : f[1, j + 1, 5]
+        fp7 = bs ? f[1, j, 9] : f[2, j - 1, 7]
+        fp8 = bn ? f[1, j, 6] : f[2, j + 1, 8]
         u_in = u_profile[j]
         rho_w = (fp1 + fp3 + fp5 + 2.0 * (fp4 + fp7 + fp8)) / (1.0 - u_in)
         fp2 = fp4 + (2.0 / 3.0) * rho_w * u_in
@@ -232,10 +238,10 @@ function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
 
         fp1 = f[Nx, j, 1]
         fp2 = f[Nx - 1, j, 2]
-        fp3 = f[Nx, j - 1, 3]
-        fp5 = f[Nx, j + 1, 5]
-        fp6 = f[Nx - 1, j - 1, 6]
-        fp9 = f[Nx - 1, j + 1, 9]
+        fp3 = bs ? f[Nx, j, 5] : f[Nx, j - 1, 3]
+        fp5 = bn ? f[Nx, j, 3] : f[Nx, j + 1, 5]
+        fp6 = bs ? f[Nx, j, 8] : f[Nx - 1, j - 1, 6]
+        fp9 = bn ? f[Nx, j, 7] : f[Nx - 1, j + 1, 9]
         u_x = -1.0 + (fp1 + fp3 + fp5 + 2.0 * (fp2 + fp6 + fp9)) / rho_out
         fp4 = fp2 - (2.0 / 3.0) * rho_out * u_x
         fp7 = fp9 - 0.5 * (fp3 - fp5) - (1.0 / 6.0) * rho_out * u_x
@@ -381,15 +387,17 @@ Same body as `ad_apply_zou_he_rebuild!` but rates computed per-row.
 """
 function ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out,
                                           nu_field::Vector{Float64}, Nx::Int, Ny::Int)
-    @inbounds for j in 2:(Ny - 1)
+    @inbounds for j in 1:Ny
         s_plus_j, s_minus_j = ad_trt_rates_inline(nu_field[j])
 
+        bs = j == 1   # south wall row: links from j - 1 bounce back (half-way)
+        bn = j == Ny  # north wall row: links from j + 1 bounce back
         fp1 = f[1, j, 1]
-        fp3 = f[1, j - 1, 3]
+        fp3 = bs ? f[1, j, 5] : f[1, j - 1, 3]
         fp4 = f[2, j, 4]
-        fp5 = f[1, j + 1, 5]
-        fp7 = f[2, j - 1, 7]
-        fp8 = f[2, j + 1, 8]
+        fp5 = bn ? f[1, j, 3] : f[1, j + 1, 5]
+        fp7 = bs ? f[1, j, 9] : f[2, j - 1, 7]
+        fp8 = bn ? f[1, j, 6] : f[2, j + 1, 8]
         u_in = u_profile[j]
         rho_w = (fp1 + fp3 + fp5 + 2.0 * (fp4 + fp7 + fp8)) / (1.0 - u_in)
         fp2 = fp4 + (2.0 / 3.0) * rho_w * u_in
@@ -410,10 +418,10 @@ function ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out,
 
         fp1 = f[Nx, j, 1]
         fp2 = f[Nx - 1, j, 2]
-        fp3 = f[Nx, j - 1, 3]
-        fp5 = f[Nx, j + 1, 5]
-        fp6 = f[Nx - 1, j - 1, 6]
-        fp9 = f[Nx - 1, j + 1, 9]
+        fp3 = bs ? f[Nx, j, 5] : f[Nx, j - 1, 3]
+        fp5 = bn ? f[Nx, j, 3] : f[Nx, j + 1, 5]
+        fp6 = bs ? f[Nx, j, 8] : f[Nx - 1, j - 1, 6]
+        fp9 = bn ? f[Nx, j, 7] : f[Nx - 1, j + 1, 9]
         u_x = -1.0 + (fp1 + fp3 + fp5 + 2.0 * (fp2 + fp6 + fp9)) / rho_out
         fp4 = fp2 - (2.0 / 3.0) * rho_out * u_x
         fp7 = fp9 - 0.5 * (fp3 - fp5) - (1.0 / 6.0) * rho_out * u_x

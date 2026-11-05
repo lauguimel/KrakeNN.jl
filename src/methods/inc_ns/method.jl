@@ -4,6 +4,8 @@
 # matching `solve_incns_*` driver and wraps its NamedTuple result. No solver
 # math lives here.
 
+const _INCNS_DRIVERS = (:simple, :cavity, :cavity_mg, :projection, :manifold, :fv_newton)
+
 """
     IncNS <: AbstractMethod
 
@@ -19,22 +21,30 @@ with `driver` one of:
 - `:cavity_mg`  → [`solve_incns_cavity_mg`](@ref) (matrix-free multigrid cavity)
 - `:projection` → [`solve_incns_projection`](@ref) (unsteady fractional-step)
 - `:manifold`   → [`solve_incns_manifold`](@ref) (inlet/outlet manifold SIMPLE)
+- `:fv_newton`  → [`solve_incns_fv_newton`](@ref) (steady colocated FV, Newton
+  on the assembled coloured-dual Jacobian; C2 of the FV Newton roadmap)
 
-Declares [`capabilities`](@ref) `Set((ForwardSolve,))` only: the CPU forward
-solve is the validated path (the CUDA seam methods are manual-load, so
-`GPUExecution` is deliberately NOT claimed).
+[`capabilities`](@ref) depend on the driver. Every driver declares
+`ForwardSolve` (the CPU forward solve is the validated path; the CUDA seam
+methods are opt-in, so `GPUExecution` is deliberately NOT claimed). Only
+`:fv_newton` also declares `SteadyResidual`: the steady colocated FV residual
+of `fv_steady_residual.jl` (C1), reached as
+`residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`, is the residual that
+driver drives to zero. The SIMPLE drivers converge to a state that depends on
+their relaxation factor (roadmap F16) and expose no residual of their own.
 """
 struct IncNS <: AbstractMethod
     driver::Symbol
     function IncNS(driver::Symbol)
-        driver in (:simple, :cavity, :cavity_mg, :projection, :manifold) ||
+        driver in _INCNS_DRIVERS ||
             throw(ArgumentError("unknown IncNS driver :$driver — expected one of " *
-                                ":simple, :cavity, :cavity_mg, :projection, :manifold"))
+                                join((":" * string(d) for d in _INCNS_DRIVERS), ", ")))
         return new(driver)
     end
 end
 
-capabilities(::IncNS) = Set((ForwardSolve,))
+capabilities(m::IncNS) =
+    m.driver === :fv_newton ? Set((ForwardSolve, SteadyResidual)) : Set((ForwardSolve,))
 
 """
     IncNSSolution{R} <: AbstractSolution
@@ -67,6 +77,8 @@ function solve(params::NamedTuple, m::IncNS)
         solve_incns_cavity_mg(; params...)
     elseif m.driver === :projection
         solve_incns_projection(; params...)
+    elseif m.driver === :fv_newton
+        solve_incns_fv_newton(; params...)
     else # :manifold (constructor-validated)
         solve_incns_manifold(; params...)
     end

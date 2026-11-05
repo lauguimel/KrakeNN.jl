@@ -1,0 +1,25 @@
+N=  16 Re=  100  h=0.0625  median|J_cc|=0.251  median|J_uu|=0.0732  pin row coefficient 1
+    pin scale 1         backward err 3.1e-15 | rel. diff vs scale 1 0.0e+00 | cond1 3.23e+03
+    pin scale 0.251     backward err 3.1e-15 | rel. diff vs scale 1 0.0e+00 | cond1 2.37e+03
+    pin scale 1e-06     backward err 3.1e-15 | rel. diff vs scale 1 0.0e+00 | cond1 2.48e+08
+    pin scale 1e+06     backward err 3.1e-15 | rel. diff vs scale 1 0.0e+00 | cond1 2.45e+09
+N=  32 Re=  100  h=0.0312  median|J_cc|=0.0676  median|J_uu|=0.0668  pin row coefficient 1
+    pin scale 1         backward err 6.0e-15 | rel. diff vs scale 1 0.0e+00 | cond1 3.67e+04
+    pin scale 0.0676    backward err 6.0e-15 | rel. diff vs scale 1 0.0e+00 | cond1 1.02e+04
+    pin scale 1e-06     backward err 6.0e-15 | rel. diff vs scale 1 0.0e+00 | cond1 3.15e+08
+    pin scale 1e+06     backward err 6.0e-15 | rel. diff vs scale 1 0.0e+00 | cond1 3.30e+10
+N=  32 Re= 1000  h=0.0312  median|J_cc|=0.545  median|J_uu|=0.00873  pin row coefficient 1
+    pin scale 1         backward err 3.8e-14 | rel. diff vs scale 1 0.0e+00 | cond1 7.48e+04
+    pin scale 0.545     backward err 3.8e-14 | rel. diff vs scale 1 0.0e+00 | cond1 7.48e+04
+    pin scale 1e-06     backward err 3.8e-14 | rel. diff vs scale 1 0.0e+00 | cond1 2.04e+09
+    pin scale 1e+06     backward err 3.8e-14 | rel. diff vs scale 1 0.0e+00 | cond1 3.76e+10
+N= 128 Re=  100  h=0.00781  median|J_cc|=0.00449  median|J_uu|=0.0616  pin row coefficient 1
+    pin scale 1         backward err 8.1e-14 | rel. diff vs scale 1 0.0e+00 | cond1 NaN
+    pin scale 0.00449   backward err 8.1e-14 | rel. diff vs scale 1 0.0e+00 | cond1 NaN
+    pin scale 1e-06     backward err 8.1e-14 | rel. diff vs scale 1 0.0e+00 | cond1 NaN
+    pin scale 1e+06     backward err 8.1e-14 | rel. diff vs scale 1 0.0e+00 | cond1 NaN
+N= 256 Re= 1000  h=0.00391  median|J_cc|=0.0108  median|J_uu|=0.00647  pin row coefficient 1
+    pin scale 1         backward err 1.3e-13 | rel. diff vs scale 1 0.0e+00 | cond1 NaN
+    pin scale 0.0108    backward err 1.3e-13 | rel. diff vs scale 1 0.0e+00 | cond1 NaN
+    pin scale 1e-06     backward err 1.3e-13 | rel. diff vs scale 1 0.0e+00 | cond1 NaN
+    pin scale 1e+06     backward err 1.3e-13 | rel. diff vs scale 1 0.0e+00 | cond1 NaN

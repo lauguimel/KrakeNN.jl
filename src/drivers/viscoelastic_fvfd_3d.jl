@@ -237,7 +237,7 @@ function run_viscoelastic_fvfd_poiseuille_3d(;
             duzdx, duzdy, duzdz,
             ux, uy, uz, is_solid;
             dx, dy, dz, x_bc=:periodic, y_bc=:wall, z_bc=:periodic,
-            sync=false,
+            sync=false, wall_normal_noslip=true,
         )
 
         KernelAbstractions.synchronize(backend)

@@ -1,0 +1,46 @@
+#!/bin/bash -l
+#PBS -N kraken_c2_newton
+#PBS -l select=1:ncpus=8:ngpus=1:mem=32GB:gpu_id=A100:host=gpu0n009
+#PBS -l walltime=02:00:00
+#PBS -j oe
+
+# C2 (coloured dual Jacobian + Newton on cuDSS) GPU validation. WORKDIR
+# (default ~/kraken_c2) is prepared on the login node by setup_c2.sh (Pkg
+# instantiate + precompile there, private depot):
+#   src_c2 = feat/fv-c2 (git archive),  env = Kraken dev'd by path + CUDA.jl 6 +
+#   CUDSS.jl 1 + ForwardDiff + KernelAbstractions + Test,  depot = private.
+# The job runs Pkg offline: C2 test files with KRAKEN_REQUIRE_GPU=1, then the
+# Newton benchmark of the cavity at 512² and 1024² and the cuDSS pin-scale check.
+# nvidia-smi samples the device memory every 2 s into logs/ (peak memory).
+# The host is pinned: gpu0n001 fails cuInit. The project code is passed on the
+# qsub command line only:  qsub -P <RPID> c2_gpu.pbs
+
+WORKDIR=${WORKDIR:-$HOME/kraken_c2}
+cd "$WORKDIR" || exit 2
+LOGDIR=$WORKDIR/logs
+mkdir -p "$LOGDIR"
+TAG=${PBS_JOBID%%.*}
+
+echo "========================================"
+echo "Job: $PBS_JOBID   Node: $(hostname)   Start: $(date)"
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || { echo "ERROR: no GPU"; exit 1; }
+echo "========================================"
+
+export PATH=$HOME/.juliaup/bin:$PATH
+export JULIA_DEPOT_PATH=$WORKDIR/depot
+export JULIA_CUDA_USE_COMPAT=false
+export JULIA_PKG_OFFLINE=true
+export JULIA_PKG_PRECOMPILE_AUTO=0
+export JULIA_NUM_THREADS=${NCPUS:-8}
+
+nvidia-smi --query-gpu=timestamp,memory.used --format=csv,noheader -l 2 > "$LOGDIR/c2_nvsmi_$TAG.csv" &
+SMI=$!
+KRAKEN_REQUIRE_GPU=1 julia --project=env src_c2/benchmarks/fv_c2/c2_gpu.jl 2>&1 | tee "$LOGDIR/c2_gpu_$TAG.txt"
+STATUS=${PIPESTATUS[0]}
+kill $SMI 2>/dev/null
+echo "peak device memory used (nvidia-smi, MiB): $(sort -t, -k2 -n "$LOGDIR/c2_nvsmi_$TAG.csv" | tail -1)"
+
+echo "========================================"
+echo "End: $(date)  status=$STATUS"
+echo "========================================"
+exit $STATUS

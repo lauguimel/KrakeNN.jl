@@ -1,0 +1,40 @@
+Precompiling packages...
+  110 dependencies successfully precompiled in 259 seconds
+Precompiling packages...
+  1 dependency successfully precompiled in 4 seconds. 7 already precompiled.
+Precompiling packages...
+  1 dependency successfully precompiled in 2 seconds. 9 already precompiled.
+Precompiling packages...
+  11 dependencies successfully precompiled in 12 seconds. 9 already precompiled.
+Precompiling packages...
+  10 dependencies successfully precompiled in 45 seconds. 102 already precompiled.
+Precompiling packages...
+  1 dependency successfully precompiled in 1 seconds. 22 already precompiled.
+Precompiling packages...
+  94 dependencies successfully precompiled in 55 seconds. 132 already precompiled.
+CUDA.functional() = true
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  Kraken 0.5.0
+
+--- incns_fv_steady_residual.jl ---
+
+--- incns_fv_steady_residual_gpu.jl ---
+┌ Info: C1 GPU residual
+│   case = "cavity NS nu(x,y) 96²"
+└   free_memory_spread_MiB = 0.0
+┌ Info: C1 GPU residual
+│   case = "masked inlet/outlet channel 64x32"
+└   free_memory_spread_MiB = 0.0
+┌ Info: C1 GPU residual
+│   case = "periodic box Stokes 40²"
+└   free_memory_spread_MiB = 0.0
+Test Summary:   | Pass  Total   Time
+C1 GPU receipts |   69     69  31.1s
+
+--- residual timing ---
+    512² Float64  residual median 0.113 ms (min 0.112) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+    512² Dual{4}  residual median 0.652 ms (min 0.649) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+    512² CPU residual 5.0 ms (8 threads) | GPU vs CPU max rel diff 1.8e-17
+   1024² Float64  residual median 0.430 ms (min 0.429) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+   1024² Dual{4}  residual median 2.388 ms (min 2.380) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+   1024² CPU residual 75.7 ms (8 threads) | GPU vs CPU max rel diff 1.8e-17
+DONE

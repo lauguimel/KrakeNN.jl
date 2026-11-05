@@ -68,6 +68,7 @@ function run_incns_testset()
 
         # Solve services: linear-solve seam + elliptic (Poisson) MMS receipts.
         include("analytical/linear_solve_nonsym.jl")
+        include("analytical/linear_solve_refactor_transpose.jl")   # C0: refactorize / transpose / multi-RHS
         include("analytical/poisson_mms.jl")
         include("analytical/poisson_embedded_mms.jl")
         include("analytical/poisson_embedded_fvfd_mms.jl")
@@ -91,6 +92,9 @@ function run_incns_testset()
         # cuDSS GPU direct path (weakdep ext) — self-gated on CUDA.functional()
         # inside the file; skips cleanly on CPU-only boxes.
         include("analytical/poisson_cudss_gpu.jl")
+        # C0 cuDSS contract (refactorize, transpose gate, multi-RHS, zero
+        # allocation) — same self-gating; KRAKEN_REQUIRE_GPU=1 makes a skip fail.
+        include("analytical/linear_solve_cudss_c0_gpu.jl")
 
         # FVFD velocity-operator trio (grad/div/laplacian + embedded variants).
         include("analytical/incns_grad_div_laplacian_mms.jl")
@@ -101,6 +105,17 @@ function run_incns_testset()
         include("analytical/incns_unsteady_startup_channel.jl")
         include("analytical/incns_manifold.jl")   # fast (~4 s CPU): stays non-heavy
         include("analytical/incns_momentum_advection_order.jl")
+        # C1 steady FV residual (KA kernel, generic eltype): exact discrete
+        # solutions, MMS orders, duals vs FD, SIMPLE cavity agreement (~15 s CPU)
+        include("analytical/incns_fv_steady_residual.jl")
+        # its GPU parity + zero-allocation contract — self-gated on CUDA;
+        # KRAKEN_REQUIRE_GPU=1 makes a skip fail
+        include("analytical/incns_fv_steady_residual_gpu.jl")
+        # C2 Newton on that residual: coloured dual Jacobian (same KA kernels
+        # as GPU) vs dense, quadratic convergence, one analysis, Ghia, SIMPLE
+        # (~15 s CPU), and its opt-in GPU/cuDSS contract
+        include("analytical/incns_fv_newton.jl")
+        include("analytical/incns_fv_newton_gpu.jl")
         include("analytical/scalar_transport_heated_channel.jl")
         include("analytical/scalar_transport_advection_order.jl")
 
@@ -146,6 +161,12 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_taylor_green.jl")
     include("test_thermal.jl")
     include("test_natconv_gnf.jl")
+    # v0.7: parabolic inlets carry the exact flow rate between half-way walls.
+    include("analytical/halfway_inlet_flux.jl")
+    # v0.7: the hot-wall Nusselt average covers every row.
+    include("analytical/hot_wall_nusselt_average.jl")
+    # v0.7: adiabatic walls reflect the thermal populations specularly.
+    include("analytical/thermal_adiabatic_walls.jl")
     # Issue #19: conduction .krk fallback honours nu, alpha and thermal faces.
     include("analytical/TH-002-route.jl")
     include("test_axisymmetric.jl")
@@ -236,11 +257,13 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_rheology.jl")
     include("rheology/gnf_cell_test.jl")   # steady GNF forward (per-cell functions, driver)
     include("ad/gnf_adjoint_test.jl")      # steady GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
+    include("ad/gnf_calibration_test.jl")  # Carreau calibration script: BFGS + 16×8 smoke (no Enzyme)
     include("analytical/gnf3d_strain_rate.jl")
     include("analytical/gnf3d_channel_order.jl")
     include("analytical/gnf3d_parity.jl")
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
+    include("test_bsd_open_corner_2d.jl")
     # --- 3D viscoelastic tier (FVFD/FD transport + log-conformation, four
     #     constitutive models, RheoTool cross-validation). This capability
     #     lives only on this line; keep it registered here. ---

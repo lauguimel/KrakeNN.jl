@@ -12,12 +12,12 @@ Confined cylinder of radius `R` on the channel centreline, blockage ratio `D/H =
 (half-height `2R`), upstream/downstream length `15R`. Oldroyd-B fluid, `Re = 1`, solvent
 fraction `β = η_s/η₀ = 0.59` (the Boger-fluid value used throughout the cylinder
 literature). Diffusive scaling: fixed lattice viscosity `ν_total = 0.15`, `τ = 0.95`;
-`u_mean = ν_total·Re/R`, `λ = Wi·R/u_mean`. Half-way bounce-back cylinder wall.
+`u_mean = ν_total·Re/R`, `λ = Wi·R/u_mean`. Channel walls half-way bounce-back; cylinder wall linearly interpolated (Bouzidi) bounce-back with the analytic cut-link distance `q` (solver option `wall_bc = :halfwayBB`, which applies the interpolation).
 
 | Solver | Method | Grid | Notes |
 |--------|--------|------|-------|
-| **Kraken** | TRT-LBM + log-conformation finite-volume polymer transport | `R = 50` (cylinder diameter `100` LU), `±15R` channel | MUSCL–superbee advection of the conformation field, half-way bounce-back wall, v0.3 cut-link momentum-exchange drag. Diffusive scaling `ν_total = 0.15` (`τ = 0.95`), `300 000` steps. Backend **CUDA Float64 (Aqua A100)**, job 22199679; re-measured with the same settings in jobs 26763246/47/48 (2026-10-14). |
-| **RheoTool `rheoFoam`** | FVM, log-conformation Oldroyd-BLog | `Cylinder/Oldroyd-BLog` tutorial mesh | OpenFOAM-9 base, 2-core MPI, steady at `t = 20`. `β = 0.59`, `Re = 1`, `D/H = 0.5`. |
+| **Kraken** | TRT-LBM + log-conformation finite-volume polymer transport | `R = 50` (cylinder diameter `100` LU), `±15R` channel | MUSCL–superbee advection of the conformation field, interpolated bounce-back cylinder wall, v0.3 cut-link momentum-exchange drag. Diffusive scaling `ν_total = 0.15` (`τ = 0.95`), `300 000` steps. Backend **CUDA Float64 (Aqua A100)**, job 22199679; re-measured with the same settings in jobs 26763246/47/48 (2026-10-14). |
+| **RheoTool `rheoFoam`** | FVM, log-conformation Oldroyd-BLog | `Cylinder/Oldroyd-BLog` tutorial mesh | OpenFOAM-9 base. The archived `rheoFoam` logs show a single process and end time `t = 6` or `t = 10` (see the provenance note on the benchmark page); the logs of the `β = 0.59` runs behind the stored `Cd` are not archived. `β = 0.59`, `Re = 1`, `D/H = 0.5`. |
 | **Alves–Oliveira–Pinho (2001)** | published reference | finite-volume high-resolution | the canonical cylinder HWNP benchmark family. |
 
 ## Files
@@ -33,8 +33,9 @@ literature). Diffusive scaling: fixed lattice viscosity `ν_total = 0.15`, `τ =
 - `error_norms.csv` — per `Wi`, the relative error `(Cd_kraken − Cd_rheotool)/Cd_rheotool`
   (and its absolute percentage). This is the §3 integrated-quantity gate.
 - `cylinder_oldroyd_b.krk` — the Kraken case file (smoke wiring; the production driver
-  rebuilds the cylinder channel from `R`, `L_up`, `L_down`). Reproduce with
-  `run_simulation("cylinder_oldroyd_b.krk")`.
+  rebuilds the cylinder channel from `R`, `L_up`, `L_down`). Running it with
+  `run_simulation("cylinder_oldroyd_b.krk")` is only a smoke test (240×32, 20 steps): it
+  does not reproduce the table. The table values need the `R = 50`, 300 000-step GPU run.
 - `comparison.png` — Cd vs Wi: Kraken filled markers + connecting line, RheoTool dashed
   reference line + open squares, per-point relative error annotated. Dark Documenter
   theme. Also copied to `docs/src/users/benchmarks/viscoelastic-cylinder.png`.
@@ -77,7 +78,7 @@ across `Wi ∈ {0.1, 0.5, 1.0}` — **all three under 1 %**.
 26763246/47/48 on 2026-10-14). These are not produced by
 the local test suite or by GitHub CI — reproducing them requires an A100-class GPU and an
 overnight run. The RheoTool references are rheoFoam (OpenFOAM-9, Oldroyd-BLog,
-log-conformation), 2-core MPI, steady at `t = 20`. This artifact re-derives the comparison
+log-conformation); the number of cores and the end time of the runs behind the stored `Cd` are not documented (archived logs of other runs: one process, `t = 6` or `10`). This artifact re-derives the comparison
 CSVs, error norms and comparison plot from those raw outputs. The v0.3 cut-link drag
 reproduced the prior dev-viscoelastic "M8" study (`m8_refs/`) to 4–5 significant figures;
 both used the pre-fix forcing.

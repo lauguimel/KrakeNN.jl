@@ -74,6 +74,15 @@ end
     end
 end
 
+"""
+    _fvfd_solid_bc_second_derivative_x_2d(field, is_solid, i, j, Nx, inv_dx2, west_bc, east_bc)
+
+x second derivative used by the both-sides-diffusion correction. Next to a solid
+cell the one-sided stencil is kept. At the first or last column of an
+`FVFD_BC_OPEN` end the result is zero, i.e. it assumes `∂²u/∂x² = 0` there: the
+one-sided stencil has the wrong sign on the period-2 mode of the outlet corner
+cells and anti-damps it when `nu_s` is small against `nu_p`.
+"""
 @inline function _fvfd_solid_bc_second_derivative_x_2d(
     field, is_solid, i, j, Nx, inv_dx2, west_bc, east_bc,
 )
@@ -82,8 +91,12 @@ end
     ri = _fvfd_bc_index_1d(i + 1, Nx, west_bc, east_bc)
     left = li != 0 && !is_solid[li, j]
     right = ri != 0 && !is_solid[ri, j]
+    open_end = (li == 0 && i == 1 && west_bc == FVFD_BC_OPEN) ||
+               (ri == 0 && i == Nx && east_bc == FVFD_BC_OPEN)
     if left && right
         return (field[ri, j] - T(2) * field[i, j] + field[li, j]) * inv_dx2
+    elseif open_end
+        return zero(T)
     elseif right
         r2i = _fvfd_bc_index_1d(i + 2, Nx, west_bc, east_bc)
         return (r2i != 0 && !is_solid[r2i, j]) ?

@@ -130,4 +130,47 @@ using Kraken
         @info "Power-law Poiseuille (n=$n_pl): L∞ rel error = $(round(max_err, digits=4)), u_max_num=$(round(u_max_num, digits=6)), u_max_ana=$(round(u_max_ana, digits=6))"
         @test max_err < 0.10  # 10% tolerance (non-Newtonian + half-way BB)
     end
+
+    @testset "Thermal shift factors: WLF base 10 and Arrhenius set-up check" begin
+        # WLF with the published (base-10) constants: a_T = 10^(-C1 dT / (C2 + dT)).
+        tc = WLFCoupling(300.0, 8.86, 101.6)
+        expected = 10.0^(-8.86 * 20.0 / (101.6 + 20.0))
+        @test thermal_shift_factor(tc, 320.0) ≈ expected rtol=1e-12
+        @test thermal_shift_factor(tc, 320.0) ≈ 0.0349 atol=5e-5   # was exp(): 0.233
+        @test thermal_shift_factor(tc, 300.0) == 1.0
+        @test thermal_shift_factor(tc, 280.0) > 1.0                 # colder -> stiffer
+
+        # Arrhenius: absolute temperatures only, refused at set-up time.
+        arr = ArrheniusCoupling(300.0, 10.0)
+        @test thermal_shift_factor(arr, 300.0) == 1.0
+        check = Kraken._check_arrhenius_temperatures
+        @test check(arr, 290.0, 310.0) === nothing
+        @test_throws ArgumentError check(arr, 0.0)
+        @test_throws ArgumentError check(arr, 300.0, -1.0)
+        @test_throws ArgumentError check(ArrheniusCoupling(0.0, 10.0))
+        @test check(WLFCoupling(1.0, 8.86, 101.6), 0.0) === nothing   # WLF has no such constraint
+        @test check(IsothermalCoupling(), -5.0) === nothing
+
+        # Driver entry point: the default walls (T_hot=1, T_cold=0) give T = 0.
+        model = PowerLaw(0.05, 0.8; thermal=ArrheniusCoupling(1.5, 0.2))
+        @test_throws ArgumentError run_natural_convection_gnf_2d(; N=4, rheology=model, max_steps=1)
+        @test_throws ArgumentError run_natural_convection_gnf_2d(; N=4, rheology=model,
+                                       max_steps=1, T_hot=2.0, T_cold=-1.0)
+        ok = run_natural_convection_gnf_2d(; N=4, rheology=model, max_steps=1,
+                                           T_hot=2.0, T_cold=1.0)
+        @test all(isfinite, ok.Temp)
+
+        # .krk loader entry point.
+        bad = Kraken.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5, :E_a => 5.0, :T_ref => 0.0))
+        @test_throws ArgumentError build_rheology_model(bad)
+        good = Kraken.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5, :E_a => 5.0, :T_ref => 300.0))
+        @test build_rheology_model(good).thermal isa ArrheniusCoupling
+
+        # Isothermal .krk route: thermal keys are ignored, one warning names them.
+        @test_logs (:warn, r"E_a, T_ref.*ignored") Kraken._warn_ignored_thermal_keys(good)
+        wlf = Kraken.RheologySetup(:default, :carreau, Dict(:C1 => 8.86, :C2 => 101.6))
+        @test_logs (:warn, r"C1, C2.*ignored") Kraken._warn_ignored_thermal_keys(wlf)
+        plain = Kraken.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5))
+        @test_logs Kraken._warn_ignored_thermal_keys(plain)
+    end
 end
