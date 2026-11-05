@@ -10,7 +10,7 @@
 #      the Jacobian support lies in the 5x5 cell box (the colouring C2 relies on);
 #   5. Newton on this residual vs the SIMPLE cavity driver (different
 #      discretisations, agreement at discretisation level only);
-#   6. platform contract (`SteadyResidual`).
+#   6. platform contract (`SteadyResidual`, declared by IncNS(:fv_newton) only).
 # Bit-for-bit parity with the J0 prototype is a separate script
 # (benchmarks/fv_c1/j0_parity.jl, receipt in benchmarks/fv_c1/results/).
 # GPU parity and allocations: incns_fv_steady_residual_gpu.jl.
@@ -191,11 +191,15 @@ _fvc1_lid(s, x, y) = s === :N ? (1.0, 0.0) : (0.0, 0.0)
     end
 
     @testset "platform contract: SteadyResidual" begin
-        @test SteadyResidual in capabilities(IncNS(:cavity))
+        @test SteadyResidual in capabilities(IncNS(:fv_newton))
+        # decision 2026-11-04: SteadyResidual is driver-dependent, the SIMPLE
+        # drivers no longer declare it
+        @test SteadyResidual ∉ capabilities(IncNS(:cavity))
         p = fv_steady_problem(6, 5; nu = 0.1, boundary_velocity = _fvc1_lid)
         U = randn(MersenneTwister(3), fv_nunknowns(p))
-        @test residual(p, IncNS(:cavity), U) == fv_residual(U, p)
-        @test residual(p, IncNS(:cavity), U, nothing) == fv_residual(U, p)
+        @test residual(p, IncNS(:fv_newton), U) == fv_residual(U, p)
+        @test residual(p, IncNS(:fv_newton), U, nothing) == fv_residual(U, p)
+        @test_throws ArgumentError residual(p, IncNS(:cavity), U)
         # host round trip of the problem arrays
         q = fv_adapt(Array, p)
         @test q.nu == p.nu && q.tag == p.tag && q.grid === p.grid

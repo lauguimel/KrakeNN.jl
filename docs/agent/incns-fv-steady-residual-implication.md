@@ -40,8 +40,10 @@ reproduces the J0 prototype (`benchmarks/fv_newton_j0/FVJ0.jl` on
   solid, source, conv, T)`, `fv_pressure_pins!(tag, grid)`, `fv_adapt(to, prob)`,
   `fv_state(prob, u, v, p)`, `fv_fields(prob, U)`, `fv_index(grid, i, j, comp)`,
   `fv_nunknowns`.
-- Platform: `residual(prob::FVSteadyProblem2D, ::IncNS, U[, p])`;
-  `capabilities(::IncNS)` ∋ `SteadyResidual`.
+- Platform: `residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U[, p])`;
+  only `IncNS(:fv_newton)` declares `SteadyResidual` (decision 2026-11-04:
+  capabilities are driver-dependent); other drivers raise `ArgumentError`.
+  Consumer: C2 Newton, map `incns-fv-newton-implication.md`.
 - Unknown ordering `k = 3(i-1 + (j-1)Nx) + {1:u, 2:v, 3:p}` (interleaved, as J0).
 
 ## Reads from
@@ -81,7 +83,9 @@ the pin marks of a host `tag` in place.
   D-RC study); a Newton solve needs a mean-velocity constraint there.
 - **Pressure accuracy at walls**: the half-cell wall closure (`(u_w - u_P)·2/h`,
   `ν_P`, `p_f = p_P`) makes the pressure first order in the wall cells with
-  variable ν (velocity stays order 2): MMS measured 2026-11-04.
+  variable ν (velocity stays order 2): MMS measured 2026-11-04. Kept as is
+  by decision 2026-11-04 (Guillaume); revisit before C4 (adjoint objectives
+  on wall pressure / wall shear would inherit the first-order error).
 - **Pins**: a closed pocket without a pin makes the Jacobian singular; always
   build through `fv_steady_problem` or call `fv_pressure_pins!` after editing
   `tag`. Pinned row is `p_P = 0` (not `p_P − p_ref`).
@@ -97,4 +101,7 @@ the pin marks of a host `tag` in place.
 4. `test/analytical/incns_fv_steady_residual_gpu.jl` — GPU parity, allocations.
 5. `benchmarks/fv_c1/j0_parity.jl` — rerun against FVJ0 after any change to the
    discretisation (a deliberate change must say so and drop the parity claim).
-6. `docs/agent/incns-platform-implication.md` — capability list.
+6. `src/methods/inc_ns/fv_newton.jl` — the Jacobian pattern mirrors the
+   kernel's reads: any stencil change must update `fv_jacobian_pattern`
+   (the C2 dense-parity test catches a missing entry).
+7. `docs/agent/incns-platform-implication.md` — capability list.

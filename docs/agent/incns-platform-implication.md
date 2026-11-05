@@ -29,12 +29,16 @@ solver math lives here; every driver call is a verbatim keyword forward.
 
 Contract wrapper (`src/methods/inc_ns/method.jl`):
 - `IncNS(driver::Symbol) <: AbstractMethod`, driver ∈
-  `{:simple, :cavity, :cavity_mg, :projection, :manifold}` (constructor-validated).
-- `capabilities(::IncNS) = Set((ForwardSolve, SteadyResidual))` — no
-  GPU/adjoint over-claiming (the CUDA seam files are manual-load).
-  `SteadyResidual` = the C1 steady colocated FV residual
-  (`residual(prob::FVSteadyProblem2D, ::IncNS, U)`, map
-  `incns-fv-steady-residual-implication.md`), not the SIMPLE drivers' residual.
+  `{:simple, :cavity, :cavity_mg, :projection, :manifold, :fv_newton}`
+  (constructor-validated).
+- Capabilities are driver-dependent (decision 2026-11-04):
+  `capabilities(IncNS(:fv_newton)) = Set((ForwardSolve, SteadyResidual))`, every
+  other driver `Set((ForwardSolve,))` — no GPU/adjoint over-claiming (the CUDA
+  seam files are manual-load). `SteadyResidual` = the C1 steady colocated FV
+  residual (`residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`, map
+  `incns-fv-steady-residual-implication.md`); the SIMPLE drivers do not expose a
+  residual. Only tests read `capabilities` today (no code path dispatches on it).
+- `IncNS(:fv_newton)` → `solve_incns_fv_newton` (map `incns-fv-newton-implication.md`).
 - `IncNSSolution{R} <: AbstractSolution` — NamedTuple wrapper; `sample`
   pass-through (`getproperty`, `:`, `idx::Tuple`), like `LBMSolution`.
 - `solve(params::NamedTuple, m::IncNS) -> IncNSSolution` — splats `params` into

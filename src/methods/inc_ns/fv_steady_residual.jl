@@ -491,12 +491,19 @@ end
 
 # ------------------------------------------------------------------ platform
 """
-    residual(prob::FVSteadyProblem2D, ::IncNS, U, p = nothing) -> R
+    residual(prob::FVSteadyProblem2D, m::IncNS, U, p = nothing) -> R
 
 Platform-contract entry of the steady FV residual (capability
-`SteadyResidual`): allocating [`fv_residual`](@ref). `p` is unused — the
-parameters (viscosity field, sources, boundary velocities) live in `prob`.
-This is the residual of the coupled colocated FV discretisation of C1, not of
-the SIMPLE drivers (their converged state depends on the relaxation factor).
+`SteadyResidual`, declared by `IncNS(:fv_newton)` only): allocating
+[`fv_residual`](@ref). `p` is unused — the parameters (viscosity field,
+sources, boundary velocities) live in `prob`. Other IncNS drivers raise an
+`ArgumentError`: this is the residual of the coupled colocated FV
+discretisation that `:fv_newton` solves, not of the SIMPLE drivers (their
+converged state depends on the relaxation factor).
 """
-residual(prob::FVSteadyProblem2D, ::IncNS, U, p = nothing) = fv_residual(U, prob)
+function residual(prob::FVSteadyProblem2D, m::IncNS, U, p = nothing)
+    m.driver === :fv_newton ||
+        throw(ArgumentError("IncNS(:$(m.driver)) does not declare SteadyResidual; " *
+                            "the steady FV residual belongs to IncNS(:fv_newton)"))
+    return fv_residual(U, prob)
+end
