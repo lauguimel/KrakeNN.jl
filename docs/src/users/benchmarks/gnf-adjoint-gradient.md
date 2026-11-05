@@ -200,8 +200,9 @@ difference check was made; only the default solver was run on the GPU.
 - GPU scope: one A100 run on the 32×16 case (see "GPU results"). The CPU/GPU parity
   testset in the test suite is still skipped without a CUDA device.
 - Float32 is informational only (operator products, no gate).
-- The Enzyme cross-check runs in no CI step yet; it runs only when selected with
-  `KRAKEN_ONLY=ad/gnf_adjoint_enzyme_test.jl`.
+- The Enzyme cross-check has its own step in the `full` job of `.github/workflows/CI.yml`
+  (every event except pull requests, so a pull request does not run it); locally it runs
+  when selected with `KRAKEN_ONLY=ad/gnf_adjoint_enzyme_test.jl`.
 - Only the 32×16 and 16×8 test grids are covered (the GPU run: 32×16).
 - Only the Carreau–Yasuda viscosity law is covered.
 - Only 2D, `x`-periodic, body-force-driven flow is covered.

@@ -386,7 +386,7 @@ using Kraken
     end
 
     @testset "Natural convection cavity (Rc=1)" begin
-        # De Vahl Davis benchmark: Ra=1e3, Pr=0.71, Nu ≈ 1.118
+        # De Vahl Davis benchmark: Ra=1e3, Pr=0.71, Nu ≈ 1.118 (cavity average; hot-wall Nu0 = 1.117)
         result = run_natural_convection_2d(; N=64, Ra=1e3, Pr=0.71, Rc=1.0,
                                              max_steps=30000)
 
