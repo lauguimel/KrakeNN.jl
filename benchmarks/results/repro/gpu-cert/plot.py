@@ -34,10 +34,11 @@ _USETEX = shutil.which("latex") is not None
 DARK = "#1f2424"  # Documenter dark theme background
 
 # Published / derived reference ceilings (see README + the docs page).
-# A100-40GB peak HBM 1.555 TB/s, 304 bytes/update F64 D2Q9 -> 5115 MLUPS.
+# A100-40GB peak HBM 1.555 TB/s, 144 bytes/update F64 D2Q9 -> 10799 MLUPS;
+# A100-80GB 2.039 TB/s -> 14160 MLUPS.
 REFERENCES = [
-    ("A100-40GB roofline", 5115, "ceiling"),
-    ("A100-80GB roofline", 6707, "ceiling"),
+    ("A100-40GB roofline", 10799, "ceiling"),
+    ("A100-80GB roofline", 14160, "ceiling"),
     ("Palabos F64 D3Q19 TRT", 4656, "code"),
 ]
 

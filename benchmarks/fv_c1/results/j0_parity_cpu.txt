@@ -1,0 +1,13 @@
+# j0_parity.jl, 2026-11-04, macOS arm64 CPU, Julia 1.12.5, Float64; FVJ0.jl from feat/fv-newton-j0 at 7e426edb6
+cavity NS Re=100 8²                      pins C1 [1]        J0 [1]     max rel |R_C1 - R_J0|_inf = 0.00e+00
+cavity Stokes 8²                         pins C1 [1]        J0 [1]     max rel |R_C1 - R_J0|_inf = 0.00e+00
+cavity NS Re=100 13²                     pins C1 [1]        J0 [1]     max rel |R_C1 - R_J0|_inf = 0.00e+00
+cavity Stokes 13²                        pins C1 [1]        J0 [1]     max rel |R_C1 - R_J0|_inf = 0.00e+00
+channel in/out Stokes 12x6               pins C1 Int64[]    J0 Int64[]  max rel |R_C1 - R_J0|_inf = 0.00e+00
+channel in/out NS 12x6                   pins C1 Int64[]    J0 Int64[]  max rel |R_C1 - R_J0|_inf = 0.00e+00
+periodic channel NS fx 12x6              pins C1 [1]        J0 [1]     max rel |R_C1 - R_J0|_inf = 0.00e+00
+channel in/out Stokes 9x7                pins C1 Int64[]    J0 Int64[]  max rel |R_C1 - R_J0|_inf = 0.00e+00
+channel in/out NS 9x7                    pins C1 Int64[]    J0 Int64[]  max rel |R_C1 - R_J0|_inf = 0.00e+00
+periodic channel NS fx 9x7               pins C1 [1]        J0 [1]     max rel |R_C1 - R_J0|_inf = 0.00e+00
+manifold mask NS 40x20                   pins C1 Int64[]    J0 Int64[]  max rel |R_C1 - R_J0|_inf = 0.00e+00
+WORST = 0.0

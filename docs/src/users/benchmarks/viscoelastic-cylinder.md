@@ -40,8 +40,11 @@ Kraken reproduces the **characteristic elastic signature** reported across the c
 literature (Alves–Oliveira–Pinho 2001; Hulsen et al. 2005; Claus & Phillips 2013): a
 shallow minimum near `Wi ≈ 0.5` followed by an elastic upturn — not just a single
 matched value. The agreement improves monotonically as the cylinder is resolved
-(`Wi = 1`: −6.1 % / −1.7 % / −0.75 % at R = 10 / 30 / 50), confirming the residual gap
-is discretisation, not modelling. Two independent methods (LBM + log-FV vs FV +
+(`Wi = 1`: −6.1 % / −1.7 % / −0.75 % at R = 10 / 30 / 50). This does not show that the
+remaining gap is discretisation: extrapolating the R = 30 and R = 50 values to infinite
+resolution gives about +0.7 % above the single RheoTool value if the error is first order
+in 1/R, and about −0.2 % if it is second order, and the RheoTool mesh convergence was not
+studied. Two independent methods (LBM + log-FV vs FV +
 log-conformation) bracket the same benchmark. The earlier M8 study (2026-05-31,
 `m8_refs/`) and the v0.3 re-validation agreed to 4–5 significant figures, both with the
 pre-fix forcing; the values above differ from them by +0.03 % to +0.23 %. Full data:
@@ -53,8 +56,11 @@ pre-fix forcing; the values above differ from them by +0.03 % to +0.23 %. Full d
 collision for the flow; a separate finite-volume solver advects the matrix-logarithm of
 the polymer conformation tensor (Fattal–Kupferman 2004) with MUSCL–superbee advection
 and couples the extra-stress `τ_p = (ν_p/λ)(C − I)` back as a body force. Cylinder on
-the channel centreline with a halfway bounce-back wall; the cut-link momentum-exchange
-integrator measures the drag. Driver `run_viscoelastic_logfv_cylinder_coupled_2d`.
+the channel centreline. The channel walls are half-way bounce-back; the curved cylinder
+wall is a linearly interpolated (Bouzidi) bounce-back that uses the analytic wall distance
+`q` of each cut link (the option is named `wall_bc = :halfwayBB`, but it applies the
+interpolation, which reduces to half-way bounce-back only at `q = 0.5`). The cut-link
+momentum-exchange integrator measures the drag. Driver `run_viscoelastic_logfv_cylinder_coupled_2d`.
 
 - **Geometry**: blockage `D/H = 0.5` (half-height `2R`), up/downstream length `15R`.
 - **Fluid**: Oldroyd-B, `Re = 1`, solvent fraction `β = η_s/η₀ = 0.59` (the Boger value
@@ -104,16 +110,16 @@ benchmark (cross-checked against Hulsen et al. 2005 and Claus & Phillips 2013).
   `Wi = 0.5` (RheoTool 109.92, −1.33 %) and 108.61 at `Wi = 1` (RheoTool 107.28,
   +1.24 %). The RheoTool `β = 0.3`, `Wi = 1` run is not steady at `t = 20` (`Cd`
   109.7 → 106.8 → 107.3 over `t = 15–20`), so that cell is not a validation point.
-- **High-Wi stability ≠ accuracy.** Kraken's halfway bounce-back cylinder is NaN-free up
+- **High-Wi stability ≠ accuracy.** Kraken's default cylinder wall (interpolated bounce-back, `wall_bc = :halfwayBB`) is NaN-free up
   to `Wi = 10` (R = 30 and R = 50) — at or beyond the state of the art for LBM-based
   viscoelastic solvers (which typically ceiling near `Wi ≈ 1`). But these values are
   stable, not converged: the two resolutions diverge with `Wi` (131.6 vs 118.4 at
   Wi = 3) because `λ` grows very large and 300 000 steps no longer reach steady state.
   Only `Wi ≤ 1` is quantitatively validated.
-- **Bouzidi-FL wall rejected.** A sub-cell linear-interpolation wall
-  (Bouzidi–Filippova–Hänel, `wall = bouzidi_fl`) diverges (NaN) at the production
+- **Post-collision Bouzidi-FL wall rejected.** A second sub-cell wall treatment
+  (Bouzidi–Filippova–Hänel, applied after collision, `wall = bouzidi_fl`) diverges (NaN) at the production
   resolution for `Wi ≥ 0.5` (R ≥ 50) and over-predicts drag where it survives on coarse
-  grids, so halfway bounce-back is the validated default here.
+  grids, so the default pre-collision interpolated wall is the validated one here.
 
 ## Reproduce
 

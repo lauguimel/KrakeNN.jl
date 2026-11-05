@@ -25,7 +25,8 @@ using Test, Kraken
         # round-off is a mismatch between the two drivers. Measured 2026-11-04,
         # CPU Float64: gap 0 (Nu = 1.11754 both; 1.11851 before v0.7).
         @test gap < 1e-6
-        # De Vahl Davis (1983), DOI 10.1002/fld.1650030305, Nu=1.118;
+        # De Vahl Davis (1983), DOI 10.1002/fld.1650030305, cavity-average Nu=1.118
+        # (hot-wall Nu0 = 1.117; Kraken computes the hot-wall mean, gate unchanged);
         # same frozen 0.5% N64 gate as test_thermal.jl (docs/refs.bib: devahldavis1983).
         @test abs(result.Nu - 1.118) / 1.118 < 0.005
         @test all(isfinite, result.Temp)
@@ -98,9 +99,10 @@ using Test, Kraken
         coarse, fine = turan_run(1e4, 32), turan_run(1e4, 48)
         Nu_ext = (48^2 * fine.Nu - 32^2 * coarse.Nu) / (48^2 - 32^2)
         # Frozen gate from the reference's own uncertainty: figure reading
-        # +/-0.02 (0.37%) plus their mesh-M2 uncertainty <= 0.35% (Table 2),
-        # rounded up to 1%. Measured 2026-11-04, Apple-silicon Mac, CPU Float64:
-        # Nu_ext = 5.3765 (-0.44%); 5.393 (-0.13%) before v0.7.
+        # +/-0.02 (0.37%) plus a 0.35% mesh allowance (not from Turan's Table 2,
+        # which covers Ra = 1e6, Pr = 100 only), rounded up to 1%. Measured
+        # 2026-11-04, Apple-silicon Mac, CPU Float64: Nu_ext = 5.3765 (-0.44%);
+        # 5.393 (-0.13%) before v0.7.
         @test abs(Nu_ext - 5.40) / 5.40 < 0.01
         @info "GNF Turan point Ra=1e4" Nu_32=coarse.Nu Nu_48=fine.Nu Nu_ext steps=(coarse.steps, fine.steps)
 

@@ -15,17 +15,50 @@ module KrakenCUDSSExt
 # INCLUDING module (bench scripts' Main), so both can coexist without method
 # clashes.
 
+#
+# C0 additions (all opt-in, the two-function seam is unchanged):
+#   * `lin_refactorize!` -> `lu!` / `cholesky!` on the cached CudssSolver,
+#     reusing the symbolic analysis (the dominant cost on large operators);
+#   * allocation-free in-place `lin_solve!(x, cache, b)`: RHS staging buffers
+#     are allocated ONCE by `lin_factorize` (cache `work` slot) and the
+#     reference-DOF pin is a device-side fill, no scalar host write;
+#   * multiple right-hand sides (`CuMatrix` columns, one cuDSS solve);
+#   * native transposed solve (`solve_mode = 'T'`) gated on CUDSS.jl >= 1.0;
+#     older versions raise instead of silently returning A \ b.
+#
+# CUDA.jl 5 / 6 compatibility: CUDA.jl 6 moved CUSPARSE into the `cuSPARSE`
+# package (still reachable as `CUDA.cuSPARSE`; `CUDA.CUSPARSE` is a deprecated
+# binding there). CUDSS.jl 1.x requires CUDA.jl 6; 0.3-0.6 require CUDA.jl 5.
+
 using Kraken
 using CUDA
-using CUDA.CUSPARSE
+@static if isdefined(CUDA, :cuSPARSE)
+    using CUDA.cuSPARSE: CuSparseMatrixCSR
+else
+    using CUDA.CUSPARSE: CuSparseMatrixCSR
+end
 using CUDSS
 using SparseArrays
 using LinearAlgebra
 
-import Kraken: lin_factorize, lin_solve!, _cudss_factorize
+import Kraken: lin_factorize, lin_solve!, _cudss_factorize, _lin_solve_into!,
+               _lin_refactorize!, _lin_solution_buffer, _lin_supports_transpose
 
 # cuDSS operates on CSR; host CSC operators are converted on upload.
 const _CUDSS_GPU_MAT = CuSparseMatrixCSR{Float64,Int32}
+
+# Loaded CUDSS.jl version (fixed for a precompiled extension).
+const _CUDSS_VERSION = pkgversion(CUDSS)
+
+# Device scratch owned by a cuDSS LinearSolveCache (`work` slot). `b` is
+# allocated by `lin_factorize`; `B` (multi-RHS staging) is (re)allocated on
+# the first solve with a new column count, then reused.
+mutable struct _CudssWork
+    b::CuVector{Float64}
+    B::CuMatrix{Float64}
+end
+_CudssWork(n::Integer) = _CudssWork(CuVector{Float64}(undef, n),
+                                    CuMatrix{Float64}(undef, n, 0))
 
 """
     lin_factorize(A::CuSparseMatrixCSR; backend=CUDABackendTag(), spd=true,
@@ -56,7 +89,8 @@ function lin_factorize(::Kraken.CUDABackendTag, A::_CUDSS_GPU_MAT;
                        A_unpinned::_CUDSS_GPU_MAT = A)
     factor = spd ? cholesky(A; view = 'F') : lu(A)
     return Kraken.LinearSolveCache(Kraken.CUDABackendTag(), factor, A,
-                                   A_unpinned, Int(pin_k0), spd)
+                                   A_unpinned, Int(pin_k0), spd,
+                                   _CudssWork(size(A, 1)))
 end
 
 """
@@ -91,24 +125,164 @@ end
     lin_solve!(::CUDABackendTag, cache, b) -> CuVector{Float64}
 
 cuDSS per-RHS solve of the factorize-once seam: reuses the cached symbolic +
-numeric factors (`ldiv!`), accepts a host or device `b`, applies the
-reference-DOF RHS pinning on device when `cache.pin_k0 > 0` (pin value 0, so
-only the pinned entry is forced — no host round-trip in the outer loop), and
-returns a `CuVector{Float64}`. Callers needing host data `Array(...)` it back
-(as `Kraken.solve_poisson_direct` does).
+numeric factors (`ldiv!`), accepts a host or device `b` (never modified),
+applies the reference-DOF RHS pinning on device when `cache.pin_k0 > 0` (pin
+value 0, so only the pinned entry is forced — no host round-trip in the outer
+loop), and returns a FRESH `CuVector{Float64}` (one device allocation per
+call; the in-place `lin_solve!(x, cache, b)` has none). Callers needing host
+data `Array(...)` it back (as `Kraken.solve_poisson_direct` does).
 """
 function lin_solve!(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCache,
                     b::AbstractVector)
-    bdev = b isa CuArray ? CuVector{Float64}(b) :
-                           CuVector{Float64}(Vector{Float64}(b))
+    x = CuVector{Float64}(undef, length(b))
+    return _lin_solve_into!(Kraken.CUDABackendTag(), x, cache, b, false)
+end
 
-    if cache.pin_k0 > 0
-        CUDA.@allowscalar bdev[cache.pin_k0] = 0.0
+_lin_solution_buffer(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCache,
+                     b::AbstractVecOrMat) = CuArray{Float64}(undef, size(b))
+
+_lin_supports_transpose(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCache) =
+    cache.spd || Kraken._cudss_transpose_supported(_CUDSS_VERSION)
+
+# Staging buffer of the right shape (vector: preallocated; matrix: reused
+# while the column count is unchanged).
+_cudss_stage(work::_CudssWork, ::AbstractVector) = work.b
+# Caches built by the six-argument constructor (manual-load
+# src/solve/linear_solve_cuda.jl) carry no work slot: stage in a fresh buffer.
+_cudss_stage(::Nothing, b::AbstractVecOrMat) = CuArray{Float64}(undef, size(b))
+function _cudss_stage(work::_CudssWork, b::AbstractMatrix)
+    if size(work.B) != size(b)
+        work.B = CuMatrix{Float64}(undef, size(b))
     end
+    return work.B
+end
 
-    xdev = similar(bdev)
-    ldiv!(xdev, cache.factor, bdev)   # reuse symbolic + numeric factors
-    return xdev
+function _cudss_copy_rhs!(buf::CuArray{Float64}, b)
+    if b isa CUDA.AnyCuArray
+        buf .= b                                  # device kernel (any eltype)
+    elseif b isa Array{Float64}
+        copyto!(buf, b)                           # host -> device copy
+    else
+        copyto!(buf, Array{Float64}(b))           # generic host input
+    end
+    return buf
+end
+
+# The RHS handed to cuDSS: `b` itself when it is a device Float64 array that
+# needs no pinning and does not share memory with `x`; otherwise a staged copy
+# (the caller's `b` is never modified).
+function _cudss_rhs(cache::Kraken.LinearSolveCache, x::CuArray{Float64},
+                    b::AbstractVecOrMat)
+    if b isa CuArray{Float64} && cache.pin_k0 == 0 && pointer(b) != pointer(x)
+        return b
+    end
+    buf = _cudss_copy_rhs!(_cudss_stage(cache.work, b), b)
+    cache.pin_k0 > 0 && Kraken._pin_rhs_rows!(buf, cache.pin_k0)
+    return buf
+end
+
+# In-place cuDSS solve (vector or multi-RHS matrix). Allocation-free on the
+# device when `x` and `b` are `CuArray{Float64}`: `ldiv!` writes into `x`, the
+# staging buffers are preallocated, the pin is a one-element device fill.
+function _lin_solve_into!(::Kraken.CUDABackendTag, x::AbstractVecOrMat,
+                          cache::Kraken.LinearSolveCache, b::AbstractVecOrMat,
+                          transpose::Bool)
+    x isa CuArray{Float64} ||
+        throw(ArgumentError("the cuDSS in-place solve needs a CuArray{Float64} " *
+                            "solution buffer, got $(typeof(x))"))
+    # spd caches are Cholesky factors of a symmetric matrix: Aᵀ = A. cuDSS does
+    # not support solve_mode='T' for SPD/HPD factors anyway.
+    use_transpose = transpose && !cache.spd
+    use_transpose && Kraken._cudss_check_transpose(_CUDSS_VERSION)
+    rhs = _cudss_rhs(cache, x, b)
+    F = cache.factor
+    if use_transpose
+        cudss_set(F, "solve_mode", 'T')
+        try
+            ldiv!(x, F, rhs)
+        finally
+            cudss_set(F, "solve_mode", 'N')
+        end
+    else
+        ldiv!(x, F, rhs)                  # reuse symbolic + numeric factors
+    end
+    return x
+end
+
+# --------------------------------------------------------------------------
+# Refactorization (same pattern, new values) reusing the symbolic analysis.
+# --------------------------------------------------------------------------
+function _cudss_pattern_error(what::String)
+    throw(ArgumentError("lin_refactorize!: $what has a different sparsity pattern " *
+                        "than the factorized operator; call lin_factorize again"))
+end
+
+# Copy the values of a host CSC matrix into a device CSR matrix with the same
+# pattern. CSR(A) == CSC(Aᵀ), so the CSR value order is that of sparse(Aᵀ).
+function _cudss_upload_values!(dev::_CUDSS_GPU_MAT, A::SparseMatrixCSC, what::String)
+    size(dev) == size(A) || _cudss_pattern_error(what)
+    At = sparse(transpose(A))
+    (nnz(At) == length(dev.nzVal) && Array(dev.rowPtr) == At.colptr &&
+     Array(dev.colVal) == rowvals(At)) || _cudss_pattern_error(what)
+    copyto!(dev.nzVal, nonzeros(At))
+    return dev
+end
+
+function _cudss_refactor_numeric!(cache::Kraken.LinearSolveCache)
+    cache.spd ? cholesky!(cache.factor, cache.A) : lu!(cache.factor, cache.A)
+    return cache
+end
+
+const _CUDSS_PINNED_DEVICE_REFACTOR =
+    "lin_refactorize!: a pinned cuDSS cache (pin_k0 > 0) can only be refactorized " *
+    "from a host SparseMatrixCSC (pinning is a CPU routine): lin_refactorize!(cache, A_csc)"
+
+# Values already written into cache.A (e.g. `cache.A.nzVal` by an assembly
+# kernel). No device allocation.
+function _lin_refactorize!(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCache,
+                           ::Nothing)
+    cache.pin_k0 > 0 && throw(ArgumentError(_CUDSS_PINNED_DEVICE_REFACTOR))
+    return _cudss_refactor_numeric!(cache)
+end
+
+# New device matrix with the same pattern: its values are copied into cache.A.
+# When it shares the pattern arrays of cache.A (or IS cache.A) no check and no
+# device allocation happen; otherwise the pattern is compared on device.
+function _lin_refactorize!(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCache,
+                           A_new::_CUDSS_GPU_MAT)
+    cache.pin_k0 > 0 && throw(ArgumentError(_CUDSS_PINNED_DEVICE_REFACTOR))
+    A = cache.A
+    if A_new !== A
+        size(A_new) == size(A) && length(A_new.nzVal) == length(A.nzVal) ||
+            _cudss_pattern_error("the new matrix")
+        same_arrays = A_new.rowPtr === A.rowPtr && A_new.colVal === A.colVal
+        same_arrays || (A_new.rowPtr == A.rowPtr && A_new.colVal == A.colVal) ||
+            _cudss_pattern_error("the new matrix")
+        copyto!(A.nzVal, A_new.nzVal)
+    end
+    return _cudss_refactor_numeric!(cache)
+end
+
+# New host matrix (UNPINNED): pinned on the CPU when needed, values uploaded.
+function _lin_refactorize!(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCache,
+                           A_new::SparseMatrixCSC)
+    A_host = SparseMatrixCSC{Float64,Int}(A_new)
+    if cache.pin_k0 > 0
+        Apin, _ = Kraken.pin_reference_dof(A_host, zeros(Float64, size(A_host, 1)),
+                                           cache.pin_k0, 0.0)
+        _cudss_upload_values!(cache.A, Apin, "the re-pinned matrix")
+        _cudss_upload_values!(cache.A_unpinned, A_host, "the new matrix")
+    else
+        _cudss_upload_values!(cache.A, A_host, "the new matrix")
+    end
+    return _cudss_refactor_numeric!(cache)
+end
+
+function _lin_refactorize!(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCache,
+                           A_new)
+    throw(ArgumentError("lin_refactorize! on the cuDSS backend takes a " *
+                        "CuSparseMatrixCSR{Float64,Int32} or a SparseMatrixCSC, " *
+                        "got $(typeof(A_new))"))
 end
 
 end # module KrakenCUDSSExt
