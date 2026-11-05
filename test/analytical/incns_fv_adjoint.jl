@@ -215,6 +215,17 @@ _fvc4_dense_cot(p, map, U, θ, λ) =
         r2 = fv_steady_gradient(s, U, nothing, prof; params = FVViscosityField(), finalize = false)
         @test s.n_refactorize == nr2 + 1
         @test norm(r1.grad - r2.grad, Inf) <= 1e-14 * norm(r1.grad, Inf)
+        # guard: finalize = false refuses factors that are not the unshifted J at U
+        Upert = copy(U); Upert[1] += 1e-3
+        @test_throws ArgumentError fv_steady_gradient(s, Upert, nothing, prof; params = FVViscosityField(), finalize = false)
+        fv_jacobian!(s, U; shift = 1e-2); Kraken._fv_factor!(s)     # pseudo-transient factors left in the cache
+        @test_throws ArgumentError fv_steady_gradient(s, U, nothing, prof; params = FVViscosityField(), finalize = false)
+        fv_newton_finalize!(s, U)                      # back to the normal path
+        r4 = fv_steady_gradient(s, U, nothing, prof; params = FVViscosityField(), finalize = false)
+        @test r4.grad == r1.grad
+        fv_set_params!(s, FVViscosityField(), vec(Array(s.prob.nu)))
+        @test_throws ArgumentError fv_steady_gradient(s, U, nothing, prof; params = FVViscosityField(), finalize = false)
+        fv_newton_finalize!(s, U)
         # the FD solver went through many fv_set_params! + Newton solves: one analysis
         @test sfd.n_factorize == 1
         # a preallocated workspace gives the same gradient

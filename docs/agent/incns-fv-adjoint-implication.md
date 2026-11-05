@@ -75,9 +75,8 @@ globals.
 
 - **Unconverged U**: the adjoint is exact for R(U) = 0 only; `residual_inf`
   is returned, check it.
-- **Shifted factors**: `finalize = false` assumes the cache holds the
-  unshifted J at U (true right after a finalize); otherwise the gradient is
-  wrong without error.
+- **Shifted/stale factors**: `finalize = false` requires the cache to hold the
+  unshifted J at U (shift + ΣU, ΣU² recorded in `fac_sig`); otherwise it throws an `ArgumentError`.
 - **State-dependent ν (C3)**: parameter maps change only nu/bvel/src; a GNF
   law whose ν depends on U must enter the residual (C3) and its parameters
   through `FVProblemMap` or a dedicated map. The Jacobian pattern must already

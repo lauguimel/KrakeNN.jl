@@ -230,6 +230,7 @@ function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector
     P.nu === s.prob.nu || copyto!(s.prob.nu, P.nu)
     P.bvel === s.prob.bvel || copyto!(s.prob.bvel, P.bvel)
     P.src === s.prob.src || copyto!(s.prob.src, P.src)
+    s.fac_sig = (NaN, NaN, NaN)         # factors no longer match the problem
     _fv_sync(s.R)
     return s
 end
@@ -745,6 +746,23 @@ end
 # ------------------------------------------------------------------ public API
 _fv_host_problem(p::FVSteadyProblem2D) = p.nu isa Array ? p : fv_adapt(Array, p)
 
+# finalize = false: the cache must hold the UNSHIFTED J at this very U (shift
+# and (ΣU, ΣU²) recorded when the factors were made; two O(N) reductions)
+function _fv_check_factors(s::FVNewtonSolver, U)
+    shift, su, sq = s.fac_sig
+    cur = _fv_state_sig(0.0, U)
+    ok(a, b) = isfinite(a) && abs(a - b) <= 1e-12 * max(abs(a), abs(b), 1.0)
+    if !(shift == 0.0 && ok(su, cur[2]) && ok(sq, cur[3]))
+        why = isnan(shift) ? "no factors recorded for a state (or the parameters changed since)" :
+              shift != 0 ? "the factors include a pseudo-transient shift ($shift)" :
+              "the factors were made at a different U"
+        throw(ArgumentError("fv_steady_adjoint(...; finalize = false): the solver cache is not " *
+                            "the unshifted Jacobian at the given U ($why); call " *
+                            "fv_newton_finalize!(solver, U) or use finalize = true"))
+    end
+    return nothing
+end
+
 function _fv_check_transpose(s::FVNewtonSolver)
     s.cache === nothing &&
         throw(ArgumentError("the solver has no factorization: run fv_newton! (or fv_newton_finalize!) first"))
@@ -778,6 +796,10 @@ gradient is that of the discrete problem only if it is at round-off. Any
 explicit dependence of the objective on `θ` must be added by the caller (see
 [`fv_steady_gradient`](@ref)). `ws` ([`fv_adjoint_workspace`](@ref)) is built
 on the fly when omitted; pass one to keep the call free of device allocations.
+With `finalize = false` the solver must hold the unshifted Jacobian at `U`
+(right after [`fv_newton_finalize!`](@ref)): the shift and a signature of `U`
+(ΣU, ΣU²) are recorded when the factors are made and an `ArgumentError` is
+thrown on mismatch (shifted factors, other `U`, or `fv_set_params!` since).
 """
 function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FVViscosityField(),
                            θ = nothing, ws = nothing, finalize::Bool = true)
@@ -786,7 +808,7 @@ function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FV
         throw(ArgumentError("workspace built for $(typeof(ws.map)), called with $(typeof(params))"))
     length(gU) == length(U) || throw(DimensionMismatch("gU must have length $(length(U))"))
     t0 = time_ns()
-    finalize && fv_newton_finalize!(s, U)
+    finalize ? fv_newton_finalize!(s, U) : _fv_check_factors(s, U)
     _fv_check_transpose(s)
     t1 = time_ns()
     copyto!(ws.g, gU)
@@ -852,7 +874,7 @@ is the directional derivative of `𝒥` — the forward check of the adjoint.
 function fv_steady_tangent(s::FVNewtonSolver, U, θ, δθ; params::FVParameterMap,
                            ws = nothing, finalize::Bool = true)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
-    finalize && fv_newton_finalize!(s, U)
+    finalize ? fv_newton_finalize!(s, U) : _fv_check_factors(s, U)
     s.cache === nothing && throw(ArgumentError("the solver has no factorization"))
     prob = s.prob
     N = _fv_ws_chunk(ws)
