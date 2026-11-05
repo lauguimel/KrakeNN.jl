@@ -43,6 +43,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   (symbolic analysis 10 s once, refactorization 0.43 s); 1024², Re = 100 in 5
   iterations and 56 s, Re = 1000 in 11 iterations and 69 s (analysis 44 s once,
   refactorization 2.3 s, 22 GiB with the factors resident).
+- Generalised-Newtonian viscosity in the steady FV residual and its Newton
+  solver (step C3 of the FV Newton roadmap):
+  `fv_steady_problem(...; rheology = law, gnf_eps = ε)` with the existing
+  `PowerLaw`, `CarreauYasuda`, `Cross`, `Bingham`, `HerschelBulkley` and
+  `Newtonian` laws (kinematic units, the same law objects and the same
+  `gnf_viscosity` evaluation as the LBM GNF drivers). The face viscosity is the
+  law at the face strain rate `γ̇_ε = √(2 S:S + ε²)` (full strain-rate tensor;
+  `ε > 0` is a change of model, required except for Carreau–Yasuda with
+  `a ≥ 2`). The Jacobian includes `∂ν/∂U` because the residual kernel computes
+  ν itself; its sparsity pattern is derived from the exact stencil of the face
+  strain rate (3 × 3 cell block, 27 entries per interior row instead of 23).
+  `fv_gnf_parameters` / `fv_with_gnf_parameters` expose the law parameters as
+  a vector that may hold duals (for the coming adjoint). Checked on CPU: the
+  assembled Jacobian equals the dense ForwardDiff Jacobian bit for bit for five
+  laws on four configurations; power-law Poiseuille (n = 0.5 and 1.5) within
+  1.3 % of the regularised 1D reference at 16 cells across and second order
+  under refinement, tending to the analytical power-law profile as ε → 0;
+  quadratic Newton convergence from rest (5–7 iterations); n = 1 gives the
+  Newtonian residual bit for bit; on the Carreau–Yasuda obstacle channel of
+  the LBM GNF adjoint tests, FV and LBM velocities differ by 16.7 %, 5.0 % and
+  1.6 % (relative L2) at 4, 8 and 16 cells per unit length. The PowerLaw
+  `nu_min`/`nu_max` clamp is applied as written and stalls Newton where
+  active. GPU: test written, not yet run on a GPU.
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
