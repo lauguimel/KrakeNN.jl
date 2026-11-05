@@ -53,6 +53,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `run_natural_convection_gnf_2d` and the 3D cavity is averaged over all wall rows
   instead of rows 2 to N-1. At N = 64, Ra = 1e3 the 2D cavity gives Nu = 1.1175
   (De Vahl Davis hot-wall Nu₀ = 1.117) (#119).
+- `WLFCoupling` now evaluates the shift in base 10,
+  `a_T = 10^(-C1 dT/(C2 + dT))`, so the published Williams-Landel-Ferry
+  constants (the `.krk` defaults `C1 = 8.86`, `C2 = 101.6`) are used as written;
+  the previous natural-exponential form made the default shift too weak, and
+  results that use `WLFCoupling` change. `ArrheniusCoupling` requires absolute
+  temperatures: `run_natural_convection_gnf_2d` and the `.krk` rheology loader
+  now throw an `ArgumentError` for `T <= 0` or a non-finite `T_ref` or `E_a` (the
+  default walls `T_hot = 1`, `T_cold = 0` are refused with an Arrhenius
+  coupling). An isothermal `.krk` run that sets `E_a`, `C1`, `C2` or `T_ref` now
+  warns that they are ignored. The FENE-P docstring states which Peterlin
+  function each kernel set uses (#108, #120).
 
 ## [0.6.0] — 2026-11-04
 
