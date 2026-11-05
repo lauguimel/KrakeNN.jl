@@ -2,6 +2,10 @@
 
 Boundary-condition APIs include direct Zou-He and bounce-back kernels, spatially varying inlet/outlet wrappers, modular rebuild specs, and cut-link precomputation for interpolated bounce-back boundaries.
 
+On the east face of the 2D rebuild path (`apply_bc_rebuild_2d!`), `NeqExtrapolationPressure(ρ_out)` imposes density and a zero normal gradient of velocity in the raw-moment sense: it copies `Σ c f / Σ f` from the completed post-collision column `Nx-1`. The log-FV drivers use TRT Guo forcing with raw-moment velocity, without a `+F/(2ρ)` correction; the outlet applies no additional force at `Nx`. Only rows `2:Ny-1` are rebuilt, leaving wall corners at half-way bounce-back. The measured maximum Poiseuille velocity error is first order at these outlet corners. Place the outlet several obstacle diameters downstream. Backflow is not supported.
+
+Pressure outlets on the west, south, and north faces of the 2D STL `wall = libb` path retain textbook `ZouHePressure` and its regularized-rebuild warning; in the measured viscoelastic channel, the new east outlet's error changes are confined to the last few columns.
+
 ```@autodocs
 Modules = [Kraken]
 Pages = [
