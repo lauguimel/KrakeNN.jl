@@ -299,3 +299,18 @@ const _FVC3_CY = CarreauYasuda(0.1, 0.002, 3.0, 2.0, 0.4)
         @test norm(residual(p, IncNS(:fv_newton), Array(sample(sol, :U))), Inf) < 1e-12
     end
 end
+
+@testset "FV GNF: clamp warning (PowerLaw nu_min / nu_max)" begin
+    # finite clamp bounds -> zero derivative where active -> one @warn at build
+    clamped = PowerLaw(0.1, 0.5)                      # defaults 1e-6 / 10
+    @test_logs (:warn, r"clamps the viscosity.*nu_min = 0, nu_max = Inf") match_mode = :any begin
+        fv_steady_problem(8, 8; rheology = clamped, gnf_eps = 1e-2)
+    end
+    @test_logs (:warn, r"clamps the viscosity") FVGNFViscosity(clamped, 1e-2)
+    # unbounded parameters and other laws: silent
+    @test_logs fv_steady_problem(8, 8; rheology = _FVC3_PL_THIN, gnf_eps = 1e-2)
+    @test_logs FVGNFViscosity(_FVC3_CY, 1e-2)
+    # rebuilding with new parameters (calibration loop) does not warn again
+    p = fv_steady_problem(8, 8; rheology = _FVC3_PL_THIN, gnf_eps = 1e-2)
+    @test_logs fv_with_gnf_parameters(p, fv_gnf_parameters(p))
+end

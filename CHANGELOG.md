@@ -55,7 +55,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   ν itself; its sparsity pattern is derived from the exact stencil of the face
   strain rate (3 × 3 cell block, 27 entries per interior row instead of 23).
   `fv_gnf_parameters` / `fv_with_gnf_parameters` expose the law parameters as
-  a vector that may hold duals (for the coming adjoint). Checked on CPU: the
+  a vector that may hold duals (for the coming adjoint). A `PowerLaw` with finite
+  clamp bounds (zero derivative where active, Newton may stall) triggers one `@warn`. Checked on CPU: the
   assembled Jacobian equals the dense ForwardDiff Jacobian bit for bit for five
   laws on four configurations; power-law Poiseuille (n = 0.5 and 1.5) within
   1.3 % of the regularised 1D reference at 16 cells across and second order

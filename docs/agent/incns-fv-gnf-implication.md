@@ -71,6 +71,7 @@ values. The pattern builder returns a new host matrix.
 - **PowerLaw clamp**: `nu_min`/`nu_max` are applied as written (bounds in FV
   units; LBM defaults 1e-6 / 10). Where active the derivative is 0 and Newton
   stalls: pass `nu_min = 0, nu_max = Inf` unless the clamp is intended.
+  Building the problem with finite bounds emits one `@warn` (`FVGNFViscosity`).
 - **ε is a model change**: results are those of the regularised law;
   the power-law Poiseuille test shows convergence to the unregularised
   profile as ε → 0 (ε = 1e-4: 7.7e-4 relative at 64 cells).

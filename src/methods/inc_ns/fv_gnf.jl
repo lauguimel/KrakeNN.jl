@@ -37,12 +37,16 @@ laws regular at `S = 0` (`Newtonian`; `CarreauYasuda` with `a ≥ 2`, whose
 Non-smooth parts of a law are kept as they are: `PowerLaw`'s clamp to
 `[nu_min, nu_max]` (bounds in FV units) has a zero derivative where it is
 active, which stalls Newton; pass `nu_min = 0, nu_max = Inf` unless the clamp
-is wanted.
+is wanted. Building a `FVGNFViscosity` (hence `fv_steady_problem(...; rheology)`)
+from a law with finite clamp bounds (`PowerLaw` is the only such law) emits one
+`@warn`; `warn = false` silences it (used internally when only the parameters
+change).
 """
 struct FVGNFViscosity{L<:GeneralizedNewtonian,T}
     law::L
     eps::T
-    function FVGNFViscosity(law::L, eps::T) where {L<:GeneralizedNewtonian,T<:Real}
+    function FVGNFViscosity(law::L, eps::T; warn::Bool = true) where {L<:GeneralizedNewtonian,T<:Real}
+        warn && _fv_gnf_warn_clamp(law)
         eps >= 0 || throw(ArgumentError("gnf_eps must be ≥ 0, got $eps"))
         if iszero(eps) && !_fv_gnf_regular_at_rest(law)
             throw(ArgumentError("$(nameof(L)) has an infinite derivative at zero shear: " *
@@ -50,6 +54,18 @@ struct FVGNFViscosity{L<:GeneralizedNewtonian,T}
         end
         return new{L,T}(law, eps)
     end
+end
+
+# laws with a viscosity clamp [nu_min, nu_max]: only PowerLaw; active bounds
+# give a zero derivative (Newton stalls) while the shared law is left unchanged
+_fv_gnf_clamped(::GeneralizedNewtonian) = false
+_fv_gnf_clamped(m::PowerLaw) = m.nu_min > 0 || isfinite(m.nu_max)
+function _fv_gnf_warn_clamp(law::GeneralizedNewtonian)
+    _fv_gnf_clamped(law) || return nothing
+    @warn "FV GNF: $(nameof(typeof(law))) clamps the viscosity to [nu_min, nu_max] = " *
+          "[$(law.nu_min), $(law.nu_max)]; where the clamp is active its derivative is " *
+          "zero and Newton may stall. Use nu_min = 0, nu_max = Inf unless the clamp is intended."
+    return nothing
 end
 
 _fv_gnf_regular_at_rest(::GeneralizedNewtonian) = false
@@ -108,7 +124,7 @@ function fv_with_gnf_parameters(p::_FVGNFProblem,
     length(θ) == np || throw(DimensionMismatch("$(nameof(typeof(law))) has $np parameters, got $(length(θ))"))
     T = promote_type(eltype(θ), typeof(eps))
     newlaw = typeof(law).name.wrapper(ntuple(k -> T(θ[k]), np)..., law.thermal)
-    return FVSteadyProblem2D(p.grid, p.tag, p.nu, p.bvel, p.src, FVGNFViscosity(newlaw, T(eps)))
+    return FVSteadyProblem2D(p.grid, p.tag, p.nu, p.bvel, p.src, FVGNFViscosity(newlaw, T(eps); warn = false))
 end
 
 # ------------------------------------------------------------------ pattern
