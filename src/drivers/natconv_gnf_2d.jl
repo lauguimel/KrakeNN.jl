@@ -165,8 +165,9 @@ The fixed-temperature walls are the half-way anti-bounce-back of
 [`run_natural_convection_2d`](@ref), at the same place as the no-slip walls, so
 Ra, Pr and Nu use the cavity width `H = N`; with `n = 1` both drivers give the
 same Nu to round-off. Validated on CPU in Float64 only (`test/test_natconv_gnf.jl`),
-including two power-law points against Turan et al. (2011) at Pr = 10. No GPU
-run yet.
+including two power-law points against Turan et al. (2011) at Pr = 10. GPU
+(one A100, CUDA Float64, N = 64 to 256) results are archived in
+`benchmarks/validation/natconv_gnf/results/`; the test suite itself runs on CPU only.
 
 Args:
     N: Number of nodes per side of the square cavity (at least 3).

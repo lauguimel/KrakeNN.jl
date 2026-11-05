@@ -24,7 +24,7 @@ sinks — a single convection cell. The dimensionless driver is the Rayleigh num
 Kraken solves this with a **double-distribution thermal LBM**: the usual D2Q9 BGK
 distribution carries momentum, a second D2Q9 distribution advects temperature, and
 buoyancy is fed back into the flow through a Boussinesq body force
-`F = ρ β g (T − T₀)`. The driver is `run_natural_convection_2d`, selected
+`F = β g (T − T₀)` (the code applies no density factor). The driver is `run_natural_convection_2d`, selected
 automatically when the `thermal` module is active.
 
 ![Differentially-heated cavity boundary conditions.  The west wall is a hot Dirichlet wall (T = 1, red hatched no-slip) and the east wall a cold Dirichlet wall (T = 0, blue hatched no-slip); the north and south walls are adiabatic no-slip walls (∂ₙT = 0, grey hatched).  Gravity acts downward (grey arrow).](thermal-natural-convection-bc.svg)
