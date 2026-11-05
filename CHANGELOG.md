@@ -69,9 +69,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   active. FV viscosity-type promotion now uses the law's numeric field types
   (excluding `thermal`), keeping the residual accumulators concrete for scalar
   and ForwardDiff dual states. CPU inference guards cover all six law types,
-  mixed law/regularisation precisions and dual law parameters. The first A100
-  run failed during residual compilation because this promotion was dynamic;
-  GPU validation after the fix is still pending.
+  mixed law/regularisation precisions and dual law parameters. On an A100
+  (Aqua job 27701869) the GPU tests pass (CPU/GPU parity of the GNF residual,
+  Jacobian and dual-law residual; Newton on cuDSS against the CPU history;
+  0 device bytes in the hot loop). Power-law cavity n = 0.5 from rest: 256² in
+  13 iterations and 3.3 s, 512² in 32 iterations and 20.3 s, 1024² in 22
+  iterations and 83 s (first factorization 31.6 s, refactorization 2.4 s,
+  23 GiB with the factors resident).
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
