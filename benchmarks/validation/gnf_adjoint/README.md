@@ -1,12 +1,22 @@
 # GNF adjoint GPU validation
 
 Repeats the periodic obstacle-channel case of `test/ad/gnf_adjoint_test.jl`
-on the selected backend. Run from the repository root. No Enzyme is needed.
+on the selected backend, and adds the accuracy checks (the adjoint
+gradient against finite differences). Run from the repository root. No Enzyme is
+needed.
+
+The test point is θ = (ln η∞*, ln k*, n, a) = (log(0.02), log(5), 0.7, a) with
+`--a=2.5` by default, an interior value of a: at a = 2, the reference point of
+the test, a central difference in a crosses a < 2. The committed GPU results
+below were produced at a = 2.0 with the four decade steps only; reproduce them
+with `--a=2.0 --hs=decades`.
 
 ## Checks and frozen gates
 
-Checks run in the order P, F, A, C, S. Gate sources are the reference test's
-testsets G, T5, and `case 32×16 (forward)`; no thresholds are tuned here.
+Checks run in the order P, F, A, accuracy, C, S, K. Gate sources for P, F and A are the
+reference test's testsets G, T5, and `case 32×16 (forward)`; the accuracy gates are
+written as constants at the top of the script. No
+threshold is tuned here.
 
 - **P — parity (G):** the same CPU steady state and Float64 local blocks feed
   CPU and device operators. JVP and VJP relative errors must each be ≤ `1e-14`;
@@ -19,23 +29,48 @@ testsets G, T5, and `case 32×16 (forward)`; no thresholds are tuned here.
   distance and host Newton distance are recorded. The reference forward gates
   require level 1 convergence, Newton distance ≤ `1e-9`, a finest distance no
   larger than level 1, Mach < `0.15`, and viscosity ratio > `2`.
-- **A — gradient (T5):** finest state, adjoint tolerance `1e-8`, parameters
-  `(ln η∞, ln k, n, a)` at `(log(0.02), log(5), 0.7, 2)`. Central differences
-  use `h = (1e-2, 1e-3, 1e-4, 1e-5)`, with perturbation `h*abs(θ[p])` and
-  chains on the selected backend starting from the level-1 state. For each
-  parameter choose the best h and require:
+- **A — gradient (T5):** finest state, adjoint tolerance `1e-8` (bordered
+  GMRES, `gnf_adjoint_solve`), parameters `(ln η∞, ln k, n, a)` at the test
+  point. Central differences use the steps of `--hs` (default: the sweep below,
+  which contains the four decade steps exactly), with perturbation
+  `h*abs(θ[p])` and chains on the selected backend starting from the level-1
+  state. For each parameter choose the best of `h = (1e-2, 1e-3, 1e-4, 1e-5)`
+  and require:
 
   ```math
   |g_p - \mathrm{FD}_p| \le 10^{-3}\|g\|_2/2 + 10^{-3}|\mathrm{FD}_p|.
   ```
-- **C — informational:** compare the Float64 gradient with the same procedure
+- **accuracy — gated.** With the budget
+  b_p = 1e-6 |g_p| + 1e-10 max(1, ‖g‖∞) per component:
+  - *accuracy:* |g_p − FD_p| ≤ b_p at two neighbouring steps (finest forward
+    level);
+  - *sweep* (`--hs=sweep`, skipped with `--hs=decades`): steps
+    h = 1e-2 … 1e-5, three per decade (10 steps); the least-squares slope of
+    log|g_p − FD_p| against log h on a window of four consecutive steps (one
+    decade) lies in [1.7, 2.3] for at least one window; the CSV lists the window
+    used and the slopes of all windows;
+  - *solves:* the gradient at adjoint tolerance 1e-8 against 1e-10 (finest
+    state), and the gradient from the level-1 forward (target 1e-10) against the
+    level-3 forward (target 1e-14), both at adjoint tolerance 1e-10, differ by
+    ≤ b_p/10; the Newton distances of the two levels are recorded;
+  - *branch:* for every perturbation (4 parameters × steps × 2 signs), the
+    number of fluid nodes with I1 < 1e-12 (the zero-shear branch, as counted by
+    `gnf_linearise`) at the finest perturbed state equals the base count; any
+    change fails. Carreau–Yasuda has no viscosity bound, so no node can cross
+    one (one informational row).
+- **C — GPU against CPU:** compare the Float64 gradient with the same procedure
   using the CPU operator, on the same finest state, observation, blocks and
-  right-hand side. There is no frozen gate for this comparison.
+  right-hand side. With `--backend=cuda` each component must agree within b_p
+  (accuracy budget); with `--backend=cpu` both operators are CPU operators and the rows are
+  informational.
 - **S — informational, optional:** Float32 operator products on the same
   Float64 linearisation; attempt adjoint tolerance `1e-5`, record convergence
   and the achieved explicit relative residual, and compare the gradient with
   Float64. A missed tolerance is reported, not gated. No Float32 forward
   finite-difference check is run: the Float32 forward floor makes it meaningless.
+- **K — informational:** the gradient on the same finest state and observation
+  through `gnf_steady_gradient` with its default `:kstep` solver (tolerance
+  1e-8), against A.
 
 With CUDA selected, forward LBM, JVP/VJP kernels and GMRES vectors and vector
 operations run on the device. GMRES small dense algebra stays on the host.
@@ -66,23 +101,37 @@ qsub -P <project-code> benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.pbs
 qsub -P <project-code> -v JL=/path/to/julia,PROJECT=.,OUT=benchmarks/validation/gnf_adjoint/results benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.pbs
 ```
 
-The script accepts `--backend=cuda|cpu`, `--out=DIR`, `--float32=yes|no`;
-defaults are `cuda`, `benchmarks/validation/gnf_adjoint/results`, and `yes`.
-CUDA is checked before any validation; failure exits immediately with code 1.
-Any failed gated check also exits with code 1. C and S are informational.
+The script accepts `--backend=cuda|cpu`, `--out=DIR`, `--float32=yes|no`,
+`--a=A` (test value of a), `--grid=NXxNY` (8m × 4m, e.g. `32x16`, `64x32`,
+`128x64`, `256x128`), `--hs=sweep|decades` and `--allow-unknown-commit=yes|no`;
+defaults are `cuda`, `benchmarks/validation/gnf_adjoint/results`, `yes`, `2.5`,
+`32x16`, `sweep` and `no`. On the larger grids of the cost bench, use four steps:
+`--hs=decades`. The job script forwards
+extra options through the `EXTRA` variable, e.g.
+`qsub -v EXTRA="--grid=64x32 --hs=decades" ...`.
+CUDA is checked before any output file is opened; failure exits immediately with
+code 1 and a message. Any failed gated check also exits with code 1. S and K are
+informational, and so is C on the CPU backend.
 
 ## Output and provenance
 
-CSV and log files share the stem `gnf_adjoint_gpu_<backend>_<yyyymmdd_HHMMSS>`
-in `--out`; the timestamp is UTC. CSV columns are `check, parameter, value,
+CSV and log files share the stem
+`gnf_adjoint_gpu_<backend>_<Nx>x<Ny>_a<a>_<yyyymmdd_HHMMSS>` in `--out` (before
+2026-11-04: `gnf_adjoint_gpu_<backend>_<yyyymmdd_HHMMSS>`); the timestamp is UTC. CSV columns are `check, parameter, value,
 reference, abs_err, rel_err, bound, pass`. Parameter rows contain signed
 gradient values; vector comparisons contain norms and norm errors. P bounds
 apply to relative error, A bounds to absolute error; F predicates are named.
 Informational and skipped rows are explicitly labelled, with no gate bound.
-The best h for each A parameter is recorded in its own informational row.
-The log mirrors stdout/stderr and records commit, dirty-status line count,
-hostname, Julia version, backend/device, CUDA runtime, precision, start/end
-times and elapsed time per check. Preserve both files together when citing a run.
+The best h for each A parameter is recorded in its own informational row;
+`accuracy FD data` rows hold every finite difference at the finest level.
+The log mirrors stdout/stderr and records the commit, its source, the branch and
+the modified tracked files, the Julia, Kraken, KernelAbstractions, CUDA.jl and
+ForwardDiff versions, backend/device, CUDA runtime and driver, precision, the
+options, start/end times and elapsed time per check. The commit comes from
+`git rev-parse HEAD`; in a copy without `.git`, set `KRAKEN_GIT_COMMIT` to the
+commit the code was copied from (`qsub -v KRAKEN_GIT_COMMIT=...`); otherwise the
+script stops with a message, unless `--allow-unknown-commit=yes` (the log then
+says `git_commit=unknown`). Preserve both files together when citing a run.
 
 ## GPU evidence
 
@@ -124,9 +173,11 @@ What the CSV shows (case 32x16, as in `test/ad/gnf_adjoint_test.jl`):
 Not shown by this run: one problem size only (32x16); one run on one A100
 (no H100, no repeat); no timing claim (the per-check wall times in the log
 include compilation and setup and are not a performance measurement); Float32 is
-informational, with no gate and no Float32 finite-difference check; the script
-passes no `solver` keyword, so only the default solver was exercised (the
-`:gmres` and `:fixed_point` options were not run on the GPU).
+informational, with no gate and no Float32 finite-difference check; the
+gradient solve was the bordered GMRES (`gnf_adjoint_solve`, the `:gmres` option
+of `gnf_steady_gradient`), so the `:kstep` default and `:fixed_point` were not run
+on the GPU. This run predates the accuracy checks: test point a = 2.0, four decade
+steps, script version of commit `12fd5d3ba`.
 
 Command run by the job script, from the code directory:
 
@@ -146,3 +197,11 @@ precision. C relative difference was zero, as expected on CPU, where both operat
 CPU operators. Informational S converged at
 `1e-5`, with achieved relative residual about `9.18e-6` and gradient relative
 difference about `1.43e-7`.
+CPU run of the extended script done on 2026-11-04 (macOS arm64, Julia 1.12.5,
+commit 8d25bd318 plus the uncommitted script changes, default options: a = 2.5,
+32x16, sweep): exit 0, all gated checks passed, P skipped. Smallest accuracy
+margin: component a, 4.0e-10 against a budget of 8.3e-8; sweep slopes 2.00 on
+h = 1e-2 … 1e-3 for all four components; solve differences at least 300 times
+below b/10 (smallest margin: component a, adjoint tolerance 2.5e-11 against
+8.3e-9); no perturbation changed the zero-shear count (0 at the base).
+No GPU run of the extended script yet.
