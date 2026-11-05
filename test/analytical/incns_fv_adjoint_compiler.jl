@@ -51,7 +51,7 @@ function _fvc4_inference_issues(ci, rt)
 end
 
 function _fvc4_kernel_issues(factory, args, ndrange)
-    kernel = factory(CPU(), 64)
+    kernel = factory(KernelAbstractions.CPU(), 64)
     ci, rt = only(KernelAbstractions.ka_code_typed(kernel, typeof(args); ndrange))
     return _fvc4_inference_issues(ci, rt)
 end
