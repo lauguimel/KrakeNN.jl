@@ -15,6 +15,8 @@ const W1_WALL_ERROR = Ref(NaN)
 const W2_MAX_ERROR = Ref(NaN)
 const W3_MAX_ERROR = Ref(NaN)
 const W4_MAX_ERROR = Ref(NaN)
+const W5_TOL = 1.0e-12
+const W5_MAX_ERROR = Ref(NaN)
 
 coords_y(j, dy) = (j - 0.5) * dy
 
@@ -22,11 +24,12 @@ function gradient_outputs_3d(T, Nx, Ny, Nz)
     return ntuple(_ -> zeros(T, Nx, Ny, Nz), 9)
 end
 
-function run_gradient_3d(ux, uy, uz, is_solid, dx, dy, dz; bc=CHANNEL3_BC)
+function run_gradient_3d(ux, uy, uz, is_solid, dx, dy, dz; bc=CHANNEL3_BC,
+                         wall_normal_noslip=false)
     Nx, Ny, Nz = size(ux)
     out = gradient_outputs_3d(eltype(ux), Nx, Ny, Nz)
     Kraken.fvfd_velocity_gradient_3d!(
-        out..., ux, uy, uz, is_solid, dx, dy, dz, bc...,
+        out..., ux, uy, uz, is_solid, dx, dy, dz, bc...; wall_normal_noslip,
     )
     return out
 end
@@ -200,10 +203,49 @@ end
         )
         @test W4_MAX_ERROR[] <= W4_TOL
     end
+
+    @testset "W5 wall-normal no-slip du_y/dy at wall rows" begin
+        Nx, Ny, Nz = 6, 12, 4
+        dx, dy, dz = 1.0, 1.0, 1.0
+        H = Ny * dy
+        is_solid = falses(Nx, Ny, Nz)
+        ux = zeros(Float64, Nx, Ny, Nz)
+        uz = zeros(Float64, Nx, Ny, Nz)
+        uy = zeros(Float64, Nx, Ny, Nz)
+        for k in 1:Nz, j in 1:Ny, i in 1:Nx
+            y = coords_y(j, dy)
+            uy[i, j, k] = y * (H - y)
+        end
+        # keyword on: u_y = 0 at the wall is used, exact for a quadratic profile
+        on = run_gradient_3d(ux, uy, uz, is_solid, dx, dy, dz; wall_normal_noslip=true)
+        W5_MAX_ERROR[] = max(
+            maximum(abs.(view(on[5], :, 1, :) .- (H - 2 * coords_y(1, dy)))),
+            maximum(abs.(view(on[5], :, Ny, :) .- (H - 2 * coords_y(Ny, dy)))),
+        )
+        @test W5_MAX_ERROR[] <= W5_TOL
+        # interior rows unchanged by the keyword
+        off = run_gradient_3d(ux, uy, uz, is_solid, dx, dy, dz)
+        @test on[5][:, 2:Ny-1, :] == off[5][:, 2:Ny-1, :]
+        # only du_y/dy is affected
+        for c in (1, 2, 3, 4, 6, 7, 8, 9)
+            @test on[c] == off[c]
+        end
+        # keyword off is the default and keeps the wall-aware stencil: a cubic
+        # profile (u_y != 0 at the wall) separates the two stencils
+        for k in 1:Nz, j in 1:Ny, i in 1:Nx
+            y = coords_y(j, dy)
+            uy[i, j, k] = y * (H - y) * (1.0 + y)
+        end
+        on3 = run_gradient_3d(ux, uy, uz, is_solid, dx, dy, dz; wall_normal_noslip=true)
+        off3 = run_gradient_3d(ux, uy, uz, is_solid, dx, dy, dz)
+        @test maximum(abs.(view(on3[5], :, 1, :) .- view(off3[5], :, 1, :))) > 1e-3
+        @test on3[5][:, 2:Ny-1, :] == off3[5][:, 2:Ny-1, :]
+    end
 end
 
 @printf("W1 wall-row error: %.3e\n", W1_WALL_ERROR[])
 @printf("W2 max error: %.3e\n", W2_MAX_ERROR[])
 @printf("W3 max error: %.3e\n", W3_MAX_ERROR[])
 @printf("W4 max error: %.3e\n", W4_MAX_ERROR[])
+@printf("W5 max error: %.3e\n", W5_MAX_ERROR[])
 println("EXIT=0")
