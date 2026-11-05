@@ -38,7 +38,9 @@ Contract wrapper (`src/methods/inc_ns/method.jl`):
   residual (`residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`, map
   `incns-fv-steady-residual-implication.md`); the SIMPLE drivers do not expose a
   residual. Only tests read `capabilities` today (no code path dispatches on it).
-- `IncNS(:fv_newton)` → `solve_incns_fv_newton` (map `incns-fv-newton-implication.md`).
+- `IncNS(:fv_newton)` → `solve_incns_fv_newton` (map `incns-fv-newton-implication.md`);
+  a GNF problem (`fv_steady_problem(...; rheology)`) goes through the same driver
+  (map `incns-fv-gnf-implication.md`).
 - `IncNSSolution{R} <: AbstractSolution` — NamedTuple wrapper; `sample`
   pass-through (`getproperty`, `:`, `idx::Tuple`), like `LBMSolution`.
 - `solve(params::NamedTuple, m::IncNS) -> IncNSSolution` — splats `params` into
