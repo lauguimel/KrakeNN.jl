@@ -38,6 +38,10 @@ GNF adjoint.
   `thermal` excluded), `fv_gnf_parameters(prob) -> θ`,
   `fv_with_gnf_parameters(prob, θ; eps) -> prob'` (arrays shared, law rebuilt
   in `eltype(θ)`; a θ of duals gives ∂R/∂θ through the same kernel, CPU or GPU).
+  Use `FVProblemMap(fv_with_gnf_parameters, length(fv_gnf_parameters(prob)))`
+  with `fv_set_params!` and `fv_steady_gradient` for law-parameter adjoints.
+  Built-in C4 maps preserve `visc`; changing the unused `nu` field has zero
+  sensitivity on a GNF problem.
 
 ## Reads from
 
@@ -51,6 +55,9 @@ GNF adjoint.
 
 Nothing beyond C1/C2: the residual writes `R`, the assembler the Jacobian
 values. The pattern builder returns a new host matrix.
+C4's `fv_set_params!` can replace the law values while preserving the concrete
+model type, solver arrays and sparsity structure. A model-type change throws
+`ArgumentError` before any solver-array mutation and needs a new solver.
 
 ## Backend constraints
 
@@ -70,6 +77,13 @@ values. The pattern builder returns a new host matrix.
   without collecting law values inside the residual kernel. CPU inference
   guards cover all six laws, scalar and dual state gradients, mixed
   law/regularisation precisions, and dual law parameters.
+- C4 integration tests compare Carreau–Yasuda and regularised power-law
+  adjoints against dense ForwardDiff and central finite differences on CPU
+  Float64 with `eps = 1e-2`, including wall-force objectives and a summed
+  wall-force/momentum-residual balance. CPU inference guards include the GNF
+  adjoint path;
+  opt-in gradient CPU/GPU parity is in `incns_fv_adjoint_gpu.jl` and remains
+  unverified on a GPU in this integration session.
 
 ## Failure modes
 
@@ -89,9 +103,14 @@ values. The pattern builder returns a new host matrix.
 - **Laws singular at zero shear with ε = 0** (power law, Bingham, HB, Cross,
   CY with a < 2): NaN Jacobian on states at rest; the constructor refuses.
 - **Rebuilding a problem** with the 5-argument `FVSteadyProblem2D` constructor
-  drops the GNF model silently (Newtonian default); pass `p.visc`.
+  drops the GNF model silently (Newtonian default); pass `p.visc`. C4's
+  `_fv_with` now preserves it for every built-in parameter map.
 - **Wall closure**: wall faces use the one-sided normal gradient; the wall
   pressure stays first order with variable ν (C1 decision 2026-11-04, kept).
+  `FVWallForce` evaluates the same GNF law at the same wall-face strain rate
+  for both pressure options, including its state and law-parameter derivatives.
+  The 2026-11-05 decision recommends `pressure = :linear` for drag (objective
+  pressure extrapolation only); the API default remains `:cell`.
 
 ## Touch order
 
@@ -103,3 +122,5 @@ values. The pattern builder returns a new host matrix.
    entries), concrete viscosity/residual inference, parameters, n = 1,
    Poiseuille, cavity, LBM obstacle channel.
 5. `test/analytical/incns_fv_gnf_gpu.jl`, `benchmarks/fv_c3/` — GPU receipts.
+6. `src/methods/inc_ns/fv_adjoint.jl`, `test/analytical/incns_fv_adjoint*.jl`
+   — parameter-map preservation, law-parameter adjoints and GNF wall stress.

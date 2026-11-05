@@ -93,3 +93,23 @@ end
     end
     @test covered == actual
 end
+
+@testset "FV GNF adjoint residual kernel inference" begin
+    D = ForwardDiff.Dual{Kraken.FVParamTag,Float64,4}
+    S = ForwardDiff.Dual{Kraken.FVJacobianTag,Float64,4}
+    for law in (CarreauYasuda(0.1, 0.01, 2.0, 2.0, 0.6),
+                PowerLaw(0.1, 0.7; nu_min = 0.0, nu_max = Inf))
+        p = fv_steady_problem(3, 2; rheology = law, gnf_eps = 1e-2)
+        n = fv_nunknowns(p)
+        cases = (("state", p, fill(S(0.1), n)),
+                 ("law parameters", fv_with_gnf_parameters(p, D.(fv_gnf_parameters(p))), fill(0.1, n)),
+                 ("side velocity", fv_param_problem(FVSideVelocity(p, :N), p, D[1.0]), fill(0.1, n)))
+        for (payload, q, U) in cases
+            @testset "$(nameof(typeof(law))) $payload" begin
+                T = promote_type(eltype(U), eltype(q.nu), eltype(q.bvel), Kraken._fv_visc_eltype(q.visc))
+                args = (zeros(T, n), U, q.tag, q.nu, q.bvel, q.src, q.grid, q.visc)
+                @test isempty(_fvc4_kernel_issues(Kraken._fv_residual_kernel!, args, (3, 2)))
+            end
+        end
+    end
+end

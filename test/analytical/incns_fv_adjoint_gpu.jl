@@ -50,6 +50,25 @@ _fvc4_host(J) = sparse(transpose(SparseMatrixCSC(size(J)..., Array(J.rowPtr), Ar
         end
     else
         CU = Main.CUDA
+        @testset "small GNF law gradient CPU/GPU parity" begin
+            q = fv_steady_problem(4, 3; rheology = CarreauYasuda(0.1, 0.01, 2.0, 2.0, 0.6),
+                                  gnf_eps = 1e-2, boundary_velocity = _fvc2_lid)
+            qc = fv_newton_solver(q)
+            qg = fv_newton_solver(q; to = CU.CuArray, linsolve = CUDABackendTag())
+            Xc = zeros(fv_nunknowns(q)); Xg = CU.zeros(Float64, fv_nunknowns(q))
+            options = (; atol = 1e-14, rtol = 1e-15, maxit = 40)
+            @test fv_newton!(qc, Xc; options...).converged
+            @test fv_newton!(qg, Xg; options...).converged
+            θ = fv_gnf_parameters(q)
+            parammap = FVProblemMap(fv_with_gnf_parameters, length(θ))
+            for pressure in (:cell, :linear)
+                obj = FVWallForce(1; region = :N, pressure)
+                rc = fv_steady_gradient(qc, Xc, θ, obj; params = parammap)
+                rg = fv_steady_gradient(qg, Xg, θ, obj; params = parammap)
+                @test norm(rg.grad - rc.grad, Inf) <= 1e-8 * norm(rc.grad, Inf)
+                @test abs(rg.J - rc.J) <= 1e-10 * max(abs(rc.J), 1)
+            end
+        end
         N = 64
         p = fv_steady_problem(N, N; nu = (x, y) -> 0.01 * (1 + x * y), boundary_velocity = _fvc2_lid)
         newton = (; atol = 1e-14, rtol = 1e-15, maxit = 40)

@@ -48,6 +48,11 @@ duals. Built-in maps:
   equation `comp` (1 = x momentum, 2 = y momentum, 3 = mass);
 - [`FVProblemMap`](@ref)`(f, nparams)`: any `f(prob, θ) -> FVSteadyProblem2D`
   generic in the element type of `θ` (the plug-in point for law parameters).
+
+The built-in maps preserve `prob.visc`. For a GNF problem, the cell field
+`nu` is ignored, so viscosity-field maps have zero derivatives; use
+`FVProblemMap(fv_with_gnf_parameters, length(fv_gnf_parameters(prob)))` to
+differentiate the constitutive-law parameters instead.
 """
 abstract type FVParameterMap end
 
@@ -173,8 +178,8 @@ _fv_param_buffers(::FVUniformSource, prob, ::Type{T}) where {T} =
 _fv_param_buffers(::FVProblemMap, prob, ::Type{T}) where {T} =
     _FVParamBuffers(nothing, nothing, nothing, nothing)
 
-_fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src) =
-    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src)
+_fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc) =
+    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc)
 
 function _fv_check_nparams(m, prob, θ)
     length(θ) == fv_nparams(m, prob) ||
@@ -221,16 +226,31 @@ end
     fv_set_params!(solver, map, θ) -> solver
 
 Write the Float64 parameters `θ` into the arrays of `solver.prob` in place
-(viscosity, boundary velocities, sources), so that the next
+(viscosity, boundary velocities, sources), and replace its viscosity model
+when the map changes law parameters, so that the next
 [`fv_newton!`](@ref) solves the problem at `θ` with the SAME sparsity
 pattern, colouring and cuDSS symbolic analysis (an optimisation loop over `θ`
-never re-analyses). The map must keep the problem's array types.
+never re-analyses). The map must keep the grid, cell tags, array types and
+shapes, and the exact viscosity-model type. A change of model type requires
+a new solver because the Jacobian pattern may change. These constraints are
+checked before any parameter arrays are overwritten.
 """
 function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector)
     P = fv_param_problem(m, s.prob, Vector{Float64}(θ))
+    typeof(P.visc) === typeof(s.prob.visc) ||
+        throw(ArgumentError("the parameter map must keep the solver's viscosity-model type"))
+    typeof(P) === typeof(s.prob) ||
+        throw(ArgumentError("the parameter map must keep the solver's problem and array types"))
+    P.grid == s.prob.grid || throw(ArgumentError("the parameter map must keep the solver's grid"))
+    (P.tag === s.prob.tag || Array(P.tag) == Array(s.prob.tag)) ||
+        throw(ArgumentError("the parameter map changed cell tags; build a new solver"))
+    size(P.nu) == size(s.prob.nu) && size(P.bvel) == size(s.prob.bvel) &&
+        size(P.src) == size(s.prob.src) ||
+        throw(DimensionMismatch("the parameter map must keep all parameter array shapes"))
     P.nu === s.prob.nu || copyto!(s.prob.nu, P.nu)
     P.bvel === s.prob.bvel || copyto!(s.prob.bvel, P.bvel)
     P.src === s.prob.src || copyto!(s.prob.src, P.src)
+    s.prob = _fv_with(s.prob; visc = P.visc)
     s.fac_sig = (NaN, NaN, NaN)         # factors no longer match the problem
     _fv_sync(s.R)
     return s
@@ -374,10 +394,13 @@ end
 
 Force (per unit depth) exerted by the fluid on walls, component `dir`
 (1 = x, e.g. the drag of an obstacle in an x-directed flow; 2 = y): the sum,
-over the wall faces of `region`, of the momentum flux the residual itself
-puts through those faces — `h (p_f n − ν_P (∇u + ∇uᵀ)·n)` with the C1 wall
-closure (one-sided wall gradient `(u_w − u_P)·2/h`, `ν_P`). It therefore
-depends explicitly on the viscosity and on the wall velocities.
+over the wall faces of `region`, of the pressure and viscous momentum
+contributions — `h (p_f n − ν_w (∇u + ∇uᵀ)·n)`. The wall strain and viscosity
+match the residual: one-sided normal differences `(u_w − u_P)·2/h`, oriented
+along the coordinate axes, and the cell gradient tangentially. `ν_w` is the
+cell viscosity for a Newtonian problem or the GNF law evaluated at that wall
+strain. The advective contribution is excluded. The objective therefore
+depends explicitly on the viscosity law and on the wall velocities.
 `region = :solid` takes the faces between fluid cells and solid cells;
 `region = :E, :W, :N, :S` the wall/inlet faces of that domain side.
 
@@ -386,7 +409,10 @@ closure, first order in the wall cells when ν varies); `pressure = :linear`
 extrapolates linearly from the two cells normal to the wall,
 `p_f = p_P + (p_P − p_PP)/2` (falls back to `p_P` when the second cell is
 not fluid). The second option is a post-processing choice of the objective
-only (the residual is unchanged); it exists for the C4 wall-closure study.
+only (the residual is unchanged). Prefer `:linear` for drag when pressure
+varies normally to the wall; `:cell` remains the default for compatibility
+with the residual's pressure closure. Both choices use the same wall strain
+and viscosity model.
 """
 struct FVWallForce <: FVObjective
     dir::Int
@@ -429,11 +455,13 @@ end
     dun = (uw - uP) * 2 / h
     dvn = (vw - vP) * 2 / h
     if isx
-        tx = 2 * nuP * dun
-        ty = nuP * (dvn + sx * gP[2])
+        nuw = _fv_wall_nu(prob.visc, nuP, sx * dun, gP[2], sx * dvn, gP[4])
+        tx = 2 * nuw * dun
+        ty = nuw * (dvn + sx * gP[2])
     else
-        tx = nuP * (dun + sx * gP[3])
-        ty = 2 * nuP * dvn
+        nuw = _fv_wall_nu(prob.visc, nuP, gP[1], sx * dun, gP[3], sx * dvn)
+        tx = nuw * (dun + sx * gP[3])
+        ty = 2 * nuw * dvn
     end
     pf = pP
     if f.pressure === :linear
@@ -444,8 +472,13 @@ end
             pf = pP + (pP - _fv_val(U, g, ii, jj, 3)) / 2
         end
     end
-    return f.dir == 1 ? -h * tx + (isx ? h * sx * pf : zero(pf)) :
-                        -h * ty + (isx ? zero(pf) : h * sx * pf)
+    force = f.dir == 1 ? -h * tx + (isx ? h * sx * pf : zero(pf)) :
+                         -h * ty + (isx ? zero(pf) : h * sx * pf)
+    # GNF ignores the cell viscosity, but its zero derivative must retain
+    # the local dual type when only nuP was seeded. Conversion also preserves
+    # the signed zero of the Newtonian force.
+    T = promote_type(eltype(U), typeof(nuP), eltype(bvel), _fv_visc_eltype(prob.visc))
+    return convert(T, force)
 end
 
 function _fv_wall_faces(f::FVWallForce, prob)
@@ -464,7 +497,7 @@ function _fv_wall_faces(f::FVWallForce, prob)
 end
 
 function _fv_wall_force_sum(f, U, prob, faces)
-    T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel))
+    T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel), _fv_visc_eltype(prob.visc))
     F = zero(T)
     for (i, j, d) in faces
         F += _fv_wall_force_face(f, U, prob, i, j, d)

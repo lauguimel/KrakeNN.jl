@@ -10,15 +10,18 @@
 # θ0 = 0 (constant ν; the gradient direction is still a variable-ν one) and
 # θ0 = 1 (ν varies by a factor ~3 over the domain). Grids N = 8 … Nmax cells per
 # unit height (Nx = 4N). Objectives:
-#   drag(cell)   — FVWallForce(1; region = :solid): the residual's own wall
-#                  momentum flux, wall pressure p_f = p_P (C1 closure);
-#   drag(linear) — same with the objective-level linear wall-pressure
-#                  extrapolation p_f = p_P + (p_P − p_PP)/2 (residual unchanged);
+#   drag(linear) — recommended: FVWallForce(1; region = :solid, pressure = :linear),
+#                  objective-level extrapolation p_f = p_P + (p_P − p_PP)/2;
+#   drag(cell)   — comparison: FVWallForce(1; region = :solid, pressure = :cell),
+#                  the residual's wall pressure p_f = p_P (C1 closure);
 #   Δp           — mean pressure on the face x = 0.5 minus that on x = 3.5
 #                  (interior faces, column means).
 # For each: J(h), the adjoint gradient dJ/dθ, and observed orders
 # p = log2(|X_h − X_{h/2}| / |X_{h/2} − X_{h/4}|). At the coarsest grid the
 # adjoint is checked against central differences.
+# Maintainer decision (2026-11-05): keep the residual wall closure; recommend
+# linear pressure for drag. The API default remains :cell for compatibility.
+# This study uses Newtonian cell viscosities, not a GNF law.
 #
 #   julia --project benchmarks/fv_c4/wall_closure.jl [Nmax]   (default 128)
 using Kraken, LinearAlgebra, Printf
@@ -54,7 +57,8 @@ function run(N, θ0; check_fd = false)
     U = zeros(fv_nunknowns(p))
     t = @elapsed st = fv_newton!(s, U; atol = 1e-13, rtol = 1e-14)
     st.converged || @warn "Newton not converged" N θ0
-    objs = (FVWallForce(1; region = :solid), FVWallForce(1; region = :solid, pressure = :linear), dp)
+    objs = (FVWallForce(1; region = :solid, pressure = :linear),
+            FVWallForce(1; region = :solid, pressure = :cell), dp)
     out = Tuple{Float64,Float64}[]
     for obj in objs
         r = fv_steady_gradient(s, U, [θ0], obj; params = map)
@@ -71,7 +75,7 @@ function run(N, θ0; check_fd = false)
     end
     # pressure part of the drag (ν = 0 in the force evaluation), for diagnosis
     p0 = Kraken._fv_with(s.prob; nu = zero(s.prob.nu))
-    jp = fv_objective(FVWallForce(1; region = :solid), U, p0)
+    jp = fv_objective(FVWallForce(1; region = :solid, pressure = :cell), U, p0)
     return out, jp, t
 end
 
@@ -84,7 +88,7 @@ let N = 8
         push!(Ns, N); N *= 2
     end
 end
-names = ("drag(cell)", "drag(linear)", "Δp")
+names = ("drag(linear)", "drag(cell)", "Δp")
 for θ0 in (0.0, 1.0)
     println("\n=== θ0 = $θ0 ", θ0 == 0 ? "(constant ν)" : "(variable ν, max/min ≈ 3)", " ===")
     res = []; jps = Float64[]

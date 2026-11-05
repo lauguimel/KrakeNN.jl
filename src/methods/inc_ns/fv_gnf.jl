@@ -123,6 +123,11 @@ The same problem (arrays shared, not copied) with the law rebuilt from the
 parameter vector θ, of any number type: a θ of `ForwardDiff.Dual` gives
 `∂R/∂θ` through the same residual kernel (C4, directional duals), on the CPU
 or GPU backend (the law is an isbits kernel argument).
+
+Use `FVProblemMap(fv_with_gnf_parameters, length(fv_gnf_parameters(prob)))`
+with the C4 adjoint or [`fv_set_params!`](@ref). The latter accepts only
+updates that preserve the law's exact type so the solver can reuse its
+Jacobian pattern; changing the constitutive law requires a new solver.
 """
 function fv_with_gnf_parameters(p::_FVGNFProblem,
                                 θ::AbstractVector; eps = p.visc.eps)
