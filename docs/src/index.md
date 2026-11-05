@@ -163,6 +163,6 @@ Each release is archived on Zenodo under two DOIs. Use
 [`10.5281/zenodo.22747126`](https://doi.org/10.5281/zenodo.22747126) — the one
 above — to cite the software in general: it always resolves to the most recent
 archived release. Use the version-specific DOI instead when the exact code
-matters for reproducibility; for `v0.5.1` that is
-[`10.5281/zenodo.23598327`](https://doi.org/10.5281/zenodo.23598327), and each
+matters for reproducibility; for `v0.6.0` that is
+[`10.5281/zenodo.23957288`](https://doi.org/10.5281/zenodo.23957288), and each
 Zenodo record lists its own.
