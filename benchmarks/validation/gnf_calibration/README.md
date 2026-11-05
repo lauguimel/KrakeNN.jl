@@ -153,8 +153,8 @@ three-iteration calibration whose misfit decreases.
 
 ## Status
 
-- 2026-11-04, CPU (macOS arm64, Julia 1.12.5), commit 8d25bd318 plus the
-  uncommitted scripts: the smoke run and a full noise-free calibration from
+- 2026-11-04, CPU (macOS arm64, Julia 1.12.5), the scripts of this
+  directory on top of commit 8d25bd318: the smoke run and a full noise-free calibration from
   start 1 on 16×8 met the stated criteria (16×8 is the smoke grid; the
   campaign grid is 32×16). The 32×16 CPU cost bench ran with one repeat.
 - No GPU run yet; results are planned for v0.7.

@@ -198,7 +198,7 @@ CPU operators. Informational S converged at
 `1e-5`, with achieved relative residual about `9.18e-6` and gradient relative
 difference about `1.43e-7`.
 CPU run of the extended script done on 2026-11-04 (macOS arm64, Julia 1.12.5,
-commit 8d25bd318 plus the uncommitted script changes, default options: a = 2.5,
+the scripts of this directory on top of commit 8d25bd318, default options: a = 2.5,
 32x16, sweep): exit 0, all gated checks passed, P skipped. Smallest accuracy
 margin: component a, 4.0e-10 against a budget of 8.3e-8; sweep slopes 2.00 on
 h = 1e-2 … 1e-3 for all four components; solve differences at least 300 times
