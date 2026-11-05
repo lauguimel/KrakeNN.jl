@@ -22,7 +22,7 @@ using Pkg; Pkg.activate(dirname(@__DIR__))
 using Kraken
 using Kraken: fused_trt_libb_v2_step!, compute_drag_libb_mei_2d,
               precompute_q_wall_cylinder, D2Q9,
-              apply_bc_rebuild_2d!, BCSpec2D, ZouHeVelocity, ZouHePressure
+              apply_bc_rebuild_2d!, BCSpec2D, ZouHeVelocity, NeqExtrapolationPressure
 using Metal, KernelAbstractions
 using FFTW
 
@@ -79,7 +79,7 @@ copyto!(f_in, f_in_h); fill!(f_out, zero(T))
 fill!(ρ, one(T)); fill!(ux, zero(T)); fill!(uy, zero(T))
 
 bcspec = BCSpec2D(; west = ZouHeVelocity(u_prof),
-                    east = ZouHePressure(T(1.0)))
+                    east = NeqExtrapolationPressure(T(1.0)))
 
 n_rec = max_steps - measure_start + 1
 Cd_t = Float64[]

@@ -143,6 +143,10 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_guo_convention_pairs.jl")
     # Issue #67: TRT Guo-field brick injects exactly F per collision.
     include("analytical/trt_guo_field_momentum.jl")
+    # Issue #118: regularized TRT at 2D Zou-He nodes keeps mass, momentum and Π.
+    include("analytical/regularized_trt_moments_2d.jl")
+    # Issue #118: east extrapolation pressure outlet reaches a round-off steady state.
+    include("analytical/neq_extrapolation_outlet_2d.jl")
     # Issue #18: west/east pressure channel through the public .krk runner.
     include("analytical/H2-004-route.jl")
     include("test_poiseuille_3d.jl")
@@ -299,6 +303,7 @@ include("platform/weakdeps_metadata_test.jl")
                 include("ad/test_ad_sensitivity.jl")
                 include("ad/test_ad_ve_sensitivity.jl")
                 include("ad/test_ad_ve_fd_check.jl")
+                include("ad/test_ad_outlet_fd_check.jl")   # #118: AD mirror of the extrapolation outlet
                 include("ad/gnf_adjoint_enzyme_test.jl")   # T4: GNF VJP vs Enzyme
             else
                 @info "Skipping AD steady-sensitivity tests (Enzyme extension not loadable in this environment)"

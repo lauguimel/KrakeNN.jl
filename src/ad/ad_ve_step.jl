@@ -18,10 +18,11 @@
 #       verbatim from the circle builder.
 #   (2) psi-advection edge BC = production Dirichlet (west_phi=0, east_phi=psi[Nx,:],
 #       south/north wall mirror) + the WEST embedded face velocity = inlet profile.
-#   (3) fused ZouHe rebuild on f cols i=1 (west velocity profile) and i=Nx (east
-#       pressure rho_out=1), rows j=2..Ny-1, reading the PRE-stream f, via the
-#       regularized TRT collide — fused into the same pass to match the production
-#       kernel order (fused step -> apply_bc_rebuild).
+#   (3) fused rebuild on f cols i=1 and i=Nx, rows j=2..Ny-1, after the fused
+#       step (production order: fused step -> apply_bc_rebuild): west Zou-He
+#       velocity profile from the PRE-stream f via the regularized TRT collide;
+#       east NeqExtrapolationPressure (rho_out=1) from the post-collision
+#       column Nx-1, no collision.
 #
 # Ported verbatim (preserving every formula / ordering / float op) from the
 # validated scratch chain (bench/scratch/ve_c0_matched.jl + ve_ad_c0.jl +
@@ -111,7 +112,7 @@ Arguments (`g`, `q_wall`, `p`, `u_profile`, `rho_out`, `faces0` are Enzyme Const
   q_wall     : f-side cut-link q_wall (production frame, Array{Float64,3})
   p          : `ADVECoupledParams`
   u_profile  : inlet parabolic west-face / ZouHe velocity profile (length Ny)
-  rho_out    : east-pressure ZouHe outlet density (1.0 for production)
+  rho_out    : east pressure-outlet density (1.0 for production)
   faces0     : frozen-switch sign-source faces (unused here; the matched advect
                uses production hard-Dirichlet BC). Kept for signature parity.
 
@@ -331,8 +332,9 @@ function ad_ve_coupled_step!(w_out, w_in, g::ADVEEmbeddedGeom, q_wall::Array{Flo
     end
 
     # ============================================================
-    # (3) FUSED ZouHe rebuild on f cols i=1 (west velocity) and i=Nx (east pressure),
-    # rows j=2..Ny-1, reading PRE-stream f (w_in). Mirrors apply_bc_rebuild_2d!.
+    # (3) FUSED rebuild on f cols i=1 (west Zou-He velocity, reading PRE-stream f
+    # from w_in) and i=Nx (east NeqExtrapolationPressure, reading column Nx-1 of
+    # w_out), rows j=2..Ny-1. Mirrors apply_bc_rebuild_2d!.
     # ============================================================
     @inbounds for j in 2:(Ny-1)
         # WEST velocity (i=1): unknown q=2,6,9 after pull
@@ -357,27 +359,10 @@ function ad_ve_coupled_step!(w_out, w_in, g::ADVEEmbeddedGeom, q_wall::Array{Flo
         w_out[foff + ad_ve_fpop(1, j, 7, Nx, Ny)] = F[7]
         w_out[foff + ad_ve_fpop(1, j, 8, Nx, Ny)] = F[8]
         w_out[foff + ad_ve_fpop(1, j, 9, Nx, Ny)] = F[9]
-        # EAST pressure (i=Nx): unknown q=4,7,8 after pull
-        gp1 = w_in[foff + ad_ve_fpop(Nx,   j,   1, Nx, Ny)]
-        gp2 = w_in[foff + ad_ve_fpop(Nx-1, j,   2, Nx, Ny)]
-        gp3 = w_in[foff + ad_ve_fpop(Nx,   j-1, 3, Nx, Ny)]
-        gp5 = w_in[foff + ad_ve_fpop(Nx,   j+1, 5, Nx, Ny)]
-        gp6 = w_in[foff + ad_ve_fpop(Nx-1, j-1, 6, Nx, Ny)]
-        gp9 = w_in[foff + ad_ve_fpop(Nx-1, j+1, 9, Nx, Ny)]
-        u_x = -1.0 + (gp1 + gp3 + gp5 + 2.0*(gp2 + gp6 + gp9)) / rho_out
-        gp4 = gp2 - (2.0/3.0)*rho_out*u_x
-        gp7 = gp9 - 0.5*(gp3 - gp5) - (1.0/6.0)*rho_out*u_x
-        gp8 = gp6 + 0.5*(gp3 - gp5) - (1.0/6.0)*rho_out*u_x
-        G = ad_ve_trt_collide_local(gp1, gp2, gp3, gp4, gp5, gp6, gp7, gp8, gp9, sp, sm)
-        w_out[foff + ad_ve_fpop(Nx, j, 1, Nx, Ny)] = G[1]
-        w_out[foff + ad_ve_fpop(Nx, j, 2, Nx, Ny)] = G[2]
-        w_out[foff + ad_ve_fpop(Nx, j, 3, Nx, Ny)] = G[3]
-        w_out[foff + ad_ve_fpop(Nx, j, 4, Nx, Ny)] = G[4]
-        w_out[foff + ad_ve_fpop(Nx, j, 5, Nx, Ny)] = G[5]
-        w_out[foff + ad_ve_fpop(Nx, j, 6, Nx, Ny)] = G[6]
-        w_out[foff + ad_ve_fpop(Nx, j, 7, Nx, Ny)] = G[7]
-        w_out[foff + ad_ve_fpop(Nx, j, 8, Nx, Ny)] = G[8]
-        w_out[foff + ad_ve_fpop(Nx, j, 9, Nx, Ny)] = G[9]
+        # EAST pressure outlet (i=Nx), NeqExtrapolationPressure: rebuilt
+        # without collision from the post-collision column Nx-1 that the fused
+        # step above already wrote to w_out.
+        ad_ve_outlet_neq_extrap_row!(w_out, foff, rho_out, j, Nx, Ny)
     end
 
     # ---- pack psi' ----

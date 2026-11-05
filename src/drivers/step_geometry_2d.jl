@@ -279,7 +279,7 @@ function default_step_bcspec_2d(geom::StepChannelGeometry2D, u_profile, ρ_out)
     if geom.inlet_open == 1:geom.Ny && geom.outlet_open == 1:geom.Ny
         return BCSpec2D(;
             west = ZouHeVelocity(u_profile),
-            east = ZouHePressure(ρ_out))
+            east = NeqExtrapolationPressure(ρ_out))
     end
     throw(ArgumentError(
         "default_step_bcspec_2d requires masked Zou-He BC support for partial openings"))

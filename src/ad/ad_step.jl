@@ -1,5 +1,7 @@
-# BIT-MIRROR of production fused_trt_libb_v2_step! plus Zou-He rebuild.
-# If the production LI-BB/TRT/rebuild algebra changes, update this file too.
+# BIT-MIRROR of production fused_trt_libb_v2_step! plus the inlet/outlet
+# rebuild of `rebuild_inlet_outlet_libb_2d!` (Zou-He velocity west,
+# NeqExtrapolationPressure east). If the production LI-BB/TRT/rebuild algebra
+# changes, update this file too.
 
 const AD_CXV = (0.0, 1.0, 0.0, -1.0, 0.0, 1.0, -1.0, -1.0, 1.0)
 const AD_CYV = (0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 1.0, -1.0, -1.0)
@@ -92,14 +94,16 @@ end
           (f7 - fe7) + (f8 - fe8) + (f9 - fe9)
     pxy = (f6 - fe6) - (f7 - fe7) + (f8 - fe8) - (f9 - fe9)
 
+    # f_neq_i = w_i / (2 c_s⁴) (c_iα c_iβ - c_s² δ_αβ) Π_αβ, mirror of
+    # `_trt_collide_local` in src/bc/specs.jl.
     h = T(0.5)
-    fn1 = -h * T(2 / 9) * (pxx + pyy)
-    fn2 =  h * T(1 / 9) * (T(2) * pxx - pyy)
-    fn3 =  h * T(1 / 9) * (-pxx + T(2) * pyy)
+    fn1 = -T(2 / 3) * (pxx + pyy)
+    fn2 =  T(1 / 6) * (T(2) * pxx - pyy)
+    fn3 =  T(1 / 6) * (-pxx + T(2) * pyy)
     fn4 =  fn2
     fn5 =  fn3
-    fn6 =  h * T(1 / 36) * (pxx + pyy) + T(1 / 4) * pxy
-    fn7 =  h * T(1 / 36) * (pxx + pyy) - T(1 / 4) * pxy
+    fn6 =  T(1 / 12) * (pxx + pyy) + T(1 / 4) * pxy
+    fn7 =  T(1 / 12) * (pxx + pyy) - T(1 / 4) * pxy
     fn8 =  fn6
     fn9 =  fn7
 
@@ -203,6 +207,33 @@ function ad_bulk_v2_step!(out, f, q_wall, is_solid, s_plus, s_minus, Nx::Int, Ny
     return nothing
 end
 
+# Mirror of `_bc_east_neq_extrap_2d!` (east `NeqExtrapolationPressure`): row j
+# of the outlet column is rebuilt, without collision, from the post-collision
+# populations of column Nx-1, which the bulk step has already written to `out`:
+#   out[Nx, j, q] = out[Nx-1, j, q] + f_q^eq(rho_out - rho, u)
+# with (rho, u) the raw moments of out[Nx-1, j, :]. Same operation order as the
+# production kernel, so the two agree bit for bit.
+@inline function ad_outlet_neq_extrap_row!(out, rho_out, Nx::Int, j::Int)
+    @inbounds begin
+        g1 = out[Nx - 1, j, 1]; g2 = out[Nx - 1, j, 2]; g3 = out[Nx - 1, j, 3]
+        g4 = out[Nx - 1, j, 4]; g5 = out[Nx - 1, j, 5]; g6 = out[Nx - 1, j, 6]
+        g7 = out[Nx - 1, j, 7]; g8 = out[Nx - 1, j, 8]; g9 = out[Nx - 1, j, 9]
+        rho, ux, uy = ad_moments_raw(g1, g2, g3, g4, g5, g6, g7, g8, g9)
+        usq = ux * ux + uy * uy
+        drho = convert(typeof(rho), rho_out) - rho
+        out[Nx, j, 1] = g1 + ad_feq(Val(1), drho, ux, uy, usq)
+        out[Nx, j, 2] = g2 + ad_feq(Val(2), drho, ux, uy, usq)
+        out[Nx, j, 3] = g3 + ad_feq(Val(3), drho, ux, uy, usq)
+        out[Nx, j, 4] = g4 + ad_feq(Val(4), drho, ux, uy, usq)
+        out[Nx, j, 5] = g5 + ad_feq(Val(5), drho, ux, uy, usq)
+        out[Nx, j, 6] = g6 + ad_feq(Val(6), drho, ux, uy, usq)
+        out[Nx, j, 7] = g7 + ad_feq(Val(7), drho, ux, uy, usq)
+        out[Nx, j, 8] = g8 + ad_feq(Val(8), drho, ux, uy, usq)
+        out[Nx, j, 9] = g9 + ad_feq(Val(9), drho, ux, uy, usq)
+    end
+    return nothing
+end
+
 function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
                                   Nx::Int, Ny::Int)
     @inbounds for j in 2:(Ny - 1)
@@ -230,28 +261,9 @@ function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
         out[1, j, 8] = F8
         out[1, j, 9] = F9
 
-        fp1 = f[Nx, j, 1]
-        fp2 = f[Nx - 1, j, 2]
-        fp3 = f[Nx, j - 1, 3]
-        fp5 = f[Nx, j + 1, 5]
-        fp6 = f[Nx - 1, j - 1, 6]
-        fp9 = f[Nx - 1, j + 1, 9]
-        u_x = -1.0 + (fp1 + fp3 + fp5 + 2.0 * (fp2 + fp6 + fp9)) / rho_out
-        fp4 = fp2 - (2.0 / 3.0) * rho_out * u_x
-        fp7 = fp9 - 0.5 * (fp3 - fp5) - (1.0 / 6.0) * rho_out * u_x
-        fp8 = fp6 + 0.5 * (fp3 - fp5) - (1.0 / 6.0) * rho_out * u_x
-        F1, F2, F3, F4, F5, F6, F7, F8, F9 =
-            ad_trt_regularized_local(fp1, fp2, fp3, fp4, fp5, fp6, fp7,
-                                     fp8, fp9, s_plus, s_minus)
-        out[Nx, j, 1] = F1
-        out[Nx, j, 2] = F2
-        out[Nx, j, 3] = F3
-        out[Nx, j, 4] = F4
-        out[Nx, j, 5] = F5
-        out[Nx, j, 6] = F6
-        out[Nx, j, 7] = F7
-        out[Nx, j, 8] = F8
-        out[Nx, j, 9] = F9
+        # East outlet (NeqExtrapolationPressure): from the post-collision
+        # column Nx-1 already written to `out` by the bulk step.
+        ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
     end
     return nothing
 end
@@ -375,8 +387,8 @@ end
 """
     ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out, nu_field::Vector{Float64}, Nx::Int, Ny::Int)
 
-Per-row Zou-He rebuild: row j uses ν=nu_field[j] for TRT rates.
-Same body as `ad_apply_zou_he_rebuild!` but rates computed per-row.
+Per-row inlet/outlet rebuild: the Zou-He inlet of row j uses ν=nu_field[j]
+for its TRT rates; the extrapolation outlet uses no rate. Same body as `ad_apply_zou_he_rebuild!` but rates computed per-row.
 `ad_apply_zou_he_rebuild!` is UNCHANGED.
 """
 function ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out,
@@ -408,28 +420,9 @@ function ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out,
         out[1, j, 8] = F8
         out[1, j, 9] = F9
 
-        fp1 = f[Nx, j, 1]
-        fp2 = f[Nx - 1, j, 2]
-        fp3 = f[Nx, j - 1, 3]
-        fp5 = f[Nx, j + 1, 5]
-        fp6 = f[Nx - 1, j - 1, 6]
-        fp9 = f[Nx - 1, j + 1, 9]
-        u_x = -1.0 + (fp1 + fp3 + fp5 + 2.0 * (fp2 + fp6 + fp9)) / rho_out
-        fp4 = fp2 - (2.0 / 3.0) * rho_out * u_x
-        fp7 = fp9 - 0.5 * (fp3 - fp5) - (1.0 / 6.0) * rho_out * u_x
-        fp8 = fp6 + 0.5 * (fp3 - fp5) - (1.0 / 6.0) * rho_out * u_x
-        F1, F2, F3, F4, F5, F6, F7, F8, F9 =
-            ad_trt_regularized_local(fp1, fp2, fp3, fp4, fp5, fp6, fp7,
-                                     fp8, fp9, s_plus_j, s_minus_j)
-        out[Nx, j, 1] = F1
-        out[Nx, j, 2] = F2
-        out[Nx, j, 3] = F3
-        out[Nx, j, 4] = F4
-        out[Nx, j, 5] = F5
-        out[Nx, j, 6] = F6
-        out[Nx, j, 7] = F7
-        out[Nx, j, 8] = F8
-        out[Nx, j, 9] = F9
+        # East outlet (NeqExtrapolationPressure): from the post-collision
+        # column Nx-1 already written to `out` by the bulk step.
+        ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
     end
     return nothing
 end

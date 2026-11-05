@@ -20,18 +20,20 @@ using KernelAbstractions
     fe7 = feq_2d(Val(7), ρ, ux, uy, usq)
     fe8 = feq_2d(Val(8), ρ, ux, uy, usq)
     fe9 = feq_2d(Val(9), ρ, ux, uy, usq)
-    # Regularized TRT: reconstruct f_neq from stress tensor Π only
+    # Regularized TRT: reconstruct f_neq from stress tensor Π only,
+    # f_neq_i = w_i / (2 c_s⁴) (c_iα c_iβ - c_s² δ_αβ) Π_αβ with c_s² = 1/3,
+    # so that Σ f_neq = 0, Σ c f_neq = 0 and Σ c c f_neq = Π exactly.
     Pxx = (f2-fe2) + (f4-fe4) + (f6-fe6) + (f7-fe7) + (f8-fe8) + (f9-fe9)
     Pyy = (f3-fe3) + (f5-fe5) + (f6-fe6) + (f7-fe7) + (f8-fe8) + (f9-fe9)
     Pxy = (f6-fe6) - (f7-fe7) + (f8-fe8) - (f9-fe9)
     h = T(0.5)
-    fn1 = -h * T(2/9) * (Pxx + Pyy)
-    fn2 =  h * T(1/9) * (T(2)*Pxx - Pyy)
-    fn3 =  h * T(1/9) * (-Pxx + T(2)*Pyy)
+    fn1 = -T(2/3) * (Pxx + Pyy)
+    fn2 =  T(1/6) * (T(2)*Pxx - Pyy)
+    fn3 =  T(1/6) * (-Pxx + T(2)*Pyy)
     fn4 =  fn2
     fn5 =  fn3
-    fn6 =  h * T(1/36) * (Pxx + Pyy) + T(1/4) * Pxy
-    fn7 =  h * T(1/36) * (Pxx + Pyy) - T(1/4) * Pxy
+    fn6 =  T(1/12) * (Pxx + Pyy) + T(1/4) * Pxy
+    fn7 =  T(1/12) * (Pxx + Pyy) - T(1/4) * Pxy
     fn8 =  fn6
     fn9 =  fn7
     a = (s_p + s_m) * h
@@ -179,12 +181,49 @@ ZouHeVelocity(profile::AbstractArray) = ZouHeVelocity(profile, :auto)
 Zou-He pressure boundary condition. `ρ_out` is a scalar target density;
 normal velocity is computed from the known streamed-in populations.
 Tangential velocity is zero.
+
+On the east face of the 2D rebuild path (`apply_bc_rebuild_2d!`), the
+closed node is collided with the regularized TRT of `_trt_collide_local`.
+There the outlet carries a sign-flipping step-to-step mode that does not
+decay, and grows when the outlet corner rows keep the half-way bounce-back
+of the bulk kernel; the steady residual then stalls instead of reaching
+round-off. For a steady outlet on that path use `NeqExtrapolationPressure`.
 """
 struct ZouHePressure{T<:Real} <: AbstractBC
     ρ_out::T
     physical_dir::Symbol
 end
 ZouHePressure(ρ_out::Real) = ZouHePressure(ρ_out, :auto)
+
+"""
+    NeqExtrapolationPressure(ρ_out)
+
+Pressure outlet for the east face of the 2D rebuild path
+(`apply_bc_rebuild_2d!`), by non-equilibrium extrapolation. After the bulk
+step has written the post-collision populations, each outlet node
+`(Nx, j)` is overwritten with
+
+    f_q(Nx, j) = f_q^eq(ρ_out, u) + [f_q(Nx-1, j) - f_q^eq(ρ, u)],
+
+where `ρ` and `u` are the raw moments `Σ f` and `Σ c f / Σ f` of the
+post-collision populations of the neighbour `(Nx-1, j)`. No collision is
+applied at `Nx`: the copied non-equilibrium part is already post-collision,
+so the rule does not depend on the relaxation rates.
+
+Density is imposed and velocity has zero normal gradient in the raw-moment
+sense. The log-FV drivers use TRT Guo forcing and read velocity as `Σ c f / ρ`,
+without a `+F/(2ρ)` correction; this outlet copies the neighbour's post-collision
+raw velocity and applies no additional force at `Nx`. Only rows `2:Ny-1` are
+rebuilt; the two corners retain the bulk-step state (half-way bounce-back at
+wall corners). The measured maximum Poiseuille velocity error is first order
+at the outlet corners. Place the outlet several obstacle diameters downstream.
+Backflow (`u_x < 0`) is not supported.
+
+Only the east face of `BCSpec2D` accepts it; requires `Nx ≥ 3`.
+"""
+struct NeqExtrapolationPressure{T<:Real} <: AbstractBC
+    ρ_out::T
+end
 
 """
     BCSpec2D(; west, east, south, north)

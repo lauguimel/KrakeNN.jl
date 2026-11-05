@@ -147,6 +147,56 @@ end
     end
 end
 
+# East pressure outlet by non-equilibrium extrapolation (`NeqExtrapolationPressure`).
+# Reads the post-collision populations of column Nx-1 from f_out, which the
+# bulk step wrote in a previous launch; this kernel writes column Nx only, so
+# the read is race-free for Nx ≥ 3. Rebuilds
+#   f_q(Nx, j) = f_q(Nx-1, j) + f_q^eq(ρ_out - ρ, u),
+# i.e. f^eq(ρ_out, u) + (f(Nx-1) - f^eq(ρ, u)) with (ρ, u) the raw moments of
+# f(Nx-1, j) (f^eq is linear in ρ). No collision at Nx, so no rates.
+@kernel function _bc_east_neq_extrap_2d!(f_out, Nx, ρ_out, j_shift::Int=1)
+    jm1 = @index(Global); j = jm1 + j_shift
+    @inbounds begin
+        g1 = f_out[Nx-1, j, 1]; g2 = f_out[Nx-1, j, 2]; g3 = f_out[Nx-1, j, 3]
+        g4 = f_out[Nx-1, j, 4]; g5 = f_out[Nx-1, j, 5]; g6 = f_out[Nx-1, j, 6]
+        g7 = f_out[Nx-1, j, 7]; g8 = f_out[Nx-1, j, 8]; g9 = f_out[Nx-1, j, 9]
+        ρ, ux, uy = moments_2d(g1, g2, g3, g4, g5, g6, g7, g8, g9)
+        usq = ux * ux + uy * uy
+        dρ = ρ_out - ρ
+        f_out[Nx, j, 1] = g1 + feq_2d(Val(1), dρ, ux, uy, usq)
+        f_out[Nx, j, 2] = g2 + feq_2d(Val(2), dρ, ux, uy, usq)
+        f_out[Nx, j, 3] = g3 + feq_2d(Val(3), dρ, ux, uy, usq)
+        f_out[Nx, j, 4] = g4 + feq_2d(Val(4), dρ, ux, uy, usq)
+        f_out[Nx, j, 5] = g5 + feq_2d(Val(5), dρ, ux, uy, usq)
+        f_out[Nx, j, 6] = g6 + feq_2d(Val(6), dρ, ux, uy, usq)
+        f_out[Nx, j, 7] = g7 + feq_2d(Val(7), dρ, ux, uy, usq)
+        f_out[Nx, j, 8] = g8 + feq_2d(Val(8), dρ, ux, uy, usq)
+        f_out[Nx, j, 9] = g9 + feq_2d(Val(9), dρ, ux, uy, usq)
+    end
+end
+
+# Rows 2:Ny-1 only; the corner rows keep the state written by the bulk step.
+# In particular, wall corners keep half-way bounce-back. Shared by the
+# uniform-rate and per-node-rate rebuilds: the rule uses no rate.
+function _apply_bc_2d_east_neq_extrap!(backend, f_out, bc::NeqExtrapolationPressure,
+                                       Nx, Ny, south_bc, north_bc)
+    Nx ≥ 3 || throw(ArgumentError(
+        "NeqExtrapolationPressure needs Nx ≥ 3 (reads column Nx-1), got Nx = $Nx"))
+    count = Ny - 2
+    count ≤ 0 && return nothing
+    _bc_east_neq_extrap_2d!(backend)(f_out, Nx, eltype(f_out)(bc.ρ_out), 1;
+                                     ndrange=(count,))
+    return nothing
+end
+
+function _check_neq_extrap_faces_2d(bcspec)
+    for (name, bc) in ((:west, bcspec.west), (:south, bcspec.south), (:north, bcspec.north))
+        bc isa NeqExtrapolationPressure && throw(ArgumentError(
+            "NeqExtrapolationPressure is implemented on the east face only (got it on :$name)"))
+    end
+    return nothing
+end
+
 # 2D dispatch per face. HalfwayBB is a no-op; other BCs call their kernel.
 # south_bc / north_bc: when the adjacent face is InterfaceBC, extend the
 # range to include the corner that would otherwise be skipped.
@@ -190,6 +240,10 @@ end
         _bc_east_zh_pressure_2d!(backend)(f_out, f_in, Nx, eltype(f_out)(bc.ρ_out),
                                             s_p, s_m, j_lo - 1; ndrange=(count,))
     end
+end
+@inline function _apply_bc_2d_east!(backend, f_out, f_in, bc::NeqExtrapolationPressure,
+                                     s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing)
+    _apply_bc_2d_east_neq_extrap!(backend, f_out, bc, Nx, Ny, south_bc, north_bc)
 end
 @inline function _apply_bc_2d_east!(backend, f_out, f_in, bc::ZouHeVelocity,
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing)
@@ -492,6 +546,11 @@ end
 @inline function _apply_bc_2d_east_local!(backend, f_out, f_in, ::InterfaceBC,
                                            sp_field, sm_field, Nx, Ny;
                                            south_bc=nothing, north_bc=nothing) end
+@inline function _apply_bc_2d_east_local!(backend, f_out, f_in, bc::NeqExtrapolationPressure,
+                                           sp_field, sm_field, Nx, Ny;
+                                           south_bc=nothing, north_bc=nothing)
+    _apply_bc_2d_east_neq_extrap!(backend, f_out, bc, Nx, Ny, south_bc, north_bc)
+end
 @inline function _apply_bc_2d_east_local!(backend, f_out, f_in, bc::ZouHeVelocity,
                                            sp_field, sm_field, Nx, Ny;
                                            south_bc=nothing, north_bc=nothing)
@@ -576,13 +635,15 @@ end
     apply_bc_rebuild_2d!(f_out, f_in, bcspec, ν, Nx, Ny;
                           sp_field=nothing, sm_field=nothing)
 
-Apply the per-face BCs in `bcspec::BCSpec2D` to `f_out` at the current
-step. Reads pre-step values from `f_in` (streamed from interior) for
-each active face, applies the Zou-He closure, and collides locally with
-TRT Λ=3/16 at the requested viscosity `ν`.
+Apply the per-face BCs in `bcspec::BCSpec2D` to `f_out` after the bulk step.
+Zou-He faces read pre-step values from `f_in` (streamed from interior),
+close the populations, and collide locally with TRT Λ=3/16 at viscosity `ν`.
+The east `NeqExtrapolationPressure` face reads the completed post-collision
+column `Nx-1` of `f_out` and rebuilds rows `2:Ny-1` without collision.
 
 If `sp_field` and `sm_field` (2D arrays) are provided, per-cell local
-rates are used at each face instead of the uniform ν-derived rates.
+rates are used at the west/east Zou-He faces instead of uniform ν-derived rates.
+The extrapolation outlet is independent of these rates.
 This is needed for SLBM on non-uniform meshes where τ varies per cell.
 """
 function apply_bc_rebuild_2d!(f_out, f_in, bcspec::BCSpec2D, ν::Real,
@@ -591,6 +652,7 @@ function apply_bc_rebuild_2d!(f_out, f_in, bcspec::BCSpec2D, ν::Real,
                                 ρ_out=nothing, ux_out=nothing, uy_out=nothing)
     backend = KernelAbstractions.get_backend(f_out)
     T = eltype(f_out)
+    _check_neq_extrap_faces_2d(bcspec)
     s_p_r, s_m_r = trt_rates(ν; Λ=3/16)
     s_p_uni = T(s_p_r); s_m_uni = T(s_m_r)
 
