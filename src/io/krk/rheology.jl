@@ -1,4 +1,18 @@
 """
+    _warn_ignored_thermal_keys(rs::RheologySetup)
+
+Emit one `@warn` naming the thermal keys (`E_a`, `C1`, `C2`, `T_ref`) of a
+`Rheology` block that an isothermal run silently ignores: only the thermal
+drivers evaluate the temperature-dependent viscosity. No behaviour change.
+"""
+function _warn_ignored_thermal_keys(rs::RheologySetup)
+    ignored = [k for k in (:E_a, :C1, :C2, :T_ref) if haskey(rs.params, k)]
+    isempty(ignored) && return nothing
+    @warn "Rheology $(rs.model): keys $(join(ignored, ", ")) are ignored in an isothermal run (no thermal module); the viscosity is not temperature-dependent." ignored_keys=ignored
+    return nothing
+end
+
+"""
     build_rheology_model(rs::RheologySetup; T=Float64) → AbstractRheology
 
 Instantiate a concrete rheology model from a parsed `RheologySetup`.
@@ -15,6 +29,7 @@ function build_rheology_model(rs::RheologySetup; FT=Float64)
     else
         IsothermalCoupling()
     end
+    _check_arrhenius_temperatures(thermal; context=".krk Rheology T_ref")
 
     if rs.model == :newtonian
         return Newtonian(g(:nu, 0.1); thermal=thermal)

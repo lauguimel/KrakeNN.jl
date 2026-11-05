@@ -230,7 +230,7 @@ constitutive law. Optional `phase` is `liquid` / `gas` / `default`. Known models
 `newtonian`, `power_law`, `carreau`, `cross`, `bingham`, `herschel_bulkley`,
 `oldroyd_b`, `fene_p`, `saramito`. Each model reads its own parameters (e.g.
 `power_law` reads `K`, `n`; `oldroyd_b` reads `nu_s`, `nu_p`, `lambda`). A thermal
-coupling is inferred from `E_a` (Arrhenius) or `C1`/`C2` (WLF).
+coupling is inferred from `E_a` (Arrhenius, absolute temperatures only: `T_ref > 0`) or `C1`/`C2` (WLF, base-10 form with the published constants). The coupling acts only in thermal cases; in an isothermal run these keys are ignored and a warning names them.
 
 ```
 Rheology power_law { K = 0.1  n = 0.5 }

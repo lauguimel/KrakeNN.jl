@@ -221,6 +221,9 @@ function run_natural_convection_gnf_2d(; N=64, Ra=1e4, Pr=0.71,
             throw(ArgumentError("rheology and thermal coupling parameter types must match FT"))
         end
     end
+    # Arrhenius needs absolute temperatures: the default walls (1, 0) are refused.
+    _check_arrhenius_temperatures(rheology.thermal, T_hot, T_cold;
+                                  context="run_natural_convection_gnf_2d walls")
     scales = gnf_reference_scales(; Ra=FT(Ra), Pr=FT(Pr), nu0=FT(nu0),
                                   H=FT(N), T_hot=FT(T_hot), T_cold=FT(T_cold))
     omega0 = one(FT) / (FT(3) * FT(nu0) + FT(0.5))
@@ -244,6 +247,8 @@ function run_natural_convection_gnf_2d(; N=64, Ra=1e4, Pr=0.71,
             g_cpu[i,j,q] = FT(w[q]) * temperature
         end
     end
+    _check_arrhenius_temperatures(rheology.thermal, minimum(@view g_cpu[:, :, 1]) / FT(w[1]);
+                                  context="initial temperature field")
     copyto!(g_in, g_cpu)
     transport! = _natconv_gnf_transport!(backend)
     previous_Nu = FT(NaN)

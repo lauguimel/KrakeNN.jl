@@ -326,6 +326,7 @@ function run_simulation(setup::SimulationSetup;
     Fy_field = nothing
     if has_rheology
         rs = first(r for r in setup.rheology if r.phase in (:default, :liquid))
+        _warn_ignored_thermal_keys(rs)
         rheology_model = build_rheology_model(rs; FT=T)
         tau_field = KernelAbstractions.ones(backend, T, Nx, Ny)  # initial tau = 1
         if has_body_force
