@@ -22,9 +22,12 @@ Orientation:
   (`T_cold`), x is periodic. This is Rayleigh-Bénard proper and is the
   historical behaviour.
 - `:horizontal`: temperature is imposed on west (`T_hot`) and east (`T_cold`),
-  all four faces are solid (bounce-back). Gravity still acts along y, so at
-  large Ra this is a differentially heated cavity; at Ra → 0 it is pure
-  conduction across x.
+  all four faces are solid (bounce-back of the flow). South and north are
+  adiabatic: the thermal populations are reflected specularly there (zero
+  normal heat flux, tangential flux kept), as in `run_natural_convection_2d`.
+  Gravity still acts along y, so at large Ra this is a differentially heated
+  cavity; at Ra → 0 it is pure conduction across x, linear to round-off at
+  steady state.
 
 Any other orientation is rejected rather than silently replaced.
 """
@@ -98,15 +101,18 @@ function run_rayleigh_benard_2d(; Nx=128, Ny=32, Ra=2000.0, Pr=1.0,
 
     T_ref = FT((T_hot + T_cold) / 2)
     # :vertical streams periodic in x with walls in y; :horizontal is a closed
-    # cavity, so bounce-back applies on all four faces.
+    # cavity, so the flow bounces back on all four faces and the thermal
+    # populations are reflected specularly at the adiabatic south/north walls.
     stream! = orientation === :vertical ? stream_periodic_x_wall_y_2d! : stream_2d!
+    stream_g! = orientation === :vertical ? stream_periodic_x_wall_y_2d! :
+                                            stream_thermal_cavity_2d!
 
     for step in 1:max_steps
         # 1. Stream flow
         stream!(f_out, f_in, Nx, Ny)
 
-        # 2. Stream thermal (same kernel)
-        stream!(g_out, g_in, Nx, Ny)
+        # 2. Stream thermal
+        stream_g!(g_out, g_in, Nx, Ny)
 
         # 3. Thermal BCs: fixed temperature at the two heated faces
         if orientation === :vertical
@@ -142,18 +148,39 @@ end
 
 # --- Natural convection in a differentially heated cavity ---
 
+# Hot-wall Nusselt number of a cavity of width H whose hot wall is half-way at
+# x = 0.5 (node i at x = i). Row j uses the one-sided gradient through the wall
+# value and the nodes at 0.5 and 1.5 spacings from the wall,
+#     dT/dx|wall = (-8 T_w + 9 T[1,j] - T[2,j]) / 3,   Nu_j = -H dT/dx|wall / ΔT,
+# exact for quadratic profiles (second order). Each row covers one spacing of
+# the wall y ∈ [0.5, Ny + 0.5], so the wall average is the mean over all rows
+# 1:Ny (midpoint rule). Shared by `run_natural_convection_2d` and
+# `run_natural_convection_gnf_2d`; `nu_driver`/`nu_pure` (src/ad/ad_qoi.jl)
+# evaluate the same quantity.
+function _hot_wall_nusselt_rows_2d(Temp::AbstractMatrix, H, T_hot, delta_T)
+    FT = eltype(Temp)
+    return [-FT(H) * (-8 * FT(T_hot) + 9 * Temp[1, j] - Temp[2, j]) / FT(3) / FT(delta_T)
+            for j in axes(Temp, 2)]
+end
+
+_hot_wall_nusselt_2d(Temp::AbstractMatrix, H, T_hot, delta_T) =
+    sum(_hot_wall_nusselt_rows_2d(Temp, H, T_hot, delta_T)) / size(Temp, 2)
+
 """
     run_natural_convection_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
                                 T_hot=1.0, T_cold=0.0, max_steps=50000,
                                 backend, FT)
 
 Natural convection in a square cavity: hot left wall, cold right wall,
-adiabatic top/bottom. Boussinesq approximation with optional
-temperature-dependent viscosity via modified Arrhenius law. All walls are
-half-way (half a lattice spacing outside the first and last nodes), so the
+adiabatic top/bottom (the thermal populations are reflected specularly there:
+zero normal heat flux, tangential flux kept). Boussinesq approximation with
+optional temperature-dependent viscosity via modified Arrhenius law. All walls
+are half-way (half a lattice spacing outside the first and last nodes), so the
 thermal and fluid cavities share the width H = N. The returned `Nu` is the
-hot-wall average over rows `2:N-1` of the second-order one-sided gradient
-through the wall value and the first two nodes.
+hot-wall average over all rows `1:N` (the whole wall, `y ∈ [0.5, N + 0.5]`) of
+`Nu_j = -H (-8 T_hot + 9 T[1,j] - T[2,j]) / (3 ΔT)`, the one-sided gradient
+through the wall value and the first two nodes (0.5 and 1.5 spacings from the
+wall), exact for quadratic profiles, so second order.
 
 Ra = β·g·ΔT·H³/(ν·α), Pr = ν/α, Rc = η_max/η_min (rheological contrast).
 For Rc=1: constant viscosity. For Rc>1: ν(T) = ν_ref·exp(α_visc·(T - T_ref)).
@@ -222,16 +249,8 @@ function run_natural_convection_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
     compute_macroscopic_2d!(ρ, ux, uy, f_in)
     compute_temperature_2d!(Temp, g_in)
 
-    # Nusselt number at the hot wall (x = 0.5). Second-order one-sided gradient
-    # through the wall value and the first two nodes (0.5 and 1.5 lattice
-    # spacings from the wall): dT/dx|wall = (-8 T_w + 9 T_1 - T_2) / (3 dx).
     T_cpu = Array(Temp)
-    dx = FT(1.0)  # lattice spacing
-    Nu_local = zeros(FT, Ny)
-    for j in 2:Ny-1
-        Nu_local[j] = -H * (-8*FT(T_hot) + 9*T_cpu[1,j] - T_cpu[2,j]) / (3*dx) / FT(ΔT)
-    end
-    Nu = sum(Nu_local[2:end-1]) / (Ny - 2)
+    Nu = _hot_wall_nusselt_2d(T_cpu, H, FT(T_hot), FT(ΔT))
 
     return (ρ=Array(ρ), ux=Array(ux), uy=Array(uy), Temp=T_cpu,
             Nu=Nu, config=config, Ra=Ra, Pr=Pr, Rc=Rc, ν=Float64(ν), α=Float64(α_thermal))
@@ -446,9 +465,14 @@ end
                                 backend, FT)
 
 Natural convection in a cube: hot west wall, cold east wall, adiabatic on all
-other faces. All walls are half-way (half a lattice spacing outside the first
-and last nodes), so the cavity width is H = N for both flow and heat. D3Q19
+other faces (specular reflection of the thermal populations: zero normal heat
+flux, tangential flux kept). All walls are half-way (half a lattice spacing
+outside the first and last nodes), so the cavity width is H = N for both flow
+and heat. D3Q19
 lattice with Boussinesq forcing in the y-direction (gravity pointing -y).
+The returned `Nu` is the hot-wall average over all `N × N` wall nodes of the
+second-order one-sided gradient `(-8 T_hot + 9 T[1,j,k] - T[2,j,k]) / 3`,
+times `-H/ΔT`.
 
 Reference: Fusegi et al. (1991) — Ra=1e3 → Nu≈1.085, Ra=1e4 → Nu≈2.10.
 """
@@ -497,9 +521,10 @@ function run_natural_convection_3d(; N=32, Ra=1e3, Pr=0.71,
     for step in 1:max_steps
         # Stream both
         stream_3d!(f_out, f_in, Nx, Ny, Nz)
-        stream_3d!(g_out, g_in, Nx, Ny, Nz)
+        # Thermal: specular reflection at the four adiabatic faces
+        stream_thermal_cavity_3d!(g_out, g_in, Nx, Ny, Nz)
 
-        # Thermal BCs: Dirichlet west/east, adiabatic (bounce-back) elsewhere
+        # Thermal BCs: Dirichlet west/east
         apply_fixed_temp_west_3d!(g_out, T_hot, Ny, Nz)
         apply_fixed_temp_east_3d!(g_out, T_cold, Nx, Ny, Nz)
 
@@ -529,8 +554,9 @@ function run_natural_convection_3d(; N=32, Ra=1e3, Pr=0.71,
         dTdx = (-8*FT(T_hot) + 9*T_cpu[1,j,k] - T_cpu[2,j,k]) / FT(3)
         Nu_arr[j, k] = -H * dTdx / FT(ΔT)
     end
-    # Average excluding edge rows
-    Nu = sum(Nu_arr[2:end-1, 2:end-1]) / max((Ny-2)*(Nz-2), 1)
+    # Average over the whole hot wall: each (j, k) node covers one unit cell
+    # of the wall (y, z) ∈ [0.5, N + 0.5]², midpoint rule.
+    Nu = sum(Nu_arr) / (Ny * Nz)
 
     return (ρ=Array(ρ), ux=Array(ux), uy=Array(uy), uz=Array(uz),
             Temp=T_cpu, Nu=Nu, config=config, Ra=Ra, Pr=Pr,

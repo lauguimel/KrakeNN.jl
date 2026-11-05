@@ -1,0 +1,87 @@
+========================================
+Job: 27617685.aqua   Node: gpu0n009   Start: Wed Nov  4 08:40:02 PM AEST 2026
+NVIDIA A100-SXM4-40GB, 40960 MiB, 610.57.04
+========================================
+Precompiling packages...
+  110 dependencies successfully precompiled in 259 seconds
+Precompiling packages...
+  1 dependency successfully precompiled in 4 seconds. 7 already precompiled.
+Precompiling packages...
+  1 dependency successfully precompiled in 2 seconds. 9 already precompiled.
+Precompiling packages...
+  11 dependencies successfully precompiled in 12 seconds. 9 already precompiled.
+Precompiling packages...
+  10 dependencies successfully precompiled in 45 seconds. 102 already precompiled.
+Precompiling packages...
+  1 dependency successfully precompiled in 1 seconds. 22 already precompiled.
+Precompiling packages...
+  94 dependencies successfully precompiled in 55 seconds. 132 already precompiled.
+CUDA.functional() = true
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  Kraken 0.5.0
+
+--- incns_fv_steady_residual.jl ---
+
+--- incns_fv_steady_residual_gpu.jl ---
+┌ Info: C1 GPU residual
+│   case = "cavity NS nu(x,y) 96²"
+└   free_memory_spread_MiB = 0.0
+┌ Info: C1 GPU residual
+│   case = "masked inlet/outlet channel 64x32"
+└   free_memory_spread_MiB = 0.0
+┌ Info: C1 GPU residual
+│   case = "periodic box Stokes 40²"
+└   free_memory_spread_MiB = 0.0
+Test Summary:   | Pass  Total   Time
+C1 GPU receipts |   69     69  31.1s
+
+--- residual timing ---
+    512² Float64  residual median 0.113 ms (min 0.112) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+    512² Dual{4}  residual median 0.652 ms (min 0.649) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+    512² CPU residual 5.0 ms (8 threads) | GPU vs CPU max rel diff 1.8e-17
+   1024² Float64  residual median 0.430 ms (min 0.429) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+   1024² Dual{4}  residual median 2.388 ms (min 2.380) | CUDA.@allocated 0 B | free-memory spread over 10 calls 0.0 MiB
+   1024² CPU residual 75.7 ms (8 threads) | GPU vs CPU max rel diff 1.8e-17
+DONE
+========================================
+End: Wed Nov  4 08:47:11 PM AEST 2026  status=0
+========================================
+
+PBS Job 27617685.aqua
+CPU time         : 00:16:57
+Wall time        : 00:07:10
+Mem usage        : 2948048kb
+
+--- Job Runtime Information at 2026-11-04T20:47:17.565335---
+id               : 27617685.aqua
+Job_Name         : kraken_c1_fv
+Job_Owner        : <user>@aquarius04.ib0.hpc.qut.edu.au
+resources_used   : cput=00:16:57,mem=2948048kb,walltime=00:07:10,ncpus=8,cpupercent=192,vmem=95393576kb,cpus="4,5,6,7,8,9,10,11",ngpus=0,gpu_usage="gpu0n009(cuda.2.usagePerc=0.0%, cuda.2.memUsagePerc=1.2%)"
+job_state        : 5
+queue            : gpu_batch_exec
+server           : aqua
+devices          : /dev/nvidia0
+Checkpoint       : u
+Error_Path       : aquarius04.ib0.hpc.qut.edu.au:~/kraken_c1/kraken_c1_fv.e27617685
+exec_host2       : gpu0n009.ib0.hpc.qut.edu.au:15002/1*8
+exec_vnode       : (gpu0n009[0]:ncpus=8:ngpus=1:mem=33554432kb:nfpgas=0)
+Join_Path        : oe
+Keep_Files       : n
+mtime            : 2026-11-04T20:40:01
+Output_Path      : aquarius04.ib0.hpc.qut.edu.au:~/kraken_c1/kraken_c1_fv.o27617685
+Resource_List    : mem=32gb,walltime=01:00:00,ncpus=8,place=free
+schedselect      : 1:ncpus=8:ngpus=1:mem=32GB:gpu_id=A100:host=gpu0n009:nfpgas=0:cpu_id=any:qlist=gpu_batch_exec
+stime            : 2026-11-04T20:40:00
+session_id       : 1565450
+substate         : 50
+Variable_List    : PBS_O_HOME=~,PBS_O_LANG=en_US.UTF-8,PBS_O_LOGNAME=<user>,PBS_O_PATH=~/.juliaup/bin:~/bin:~/.local/bin:~/bin:/opt/clmgr/sbin:/opt/clmgr/bin:/opt/sgi/sbin:/opt/sgi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/c3/bin:/opt/pbs/bin:/sbin:/bin,PBS_O_SHELL=/bin/bash,PBS_O_INTERACTIVE_AUTH_METHOD=resvport,PBS_O_HOST=aquarius04.ib0.hpc.qut.edu.au,PBS_O_WORKDIR=~/kraken_c1,PBS_O_SYSTEM=Linux,PBS_O_QUEUE=gpu_batch
+euser            : <user>
+egroup           : default
+hashname         : 27617685.aqua
+run_count        : 1
+job_kill_delay   : 10
+Exit_status      : 0
+project          : <RPID>
+run_version      : 1
+Submit_Host      : aquarius04.ib0.hpc.qut.edu.au
+Submit_arguments : -P <RPID> src_c1/benchmarks/fv_c1/c1_gpu.pbs 
+ctime            : 2026-11-04T20:31:42

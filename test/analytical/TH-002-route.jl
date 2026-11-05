@@ -69,19 +69,20 @@ end
         # Analytical reference: steady 1D conduction between two fixed-temperature
         # walls is linear. The walls are half-way, at x = 0.5 and x = Nx + 0.5
         # with node i at x = i, so T_i = T_hot + (T_cold - T_hot)·(i - 0.5)/Nx.
-        # Measured 2026-11-03 on CPU Float64: max deviation 1.2e-4, set by the
-        # adiabatic south/north walls (the on-node walls used before gave
-        # 2.5e-2 against this profile).
+        # Measured 2026-11-04 on CPU Float64: max deviation 3.6e-14 (v0.7
+        # specular adiabatic south/north walls; 1.2e-4 with the former
+        # bounce-back of the diagonals there, 2.5e-2 with the on-node walls).
         analytic = [0.8 + (0.2 - 0.8) * (i - 0.5) / Nx for i in 1:Nx]
         @test maximum(abs.(profile .- analytic)) < 5e-4
 
         # Wall values are the ones the file asked for: the linear extrapolation
-        # of the first two nodes to the half-way wall. Measured 6.9e-5 on both
-        # walls (2.8e-2 with the former on-node walls).
+        # of the first two nodes to the half-way wall. Measured 1.3e-15 (west)
+        # and 1.7e-16 (east) on 2026-11-04; 6.9e-5 before v0.7, 2.8e-2 with
+        # the former on-node walls.
         @test abs(1.5 * profile[1] - 0.5 * profile[2] - 0.8) < 2e-4
         @test abs(1.5 * profile[end] - 0.5 * profile[end-1] - 0.2) < 2e-4
 
-        # Ra ≈ 0: buoyancy must not drive any flow. Measured max|uy| ≈ 4e-15.
+        # Ra ≈ 0: buoyancy must not drive any flow. Measured max|uy| ≈ 2e-14.
         @test maximum(abs, result.uy) < 1e-10
     end
 

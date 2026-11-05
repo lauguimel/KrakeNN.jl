@@ -76,6 +76,39 @@ end
     return fp1, fp2, fp3, fp4, fp5, fp6, fp7, fp8, fp9
 end
 
+# Thermal pull of `stream_pull_thermal_node` (src/kernels/fused_thermal_2d.jl):
+# the adiabatic top and bottom walls reflect the diagonal populations
+# specularly (zero normal heat flux, tangential flux kept), the slots whose
+# source lies across the west or east wall keep the bounced value for the
+# Dirichlet rule.
+@inline function ad_thermal_g_stream_pull_flat(w, offset::Int, i::Int, j::Int,
+                                               Nx::Int, Ny::Int)
+    jm = max(j - 1, 1)
+    jp = min(j + 1, Ny)
+    gp1 = ad_thermal_readpop(w, offset, i, j, 1, Nx, Ny)
+    gp2 = i > 1 ? ad_thermal_readpop(w, offset, i - 1, j, 2, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 4, Nx, Ny)
+    gp3 = j > 1 ? ad_thermal_readpop(w, offset, i, j - 1, 3, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 5, Nx, Ny)
+    gp4 = i < Nx ? ad_thermal_readpop(w, offset, i + 1, j, 4, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 2, Nx, Ny)
+    gp5 = j < Ny ? ad_thermal_readpop(w, offset, i, j + 1, 5, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 3, Nx, Ny)
+    gp6 = i > 1 ?
+          ad_thermal_readpop(w, offset, i - 1, jm, j > 1 ? 6 : 9, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 8, Nx, Ny)
+    gp7 = i < Nx ?
+          ad_thermal_readpop(w, offset, i + 1, jm, j > 1 ? 7 : 8, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 9, Nx, Ny)
+    gp8 = i < Nx ?
+          ad_thermal_readpop(w, offset, i + 1, jp, j < Ny ? 8 : 7, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 6, Nx, Ny)
+    gp9 = i > 1 ?
+          ad_thermal_readpop(w, offset, i - 1, jp, j < Ny ? 9 : 6, Nx, Ny) :
+          ad_thermal_readpop(w, offset, i, j, 7, Nx, Ny)
+    return gp1, gp2, gp3, gp4, gp5, gp6, gp7, gp8, gp9
+end
+
 @inline function ad_dirichlet_cutlink_ghost(temp_here, temp_wall, q_wall_link)
     T = typeof(temp_here)
     q = T(q_wall_link)
@@ -171,7 +204,7 @@ end
                                           T_hot, T_cold,
                                           g1, g2, g3, g4, g5, g6, g7, g8, g9)
     temp_here = g1 + g2 + g3 + g4 + g5 + g6 + g7 + g8 + g9
-    # After the bounce-back pull, each unknown slot (2, 6, 9 at the west wall;
+    # After the thermal pull, each unknown slot (2, 6, 9 at the west wall;
     # 4, 7, 8 at the east wall) holds the bounced post-collision value of its
     # opposite direction, which is the population the cut-link rule reflects.
     # q_therm is indexed by the outgoing (wall-facing) direction.
@@ -273,7 +306,7 @@ function ad_thermal_cut_step!(w_out, w, q_flow, q_therm, p::ADNatconvParams)
                                         f1, f2, f3, f4, f5, f6, f7, f8, f9)
 
         g1, g2, g3, g4, g5, g6, g7, g8, g9 =
-            ad_thermal_stream_pull_flat(w, goff, i, j, Nx, Ny)
+            ad_thermal_g_stream_pull_flat(w, goff, i, j, Nx, Ny)
         g1, g2, g3, g4, g5, g6, g7, g8, g9 =
             ad_thermal_bc_cut_cavity(i, j, Nx, q_therm, p.T_hot, p.T_cold,
                                      g1, g2, g3, g4, g5, g6, g7, g8, g9)
