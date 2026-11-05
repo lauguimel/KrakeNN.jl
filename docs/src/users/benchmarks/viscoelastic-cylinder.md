@@ -102,10 +102,16 @@ benchmark (cross-checked against Hulsen et al. 2005 and Claus & Phillips 2013).
   integrated **drag** — the primary gate — matches to < 1 % at `β = 0.59`. See
   `m8_refs/N1_comparison.csv` (pre-fix ratios 0.770 / 0.704 / 0.890 / 1.437; after the
   #67 fix 0.771 / 0.705 / 0.894 / 1.448).
-- **β ≤ 0.1 — both codes diverge.** Drag decreases as the polymer fraction grows
-  (β = 0.59 → 0.30), and for β ≤ 0.1 Kraken returns NaN while RheoTool's PETSc solver
-  aborts at `t ≈ 5`. This strongly-polymeric corner is a genuine physical/numerical
-  boundary reproduced by both methods, not a solver-specific weakness.
+- **β ≤ 0.1 — runs no longer diverge, accuracy not established.** Drag decreases as
+  the polymer fraction grows (β = 0.59 → 0.30). Earlier versions returned NaN
+  there (RheoTool's PETSc solver aborts at `t ≈ 5`). The cause was the pair of
+  one-sided second-derivative stencils of the both-sides-diffusion correction at the
+  outlet corner (x at the outlet column, y at the wall row): together they anti-damp
+  a period-2 oscillation of the two outlet corner cells when the solvent viscosity is
+  small against the polymer viscosity. The x second derivative is now taken as zero
+  at an open end, which removes the growth and leaves the β = 0.59 results unchanged
+  to within numerical noise. Runs at β ≤ 0.1 now complete without NaN, but no grid study has
+  been done for them, so their `Cd` values are not validated.
 - **β = 0.30 is outside the 1 % band.** At `R = 50` Kraken's `Cd` is 108.46 at
   `Wi = 0.5` (RheoTool 109.92, −1.33 %) and 108.61 at `Wi = 1` (RheoTool 107.28,
   +1.24 %). The RheoTool `β = 0.3`, `Wi = 1` run is not steady at `t = 20` (`Cd`

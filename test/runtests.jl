@@ -261,6 +261,7 @@ include("platform/weakdeps_metadata_test.jl")
     include("analytical/gnf3d_parity.jl")
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
+    include("test_bsd_open_corner_2d.jl")
     # --- 3D viscoelastic tier (FVFD/FD transport + log-conformation, four
     #     constitutive models, RheoTool cross-validation). This capability
     #     lives only on this line; keep it registered here. ---
