@@ -8,8 +8,9 @@
 # evaluated inside the C1 residual kernel through the hooks _fv_face_nu /
 # _fv_wall_nu (fv_steady_residual.jl). The face gradient is the one the viscous
 # flux already uses: compact normal difference, mean of the two Green-Gauss
-# cell gradients tangentially; a wall face takes the one-sided normal
-# difference and the cell gradient. Because the residual kernel evaluates ν
+# cell gradients tangentially; an immersed L/Q wall face takes the one-sided
+# normal difference and tangential gradients extrapolated from P and O to
+# the nominal face (C1/domain walls keep P's gradient). Because the kernel evaluates ν
 # itself, the coloured dual assembly of C2 differentiates through ν(U): the
 # Jacobian includes ∂ν/∂U with no extra code. Only the sparsity pattern
 # changes, and it is derived here from the exact stencil of the face strain
@@ -136,7 +137,8 @@ function fv_with_gnf_parameters(p::_FVGNFProblem,
     length(θ) == np || throw(DimensionMismatch("$(nameof(typeof(law))) has $np parameters, got $(length(θ))"))
     T = promote_type(eltype(θ), typeof(eps))
     newlaw = typeof(law).name.wrapper(ntuple(k -> T(θ[k]), np)..., law.thermal)
-    return FVSteadyProblem2D(p.grid, p.tag, p.nu, p.bvel, p.src, FVGNFViscosity(newlaw, T(eps); warn = false))
+    return FVSteadyProblem2D(p.grid, p.tag, p.nu, p.bvel, p.src,
+                            FVGNFViscosity(newlaw, T(eps); warn = false), p.immersed)
 end
 
 # ------------------------------------------------------------------ pattern
@@ -158,12 +160,16 @@ is reached by the same face classification as the residual (walls, periodic
 wrap, solid cells), so the pattern is the 3 × 3 cell block for `u` and `v` in
 the interior (27 entries per interior row, 26.9 per row on a large grid),
 narrower than the radius-2 diamond of a cell-centred viscosity.
+Immersed L/Q uses the wall-normal opposite cell O and its tangential gradients.
+These cells already feed the viscosity of the opposite interior face. Tangential
+ghosts use the opposite member of their existing Green–Gauss pair, so the same
+GNF pattern remains sufficient, within the existing radius-two (5 × 5) box.
 """
 function fv_jacobian_pattern(prob::_FVGNFProblem)
     S0 = invoke(fv_jacobian_pattern, Tuple{FVSteadyProblem2D}, prob)
     g = prob.grid
     tag = Array(prob.tag)
-    n = fv_nunknowns(g)
+    n = fv_nunknowns(prob)
     I = Int[]; J = Int[]
     sizehint!(I, 12 * n); sizehint!(J, 12 * n)
     function nb(i, j, d)

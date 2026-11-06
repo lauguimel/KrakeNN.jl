@@ -1,0 +1,11 @@
+kind,Na,Nb,measure,order,threshold,continuous_validated
+surface,24,40,consecutive,8.347503255099635,0.8,false
+surface,40,48,consecutive,3.9980117799338264,0.8,false
+surface,48,64,consecutive,-6.006719554960077,0.8,false
+surface,24,64,endpoint,3.3288329734659987,0.8,false
+surface,24,64,fit,3.9247393630269856,0.8,false
+residual_flux,24,40,consecutive,4.008830886558682,0.8,true
+residual_flux,40,48,consecutive,1.0889337771730887,0.8,true
+residual_flux,48,64,consecutive,4.9767280794446895,0.8,true
+residual_flux,24,64,endpoint,3.7499545168827404,0.8,true
+residual_flux,24,64,fit,3.63911244481974,0.8,true

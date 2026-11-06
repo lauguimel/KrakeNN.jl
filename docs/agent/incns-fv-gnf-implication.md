@@ -3,7 +3,7 @@ module: incns-fv-gnf
 path: src/methods/inc_ns/fv_gnf.jl
 owner_concern: steady-newton
 status: implemented
-last_verified: 2026-11-05
+last_verified: 2026-11-06
 depends_on:
   - incns-fv-steady-residual
   - incns-fv-newton
@@ -41,7 +41,9 @@ GNF adjoint.
   Use `FVProblemMap(fv_with_gnf_parameters, length(fv_gnf_parameters(prob)))`
   with `fv_set_params!` and `fv_steady_gradient` for law-parameter adjoints.
   Built-in C4 maps preserve `visc`; changing the unused `nu` field has zero
-  sensitivity on a GNF problem.
+  sensitivity on a GNF problem. C5 from `feat/fv-c5` also preserves
+  `prob.immersed` when replacing law parameters; viscosity and immersed
+  geometry remain independent problem fields.
 
 ## Reads from
 
@@ -50,6 +52,9 @@ GNF adjoint.
 - Hooks `_fv_face_nu` / `_fv_wall_nu` / `_fv_visc_zero` / `_fv_visc_eltype`
   declared in `fv_steady_residual.jl`; `_fv_face_kind`, `fv_index` and the
   Newtonian `fv_jacobian_pattern` (called by `invoke`).
+- C5 immersed cell dependencies, cut-wall gradients and M3 mass pattern
+  extension from `fv_immersed.jl` and `fv_immersed_mass.jl`; the GNF pattern
+  keeps the additional cut-closure and mass-equation couplings.
 
 ## Writes to
 
@@ -85,6 +90,12 @@ model type, solver arrays and sparsity structure. A model-type change throws
   opt-in gradient CPU/GPU parity is in `incns_fv_adjoint_gpu.jl` and remains
   unverified on a GPU in this integration session.
 
+- C5 compiler checks cover Newtonian and GNF immersed residuals with dual
+  state, viscosity, cut fractions, wall velocity and law parameters. The
+  registered immersed tests cover geometry, force/torque and shape derivatives,
+  M1 expected failures and M3 compatibility. These CPU checks do not establish
+  GPU compilation or parity.
+
 ## Failure modes
 
 - **Dynamic viscosity promotion**: collecting a filtered tuple of law field
@@ -104,7 +115,9 @@ model type, solver arrays and sparsity structure. A model-type change throws
   CY with a < 2): NaN Jacobian on states at rest; the constructor refuses.
 - **Rebuilding a problem** with the 5-argument `FVSteadyProblem2D` constructor
   drops the GNF model silently (Newtonian default); pass `p.visc`. C4's
-  `_fv_with` now preserves it for every built-in parameter map.
+  `_fv_with` now preserves it for every built-in parameter map and C5
+  additionally keeps the immersed geometry. Custom reconstruction must pass
+  both `p.visc` and `p.immersed`.
 - **Wall closure**: wall faces use the one-sided normal gradient; the wall
   pressure stays first order with variable ν (C1 decision 2026-11-04, kept).
   `FVWallForce` evaluates the same GNF law at the same wall-face strain rate
@@ -124,3 +137,7 @@ model type, solver arrays and sparsity structure. A model-type change throws
 5. `test/analytical/incns_fv_gnf_gpu.jl`, `benchmarks/fv_c3/` — GPU receipts.
 6. `src/methods/inc_ns/fv_adjoint.jl`, `test/analytical/incns_fv_adjoint*.jl`
    — parameter-map preservation, law-parameter adjoints and GNF wall stress.
+7. `src/methods/inc_ns/fv_immersed*.jl`,
+   `test/analytical/incns_fv_immersed*.jl` — C5 cut-wall gradient and
+   parameter preservation, extended sparsity and M1/M3 contracts from
+   `feat/fv-c5`.

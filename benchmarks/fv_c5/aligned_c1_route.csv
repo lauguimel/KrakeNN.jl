@@ -1,0 +1,2 @@
+backend,precision,immersed_solve,wall_x,halo_layers,trace_evaluations,east_boundary_reads,tiny_grid,restricted_unknowns,residual_delta,jacobian_delta
+CPU,Float64,false,0.5,5,5,880,8,96,0.0,0.0

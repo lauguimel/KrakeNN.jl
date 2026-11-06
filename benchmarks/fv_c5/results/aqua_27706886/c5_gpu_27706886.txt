@@ -1,0 +1,284 @@
+Precompiling packages...
+   1232.2 ms  ✓ LaTeXStrings
+   1304.9 ms  ✓ OpenSSL_jll
+   1260.7 ms  ✓ LLVMLoopInfo
+   1114.0 ms  ✓ Logging
+   1259.0 ms  ✓ NetworkOptions
+   1290.6 ms  ✓ IteratorInterfaceExtensions
+   1351.3 ms  ✓ UUIDs
+   1318.2 ms  ✓ Statistics
+   1333.4 ms  ✓ CompilerSupportLibraries_jll
+   1581.6 ms  ✓ ExprTools
+   1695.5 ms  ✓ AbstractFFTs
+   1845.3 ms  ✓ Serialization
+   1016.7 ms  ✓ SuiteSparse_jll
+   1334.8 ms  ✓ nghttp2_jll
+   1428.9 ms  ✓ MozillaCACerts_jll
+   2690.6 ms  ✓ CEnum
+   1482.0 ms  ✓ Unicode
+   1437.4 ms  ✓ DataValueInterfaces
+   1346.7 ms  ✓ Zlib_jll
+   1430.7 ms  ✓ Reexport
+   3338.3 ms  ✓ GPUToolbox
+   1324.2 ms  ✓ HashArrayMappedTries
+   1115.2 ms  ✓ DataAPI
+   1281.5 ms  ✓ Base64
+   1364.7 ms  ✓ Adapt
+   2915.0 ms  ✓ RandomNumbers
+    925.8 ms  ✓ p7zip_jll
+   1650.5 ms  ✓ StaticArraysCore
+   4570.7 ms  ✓ UnsafeAtomics
+   1652.2 ms  ✓ TableTraits
+   1757.9 ms  ✓ LibSSH2_jll
+   4712.5 ms  ✓ ArgTools
+   1088.6 ms  ✓ ScopedValues
+   1181.2 ms  ✓ GPUArraysCore
+   2212.7 ms  ✓ Requires
+   4127.0 ms  ✓ CUDA_Runtime_Discovery
+   1314.9 ms  ✓ LibGit2_jll
+   1297.7 ms  ✓ LibCURL_jll
+   2195.8 ms  ✓ Printf
+   1752.6 ms  ✓ Atomix
+   1521.6 ms  ✓ Tar
+   4981.3 ms  ✓ OrderedCollections
+   1956.6 ms  ✓ Random123
+   1300.7 ms  ✓ LibCURL
+   4803.3 ms  ✓ Crayons
+   6870.6 ms  ✓ MacroTools
+   2361.0 ms  ✓ BFloat16s
+   3662.2 ms  ✓ Dates
+   3542.4 ms  ✓ Tables
+    679.4 ms  ✓ TOML
+    712.5 ms  ✓ Scratch
+   4370.5 ms  ✓ LibGit2
+   6786.8 ms  ✓ SparseArrays
+    901.8 ms  ✓ Adapt → AdaptSparseArraysExt
+   1071.2 ms  ✓ Preferences
+    971.3 ms  ✓ Statistics → SparseArraysExt
+   4357.2 ms  ✓ Downloads
+    666.9 ms  ✓ PrecompileTools
+   1452.6 ms  ✓ JLLWrappers
+  12286.6 ms  ✓ StyledStrings
+    893.1 ms  ✓ MSVCRuntime_jll
+   1240.5 ms  ✓ tree_sitter_spirv_jll
+   1374.4 ms  ✓ LibTracyClient_jll
+   1546.4 ms  ✓ tree_sitter_gcn_jll
+   1582.3 ms  ✓ NVTX_jll
+   1390.7 ms  ✓ tree_sitter_ptx_jll
+   1571.6 ms  ✓ demumble_jll
+   1634.3 ms  ✓ NVPTX_LLVM_Backend_jll
+   1620.9 ms  ✓ tree_sitter_llvm_jll
+   1698.9 ms  ✓ LMDB_jll
+   1348.5 ms  ✓ Tracy
+   1470.0 ms  ✓ LMDB
+   2658.2 ms  ✓ JuliaSyntaxHighlighting
+   3570.2 ms  ✓ CUDA_Driver_jll
+   1057.0 ms  ✓ CompilerCaching
+   4472.9 ms  ✓ StringManipulation
+   6324.4 ms  ✓ Markdown
+  11181.9 ms  ✓ StaticArrays
+    726.7 ms  ✓ StaticArrays → StaticArraysStatisticsExt
+    749.3 ms  ✓ Adapt → AdaptStaticArraysExt
+   2593.4 ms  ✓ InteractiveUtils
+   4724.9 ms  ✓ KernelAbstractions
+    880.8 ms  ✓ KernelAbstractions → LinearAlgebraExt
+   1129.9 ms  ✓ KernelAbstractions → SparseArraysExt
+  34052.9 ms  ✓ REPL
+  31786.6 ms  ✓ PrettyTables
+  79210.2 ms  ✓ Pkg
+    840.4 ms  ✓ JuliaNVTXCallbacks_jll
+   1014.6 ms  ✓ LazyArtifacts
+   1182.2 ms  ✓ NVTX
+   1619.4 ms  ✓ LLVMExtra_jll
+   3852.7 ms  ✓ CUDA_Compiler_jll
+   5776.7 ms  ✓ Pkg → REPLExt
+  11744.5 ms  ✓ LLVM
+   1458.7 ms  ✓ LLVM → BFloat16sExt
+   2174.0 ms  ✓ UnsafeAtomics → UnsafeAtomicsLLVM
+  12504.3 ms  ✓ CUDA_Runtime_jll
+   6647.7 ms  ✓ GPUArrays
+  31304.7 ms  ✓ GPUCompiler
+  79624.0 ms  ✓ CUDACore
+   4745.7 ms  ✓ cuFFT
+   5662.5 ms  ✓ cuRAND
+   6955.4 ms  ✓ NVML
+   7876.0 ms  ✓ CUPTI
+  10212.1 ms  ✓ cuSPARSE
+  14336.3 ms  ✓ cuBLAS
+  15011.4 ms  ✓ CUDATools
+  10407.5 ms  ✓ cuSOLVER
+   5723.1 ms  ✓ CUDA
+   5472.6 ms  ✓ Atomix → AtomixCUDAExt
+  110 dependencies successfully precompiled in 267 seconds
+Precompiling packages...
+   2210.4 ms  ✓ CUDSS_jll
+   5455.4 ms  ✓ CUDSS
+  2 dependencies successfully precompiled in 8 seconds. 86 already precompiled.
+Precompiling packages...
+   4723.5 ms  ✓ Test
+  1 dependency successfully precompiled in 5 seconds. 7 already precompiled.
+Precompiling packages...
+   1600.7 ms  ✓ AbstractFFTs → AbstractFFTsTestExt
+  1 dependency successfully precompiled in 2 seconds. 9 already precompiled.
+Precompiling packages...
+   1138.3 ms  ✓ Mmap
+   1150.9 ms  ✓ PCRE2_jll
+   1139.1 ms  ✓ Ratios
+   1343.2 ms  ✓ GMP_jll
+   1623.3 ms  ✓ OpenLibm_jll
+   1641.7 ms  ✓ DocStringExtensions
+   1717.5 ms  ✓ CommonSubexpressions
+   1677.5 ms  ✓ TranscodingStreams
+   2096.6 ms  ✓ VTKBase
+   2456.2 ms  ✓ FillArrays
+   1922.3 ms  ✓ DiffResults
+   2709.7 ms  ✓ OffsetArrays
+   2129.7 ms  ✓ WoodburyMatrices
+   2171.4 ms  ✓ MPIPreferences
+   1963.6 ms  ✓ aws_c_common_jll
+   2350.3 ms  ✓ dlfcn_win32_jll
+   2145.3 ms  ✓ Libmount_jll
+   2067.6 ms  ✓ LLVMOpenMP_jll
+   2607.9 ms  ✓ Compat
+   1316.4 ms  ✓ s2n_tls_jll
+   1292.6 ms  ✓ Xorg_libXau_jll
+   4551.4 ms  ✓ IrrationalConstants
+   2862.9 ms  ✓ Bzip2_jll
+   2182.8 ms  ✓ METIS_jll
+   2293.8 ms  ✓ libaec_jll
+   2774.4 ms  ✓ Xorg_libpciaccess_jll
+   5073.8 ms  ✓ ChainRulesCore
+   1625.4 ms  ✓ LinearElasticity_jll
+   1312.1 ms  ✓ Xorg_xtrans_jll
+   1604.2 ms  ✓ Zstd_jll
+   1725.8 ms  ✓ JpegTurbo_jll
+   1735.7 ms  ✓ Xorg_libXdmcp_jll
+   2380.9 ms  ✓ libpng_jll
+   1859.3 ms  ✓ Expat_jll
+   2182.2 ms  ✓ XZ_jll
+   1416.1 ms  ✓ Libffi_jll
+   1423.6 ms  ✓ FFTW_jll
+   1306.0 ms  ✓ Libuuid_jll
+   1769.2 ms  ✓ Libiconv_jll
+   6433.9 ms  ✓ Distributed
+   2190.9 ms  ✓ OpenSpecFun_jll
+   1081.7 ms  ✓ AxisAlgorithms
+   1311.2 ms  ✓ OffsetArrays → OffsetArraysAdaptExt
+   1905.7 ms  ✓ FillArrays → FillArraysStatisticsExt
+   1624.1 ms  ✓ FillArrays → FillArraysSparseArraysExt
+   1749.7 ms  ✓ FillArrays → FillArraysStaticArraysExt
+   2196.5 ms  ✓ CodecZlib
+   2664.5 ms  ✓ ADTypes
+   1541.4 ms  ✓ aws_checksums_jll
+   1599.7 ms  ✓ aws_c_cal_jll
+   2004.1 ms  ✓ MicrosoftMPI_jll
+   2988.0 ms  ✓ IntelOpenMP_jll
+   1286.4 ms  ✓ aws_c_sdkutils_jll
+   2416.0 ms  ✓ MPItrampoline_jll
+    819.7 ms  ✓ AbstractFFTs → AbstractFFTsChainRulesCoreExt
+   2409.9 ms  ✓ aws_c_compression_jll
+   2063.8 ms  ✓ LogExpFunctions
+   4170.9 ms  ✓ NaNMath
+   2078.5 ms  ✓ FreeType2_jll
+   2327.8 ms  ✓ Compat → CompatLinearAlgebraExt
+   2841.0 ms  ✓ Pixman_jll
+   2365.8 ms  ✓ ChainRulesCore → ChainRulesCoreSparseArraysExt
+   2592.6 ms  ✓ CodecBzip2
+   5058.5 ms  ✓ oneTBB_jll
+   2527.8 ms  ✓ LLVMDowngrader_jll
+   2767.1 ms  ✓ StaticArrays → StaticArraysChainRulesCoreExt
+   1134.3 ms  ✓ ADTypes → ADTypesChainRulesCoreExt
+   9675.1 ms  ✓ ObjectiveC
+   1463.6 ms  ✓ SharedArrays
+   2005.4 ms  ✓ GettextRuntime_jll
+   3125.5 ms  ✓ SCOTCH_jll
+   3012.2 ms  ✓ XML2_jll
+   2163.8 ms  ✓ LogExpFunctions → LogExpFunctionsChainRulesCoreExt
+   4162.8 ms  ✓ Xorg_libxcb_jll
+   3031.4 ms  ✓ aws_c_io_jll
+   2782.9 ms  ✓ Fontconfig_jll
+   2692.9 ms  ✓ MKL_jll
+   1792.1 ms  ✓ Hwloc_jll
+   1968.1 ms  ✓ LightXML
+   2611.4 ms  ✓ Glib_jll
+   2358.1 ms  ✓ MMG_jll
+   2437.4 ms  ✓ Xorg_libX11_jll
+   7139.9 ms  ✓ CUDACore → ChainRulesCoreExt
+   2628.3 ms  ✓ aws_c_http_jll
+   5282.2 ms  ✓ SpecialFunctions
+   2383.5 ms  ✓ OpenMPI_jll
+   5212.7 ms  ✓ Interpolations
+   2597.7 ms  ✓ MPICH_jll
+   1359.2 ms  ✓ Xorg_libXrender_jll
+   3424.4 ms  ✓ WriteVTK
+   2294.3 ms  ✓ Xorg_libXfixes_jll
+   3820.4 ms  ✓ MPIABI_jll
+   1510.7 ms  ✓ Xorg_libXft_jll
+   2425.2 ms  ✓ DiffRules
+   2917.5 ms  ✓ aws_c_auth_jll
+   3322.0 ms  ✓ Xorg_libXext_jll
+   9748.6 ms  ✓ SparseMatrixColorings
+   2155.8 ms  ✓ mpif_jll
+   1442.8 ms  ✓ aws_c_s3_jll
+   1464.4 ms  ✓ Xorg_libXinerama_jll
+   4375.6 ms  ✓ SpecialFunctions → SpecialFunctionsChainRulesCoreExt
+   1712.3 ms  ✓ Libglvnd_jll
+   5084.8 ms  ✓ CUDACore → SpecialFunctionsExt
+   2264.5 ms  ✓ Cairo_jll
+   2058.2 ms  ✓ GLU_jll
+   3339.5 ms  ✓ HDF5_jll
+   3524.3 ms  ✓ FLTK_jll
+   6191.6 ms  ✓ ForwardDiff
+  11168.2 ms  ✓ FFTW
+   5212.3 ms  ✓ SparseMatrixColorings → SparseMatrixColoringsGPUArraysExt
+    979.1 ms  ✓ ForwardDiff → ForwardDiffStaticArraysExt
+   1182.0 ms  ✓ Interpolations → InterpolationsForwardDiffExt
+   6126.0 ms  ✓ SparseMatrixColorings → SparseMatrixColoringsCUDAExt
+   5807.2 ms  ✓ OCCT_jll
+   5912.2 ms  ✓ gmsh_jll
+   9190.1 ms  ✓ HDF5
+   2831.1 ms  ✓ Gmsh
+  39634.6 ms  ✓ Metal
+   3396.5 ms  ✓ Metal → SpecialFunctionsExt
+   3532.0 ms  ✓ Atomix → AtomixMetalExt
+  28080.0 ms  ✓ Kraken
+  121 dependencies successfully precompiled in 85 seconds. 110 already precompiled.
+Precompiling packages...
+   7083.3 ms  ✓ Kraken → KrakenCUDSSExt
+  1 dependency successfully precompiled in 8 seconds. 233 already precompiled.
+GPU: NVIDIA A100-SXM4-40GB CUDA 6.4.1 CUDSS 1.0.0 Kraken 0.5.0
+Test Summary:                                         | Pass  Total  Time
+FV adjoint kernel inference (CPU, not GPU validation) |   16     16  1.9s
+Test Summary:                      | Pass  Total  Time
+FV state checksum kernel inference |    2      2  0.1s
+Test Summary:                                 | Pass  Total  Time
+FV immersed and GNF residual kernel inference |   18     18  8.8s
+Test Summary:                                         | Pass  Total  Time
+M3 pair residual and direct Jacobian kernel inference |   37     37  6.4s
+Test Summary:                                           | Pass  Total  Time
+M3 augmented residual norm and state checksum inference |   12     12  0.1s
+Test Summary:                           | Pass  Total  Time
+M3 corrected cell flux kernel inference |    8      8  1.5s
+Test Summary:                                     | Pass  Total   Time
+C5 immersed Newton and both adjoints (GPU opt-in) |   22     22  37.3s
+N=256 mass=M1 unknowns=196608 nnz=3667898 colors=38 Newton=1.915917 s iterations=1 residual_inf=1.4068e-16
+N=256 mass=M1 first_factor=2.705870 s numeric_refactor=0.086362 s factor_retained=991952896 B system_retained=1159725056 B
+N=256 mass=M1 kind=residual_flux J=3.126777917066e-01 dJ_dnu=3.126777917067e+00 first=5.370086 s hot=0.017446 s device=0 B
+N=256 mass=M1 kind=surface J=3.126648987508e-01 dJ_dnu=3.126648987509e+00 first=0.173660 s hot=0.013244 s device=0 B
+N=256 mass=M1 hot_Newton_device=0 B free_device=37.960 GiB
+N=256 mass=M3 unknowns=196609 nnz=3669254 colors=38 Newton=0.078850 s iterations=1 residual_inf=1.7545e-16
+N=256 mass=M3 first_factor=2.241400 s numeric_refactor=0.071966 s factor_retained=991952896 B system_retained=1159725056 B
+N=256 mass=M3 kind=residual_flux J=3.126788248796e-01 dJ_dnu=3.126788248797e+00 first=0.093519 s hot=0.014691 s device=0 B
+N=256 mass=M3 kind=surface J=3.126658450985e-01 dJ_dnu=3.126658450986e+00 first=0.086380 s hot=0.011953 s device=0 B
+N=256 mass=M3 hot_Newton_device=0 B free_device=37.960 GiB
+N=512 mass=M1 unknowns=786432 nnz=14719514 colors=39 Newton=0.385530 s iterations=1 residual_inf=1.9433e-16
+N=512 mass=M1 first_factor=10.175464 s numeric_refactor=0.368357 s factor_retained=4320133120 B system_retained=4890558464 B
+N=512 mass=M1 kind=residual_flux J=3.126392294756e-01 dJ_dnu=3.126392294759e+00 first=0.420807 s hot=0.053284 s device=0 B
+N=512 mass=M1 kind=surface J=3.126345270110e-01 dJ_dnu=3.126345270113e+00 first=0.449744 s hot=0.041076 s device=0 B
+N=512 mass=M1 hot_Newton_device=0 B free_device=34.485 GiB
+N=512 mass=M3 unknowns=786433 nnz=14722222 colors=39 Newton=0.380649 s iterations=1 residual_inf=1.5654e-16
+N=512 mass=M3 first_factor=10.096945 s numeric_refactor=0.362457 s factor_retained=4292870144 B system_retained=4863295488 B
+N=512 mass=M3 kind=residual_flux J=3.126394429976e-01 dJ_dnu=3.126394429979e+00 first=0.409405 s hot=0.058113 s device=0 B
+N=512 mass=M3 kind=surface J=3.126347221335e-01 dJ_dnu=3.126347221338e+00 first=0.416017 s hot=0.044795 s device=0 B
+N=512 mass=M3 hot_Newton_device=0 B free_device=34.479 GiB
+DONE status=0

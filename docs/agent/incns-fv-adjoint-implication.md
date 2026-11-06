@@ -3,7 +3,7 @@ module: incns-fv-adjoint
 path: src/methods/inc_ns/fv_adjoint.jl
 owner_concern: steady-adjoint
 status: implemented
-last_verified: 2026-11-05
+last_verified: 2026-11-06
 depends_on:
   - incns-fv-newton
   - incns-fv-steady-residual
@@ -33,7 +33,16 @@ with the LBM GNF adjoint (`gnf_steady_gradient`, `gnf_steady_adjoint ->
   use `FVProblemMap(fv_with_gnf_parameters, length(fv_gnf_parameters(prob)))`.
   `fv_nparams`, `fv_param_problem`, `fv_set_params!(solver, map, θ)` (copies
   nu/bvel/src in place and replaces the viscosity model only with the same
-  concrete type; otherwise throws before writing solver arrays).
+  concrete type; otherwise throws before writing solver arrays). C5 preserves
+  `prob.immersed` too: cut fractions, wall velocities, surface data and M3 mass
+  data are copied only after the grid, cell tags, closure and topology checks.
+- C5 from `feat/fv-c5`: `FVShapeMap(builder, base_problem, nparams)` builds the
+  existing `FVProblemMap` protocol with frozen cell/cut/wall/M3 connectivity.
+  `FVWallForce(...; kind = :residual_flux|:surface, wall = 0)` and
+  `FVWallTorque(center; kind, region, wall)` distinguish the complete discrete
+  momentum flux (including convection) from physical-cut traction integrated
+  with analytic surface weights. The default force kind remains `:legacy`;
+  pressure overrides apply only to that kind.
 - Objectives (`FVObjective`): `FVStateObs` (½Σ w(v − t)², from indices or a
   `LineProfile`), `fv_obs_values`, `FVLinearFunctional` (+ `fv_flow_rate`,
   `fv_pressure_drop`), `FVWallForce(dir; region = :solid|:E|:W|:N|:S,
@@ -58,7 +67,11 @@ with the LBM GNF adjoint (`gnf_steady_gradient`, `gnf_steady_adjoint ->
 - C1 kernel `fv_cell_residual` through `fv_residual!` on Dual parameter
   arrays (`fv_steady_residual.jl`), `_fv_with`, `fv_index`, `LineProfile`.
 - C3 `prob.visc`, `_fv_wall_nu` and `fv_with_gnf_parameters`; wall forces use
-  the same one-sided normal and cell tangential gradients as the residual.
+  the residual's one-sided normal and cell tangential gradients on C1/domain
+  walls; C5 immersed walls use the shared cut-wall closure.
+- C5 immersed closure, surface reconstruction and mass compatibility helpers
+  (`fv_immersed*.jl`); force, torque and shape derivatives share the residual's
+  cut-wall data and include M3 mass unknowns where required.
 - ForwardDiff (tags `FVParamTag`, objective tag); its own distance-2
   ν colouring (`fv_nu_coloring`, 7 colours on a cavity, 8 on the
   masked channel).
@@ -69,7 +82,8 @@ Workspace buffers (λ, g, Dual residual, colour seeds, partials) and, through
 `fv_newton_finalize!`, `s.J`, `s.nzval`, `s.cache` (refactorized, symbolic
 analysis kept). `fv_set_params!` writes the solver problem's nu/bvel/src,
 updates a same-type viscosity model and invalidates the numerical factors.
-No globals.
+Immersed parameter updates also copy cut, wall, surface and M3 arrays after
+validation. No globals.
 
 ## Backend constraints
 
@@ -110,6 +124,14 @@ No globals.
   map is restricted to the objective support; a new objective with explicit
   ν dependence must declare its support correctly.
 
+- **C5 geometry and mass**: shape derivatives require frozen connectivity;
+  crossing a cell, cut-link, wall-identity or M3 body/region boundary is rejected.
+  The historical M1 closed-mass path retains 15 expected failures; M3 uses one
+  affine compatibility equation per solid-body/fluid-region pair. These are
+  separate from opt-in GPU skips. A physical-surface force or torque needs
+  analytic surface metadata; its quadrature does not exactly annihilate
+  constant stress on irregular cuts.
+
 ## Touch order
 
 1. `src/methods/inc_ns/fv_adjoint.jl` — maps, objectives, kernels, drivers.
@@ -123,3 +145,7 @@ No globals.
 5. `benchmarks/fv_c4/` — wall-closure study, A100 cost job.
 6. `test/analytical/incns_fv_adjoint_compiler.jl` — CPU inference guards,
    including GNF law-parameter residuals and adjoint kernels.
+7. `src/methods/inc_ns/fv_immersed_objectives.jl`,
+   `src/methods/inc_ns/fv_immersed_shape.jl`,
+   `test/analytical/incns_fv_immersed*.jl` — C5 force/torque, shape, M1/M3
+   contracts and opt-in GPU checks, ported from `feat/fv-c5`.

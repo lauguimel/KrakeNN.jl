@@ -178,8 +178,9 @@ _fv_param_buffers(::FVUniformSource, prob, ::Type{T}) where {T} =
 _fv_param_buffers(::FVProblemMap, prob, ::Type{T}) where {T} =
     _FVParamBuffers(nothing, nothing, nothing, nothing)
 
-_fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc) =
-    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc)
+_fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc,
+          immersed = p.immersed) =
+    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed)
 
 function _fv_check_nparams(m, prob, θ)
     length(θ) == fv_nparams(m, prob) ||
@@ -207,7 +208,20 @@ function _fv_param_problem!(B, m::FVUniformSource, prob, θ)
     view(B.src, m.comp:3:length(B.src)) .= θ[1]
     return _fv_with(prob; src = B.src)
 end
-_fv_param_problem!(B, m::FVProblemMap, prob, θ) = m.f(prob, θ)
+function _fv_param_problem!(B, m::FVProblemMap, prob, θ)
+    mapped = m.f(prob, θ)
+    mapped.grid == prob.grid || throw(ArgumentError("parameter map changed grid; build a new solver"))
+    (mapped.tag === prob.tag || Array(mapped.tag) == Array(prob.tag)) ||
+        throw(ArgumentError("parameter map changed cell tags; build a new solver"))
+    if prob.immersed !== nothing || mapped.immersed !== nothing
+        (prob.immersed !== nothing && mapped.immersed !== nothing) ||
+            throw(ArgumentError("parameter map changed immersed topology; build a new solver"))
+        prob.immersed.closure == mapped.immersed.closure ||
+            throw(ArgumentError("parameter map changed immersed closure; build a new solver"))
+        _fv_check_mass(_fv_mass(prob.immersed), _fv_mass(mapped.immersed))
+    end
+    return mapped
+end
 
 """
     fv_param_problem(map, prob, θ) -> FVSteadyProblem2D
@@ -231,9 +245,11 @@ when the map changes law parameters, so that the next
 [`fv_newton!`](@ref) solves the problem at `θ` with the SAME sparsity
 pattern, colouring and cuDSS symbolic analysis (an optimisation loop over `θ`
 never re-analyses). The map must keep the grid, cell tags, array types and
-shapes, and the exact viscosity-model type. A change of model type requires
-a new solver because the Jacobian pattern may change. These constraints are
-checked before any parameter arrays are overwritten.
+shapes, wall closure, and the exact viscosity-model type. A change of model
+type or immersed topology requires a new solver because the Jacobian pattern
+may change. These constraints are checked before any parameter arrays are
+overwritten. Cut fractions, wall velocities, surface data and mass coefficients
+are copied into the existing device arrays.
 """
 function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector)
     P = fv_param_problem(m, s.prob, Vector{Float64}(θ))
@@ -247,9 +263,27 @@ function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector
     size(P.nu) == size(s.prob.nu) && size(P.bvel) == size(s.prob.bvel) &&
         size(P.src) == size(s.prob.src) ||
         throw(DimensionMismatch("the parameter map must keep all parameter array shapes"))
+    if P.immersed !== nothing
+        old = s.prob.immersed; new = P.immersed
+        old.h == new.h && old.closure == new.closure ||
+            throw(ArgumentError("the parameter map must keep the immersed grid and closure"))
+        Array(old.tag) == Array(new.tag) ||
+            throw(ArgumentError("the parameter map changed immersed cell tags; build a new solver"))
+        size(old.qcut) == size(new.qcut) && size(old.wvel) == size(new.wvel) ||
+            throw(DimensionMismatch("the parameter map must keep immersed array shapes"))
+        _fv_check_surface(old.surface, new.surface)
+        _fv_check_mass(_fv_mass(old), _fv_mass(new))
+    end
     P.nu === s.prob.nu || copyto!(s.prob.nu, P.nu)
     P.bvel === s.prob.bvel || copyto!(s.prob.bvel, P.bvel)
     P.src === s.prob.src || copyto!(s.prob.src, P.src)
+    if P.immersed !== nothing
+        old = s.prob.immersed; new = P.immersed
+        old.qcut === new.qcut || copyto!(old.qcut, new.qcut)
+        old.wvel === new.wvel || copyto!(old.wvel, new.wvel)
+        _fv_copy_surface!(old.surface, new.surface)
+        _fv_copy_mass!(_fv_mass(old), _fv_mass(new))
+    end
     s.prob = _fv_with(s.prob; visc = P.visc)
     s.fac_sig = (NaN, NaN, NaN)         # factors no longer match the problem
     _fv_sync(s.R)
@@ -392,20 +426,33 @@ end
 """
     FVWallForce(dir; region = :solid, pressure = :cell)
 
+`kind=:residual_flux` explicitly selects the exact complete residual wall
+momentum flux, including convection; pressure overrides are rejected.
+`kind=:surface` selects physical-cut traction with analytic arc weights,
+requiring geometry built by `fv_immersed_boundary`. `wall=1,2,...` selects
+one circle (inner/outer for annuli); zero selects all. Surface geometry and
+wall data remain differentiable. Irregular midpoint arc quadrature does not
+annihilate constant stress exactly. The default `kind=:legacy` preserves
+the C4 convention below, excluding advection and permitting its pressure
+postprocessing override.
+
 Force (per unit depth) exerted by the fluid on walls, component `dir`
 (1 = x, e.g. the drag of an obstacle in an x-directed flow; 2 = y): the sum,
 over the wall faces of `region`, of the pressure and viscous momentum
-contributions — `h (p_f n − ν_w (∇u + ∇uᵀ)·n)`. The wall strain and viscosity
-match the residual: one-sided normal differences `(u_w − u_P)·2/h`, oriented
-along the coordinate axes, and the cell gradient tangentially. `ν_w` is the
-cell viscosity for a Newtonian problem or the GNF law evaluated at that wall
-strain. The advective contribution is excluded. The objective therefore
+contributions — `h (p_f n − ν_w (∇u + ∇uᵀ)·n)`, using the same wall-stress
+helper, viscosity model and immersed closure as the residual. On C1/domain
+walls the strain uses one-sided normal differences `(u_w − u_P)·2/h`, oriented
+along the coordinate axes, and the cell gradient tangentially; immersed L/Q
+walls use the ghost normal slope and tangential gradients extrapolated to the
+nominal face. `ν_w` is the cell viscosity (extrapolated for immersed L/Q) for a
+Newtonian problem or the GNF law evaluated at that wall strain. The advective
+contribution is excluded, preserving the C4 force convention. The objective
 depends explicitly on the viscosity law and on the wall velocities.
 `region = :solid` takes the faces between fluid cells and solid cells;
 `region = :E, :W, :N, :S` the wall/inlet faces of that domain side.
 
-`pressure = :cell` uses the residual's wall pressure `p_f = p_P` (the C1
-closure, first order in the wall cells when ν varies); `pressure = :linear`
+`pressure = :cell` uses the residual's wall pressure (`p_f = p_P` in C1);
+`pressure = :linear`
 extrapolates linearly from the two cells normal to the wall,
 `p_f = p_P + (p_P − p_PP)/2` (falls back to `p_P` when the second cell is
 not fluid). The second option is a post-processing choice of the objective
@@ -414,19 +461,28 @@ varies normally to the wall; `:cell` remains the default for compatibility
 with the residual's pressure closure. Both choices use the same wall strain
 and viscosity model.
 """
-struct FVWallForce <: FVObjective
+abstract type FVWallObjective <: FVObjective end
+
+struct FVWallForce <: FVWallObjective
     dir::Int
     region::Symbol
     pressure::Symbol
-    function FVWallForce(dir::Integer; region::Symbol = :solid, pressure::Symbol = :cell)
+    kind::Symbol
+    wall::Int
+    function FVWallForce(dir::Integer; region::Symbol = :solid, pressure::Symbol = :cell,
+                         kind::Symbol = :legacy, wall::Integer = 0)
         dir in (1, 2) || throw(ArgumentError("dir must be 1 (x) or 2 (y)"))
         region in (:solid, :E, :W, :N, :S) || throw(ArgumentError("region must be :solid, :E, :W, :N or :S"))
         pressure in (:cell, :linear) || throw(ArgumentError("pressure must be :cell or :linear"))
-        return new(Int(dir), region, pressure)
+        kind in (:legacy, :residual_flux, :surface) || throw(ArgumentError("unknown wall objective kind $kind"))
+        kind != :legacy && pressure != :cell && throw(ArgumentError("pressure override is only available for the legacy objective"))
+        kind == :surface && region != :solid && throw(ArgumentError("surface objectives require immersed solid walls"))
+        wall >= 0 || throw(ArgumentError("wall must be nonnegative (0 selects all walls)"))
+        return new(Int(dir), region, pressure, kind, Int(wall))
     end
 end
 
-fv_objective_explicit(::FVWallForce) = true
+fv_objective_explicit(::FVWallObjective) = true
 
 # is face d of fluid cell (i, j) a wall face of `region`?
 function _fv_wall_face(g, tag, i, j, d, region)
@@ -442,28 +498,57 @@ function _fv_wall_face(g, tag, i, j, d, region)
     end
 end
 
-# One shared face flux for objective values and local derivatives. Keeping ν_P
-# as an argument also permits a single local viscosity dual for the field map.
-@inline function _fv_wall_force_face(f::FVWallForce, U, prob, i, j, d, nuP = prob.nu[i, j])
+# Host-only local viscosity overrides. The shared stress helper reads P and,
+# for immersed L/Q faces, O; no full-grid dual viscosity array is needed.
+struct _FVWallViscosity{A,T} <: AbstractMatrix{T}
+    values::A
+    index::NTuple{2,Int}
+    local_values::NTuple{2,T}
+end
+Base.size(nu::_FVWallViscosity) = size(nu.values)
+@inline function Base.getindex(nu::_FVWallViscosity{A,T}, i::Int, j::Int) where {A,T}
+    k = i + (j - 1) * size(nu, 1)
+    return k == nu.index[1] ? nu.local_values[1] :
+           k == nu.index[2] ? nu.local_values[2] : T(nu.values[i, j])
+end
+
+@inline function _fv_wall_nu_cells(prob, i, j, d, qcut, closure)
+    g = prob.grid
+    p = i + (j - 1) * g.Nx
+    if _fv_immersed_face(g, qcut, i, j, d)
+        oi = i - (d == 1) + (d == 2)
+        oj = j - (d == 3) + (d == 4)
+        return p, oi + (oj - 1) * g.Nx
+    end
+    return p, 0
+end
+
+# One shared face flux for objective values and local derivatives. Preserve
+# the local nuP override and allow nuO to carry the second immersed derivative.
+@inline function _fv_wall_force_face(f::FVWallForce, U, prob, i, j, d,
+                                     qcut, wvel, closure, nuP = prob.nu[i, j], nuO = nothing)
+    f.kind == :surface && return _fv_surface_force_face(f, U, prob, i, j, d, nuP, nuO)
     g = prob.grid; tag = prob.tag; bvel = prob.bvel
     h = g.h
+    cells = _fv_wall_nu_cells(prob, i, j, d, qcut, closure)
+    opposite = nuO === nothing ? (cells[2] > 0 ? prob.nu[cells[2]] : nuP) : nuO
+    nu = _FVWallViscosity(prob.nu, cells, promote(nuP, opposite))
+    if f.kind == :residual_flux
+        gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
+        flux = _fv_wall_momentum_flux(U, tag, nu, bvel, g, i, j, d, prob.visc,
+                                      qcut, wvel, closure, gP, _fv_face_pair(prob.immersed))
+        T = promote_type(eltype(U), eltype(nu), eltype(bvel),
+                         _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+        return flux[f.dir] + zero(T)
+    end
     isx = d <= 2
     sx = (d == 1 || d == 3) ? 1 : -1
-    uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2); pP = _fv_val(U, g, i, j, 3)
-    gP = _fv_cell_grad(U, tag, bvel, g, i, j)
-    uw, vw = _fv_dirichlet_velocity(g, bvel, i, j, d)
-    dun = (uw - uP) * 2 / h
-    dvn = (vw - vP) * 2 / h
-    if isx
-        nuw = _fv_wall_nu(prob.visc, nuP, sx * dun, gP[2], sx * dvn, gP[4])
-        tx = 2 * nuw * dun
-        ty = nuw * (dvn + sx * gP[2])
-    else
-        nuw = _fv_wall_nu(prob.visc, nuP, gP[1], sx * dun, gP[3], sx * dvn)
-        tx = nuw * (dun + sx * gP[3])
-        ty = 2 * nuw * dvn
-    end
-    pf = pP
+    pP = _fv_val(U, g, i, j, 3)
+    gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
+    _, _, _, _, pf, _, _, dun, dvn =
+        _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
+    gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure)
+    tx, ty = _fv_wall_stress(nu, prob.visc, g, i, j, d, gF, dun, dvn, qcut, closure)
     if f.pressure === :linear
         # Second cell away from the wall; retain the C1 fallback at corners.
         dop = d == 1 ? 2 : d == 2 ? 1 : d == 3 ? 4 : 3
@@ -475,14 +560,16 @@ end
     force = f.dir == 1 ? -h * tx + (isx ? h * sx * pf : zero(pf)) :
                          -h * ty + (isx ? zero(pf) : h * sx * pf)
     # GNF ignores the cell viscosity, but its zero derivative must retain
-    # the local dual type when only nuP was seeded. Conversion also preserves
+    # the local dual type when only viscosity was seeded. Conversion preserves
     # the signed zero of the Newtonian force.
-    T = promote_type(eltype(U), typeof(nuP), eltype(bvel), _fv_visc_eltype(prob.visc))
+    T = promote_type(eltype(U), eltype(nu), eltype(bvel),
+                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
     return convert(T, force)
 end
 
-function _fv_wall_faces(f::FVWallForce, prob)
+function _fv_wall_faces(f::FVWallObjective, prob)
     g = prob.grid; tag = prob.tag
+    (f.kind == :surface || f.wall > 0) && _fv_surface_data(prob)
     faces = NTuple{3,Int}[]
     # A domain-side objective only reads that side; solid faces can be anywhere.
     ir = f.region === :E ? (g.Nx:g.Nx) : f.region === :W ? (1:1) : (1:g.Nx)
@@ -490,36 +577,51 @@ function _fv_wall_faces(f::FVWallForce, prob)
     for j in jr, i in ir
         tag[i, j] == FV_CELL_SOLID && continue
         for d in 1:4
-            _fv_wall_face(g, tag, i, j, d, f.region) && push!(faces, (i, j, d))
+            _fv_wall_face(g, tag, i, j, d, f.region) || continue
+            if f.kind == :surface || f.wall > 0
+                _fv_surface_data(prob).wall[d, i, j] > 0 || continue
+                f.wall > 0 && _fv_surface_data(prob).wall[d, i, j] != f.wall && continue
+            end
+            push!(faces, (i, j, d))
         end
     end
     return faces
 end
 
 function _fv_wall_force_sum(f, U, prob, faces)
-    T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel), _fv_visc_eltype(prob.visc))
+    T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel),
+                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
     F = zero(T)
+    qcut, wvel, closure = _fv_immersed_args(prob.immersed)
     for (i, j, d) in faces
-        F += _fv_wall_force_face(f, U, prob, i, j, d)
+        F += _fv_wall_force_face(f, U, prob, i, j, d, qcut, wvel, closure)
     end
     return F
 end
 
-fv_objective(f::FVWallForce, U, prob) = _fv_wall_force_sum(f, U, prob, _fv_wall_faces(f, prob))
+fv_objective(f::FVWallObjective, U, prob) = _fv_wall_force_sum(f, U, prob, _fv_wall_faces(f, prob))
 
-function fv_objective_support(f::FVWallForce, prob)
+function fv_objective_support(f::FVWallObjective, prob)
     g = prob.grid; tag = Array(prob.tag)
-    cells = Set{Tuple{Int,Int}}()
+    cells = Set{Int}()
     for j in 1:g.Ny, i in 1:g.Nx
         tag[i, j] == FV_CELL_SOLID && continue
         any(_fv_wall_face(g, tag, i, j, d, f.region) for d in 1:4) || continue
-        push!(cells, (i, j))
-        for d in 1:4
-            kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
-            kind == _FV_F_INT && push!(cells, (ii, jj))
+        # Share the local differentiation support, including tangential
+        # neighbours of O for the immersed nominal-face stress.
+        for c in _fv_wall_state_cells(prob, i, j, tag)
+            c > 0 && push!(cells, c)
         end
     end
-    return sort!([fv_index(g, c[1], c[2], comp) for c in cells for comp in 1:3])
+    support = [3 * (c - 1) + comp for c in cells for comp in 1:3]
+    if f.kind == :residual_flux && _fv_mass(prob.immersed) !== nothing
+        face_pair = prob.immersed.mass.face_pair
+        for (i,j,d) in _fv_wall_faces(f, prob)
+            k = face_pair[d,i,j]
+            k > 0 && push!(support, fv_nunknowns(g)+k)
+        end
+    end
+    return sort!(unique!(support))
 end
 
 # ∂𝒥/∂U on the host: forward duals seeded on the support only, `chunk` at a time
@@ -527,37 +629,63 @@ struct _FVObjTag end
 
 # Host-only lazy state duals: one fixed stencil, never a full-grid dual vector.
 # Repeated periodic neighbours are removed before seeding and scattering.
-struct _FVWallState{A} <: AbstractVector{ForwardDiff.Dual{_FVObjTag,Float64,15}}
+struct _FVWallState{A,N} <: AbstractVector{ForwardDiff.Dual{_FVObjTag,Float64,N}}
     values::A
-    index::NTuple{15,Int}
+    index::NTuple{N,Int}
 end
 Base.size(U::_FVWallState) = size(U.values)
-@inline function Base.getindex(U::_FVWallState, k::Int)
+@inline function Base.getindex(U::_FVWallState{A,N}, k::Int) where {A,N}
     return ForwardDiff.Dual{_FVObjTag}(U.values[k],
-        ForwardDiff.Partials(ntuple(s -> U.index[s] == k ? 1.0 : 0.0, Val(15))))
+        ForwardDiff.Partials(ntuple(s -> U.index[s] == k ? 1.0 : 0.0, Val(N))))
 end
 
-function _fv_wall_state(U, prob, i, j)
+function _fv_wall_state_cells(prob, i, j, tag = prob.tag)
     g = prob.grid
-    raw = ntuple(Val(5)) do k
+    if prob.immersed !== nothing && prob.immersed.closure.ghost != 0
+        # P, its axial neighbours and all four diagonals cover gP and the
+        # tangential parts of gO. Keep solid/out-of-domain slots unseeded.
+        return ntuple(Val(9)) do k
+            ii, jj = i + mod1(k, 3) - 2, j + (k - 1) ÷ 3 - 1
+            if ii < 1 || ii > g.Nx
+                _fv_side_bc(g, ii < 1 ? 2 : 1) == FV_BC_PERIODIC || return 0
+                ii = mod1(ii, g.Nx)
+            end
+            if jj < 1 || jj > g.Ny
+                _fv_side_bc(g, jj < 1 ? 4 : 3) == FV_BC_PERIODIC || return 0
+                jj = mod1(jj, g.Ny)
+            end
+            return tag[ii, jj] == FV_CELL_SOLID ? 0 : ii + (jj - 1) * g.Nx
+        end
+    end
+    return ntuple(Val(5)) do k
         k == 1 && return i + (j - 1) * g.Nx
-        kind, ii, jj = _fv_face_kind(g, prob.tag, i, j, k - 1)
+        kind, ii, jj = _fv_face_kind(g, tag, i, j, k - 1)
         return kind == _FV_F_INT ? ii + (jj - 1) * g.Nx : 0
     end
-    cells = ntuple(k -> any(l -> raw[l] == raw[k], 1:(k - 1)) ? 0 : raw[k], Val(5))
-    indices = ntuple(k -> 3 * (cells[(k - 1) ÷ 3 + 1] - 1) + mod1(k, 3), Val(15))
+end
+
+function _fv_wall_state(U, prob, i, j, d=0)
+    raw = _fv_wall_state_cells(prob, i, j)
+    cells = ntuple(k -> any(l -> raw[l] == raw[k], 1:(k - 1)) ? 0 : raw[k], length(raw))
+    indices = ntuple(k -> 3 * (cells[(k - 1) ÷ 3 + 1] - 1) + mod1(k, 3), 3 * length(raw))
+    face_pair = _fv_face_pair(prob.immersed)
+    if face_pair !== nothing && d > 0
+        k = face_pair[d,i,j]
+        k > 0 && return _FVWallState(U, (indices..., fv_nunknowns(prob.grid)+k))
+    end
     return _FVWallState(U, indices)
 end
 
-function _fv_objective_grad_u(obj::FVWallForce, Uh::Vector{Float64}, hprob; chunk::Int = 8)
+function _fv_objective_grad_u(obj::FVWallObjective, Uh::Vector{Float64}, hprob; chunk::Int = 8)
     gU = zeros(Float64, length(Uh))
     J = 0.0
+    qcut, wvel, closure = _fv_immersed_args(hprob.immersed)
     for (i, j, d) in _fv_wall_faces(obj, hprob)
-        Ud = _fv_wall_state(Uh, hprob, i, j)
-        v = _fv_wall_force_face(obj, Ud, hprob, i, j, d)
+        Ud = _fv_wall_state(Uh, hprob, i, j, d)
+        v = _fv_wall_force_face(obj, Ud, hprob, i, j, d, qcut, wvel, closure)
         J += ForwardDiff.value(v)
         pd = ForwardDiff.partials(v)
-        for k in 1:15
+        for k in eachindex(Ud.index)
             q = Ud.index[k]
             q > 0 && (gU[q] += pd[k])
         end
@@ -611,7 +739,7 @@ function _fv_objective_grad_theta(obj::FVObjective, ::FVViscosityField, Uh, hpro
     g = hprob.grid
     gθ = zeros(Float64, g.Nx * g.Ny)
     fv_objective_explicit(obj) || return gθ
-    cells = unique!([(k - 1) ÷ 3 + 1 for k in fv_objective_support(obj, hprob)])
+    cells = unique!([(k - 1) ÷ 3 + 1 for k in fv_objective_support(obj, hprob) if k <= fv_nunknowns(g)])
     D = ForwardDiff.Dual{_FVObjTag,Float64,chunk}
     zp = ForwardDiff.Partials(ntuple(_ -> 0.0, Val(chunk)))
     nud = D[D(x, zp) for x in hprob.nu]
@@ -632,25 +760,34 @@ function _fv_objective_grad_theta(obj::FVObjective, ::FVViscosityField, Uh, hpro
     return gθ
 end
 
-# A face force reads just its own cell viscosity. One local dual per face
-# replaces support-sized chunks of full-grid dual fields and objective scans.
+# Two local duals per face cover P and the opposite fluid cell O of immersed
+# L/Q. A uniform parameter seeds both; its derivative is the sum of the two.
 function _fv_wall_nu_gradient(obj, m, Uh, hprob, θ)
     gθ = zeros(Float64, fv_nparams(m, hprob))
+    qcut, wvel, closure = _fv_immersed_args(hprob.immersed)
     for (i, j, d) in _fv_wall_faces(obj, hprob)
-        ν = m isa FVUniformViscosity ? θ[1] : hprob.nu[i, j]
-        νd = ForwardDiff.Dual{_FVObjTag}(ν, 1.0)
-        v = _fv_wall_force_face(obj, Uh, hprob, i, j, d, νd)
-        q = m isa FVViscosityField ? i + (j - 1) * hprob.grid.Nx : 1
-        gθ[q] += ForwardDiff.partials(v)[1]
+        p, o = _fv_wall_nu_cells(hprob, i, j, d, qcut, closure)
+        νP = m isa FVUniformViscosity ? θ[1] : hprob.nu[p]
+        νO = m isa FVUniformViscosity ? θ[1] : o > 0 ? hprob.nu[o] : νP
+        νPd = ForwardDiff.Dual{_FVObjTag}(νP, 1.0, 0.0)
+        νOd = ForwardDiff.Dual{_FVObjTag}(νO, 0.0, 1.0)
+        v = _fv_wall_force_face(obj, Uh, hprob, i, j, d, qcut, wvel, closure, νPd, νOd)
+        pd = ForwardDiff.partials(v)
+        if m isa FVViscosityField
+            gθ[p] += pd[1]
+            o > 0 && (gθ[o] += pd[2])
+        else
+            gθ[1] += pd[1] + pd[2]
+        end
     end
     return gθ
 end
 
-_fv_objective_grad_theta(obj::FVWallForce, m::FVViscosityField, Uh, hprob, θ; chunk::Int = 8) =
+_fv_objective_grad_theta(obj::FVWallObjective, m::FVViscosityField, Uh, hprob, θ; chunk::Int = 8) =
     _fv_wall_nu_gradient(obj, m, Uh, hprob, θ)
-_fv_objective_grad_theta(obj::FVWallForce, m::FVUniformViscosity, Uh, hprob, θ; chunk::Int = 8) =
+_fv_objective_grad_theta(obj::FVWallObjective, m::FVUniformViscosity, Uh, hprob, θ; chunk::Int = 8) =
     _fv_wall_nu_gradient(obj, m, Uh, hprob, θ)
-_fv_objective_grad_theta(::FVWallForce, ::FVUniformSource, Uh, hprob, θ; chunk::Int = 8) = zeros(1)
+_fv_objective_grad_theta(::FVWallObjective, ::FVUniformSource, Uh, hprob, θ; chunk::Int = 8) = zeros(1)
 
 # ------------------------------------------------------------------ workspace
 """
@@ -682,7 +819,9 @@ end
 
 Column colouring of `∂R/∂ν` (rows grouped by cell): the viscosity of fluid
 cell `c` enters the three rows of `c` and of its interior face neighbours;
-two cells of one colour share no such row. CPU, once per geometry.
+two cells of one colour share no such row. Immersed extrapolation reads the
+opposite fluid cell, already among these neighbours, so the colouring and
+the gather below retain the same support. CPU, once per geometry.
 """
 function fv_nu_coloring(prob::FVSteadyProblem2D)
     g = prob.grid; tag = Array(prob.tag)

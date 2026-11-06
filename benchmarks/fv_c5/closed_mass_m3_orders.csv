@@ -1,0 +1,13 @@
+case,Na,Nb,metric,order
+couette,24,40,velocity_error,1.9598197817379297
+couette,24,40,velocity_rms,1.8883388609072884
+couette,40,48,velocity_error,2.2535837832208387
+couette,40,48,velocity_rms,2.0466323359883667
+mms,24,40,velocity_error,2.8201953334754286
+mms,24,40,velocity_rms,2.888265099623473
+mms,40,48,velocity_error,1.8475232571324278
+mms,40,48,velocity_rms,2.910497394187953
+couette,24,48,velocity_error,2.0370898213233444
+couette,24,48,velocity_rms,1.9299754910726066
+mms,24,48,velocity_error,2.5643491118034247
+mms,24,48,velocity_rms,2.8941129580145635

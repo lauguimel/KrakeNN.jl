@@ -127,9 +127,14 @@ include("methods/inc_ns/manifold_flow.jl")
 include("methods/scalar_transport/thermal_transport.jl")
 include("methods/inc_ns/method.jl")   # platform-contract wrapper (IncNS <: AbstractMethod)
 include("methods/inc_ns/fv_steady_residual.jl")   # C1: steady FV residual (KA kernel, generic eltype)
+include("methods/inc_ns/fv_immersed.jl")   # C5: analytic cut geometry and ghost-wall closures
+include("methods/inc_ns/fv_immersed_surface.jl") # C5: local physical-cut reconstruction
+include("methods/inc_ns/fv_immersed_mass.jl") # C5: augmented body/region mass constraints
 include("methods/inc_ns/fv_newton.jl")   # C2: coloured dual Jacobian + Newton on the seam
 include("methods/inc_ns/fv_gnf.jl")   # C3: generalised-Newtonian face viscosity + its Jacobian pattern
 include("methods/inc_ns/fv_adjoint.jl")   # C4: steady discrete adjoint on the Newton factors
+include("methods/inc_ns/fv_immersed_objectives.jl") # C5: residual and physical-cut force/torque
+include("methods/inc_ns/fv_immersed_shape.jl") # C5: fixed-topology shape parameter maps
 
 # IncNS platform contract
 export IncNS, IncNSSolution
@@ -139,6 +144,8 @@ export FVGrid2D, FVSteadyProblem2D, fv_steady_problem, fv_residual!, fv_residual
        fv_index, fv_nunknowns,
        FV_BC_WALL, FV_BC_INLET, FV_BC_OUTLET, FV_BC_PERIODIC,
        FV_CELL_FLUID, FV_CELL_SOLID, FV_CELL_PINNED
+export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,
+       fv_immersed_circle, fv_immersed_annulus
 # Coloured dual Jacobian + Newton on the steady FV residual (C2)
 export fv_jacobian_pattern, fv_jacobian_coloring, FVJacobianTag, FVJacobianAssembler,
        fv_jacobian_assembler, fv_assemble_jacobian!, fv_jacobian_chunk,
@@ -149,8 +156,8 @@ export FVNewtonianViscosity, FVGNFViscosity, fv_gnf_parameters, fv_gnf_parameter
        fv_with_gnf_parameters
 # Steady discrete adjoint on the FV Newton solver (C4)
 export FVParamTag, FVParameterMap, FVUniformViscosity, FVViscosityField, FVSideVelocity,
-       FVUniformSource, FVProblemMap, fv_nparams, fv_param_problem, fv_set_params!,
-       FVObjective, FVStateObs, FVLinearFunctional, FVWallForce, fv_objective,
+       FVUniformSource, FVProblemMap, FVShapeMap, fv_nparams, fv_param_problem, fv_set_params!,
+       FVObjective, FVStateObs, FVLinearFunctional, FVWallForce, FVWallTorque, fv_objective,
        fv_objective_support, fv_objective_explicit, fv_obs_values, fv_flow_rate,
        fv_pressure_drop, FVAdjointWorkspace, fv_adjoint_workspace, fv_nu_coloring,
        fv_steady_adjoint, fv_steady_gradient, fv_steady_tangent

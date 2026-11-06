@@ -1,0 +1,29 @@
+#!/bin/bash -l
+#PBS -N kraken_c5_immersed
+#PBS -l select=1:ncpus=8:ngpus=1:mem=32GB:gpu_id=A100:host=gpu0n009
+#PBS -l walltime=02:00:00
+#PBS -j oe
+
+# Prepared only. Run setup_c5.sh on the login node before submission.
+# Layout: ~/kraken_c5/{src_c5,env,depot,logs}.
+# Submission from ~/kraken_c5: qsub src_c5/benchmarks/fv_c5/c5_gpu.pbs
+set -o pipefail
+WORKDIR=${WORKDIR:-$HOME/kraken_c5}
+cd "$WORKDIR" || exit 2
+LOGDIR=$WORKDIR/logs
+mkdir -p "$LOGDIR"
+TAG=${PBS_JOBID%%.*}
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || exit 1
+export PATH=$HOME/.juliaup/bin:$PATH
+export JULIA_DEPOT_PATH=$WORKDIR/depot
+export JULIA_CUDA_USE_COMPAT=false
+export JULIA_PKG_OFFLINE=true
+export JULIA_PKG_PRECOMPILE_AUTO=0
+export JULIA_NUM_THREADS=${NCPUS:-8}
+nvidia-smi --query-gpu=timestamp,memory.used --format=csv,noheader -l 2 > "$LOGDIR/c5_nvsmi_$TAG.csv" &
+SMI=$!
+trap 'kill "$SMI" 2>/dev/null || true' EXIT
+KRAKEN_REQUIRE_GPU=1 julia --startup-file=no --project=env src_c5/benchmarks/fv_c5/c5_gpu.jl 2>&1 | tee "$LOGDIR/c5_gpu_$TAG.txt"
+STATUS=${PIPESTATUS[0]}
+echo "C5 status=$STATUS"
+exit "$STATUS"
