@@ -3,7 +3,7 @@ module: incns-fv-steady-residual
 path: src/methods/inc_ns/fv_steady_residual.jl
 owner_concern: steady-residual
 status: implemented
-last_verified: 2026-11-04
+last_verified: 2026-11-05
 depends_on:
   - incns-platform
   - platform
@@ -25,19 +25,23 @@ reproduces the J0 prototype (`benchmarks/fv_newton_j0/FVJ0.jl` on
 - `FVGrid2D{T}` (isbits, passed by value to the kernel): `Nx, Ny, h, conv`
   (1 = NS, 0 = Stokes) and side codes `bcE, bcW, bcN, bcS` ∈
   `FV_BC_WALL | FV_BC_INLET | FV_BC_OUTLET | FV_BC_PERIODIC`.
-- `FVSteadyProblem2D(grid, tag, nu, bvel, src)`: `tag::Matrix{UInt8}` (`Nx×Ny`,
+- `FVSteadyProblem2D(grid, tag, nu, bvel, src[, visc])`: `tag::Matrix{UInt8}` (`Nx×Ny`,
   `FV_CELL_FLUID | FV_CELL_SOLID | FV_CELL_PINNED`), `nu` (`Nx×Ny` cell
   kinematic viscosity), `bvel` (`2×max(Nx,Ny)×4`, (u,v) of each boundary face,
   side order E, W, N, S, read on wall/inlet sides), `src` (`3NxNy`, sources in
   unknown ordering: momentum rows subtract `h²s`, continuity `h²s_mass`). Each
   array may have its own eltype (Dual parameter arrays are legal: C4 path).
+  `visc` is the viscosity model: `FVNewtonianViscosity()` (default, the
+  5-argument constructor; reads `nu`) or `FVGNFViscosity(law, eps)` (C3, map
+  `incns-fv-gnf-implication.md`; `nu` is then not read). Code that rebuilds a
+  problem from its fields must pass `p.visc` on, or the GNF law is dropped.
 - `fv_residual!(R, U, prob; workgroup = 64, sync = true)` — the hot path;
   `fv_residual(U, prob)` allocating (promoted eltype).
-- `fv_cell_residual(U, tag, nu, bvel, src, grid, i, j) -> (Ru, Rv, Rc)` — the
+- `fv_cell_residual(U, tag, nu, bvel, src, grid, i, j[, visc]) -> (Ru, Rv, Rc)` — the
   per-cell function the kernel calls (for a C2 kernel that fuses seeding /
   decompression around it).
 - Setup (CPU, once): `fv_steady_problem(Nx, Ny; h, nu, bc, boundary_velocity,
-  solid, source, conv, T)`, `fv_pressure_pins!(tag, grid)`, `fv_adapt(to, prob)`,
+  solid, source, conv, T, rheology, gnf_eps)`, `fv_pressure_pins!(tag, grid)`, `fv_adapt(to, prob)`,
   `fv_state(prob, u, v, p)`, `fv_fields(prob, U)`, `fv_index(grid, i, j, comp)`,
   `fv_nunknowns`.
 - Platform: `residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U[, p])`;
@@ -69,6 +73,10 @@ the pin marks of a host `tag` in place.
 - Branches depend only on integers (tags, side codes), never on values: the
   upwind switch is `abs`-based. Keeps duals exact through every branch (H6')
   and keeps the kernel traceable by global sparsity detectors (C2 pattern).
+- Viscosity hooks `_fv_face_nu(visc, nuP, nuN, ux, uy, vx, vy)` and
+  `_fv_wall_nu(visc, nuP, ux, uy, vx, vy)`: the face velocity gradient is
+  computed for every model (dead code for the Newtonian one, whose result is
+  unchanged bit for bit).
 - Dependency support of a cell row: cells within the 5×5 box around it (the
   Rhie–Chow mean-gradient term reaches p_{i±2}, cross terms reach diagonals).
   The test helper `test/analytical/fv_steady_helpers.jl` colours by

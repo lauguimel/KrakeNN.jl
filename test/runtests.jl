@@ -116,6 +116,12 @@ function run_incns_testset()
         # (~15 s CPU), and its opt-in GPU/cuDSS contract
         include("analytical/incns_fv_newton.jl")
         include("analytical/incns_fv_newton_gpu.jl")
+        # C3 GNF viscosity in that residual: exact-stencil pattern, Jacobian
+        # through nu(U) vs dense ForwardDiff, power-law Poiseuille, n = 1 vs
+        # Newtonian, CY obstacle channel vs the LBM GNF driver (~50 s CPU),
+        # and its opt-in GPU/cuDSS contract
+        include("analytical/incns_fv_gnf.jl")
+        include("analytical/incns_fv_gnf_gpu.jl")
         include("analytical/scalar_transport_heated_channel.jl")
         include("analytical/scalar_transport_advection_order.jl")
 

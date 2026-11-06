@@ -57,6 +57,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   (symbolic analysis 10 s once, refactorization 0.43 s); 1024², Re = 100 in 5
   iterations and 56 s, Re = 1000 in 11 iterations and 69 s (analysis 44 s once,
   refactorization 2.3 s, 22 GiB with the factors resident).
+- `benchmarks/validation/gnf_calibration/`: a calibration script that fits the
+  three Carreau parameters (`a = 2` fixed) to synthetic steady velocity fields
+  on the periodic obstacle channel using `gnf_steady_gradient` and a small BFGS
+  minimiser (five fixed starts, ten fixed noise seeds at 0.1, 1 and 5 %), and a
+  cost bench that times one forward solve, one adjoint gradient and the `2p`
+  forward solves of a finite-difference gradient on four grids.
+  `run_gnf_adjoint_gpu.jl` takes the test point, grid and finite-difference
+  step sweep as options. CPU smoke runs pass; GPU results are not yet
+  produced (#124).
+- Generalised-Newtonian viscosity in the steady FV residual and its Newton
+  solver (step C3 of the FV Newton roadmap):
+  `fv_steady_problem(...; rheology = law, gnf_eps = ε)` with the existing
+  `PowerLaw`, `CarreauYasuda`, `Cross`, `Bingham`, `HerschelBulkley` and
+  `Newtonian` laws (kinematic units, the same law objects and the same
+  `gnf_viscosity` evaluation as the LBM GNF drivers). The face viscosity is the
+  law at the face strain rate `γ̇_ε = √(2 S:S + ε²)` (full strain-rate tensor;
+  `ε > 0` is a change of model, required except for Carreau–Yasuda with
+  `a ≥ 2`). The Jacobian includes `∂ν/∂U` because the residual kernel computes
+  ν itself; its sparsity pattern is derived from the exact stencil of the face
+  strain rate (3 × 3 cell block, 27 entries per interior row instead of 23).
+  `fv_gnf_parameters` / `fv_with_gnf_parameters` expose the law parameters as
+  a vector that may hold duals (for the coming adjoint). A `PowerLaw` with finite
+  clamp bounds (zero derivative where active, Newton may stall) triggers one `@warn`. Checked on CPU: the
+  assembled Jacobian equals the dense ForwardDiff Jacobian bit for bit for five
+  laws on four configurations; power-law Poiseuille (n = 0.5 and 1.5) within
+  1.3 % of the regularised 1D reference at 16 cells across and second order
+  under refinement, tending to the analytical power-law profile as ε → 0;
+  quadratic Newton convergence from rest (5–7 iterations); n = 1 gives the
+  Newtonian residual bit for bit; on the Carreau–Yasuda obstacle channel of
+  the LBM GNF adjoint tests, FV and LBM velocities differ by 16.7 %, 5.0 % and
+  1.6 % (relative L2) at 4, 8 and 16 cells per unit length. The PowerLaw
+  `nu_min`/`nu_max` clamp is applied as written and stalls Newton where
+  active. FV viscosity-type promotion now uses the law's numeric field types
+  (excluding `thermal`), keeping the residual accumulators concrete for scalar
+  and ForwardDiff dual states. CPU inference guards cover all six law types,
+  mixed law/regularisation precisions and dual law parameters. On an A100
+  (Aqua job 27701869) the GPU tests pass (CPU/GPU parity of the GNF residual,
+  Jacobian and dual-law residual; Newton on cuDSS against the CPU history;
+  0 device bytes in the hot loop). Power-law cavity n = 0.5 from rest: 256² in
+  13 iterations and 3.3 s, 512² in 32 iterations and 20.3 s, 1024² in 22
+  iterations and 83 s (first factorization 31.6 s, refactorization 2.4 s,
+  23 GiB with the factors resident).
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
@@ -69,6 +111,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   (no cuDSS transposed solve) (#104).
 - The EHD direct Poisson GPU solve writes into a preallocated device buffer
   (`EhdPoissonSetupGPU.sol`) instead of allocating a vector each step (#104).
+- The GNF adjoint documentation now states that the GPU check ran the
+  bordered-GMRES solver (`:gmres`), not the `:kstep` default of
+  `gnf_steady_gradient` (#124).
 
 ### Fixed
 - Parabolic inlets now deliver the nominal flow rate between half-way walls. The
@@ -107,6 +152,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   coupling). An isothermal `.krk` run that sets `E_a`, `C1`, `C2` or `T_ref` now
   warns that they are ignored. The FENE-P docstring states which Peterlin
   function each kernel set uses (#108, #120).
+- Viscoelastic cylinder runs with a small solvent fraction (`beta <= 0.1`) no
+  longer diverge within a few hundred steps. The x second derivative of the
+  both-sides-diffusion correction is now zero at the first or last column of an
+  open x end; the one-sided stencil used there had the wrong sign on the
+  period-2 mode of the outlet corner cells and anti-damped it. Wall-x and
+  periodic-x stencils are unchanged and results at `beta = 0.59` are unchanged
+  to within 1e-5. Runs at `beta <= 0.1` now complete (cylinder R = 50, Wi = 1,
+  300 000 steps, A100), but no grid study exists for them and their `Cd` values
+  are not validated (#121).
+- The 3D FVFD Oldroyd-B channel (`run_viscoelastic_fvfd_poiseuille_3d`) no
+  longer develops a growing wall-normal checkerboard mode that made `tau_yy`
+  grow from zero until the run crashed after a few thousand steps.
+  `fvfd_velocity_gradient_3d!` has a new keyword `wall_normal_noslip` (default
+  `false`, unchanged); the channel driver sets it, which imposes `u_y = 0` at
+  the half-way wall in the wall-row `du_y/dy`. In a 4000-step test run
+  `max|tau_yy|/max|tau_xy|` falls from 1.4e2 to 1.3e-12 and the velocity errors
+  are unchanged (#116, #122).
 
 ## [0.6.0] — 2026-11-04
 

@@ -1,0 +1,46 @@
+#!/bin/bash -l
+#PBS -N kraken_c3_gnf
+#PBS -l select=1:ncpus=8:ngpus=1:mem=32GB:gpu_id=A100:host=gpu0n009
+#PBS -l walltime=02:00:00
+#PBS -j oe
+
+# C3 (GNF viscosity in the FV residual + Newton on cuDSS) GPU validation. WORKDIR
+# (default ~/kraken_c3) is prepared on the login node by setup_c3.sh (Pkg
+# instantiate + precompile there, private depot):
+#   src_c3 = feat/fv-c3 (git archive),  env = Kraken dev'd by path + CUDA.jl 6 +
+#   CUDSS.jl 1 + ForwardDiff + KernelAbstractions + Test,  depot = private.
+# The job runs Pkg offline: C3 test files with KRAKEN_REQUIRE_GPU=1, then the
+# GNF Newton benchmark (power-law cavity 256²/512²/1024², CY obstacle channel).
+# nvidia-smi samples the device memory every 2 s into logs/ (peak memory).
+# The host is pinned: gpu0n001 fails cuInit. The project code is passed on the
+# qsub command line only:  qsub -P <RPID> c3_gpu.pbs
+
+WORKDIR=${WORKDIR:-$HOME/kraken_c3}
+cd "$WORKDIR" || exit 2
+LOGDIR=$WORKDIR/logs
+mkdir -p "$LOGDIR"
+TAG=${PBS_JOBID%%.*}
+
+echo "========================================"
+echo "Job: $PBS_JOBID   Node: $(hostname)   Start: $(date)"
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || { echo "ERROR: no GPU"; exit 1; }
+echo "========================================"
+
+export PATH=$HOME/.juliaup/bin:$PATH
+export JULIA_DEPOT_PATH=$WORKDIR/depot
+export JULIA_CUDA_USE_COMPAT=false
+export JULIA_PKG_OFFLINE=true
+export JULIA_PKG_PRECOMPILE_AUTO=0
+export JULIA_NUM_THREADS=${NCPUS:-8}
+
+nvidia-smi --query-gpu=timestamp,memory.used --format=csv,noheader -l 2 > "$LOGDIR/c3_nvsmi_$TAG.csv" &
+SMI=$!
+KRAKEN_REQUIRE_GPU=1 julia --project=env src_c3/benchmarks/fv_c3/c3_gpu.jl 2>&1 | tee "$LOGDIR/c3_gpu_$TAG.txt"
+STATUS=${PIPESTATUS[0]}
+kill $SMI 2>/dev/null
+echo "peak device memory used (nvidia-smi, MiB): $(sort -t, -k2 -n "$LOGDIR/c3_nvsmi_$TAG.csv" | tail -1)"
+
+echo "========================================"
+echo "End: $(date)  status=$STATUS"
+echo "========================================"
+exit $STATUS
