@@ -1,0 +1,980 @@
+CUDA.functional() = true
+Precompiling packages...
+  39107.0 ms  ✓ Kraken
+  1 dependency successfully precompiled in 55 seconds. 230 already precompiled.
+Precompiling packages...
+  24721.9 ms  ✓ Kraken → KrakenCUDSSExt
+  1 dependency successfully precompiled in 26 seconds. 233 already precompiled.
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0  threads 8
+
+--- C4 test files ---
+
+--- incns_fv_adjoint.jl ---
+┌ Info: C4 adjoint error levels (max over cases)
+│   fd_best_step_rel = 9.04555824857512e-9
+│   tangent_rel = 1.5922052989326826e-15
+└   param_cotangent_vs_dense_rel = 1.2345836590322297e-15
+
+--- incns_fv_adjoint_gpu.jl ---
+CPU/GPU gradient parity: lid drag: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:82
+  Got exception outside of a @test
+  InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+  Reason: unsupported dynamic function invocation (call to getindex)
+  Stacktrace:
+   [1] #gpu__fv_lambda_dot_kernel!##2
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [2] macro expansion
+     @ ./ntuple.jl:74
+   [3] ntuple
+     @ ./ntuple.jl:71
+   [4] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [5] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [6] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to +)
+  Stacktrace:
+   [1] #gpu__fv_lambda_dot_kernel!##2
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [2] macro expansion
+     @ ./ntuple.jl:74
+   [3] ntuple
+     @ ./ntuple.jl:71
+   [4] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [5] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [6] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported allocation of an object with references (Core.Box)
+  Stacktrace:
+   [1] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported call to an unknown function (call to jl_f_tuple)
+  Stacktrace:
+   [1] macro expansion
+     @ ./ntuple.jl:74
+   [2] ntuple
+     @ ./ntuple.jl:71
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [4] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [5] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to getindex)
+  Stacktrace:
+   [1] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+   [2] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [3] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to convert)
+  Stacktrace:
+   [1] setindex!
+     @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+   [2] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+   [3] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [4] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  Stacktrace:
+    [1] check_ir(job::GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams}, mod::LLVM.Module, relocs::GPUCompiler.Relocations)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/validation.jl:183
+    [2] emit_llvm(job::GPUCompiler.CompilerJob; resolve_relocations::Bool)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:431
+    [3] compile_unhooked(output::Symbol, job::GPUCompiler.CompilerJob; resolve_relocations::Bool)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:80
+    [4] compile_unhooked
+      @ ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:64 [inlined]
+    [5] compile(target::Symbol, job::GPUCompiler.CompilerJob)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:61
+    [6] #invoke_frozen#608
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/initialization.jl:30 [inlined]
+    [7] invoke_frozen
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/initialization.jl:26 [inlined]
+    [8] #compile##0
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:396 [inlined]
+    [9] JuliaContext(f::CUDACore.var"#compile##0#compile##1"{GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams}}; kwargs::@Kwargs{})
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:34
+   [10] JuliaContext(f::Function)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:25
+   [11] compile(job::GPUCompiler.CompilerJob)
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:395
+   [12] compile_or_lookup(job::GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams})
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:610
+   [13] macro expansion
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:737 [inlined]
+   [14] macro expansion
+      @ ./lock.jl:376 [inlined]
+   [15] cufunction(f::typeof(Kraken.gpu__fv_lambda_dot_kernel!), tt::Type{Tuple{KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, CuDeviceMatrix{Float64, 1}, CuDeviceVector{Float64, 1}, CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, Int64, Int64, Val{4}}}; kwargs::@Kwargs{always_inline::Bool, fastmath::Bool, maxthreads::Int64})
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:724
+   [16] cufunction
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:721 [inlined]
+   [17] kernel_compile
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:66 [inlined]
+   [18] #kernel_compile#780
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:150 [inlined]
+   [19] kernel_compile
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:148 [inlined]
+   [20] launch_tuple(obj::KernelAbstractions.Kernel{CUDABackend, KernelAbstractions.NDIteration.StaticSize{(64,)}, KernelAbstractions.NDIteration.DynamicSize, typeof(Kraken.gpu__fv_lambda_dot_kernel!)}, args::Tuple{CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Int64, Int64, Val{4}}; ndrange::Int64, workgroupsize::Nothing)
+      @ CUDACore.CUDAKernels ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/CUDAKernels.jl:146
+   [21] launch_tuple
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/CUDAKernels.jl:130 [inlined]
+   [22] _fv_param_cotangent!(ws::FVAdjointWorkspace{4, FVSideVelocity, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Kraken._FVParamBuffers{Nothing, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 3, CUDACore.DeviceMemory}, Nothing, Tuple{CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}}}, Nothing, Nothing, CuArray{Float64, 2, CUDACore.DeviceMemory}}, m::FVSideVelocity, s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, θ::Vector{Float64})
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:716
+   [23] fv_steady_adjoint(s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, gU::Vector{Float64}; params::FVSideVelocity, θ::Vector{Float64}, ws::Nothing, finalize::Bool)
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:818
+   [24] fv_steady_adjoint
+      @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:804 [inlined]
+   [25] fv_steady_gradient(s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, θ::Vector{Float64}, obj::FVWallForce; params::FVSideVelocity, ws::Nothing, finalize::Bool)
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:854
+   [26] top-level scope
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:43
+   [27] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [28] macro expansion
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:83 [inlined]
+   [29] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [30] macro expansion
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:87 [inlined]
+   [31] include(mapexpr::Function, mod::Module, _path::String)
+      @ Base ./Base.jl:307
+   [32] macro expansion
+      @ ~/kraken_c4/src_c4/benchmarks/fv_c4/c4_gpu.jl:41 [inlined]
+   [33] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [34] top-level scope
+      @ ~/kraken_c4/src_c4/benchmarks/fv_c4/c4_gpu.jl:39
+   [35] include(mod::Module, _path::String)
+      @ Base ./Base.jl:306
+   [36] exec_options(opts::Base.JLOptions)
+      @ Base ./client.jl:317
+   [37] _start()
+      @ Base ./client.jl:550
+CPU/GPU gradient parity: u profile misfit: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:82
+  Got exception outside of a @test
+  InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+  Reason: unsupported dynamic function invocation (call to getindex)
+  Stacktrace:
+   [1] #gpu__fv_lambda_dot_kernel!##2
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [2] macro expansion
+     @ ./ntuple.jl:74
+   [3] ntuple
+     @ ./ntuple.jl:71
+   [4] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [5] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [6] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to +)
+  Stacktrace:
+   [1] #gpu__fv_lambda_dot_kernel!##2
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [2] macro expansion
+     @ ./ntuple.jl:74
+   [3] ntuple
+     @ ./ntuple.jl:71
+   [4] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [5] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [6] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported allocation of an object with references (Core.Box)
+  Stacktrace:
+   [1] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported call to an unknown function (call to jl_f_tuple)
+  Stacktrace:
+   [1] macro expansion
+     @ ./ntuple.jl:74
+   [2] ntuple
+     @ ./ntuple.jl:71
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [4] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [5] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to getindex)
+  Stacktrace:
+   [1] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+   [2] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [3] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to convert)
+  Stacktrace:
+   [1] setindex!
+     @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+   [2] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+   [3] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [4] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  Stacktrace:
+    [1] check_ir(job::GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams}, mod::LLVM.Module, relocs::GPUCompiler.Relocations)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/validation.jl:183
+    [2] emit_llvm(job::GPUCompiler.CompilerJob; resolve_relocations::Bool)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:431
+    [3] compile_unhooked(output::Symbol, job::GPUCompiler.CompilerJob; resolve_relocations::Bool)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:80
+    [4] compile_unhooked
+      @ ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:64 [inlined]
+    [5] compile(target::Symbol, job::GPUCompiler.CompilerJob)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:61
+    [6] #invoke_frozen#608
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/initialization.jl:30 [inlined]
+    [7] invoke_frozen
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/initialization.jl:26 [inlined]
+    [8] #compile##0
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:396 [inlined]
+    [9] JuliaContext(f::CUDACore.var"#compile##0#compile##1"{GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams}}; kwargs::@Kwargs{})
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:34
+   [10] JuliaContext(f::Function)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:25
+   [11] compile(job::GPUCompiler.CompilerJob)
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:395
+   [12] compile_or_lookup(job::GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams})
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:610
+   [13] macro expansion
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:737 [inlined]
+   [14] macro expansion
+      @ ./lock.jl:376 [inlined]
+   [15] cufunction(f::typeof(Kraken.gpu__fv_lambda_dot_kernel!), tt::Type{Tuple{KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, CuDeviceMatrix{Float64, 1}, CuDeviceVector{Float64, 1}, CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, Int64, Int64, Val{4}}}; kwargs::@Kwargs{always_inline::Bool, fastmath::Bool, maxthreads::Int64})
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:724
+   [16] cufunction
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:721 [inlined]
+   [17] kernel_compile
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:66 [inlined]
+   [18] #kernel_compile#780
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:150 [inlined]
+   [19] kernel_compile
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:148 [inlined]
+   [20] launch_tuple(obj::KernelAbstractions.Kernel{CUDABackend, KernelAbstractions.NDIteration.StaticSize{(64,)}, KernelAbstractions.NDIteration.DynamicSize, typeof(Kraken.gpu__fv_lambda_dot_kernel!)}, args::Tuple{CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Int64, Int64, Val{4}}; ndrange::Int64, workgroupsize::Nothing)
+      @ CUDACore.CUDAKernels ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/CUDAKernels.jl:146
+   [21] launch_tuple
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/CUDAKernels.jl:130 [inlined]
+   [22] _fv_param_cotangent!(ws::FVAdjointWorkspace{4, FVSideVelocity, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Kraken._FVParamBuffers{Nothing, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 3, CUDACore.DeviceMemory}, Nothing, Tuple{CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}}}, Nothing, Nothing, CuArray{Float64, 2, CUDACore.DeviceMemory}}, m::FVSideVelocity, s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, θ::Vector{Float64})
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:716
+   [23] fv_steady_adjoint(s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, gU::Vector{Float64}; params::FVSideVelocity, θ::Vector{Float64}, ws::Nothing, finalize::Bool)
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:818
+   [24] fv_steady_adjoint
+      @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:804 [inlined]
+   [25] fv_steady_gradient(s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, θ::Vector{Float64}, obj::FVStateObs; params::FVSideVelocity, ws::Nothing, finalize::Bool)
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:854
+   [26] top-level scope
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:43
+   [27] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [28] macro expansion
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:83 [inlined]
+   [29] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [30] macro expansion
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:87 [inlined]
+   [31] include(mapexpr::Function, mod::Module, _path::String)
+      @ Base ./Base.jl:307
+   [32] macro expansion
+      @ ~/kraken_c4/src_c4/benchmarks/fv_c4/c4_gpu.jl:41 [inlined]
+   [33] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [34] top-level scope
+      @ ~/kraken_c4/src_c4/benchmarks/fv_c4/c4_gpu.jl:39
+   [35] include(mod::Module, _path::String)
+      @ Base ./Base.jl:306
+   [36] exec_options(opts::Base.JLOptions)
+      @ Base ./client.jl:317
+   [37] _start()
+      @ Base ./client.jl:550
+zero device allocation with a workspace: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:97
+  Got exception outside of a @test
+  InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+  Reason: unsupported dynamic function invocation (call to getindex)
+  Stacktrace:
+   [1] #gpu__fv_lambda_dot_kernel!##2
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [2] macro expansion
+     @ ./ntuple.jl:74
+   [3] ntuple
+     @ ./ntuple.jl:71
+   [4] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [5] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [6] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to +)
+  Stacktrace:
+   [1] #gpu__fv_lambda_dot_kernel!##2
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [2] macro expansion
+     @ ./ntuple.jl:74
+   [3] ntuple
+     @ ./ntuple.jl:71
+   [4] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [5] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [6] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported allocation of an object with references (Core.Box)
+  Stacktrace:
+   [1] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported call to an unknown function (call to jl_f_tuple)
+  Stacktrace:
+   [1] macro expansion
+     @ ./ntuple.jl:74
+   [2] ntuple
+     @ ./ntuple.jl:71
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+   [4] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [5] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to getindex)
+  Stacktrace:
+   [1] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+   [2] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [3] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Reason: unsupported dynamic function invocation (call to convert)
+  Stacktrace:
+   [1] setindex!
+     @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+   [2] macro expansion
+     @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+   [3] macro expansion
+     @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+   [4] gpu__fv_lambda_dot_kernel!
+     @ ./none:0
+  Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  Stacktrace:
+    [1] check_ir(job::GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams}, mod::LLVM.Module, relocs::GPUCompiler.Relocations)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/validation.jl:183
+    [2] emit_llvm(job::GPUCompiler.CompilerJob; resolve_relocations::Bool)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:431
+    [3] compile_unhooked(output::Symbol, job::GPUCompiler.CompilerJob; resolve_relocations::Bool)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:80
+    [4] compile_unhooked
+      @ ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:64 [inlined]
+    [5] compile(target::Symbol, job::GPUCompiler.CompilerJob)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:61
+    [6] #invoke_frozen#608
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/initialization.jl:30 [inlined]
+    [7] invoke_frozen
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/initialization.jl:26 [inlined]
+    [8] #compile##0
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:396 [inlined]
+    [9] JuliaContext(f::CUDACore.var"#compile##0#compile##1"{GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams}}; kwargs::@Kwargs{})
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:34
+   [10] JuliaContext(f::Function)
+      @ GPUCompiler ~/kraken_c2/depot/packages/GPUCompiler/Mkgjq/src/driver.jl:25
+   [11] compile(job::GPUCompiler.CompilerJob)
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:395
+   [12] compile_or_lookup(job::GPUCompiler.CompilerJob{GPUCompiler.PTXCompilerTarget, CUDACore.CUDACompilerParams})
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/compilation.jl:610
+   [13] macro expansion
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:737 [inlined]
+   [14] macro expansion
+      @ ./lock.jl:376 [inlined]
+   [15] cufunction(f::typeof(Kraken.gpu__fv_lambda_dot_kernel!), tt::Type{Tuple{KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, CuDeviceMatrix{Float64, 1}, CuDeviceVector{Float64, 1}, CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, Int64, Int64, Val{4}}}; kwargs::@Kwargs{always_inline::Bool, fastmath::Bool, maxthreads::Int64})
+      @ CUDACore ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:724
+   [16] cufunction
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:721 [inlined]
+   [17] kernel_compile
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:66 [inlined]
+   [18] #kernel_compile#780
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:150 [inlined]
+   [19] kernel_compile
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/compiler/execution.jl:148 [inlined]
+   [20] launch_tuple(obj::KernelAbstractions.Kernel{CUDABackend, KernelAbstractions.NDIteration.StaticSize{(64,)}, KernelAbstractions.NDIteration.DynamicSize, typeof(Kraken.gpu__fv_lambda_dot_kernel!)}, args::Tuple{CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Int64, Int64, Val{4}}; ndrange::Int64, workgroupsize::Nothing)
+      @ CUDACore.CUDAKernels ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/CUDAKernels.jl:146
+   [21] launch_tuple
+      @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/CUDAKernels.jl:130 [inlined]
+   [22] _fv_param_cotangent!(ws::FVAdjointWorkspace{4, FVSideVelocity, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Kraken._FVParamBuffers{Nothing, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 3, CUDACore.DeviceMemory}, Nothing, Tuple{CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}}}, Nothing, Nothing, CuArray{Float64, 2, CUDACore.DeviceMemory}}, m::FVSideVelocity, s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, θ::Vector{Float64})
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:716
+   [23] fv_steady_adjoint(s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, gU::Vector{Float64}; params::FVSideVelocity, θ::Vector{Float64}, ws::FVAdjointWorkspace{4, FVSideVelocity, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Kraken._FVParamBuffers{Nothing, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 3, CUDACore.DeviceMemory}, Nothing, Tuple{CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}}}, Nothing, Nothing, CuArray{Float64, 2, CUDACore.DeviceMemory}}, finalize::Bool)
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:818
+   [24] fv_steady_adjoint
+      @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:804 [inlined]
+   [25] fv_steady_gradient(s::FVNewtonSolver{FVSteadyProblem2D{FVGrid2D{Float64}, CuArray{UInt8, 2, CUDACore.DeviceMemory}, CuArray{Float64, 2, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 1, CUDACore.DeviceMemory}}, FVJacobianAssembler{4, CuArray{Int32, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVJacobianTag, Float64, 4}, 1, CUDACore.DeviceMemory}}, cuSPARSE.CuSparseMatrixCSR{Float64, Int32}, CuArray{Float64, 1, CUDACore.DeviceMemory}, Kraken._FVNormBuffers{CuArray{Float64, 2, CUDACore.DeviceMemory}, Matrix{Float64}}, CUDABackendTag}, U::CuArray{Float64, 1, CUDACore.DeviceMemory}, θ::Vector{Float64}, obj::FVWallForce; params::FVSideVelocity, ws::FVAdjointWorkspace{4, FVSideVelocity, CuArray{Float64, 1, CUDACore.DeviceMemory}, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1, CUDACore.DeviceMemory}, Kraken._FVParamBuffers{Nothing, CuArray{ForwardDiff.Dual{FVParamTag, Float64, 4}, 3, CUDACore.DeviceMemory}, Nothing, Tuple{CuArray{Float64, 3, CUDACore.DeviceMemory}, CuArray{Float64, 3, CUDACore.DeviceMemory}}}, Nothing, Nothing, CuArray{Float64, 2, CUDACore.DeviceMemory}}, finalize::Bool)
+      @ Kraken ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:854
+   [26] top-level scope
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:43
+   [27] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [28] macro expansion
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:98 [inlined]
+   [29] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [30] macro expansion
+      @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_gpu.jl:103 [inlined]
+   [31] include(mapexpr::Function, mod::Module, _path::String)
+      @ Base ./Base.jl:307
+   [32] macro expansion
+      @ ~/kraken_c4/src_c4/benchmarks/fv_c4/c4_gpu.jl:41 [inlined]
+   [33] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [34] top-level scope
+      @ ~/kraken_c4/src_c4/benchmarks/fv_c4/c4_gpu.jl:39
+   [35] include(mod::Module, _path::String)
+      @ Base ./Base.jl:306
+   [36] exec_options(opts::Base.JLOptions)
+      @ Base ./client.jl:317
+   [37] _start()
+      @ Base ./client.jl:550
+Test Summary:                                 | Pass  Error  Total     Time
+C4 GPU receipts                               |  187      3    190  1m28.4s
+  IncNS steady FV adjoint (C4, CPU)           |  181           181    51.1s
+  IncNS steady FV adjoint (C4, GPU)           |    6      3      9    36.2s
+    transposed solve with the Newton factors  |    3             3     0.5s
+    CPU/GPU gradient parity: lid drag         |           1      1     7.0s
+    CPU/GPU gradient parity: u profile misfit |           1      1     0.4s
+    zero device allocation with a workspace   |           1      1     2.3s
+RNG of the outermost testset: Xoshiro(0x8d326f33cfe5f12a, 0x71abc6902cc62209, 0xcfb2c631725cb94a, 0xf329debee6980642, 0x96d8b913e0302185)
+TESTS FAILED: Some tests did not pass: 187 passed, 0 failed, 3 errored, 0 broken.
+
+================ cavity N = 512², Re = 100.0 (from rest) ================
+  unknowns 786432 | Newton converged true in 5 iterations, 12.37 s wall | one iteration (assembly + refactorize + solve, median) 0.443 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  GRADIENT FAILED uniform nu / lid drag: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  GRADIENT FAILED uniform nu / u profile: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  GRADIENT FAILED lid speed / lid drag: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  GRADIENT FAILED lid speed / u profile: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  nu field   | lid drag  | 4.368 (2.793 / 0.483 / 0.008 / 0.001 / 0.813) | 0.066 | 3.6261 | 0.293 | 8.18 | 3472
+  nu field   | u profile | 0.909 (0.211 / 0.455 / 0.008 / 0.001 / 0.001) | 0.083 | 0.2327 | 0.019 | 0.52 | 3472
+  n_factorize after all gradients: 1 (1 = no new analysis)
+  device free memory at end of case: 33.98 GiB
+
+================ cavity N = 1024², Re = 100.0 (from rest) ================
+  unknowns 3145728 | Newton converged true in 5 iterations, 54.90 s wall | one iteration (assembly + refactorize + solve, median) 2.375 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  GRADIENT FAILED uniform nu / lid drag: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  GRADIENT FAILED uniform nu / u profile: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  GRADIENT FAILED lid speed / lid drag: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  GRADIENT FAILED lid speed / u profile: InvalidIRError: compiling MethodInstance for Kraken.gpu__fv_lambda_dot_kernel!(::KernelAbstractions.CompilerMetadata{KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.DynamicCheck, Nothing, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, KernelAbstractions.NDIteration.NDRange{1, KernelAbstractions.NDIteration.DynamicSize, KernelAbstractions.NDIteration.StaticSize{(64,)}, CartesianIndices{1, Tuple{Base.OneTo{Int64}}}, Nothing}}, ::CuDeviceMatrix{Float64, 1}, ::CuDeviceVector{Float64, 1}, ::CuDeviceVector{ForwardDiff.Dual{FVParamTag, Float64, 4}, 1}, ::Int64, ::Int64, ::Val{4}) resulted in invalid LLVM IR
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to +)
+Stacktrace:
+ [1] #gpu__fv_lambda_dot_kernel!##2
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [2] macro expansion
+   @ ./ntuple.jl:74
+ [3] ntuple
+   @ ./ntuple.jl:71
+ [4] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [5] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [6] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported allocation of an object with references (Core.Box)
+Stacktrace:
+ [1] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported call to an unknown function (call to jl_f_tuple)
+Stacktrace:
+ [1] macro expansion
+   @ ./ntuple.jl:74
+ [2] ntuple
+   @ ./ntuple.jl:71
+ [3] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:637
+ [4] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [5] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to getindex)
+Stacktrace:
+ [1] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [2] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [3] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Reason: unsupported dynamic function invocation (call to convert)
+Stacktrace:
+ [1] setindex!
+   @ ~/kraken_c2/depot/packages/CUDACore/yn2cv/src/device/array.jl:209
+ [2] macro expansion
+   @ ~/kraken_c4/src_c4/src/methods/inc_ns/fv_adjoint.jl:640
+ [3] macro expansion
+   @ ~/kraken_c1/depot/packages/KernelAbstractions/xC48W/src/macros.jl:339
+ [4] gpu__fv_lambda_dot_kernel!
+   @ ./none:0
+Hint: catch this exception as `err` and call `code_typed(err; interactive = true)` to introspect the erroneous code with Cthulhu.jl
+  nu field   | lid drag  | 30.381 (21.130 / 2.373 / 0.031 / 0.003 / 6.404) | 0.422 | 27.5928 | 0.503 | 11.62 | 3472
+  nu field   | u profile | 3.610 (0.783 / 2.374 / 0.031 / 0.003 / 0.004) | 0.416 | 0.6939 | 0.013 | 0.29 | 3472
+  n_factorize after all gradients: 1 (1 = no new analysis)
+  device free memory at end of case: 16.85 GiB
+DONE status=1

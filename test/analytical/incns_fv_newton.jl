@@ -44,6 +44,21 @@ end
 
 @testset "IncNS steady FV Newton (C2, CPU)" begin
 
+    @testset "state signature reuses norm buffers across partial blocks" begin
+        for ncell in (1, 255, 256, 257, 513)
+            nb = Kraken._FVNormBuffers(Array, ncell)
+            # Exactly representable integer sums cover all three components,
+            # including the last cell of a non-full reduction block.
+            U = Float64.(mod.(1:3ncell, 17) .- 8)
+            ref = (0.125, sum(U), sum(abs2, U))
+            @test Kraken._fv_state_sig(nb, 0.125, U) == ref
+            Kraken._fv_norms(nb, U)
+            @test Kraken._fv_state_sig(nb, 0.125, U) == ref
+            U[end] += 1
+            @test Kraken._fv_state_sig(nb, 0.0, U) == (0.0, sum(U), sum(abs2, U))
+        end
+    end
+
     @testset "pattern, colouring and coloured dual assembly" begin
         rng = MersenneTwister(11)
         solid = zeros(Bool, 14, 8); solid[5:7, 1:3] .= true; solid[10:11, 6:8] .= true
@@ -205,7 +220,7 @@ end
     end
 
     @testset "platform contract: IncNS(:fv_newton)" begin
-        @test capabilities(IncNS(:fv_newton)) == Set((ForwardSolve, SteadyResidual))
+        @test capabilities(IncNS(:fv_newton)) == Set((ForwardSolve, SteadyResidual, SteadyAdjoint, AssembledJacobian))
         @test SteadyResidual ∉ capabilities(IncNS(:cavity))
         p = fv_steady_problem(16, 16; nu = 0.01, boundary_velocity = _fvc2_lid)
         sol = solve((; problem = p), IncNS(:fv_newton))

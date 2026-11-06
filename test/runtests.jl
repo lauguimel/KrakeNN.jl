@@ -122,6 +122,11 @@ function run_incns_testset()
         # and its opt-in GPU/cuDSS contract
         include("analytical/incns_fv_gnf.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
+        # C4 steady discrete adjoint on the Newton factors: parameter duals vs
+        # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,
+        # dQ/dν = −Q/ν (~25 s CPU), and its opt-in GPU contract
+        include("analytical/incns_fv_adjoint.jl")
+        include("analytical/incns_fv_adjoint_gpu.jl")
         include("analytical/scalar_transport_heated_channel.jl")
         include("analytical/scalar_transport_advection_order.jl")
 

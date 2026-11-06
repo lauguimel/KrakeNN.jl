@@ -15,7 +15,7 @@ using KernelAbstractions
         # declared only by the driver that solves it (decision 2026-11-04)
         @test capabilities(IncNS(:projection)) == Set((ForwardSolve,))
         @test capabilities(IncNS(:simple)) == Set((ForwardSolve,))
-        @test capabilities(IncNS(:fv_newton)) == Set((ForwardSolve, SteadyResidual))
+        @test capabilities(IncNS(:fv_newton)) == Set((ForwardSolve, SteadyResidual, SteadyAdjoint, AssembledJacobian))
         # CPU forward solve only: the CUDA seam methods are manual-load.
         @test GPUExecution ∉ capabilities(IncNS(:projection))
         @test_throws ArgumentError IncNS(:not_a_driver)

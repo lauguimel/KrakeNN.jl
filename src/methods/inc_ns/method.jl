@@ -30,7 +30,10 @@ methods are opt-in, so `GPUExecution` is deliberately NOT claimed). Only
 `:fv_newton` also declares `SteadyResidual`: the steady colocated FV residual
 of `fv_steady_residual.jl` (C1), reached as
 `residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`, is the residual that
-driver drives to zero. The SIMPLE drivers converge to a state that depends on
+driver drives to zero. `:fv_newton` also declares `SteadyAdjoint` and
+`AssembledJacobian` (C4): the gradient of an objective of the converged state
+is one transposed solve with the Newton factors
+([`fv_steady_gradient`](@ref)). The SIMPLE drivers converge to a state that depends on
 their relaxation factor (roadmap F16) and expose no residual of their own.
 """
 struct IncNS <: AbstractMethod
@@ -44,7 +47,9 @@ struct IncNS <: AbstractMethod
 end
 
 capabilities(m::IncNS) =
-    m.driver === :fv_newton ? Set((ForwardSolve, SteadyResidual)) : Set((ForwardSolve,))
+    m.driver === :fv_newton ?
+        Set((ForwardSolve, SteadyResidual, SteadyAdjoint, AssembledJacobian)) :
+        Set((ForwardSolve,))
 
 """
     IncNSSolution{R} <: AbstractSolution

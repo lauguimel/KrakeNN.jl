@@ -348,6 +348,43 @@ mutable struct FVNewtonSolver{P,A,M,V,NB,B}
     n_refactorize::Int
     t_pattern::Float64
     t_coloring::Float64
+    # (shift, ΣU, ΣU²) of the last assembled J and of the J held by `cache`;
+    # NaN = unknown/stale. Lets the adjoint refuse factors that are not the
+    # unshifted J at the given U (finalize = false).
+    asm_sig::NTuple{3,Float64}
+    fac_sig::NTuple{3,Float64}
+end
+
+# Reuse the norm workspace for the two state checksums. GPU `sum` allocates
+# reduction storage; these fixed partial sums keep finalization allocation-free.
+@kernel function _fv_state_sig_kernel!(Pt, @Const(U), ncell, per)
+    t = @index(Global)
+    su = 0.0; sq = 0.0
+    k0 = 3 * (t - 1) * per + 1
+    k1 = 3 * min(t * per, ncell)
+    @inbounds for k in k0:k1
+        u = Float64(U[k])
+        su += u
+        sq += u * u
+    end
+    @inbounds begin
+        Pt[1, t] = su
+        Pt[2, t] = sq
+    end
+end
+
+function _fv_state_sig(nb::_FVNormBuffers, shift, U)
+    ncell = length(U) ÷ 3
+    backend = KernelAbstractions.get_backend(U)
+    _fv_state_sig_kernel!(backend, 64)(nb.dev, U, ncell, nb.per; ndrange = size(nb.dev, 2))
+    KernelAbstractions.synchronize(backend)
+    H = nb.dev isa Array ? nb.dev : copyto!(nb.host, nb.dev)
+    su = 0.0; sq = 0.0
+    @inbounds for t in axes(H, 2)
+        su += H[1, t]
+        sq += H[2, t]
+    end
+    return Float64(shift), su, sq
 end
 
 """
@@ -393,7 +430,8 @@ function fv_newton_solver(prob::FVSteadyProblem2D; to = Array,
     vec0() = to(zeros(Float64, n))
     return FVNewtonSolver(dprob, asm, J, nzval, linsolve, nothing,
                           vec0(), vec0(), vec0(), _FVNormBuffers(to, n ÷ 3), 0, 0,
-                          t_pattern, t_coloring)
+                          t_pattern, t_coloring,
+                          (NaN, NaN, NaN), (NaN, NaN, NaN))
 end
 
 _fv_sync(U) = KernelAbstractions.synchronize(KernelAbstractions.get_backend(U))
@@ -407,6 +445,7 @@ Assemble `∂R/∂U` at `U` into `solver.J` (values only; pattern fixed).
 """
 function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0)
     fv_assemble_jacobian!(s.nzval, s.asm, U, s.prob; sync = shift == 0)
+    s.asm_sig = _fv_state_sig(s.norms, shift, U)
     if shift != 0
         backend = KernelAbstractions.get_backend(U)
         _fv_diag_shift_kernel!(backend, 256)(s.nzval, s.asm.diag, Float64(shift);
@@ -425,6 +464,7 @@ function _fv_factor!(s::FVNewtonSolver)
         lin_refactorize!(s.cache)
         s.n_refactorize += 1
     end
+    s.fac_sig = s.asm_sig
     return s.cache
 end
 

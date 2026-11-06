@@ -1,0 +1,526 @@
+CUDA.functional() = true
+Precompiling packages...
+  39140.0 ms  ✓ Kraken
+  1 dependency successfully precompiled in 54 seconds. 230 already precompiled.
+Precompiling packages...
+  23616.0 ms  ✓ Kraken → KrakenCUDSSExt
+  1 dependency successfully precompiled in 25 seconds. 233 already precompiled.
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0  threads 8
+
+--- C4 test files ---
+
+--- incns_fv_adjoint.jl ---
+_fv_lambda_dot_kernel! chunk=1: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_lambda_dot_kernel!), args::Tuple{Matrix{Float64}, Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 1}}, Int64, Int64, Val{1}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_seed_kernel! chunk=1: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_seed_kernel!), args::Tuple{Matrix{ForwardDiff.Dual{FVParamTag, Float64, 1}}, Matrix{Float64}, Vector{Int32}, Int64, Val{1}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_direction_kernel! chunk=1: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_direction_kernel!), args::Tuple{Matrix{ForwardDiff.Dual{FVParamTag, Float64, 1}}, Matrix{Float64}, Matrix{Float64}, Val{1}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_partial1_kernel! chunk=1: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_partial1_kernel!), args::Tuple{Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 1}}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_gather_kernel! chunk=1: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_gather_kernel!), args::Tuple{Matrix{Float64}, Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 1}}, Matrix{UInt8}, Vector{Int32}, FVGrid2D{Float64}, Int64, Val{1}}, ndrange::Tuple{Int64, Int64})
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_lambda_dot_kernel! chunk=4: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_lambda_dot_kernel!), args::Tuple{Matrix{Float64}, Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 4}}, Int64, Int64, Val{4}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_seed_kernel! chunk=4: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_seed_kernel!), args::Tuple{Matrix{ForwardDiff.Dual{FVParamTag, Float64, 4}}, Matrix{Float64}, Vector{Int32}, Int64, Val{4}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_direction_kernel! chunk=4: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_direction_kernel!), args::Tuple{Matrix{ForwardDiff.Dual{FVParamTag, Float64, 4}}, Matrix{Float64}, Matrix{Float64}, Val{4}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_partial1_kernel! chunk=4: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_partial1_kernel!), args::Tuple{Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 4}}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_gather_kernel! chunk=4: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_gather_kernel!), args::Tuple{Matrix{Float64}, Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 4}}, Matrix{UInt8}, Vector{Int32}, FVGrid2D{Float64}, Int64, Val{4}}, ndrange::Tuple{Int64, Int64})
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_lambda_dot_kernel! chunk=8: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_lambda_dot_kernel!), args::Tuple{Matrix{Float64}, Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 8}}, Int64, Int64, Val{8}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_seed_kernel! chunk=8: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_seed_kernel!), args::Tuple{Matrix{ForwardDiff.Dual{FVParamTag, Float64, 8}}, Matrix{Float64}, Vector{Int32}, Int64, Val{8}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_direction_kernel! chunk=8: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_direction_kernel!), args::Tuple{Matrix{ForwardDiff.Dual{FVParamTag, Float64, 8}}, Matrix{Float64}, Matrix{Float64}, Val{8}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_partial1_kernel! chunk=8: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_partial1_kernel!), args::Tuple{Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 8}}}, ndrange::Int64)
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+_fv_nu_gather_kernel! chunk=8: Error During Test at ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79
+  Test threw exception
+  Expression: isempty(_fvc4_kernel_issues(getfield(Kraken, name), args, ndrange))
+  MethodError: objects of type Bool are not callable
+  The object of type `Bool` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+  Maybe you forgot to use an operator such as *, ^, %, / etc. ?
+  Stacktrace:
+   [1] _fvc4_kernel_issues(factory::typeof(Kraken._fv_nu_gather_kernel!), args::Tuple{Matrix{Float64}, Vector{Float64}, Vector{ForwardDiff.Dual{FVParamTag, Float64, 8}}, Matrix{UInt8}, Vector{Int32}, FVGrid2D{Float64}, Int64, Val{8}}, ndrange::Tuple{Int64, Int64})
+     @ Main ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:54
+   [2] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:677 [inlined]
+   [3] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [5] macro expansion
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:79 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.12.5+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1776 [inlined]
+   [7] top-level scope
+     @ ~/kraken_c4/src_c4/test/analytical/incns_fv_adjoint_compiler.jl:60
+┌ Info: C4 adjoint error levels (max over cases)
+│   fd_best_step_rel = 9.04555824857512e-9
+│   tangent_rel = 1.5922052989326826e-15
+└   param_cotangent_vs_dense_rel = 1.2345836590322297e-15
+
+--- incns_fv_adjoint_gpu.jl ---
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "lid speed"
+└   rel = 7.332832363285389e-16
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "nu field"
+└   rel = 2.4873964341570445e-16
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "FVProblemMap"
+└   rel = 1.3719132326281329e-16
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "lid speed"
+└   rel = 8.879153033916342e-16
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "nu field"
+└   rel = 1.7226335949306269e-15
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "FVProblemMap"
+└   rel = 2.2471287734028755e-15
+┌ Info: C4 GPU gradient loop
+└   free_memory_spread_MiB = 0.0
+Test Summary:                                           | Pass  Error  Total     Time
+C4 GPU receipts                                         |  821     15    836  1m28.3s
+  FV adjoint kernel inference (CPU, not GPU validation) |    1     15     16     3.9s
+    _fv_lambda_dot_kernel! chunk=1                      |           1      1     3.4s
+    _fv_nu_seed_kernel! chunk=1                         |           1      1     0.0s
+    _fv_nu_direction_kernel! chunk=1                    |           1      1     0.0s
+    _fv_partial1_kernel! chunk=1                        |           1      1     0.0s
+    _fv_nu_gather_kernel! chunk=1                       |           1      1     0.0s
+    _fv_lambda_dot_kernel! chunk=4                      |           1      1     0.0s
+    _fv_nu_seed_kernel! chunk=4                         |           1      1     0.0s
+    _fv_nu_direction_kernel! chunk=4                    |           1      1     0.0s
+    _fv_partial1_kernel! chunk=4                        |           1      1     0.0s
+    _fv_nu_gather_kernel! chunk=4                       |           1      1     0.0s
+    _fv_lambda_dot_kernel! chunk=8                      |           1      1     0.0s
+    _fv_nu_seed_kernel! chunk=8                         |           1      1     0.0s
+    _fv_nu_direction_kernel! chunk=8                    |           1      1     0.0s
+    _fv_partial1_kernel! chunk=8                        |           1      1     0.0s
+    _fv_nu_gather_kernel! chunk=8                       |           1      1     0.0s
+  IncNS steady FV adjoint (C4, CPU)                     |  781           781    50.1s
+  IncNS steady FV adjoint (C4, GPU)                     |   39            39    32.4s
+RNG of the outermost testset: Xoshiro(0x452709ab912a1afc, 0x98958d7c3c4788a3, 0x23635ae22df68464, 0x197afdfb91aa8af2, 0x72356a6c277b1777)
+TESTS FAILED: Some tests did not pass: 821 passed, 0 failed, 15 errored, 0 broken.
+
+================ cavity N = 512², Re = 100.0 (from rest) ================
+  unknowns 786432 | Newton converged true in 5 iterations, 12.48 s wall | one iteration (assembly + refactorize + solve, median) 0.444 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  uniform nu | lid drag  | 0.578 (0.004 / 0.436 / 0.008 / 0.000 / 0.000) | 0.001 | 0.0115 | 0.001 | 0.03 | 0
+    hot objective 0.003016 s | explicit 0.000033 s | (objective + explicit)/iteration 0.0068
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  uniform nu | u profile | 0.682 (0.144 / 0.435 / 0.008 / 0.000 / 0.000) | 0.001 | 0.2022 | 0.016 | 0.46 | 0
+    hot objective 0.193461 s | explicit 0.000001 s | (objective + explicit)/iteration 0.4362
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | lid drag  | 0.467 (0.002 / 0.456 / 0.008 / 0.000 / 0.000) | 0.000 | 0.0117 | 0.001 | 0.03 | 0
+    hot objective 0.002962 s | explicit 0.000106 s | (objective + explicit)/iteration 0.0069
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | u profile | 0.673 (0.228 / 0.436 / 0.008 / 0.000 / 0.000) | 0.000 | 0.2081 | 0.017 | 0.47 | 0
+    hot objective 0.199455 s | explicit 0.000001 s | (objective + explicit)/iteration 0.4497
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | lid drag  | 0.584 (0.002 / 0.477 / 0.008 / 0.001 / 0.001) | 0.127 | 0.0117 | 0.001 | 0.03 | 0
+    hot objective 0.001933 s | explicit 0.000651 s | (objective + explicit)/iteration 0.0059
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | u profile | 0.666 (0.148 / 0.436 / 0.008 / 0.001 / 0.001) | 0.146 | 0.1648 | 0.013 | 0.37 | 0
+    hot objective 0.155066 s | explicit 0.000635 s | (objective + explicit)/iteration 0.3510
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  n_factorize after all gradients: 1 (1 = no new analysis)
+  device free memory at end of case: 33.92 GiB
+
+================ cavity N = 1024², Re = 100.0 (from rest) ================
+  unknowns 3145728 | Newton converged true in 5 iterations, 54.91 s wall | one iteration (assembly + refactorize + solve, median) 2.382 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  uniform nu | lid drag  | 2.405 (0.020 / 2.352 / 0.031 / 0.001 / 0.000) | 0.001 | 0.1198 | 0.002 | 0.05 | 0
+    hot objective 0.087370 s | explicit 0.000048 s | (objective + explicit)/iteration 0.0367
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  uniform nu | u profile | 3.038 (0.651 / 2.355 / 0.031 / 0.001 / 0.000) | 0.000 | 0.6940 | 0.013 | 0.29 | 0
+    hot objective 0.657012 s | explicit 0.000001 s | (objective + explicit)/iteration 0.2758
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | lid drag  | 2.403 (0.006 / 2.363 / 0.031 / 0.001 / 0.001) | 0.001 | 0.0643 | 0.001 | 0.03 | 0
+    hot objective 0.031711 s | explicit 0.000172 s | (objective + explicit)/iteration 0.0134
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | u profile | 3.082 (0.698 / 2.352 / 0.031 / 0.001 / 0.000) | 0.000 | 0.7292 | 0.013 | 0.31 | 0
+    hot objective 0.696504 s | explicit 0.000001 s | (objective + explicit)/iteration 0.2924
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | lid drag  | 2.861 (0.096 / 2.378 / 0.031 / 0.003 / 0.005) | 0.360 | 0.0445 | 0.001 | 0.02 | 0
+    hot objective 0.008003 s | explicit 0.002106 s | (objective + explicit)/iteration 0.0042
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | u profile | 3.467 (0.714 / 2.357 / 0.031 / 0.003 / 0.002) | 0.355 | 0.7448 | 0.014 | 0.31 | 0
+    hot objective 0.639725 s | explicit 0.066906 s | (objective + explicit)/iteration 0.2963
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  n_factorize after all gradients: 1 (1 = no new analysis)
+  device free memory at end of case: 16.57 GiB
+DONE status=1

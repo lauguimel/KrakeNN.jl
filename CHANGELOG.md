@@ -85,6 +85,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   13 iterations and 3.3 s, 512² in 32 iterations and 20.3 s, 1024² in 22
   iterations and 83 s (first factorization 31.6 s, refactorization 2.4 s,
   23 GiB with the factors resident).
+- Steady discrete adjoint on the FV Newton solver (step C4 of the FV Newton
+  roadmap), `src/methods/inc_ns/fv_adjoint.jl`. `fv_steady_gradient(solver, U,
+  θ, objective; params)` re-assembles the unshifted Jacobian at the converged
+  state, refactorizes it (no new symbolic analysis), solves Jᵀλ = ∂J/∂U with
+  the Newton factors (UMFPACK on CPU, cuDSS with CUDSS.jl ≥ 1.0 on GPU) and
+  returns dJ/dθ = ∂J/∂θ − λᵀ∂R/∂θ, with ∂R/∂θ from parameter duals through
+  the same residual kernel. Parameters: uniform viscosity, viscosity field
+  (coloured, one cotangent per cell), side velocity (e.g. lid speed or inlet
+  amplitude), uniform source, or any `FVProblemMap(f, n)` building the problem
+  from θ. Objectives: state misfit (`FVStateObs`, also from a `LineProfile`),
+  linear functionals (`fv_flow_rate`, `fv_pressure_drop`) and wall force
+  (`FVWallForce`, drag/lift on the solid mask or a side). Also
+  `fv_steady_adjoint` (any ∂J/∂U), `fv_steady_tangent` (forward sensitivity)
+  and `fv_adjoint_workspace` (preallocated buffers). New capability value
+  `AssembledJacobian`; `IncNS(:fv_newton)` now also declares `SteadyAdjoint`.
+  Checked on CPU against dense forward-mode Jacobians (parameter cotangent to
+  2e-15), central finite differences (worst relative gap 9e-9 over the tested
+  directions) and the forward tangent (6e-16); dQ/dν = −Q/ν in Stokes flow.
+  Generalised-Newtonian problems: the parameter maps keep the viscosity law,
+  the law parameters are adjoint parameters through
+  `FVProblemMap(fv_with_gnf_parameters, n)`, and `FVWallForce` uses the law at
+  the wall strain rate, as the residual does (adjoint vs central differences
+  within 3e-9 for Carreau–Yasuda and power law). On an A100 (Aqua job
+  27713496) the GPU tests pass, including CPU/GPU parity of a GNF
+  law-parameter gradient; lid-driven cavity at 1024² (3.1 M unknowns, Newton
+  62 s): one gradient costs 0.06–1.0 s once the factors exist (lid drag or
+  velocity profile; uniform ν, viscosity field or lid speed), with 0 device
+  bytes allocated and no new symbolic analysis.
+  Wall-closure study in `benchmarks/fv_c4/`: drag, pressure drop and their
+  gradients converge at order ≈ 1.4 whether ν is constant or variable;
+  `FVWallForce(...; pressure = :linear)` is the recommended drag objective
+  (the default stays `:cell`, the residual's own wall pressure).
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
