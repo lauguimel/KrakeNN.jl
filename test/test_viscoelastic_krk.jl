@@ -28,9 +28,18 @@ using Test
         @test max_abs_ux > 0
         @test max_abs_ux > 0.5 * inlet
 
-        cd_keys = [k for k in keys(r) if occursin("cd", lowercase(String(k)))]
+        # Scalar drag outputs only; `Cd_last` is NaN by design when the steady
+        # stop rule took no sample (`stop = :none`, the .krk default).
+        cd_keys = [k for k in keys(r) if occursin("cd", lowercase(String(k))) &&
+                   getproperty(r, k) isa Real && k != :Cd_last]
         @test !isempty(cd_keys)
         @test all(k -> isfinite(getproperty(r, k)), cd_keys)
+        if haskey(r, :cd_history)
+            @test all(s -> isfinite(last(s)), r.cd_history)
+            if !isempty(r.cd_history)
+                @test isfinite(r.Cd_last)
+            end
+        end
         if haskey(r, :n_drag_samples)
             @test r.n_drag_samples > 0
         end

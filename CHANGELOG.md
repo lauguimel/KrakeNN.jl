@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Opt-in steady stop rule for `run_cylinder_libb_2d`,
+  `run_viscoelastic_fvfd_poiseuille_3d` and the 2D log-FV coupled viscoelastic
+  drivers (including `run_viscoelastic_logfv_cylinder_coupled_2d`).
+  `stop = :cd_change` samples the drag coefficient every `check_every` steps
+  (default: one flow-through) and stops when two consecutive samples differ by
+  at most `tol` in relative value (defaults `1e-6` for the LI-BB cylinder,
+  `2e-4` for the log-FV drivers); `stop = :change` of the 3D channel stops when
+  the relative change of the velocity and of the polymer stress between two
+  checks are both at most `tol` (default `1e-12`). The results gain
+  `converged`, `stop_step` and the sample history (`cd_history`,
+  `change_history`), and the log-FV drivers also `stop_reason` and `Cd_last`.
+  With the default `stop = :none` the drivers run exactly `max_steps` steps and
+  return the same values as before. In the log-FV drivers a `step_callback`
+  that returns exactly `true` now ends the run (#123).
 - Linear-solve seam, opt-in additions (the existing `lin_factorize` /
   `lin_solve!(cache, b)` calls are unchanged): `lin_refactorize!(cache[, A_new])`
   re-runs the numeric factorization with new values on the same sparsity pattern,
