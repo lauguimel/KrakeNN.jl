@@ -145,6 +145,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   Checked on CPU: Jacobian vs dense duals 8.9e-16; force and torque gradients
   vs finite differences within 6.6e-8 (relative); Taylor–Couette and a
   non-rigid manufactured solution converge at velocity order ≈ 2.0 and 2.6.
+  On an A100 (Aqua job 27741796) the C3, C4 and C5 GPU tests pass; immersed
+  Stokes flow at 512² (0.79 M unknowns): M3 costs the same as M1 (first
+  factorization 9.4 s, refactorization 0.36 s, 4.3 GB of factors), one force
+  gradient 0.04–0.06 s once the factors exist, 0 device bytes allocated in
+  the Newton and gradient loops.
   Known limits, documented in `benchmarks/fv_c5/README.md`: the pressure drop
   across a cylinder in a channel is not monotone in h on the tested grids, and
   the surface-integral torque derivative converges more slowly than the

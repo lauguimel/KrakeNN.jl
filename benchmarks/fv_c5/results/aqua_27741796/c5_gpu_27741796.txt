@@ -1,0 +1,85 @@
+Precompiling packages...
+  41720.6 ms  ✓ Kraken
+  1 dependency successfully precompiled in 57 seconds. 230 already precompiled.
+Precompiling packages...
+  24496.7 ms  ✓ Kraken → KrakenCUDSSExt
+  1 dependency successfully precompiled in 26 seconds. 233 already precompiled.
+GPU: NVIDIA A100-SXM4-40GB CUDA 6.4.1 CUDSS 1.0.0 Kraken 0.6.0
+Test Summary:                                         | Pass  Total  Time
+FV adjoint kernel inference (CPU, not GPU validation) |   16     16  1.8s
+Test Summary:                            | Pass  Total  Time
+FV GNF adjoint residual kernel inference |    6      6  3.8s
+Test Summary:                      | Pass  Total  Time
+FV state checksum kernel inference |    2      2  0.1s
+Test Summary:                                 | Pass  Total  Time
+FV immersed and GNF residual kernel inference |   18     18  7.1s
+Test Summary:                                         | Pass  Total  Time
+M3 pair residual and direct Jacobian kernel inference |   37     37  6.0s
+Test Summary:                                           | Pass  Total  Time
+M3 augmented residual norm and state checksum inference |   12     12  0.1s
+Test Summary:                           | Pass  Total  Time
+M3 corrected cell flux kernel inference |    8      8  1.4s
+┌ Info: C3 Newton, power-law cavity n=0.5 64² (GPU, cuDSS)
+│   residual_2norm =
+│    11-element Vector{Float64}:
+│     0.014142135602151766
+│     0.013137185026989216
+│     0.009027363470209566
+│     0.00553553275061826
+│     ⋮
+│     1.3975679744824762e-6
+│     6.936600674151468e-9
+└     1.5547196155042065e-13
+Test Summary:                 | Pass  Total   Time
+IncNS steady FV GNF (C3, GPU) |   26     26  40.3s
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "lid speed"
+└   rel = 7.332832363285389e-16
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "nu field"
+└   rel = 2.4873964341570445e-16
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "FVProblemMap"
+└   rel = 1.3719132326281329e-16
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "lid speed"
+└   rel = 1.0359011872902398e-15
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "nu field"
+└   rel = 1.3781068759445016e-15
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "FVProblemMap"
+└   rel = 2.9080490008743093e-15
+┌ Info: C4 GPU gradient loop
+└   free_memory_spread_MiB = 0.0
+Test Summary:                     | Pass  Total   Time
+IncNS steady FV adjoint (C4, GPU) |   45     45  28.7s
+Test Summary:                                     | Pass  Total   Time
+C5 immersed Newton and both adjoints (GPU opt-in) |   22     22  16.5s
+N=256 mass=M1 unknowns=196608 nnz=3667898 colors=38 Newton=1.888088 s iterations=1 residual_inf=1.3807e-16
+N=256 mass=M1 first_factor=2.346133 s numeric_refactor=0.077381 s factor_retained=994050048 B system_retained=1161822208 B
+N=256 mass=M1 kind=residual_flux J=3.126777917066e-01 dJ_dnu=3.126777917067e+00 first=5.099263 s hot=0.016759 s device=0 B
+N=256 mass=M1 kind=surface J=3.126648987508e-01 dJ_dnu=3.126648987509e+00 first=0.088389 s hot=0.009698 s device=0 B
+N=256 mass=M1 hot_Newton_device=0 B free_device=37.958 GiB
+N=256 mass=M3 unknowns=196609 nnz=3669254 colors=38 Newton=0.079163 s iterations=1 residual_inf=1.7120e-16
+N=256 mass=M3 first_factor=2.169743 s numeric_refactor=0.072192 s factor_retained=991952896 B system_retained=1159725056 B
+N=256 mass=M3 kind=residual_flux J=3.126788248796e-01 dJ_dnu=3.126788248797e+00 first=0.085999 s hot=0.011086 s device=0 B
+N=256 mass=M3 kind=surface J=3.126658450985e-01 dJ_dnu=3.126658450986e+00 first=0.086892 s hot=0.030902 s device=0 B
+N=256 mass=M3 hot_Newton_device=0 B free_device=37.958 GiB
+N=512 mass=M1 unknowns=786432 nnz=14719514 colors=39 Newton=0.386356 s iterations=1 residual_inf=2.0628e-16
+N=512 mass=M1 first_factor=9.434156 s numeric_refactor=0.369178 s factor_retained=4353687552 B system_retained=4857004032 B
+N=512 mass=M1 kind=residual_flux J=3.126392294756e-01 dJ_dnu=3.126392294759e+00 first=0.411795 s hot=0.037270 s device=0 B
+N=512 mass=M1 kind=surface J=3.126345270110e-01 dJ_dnu=3.126345270113e+00 first=0.417863 s hot=0.055607 s device=0 B
+N=512 mass=M1 hot_Newton_device=0 B free_device=34.483 GiB
+N=512 mass=M3 unknowns=786433 nnz=14722222 colors=39 Newton=0.378154 s iterations=1 residual_inf=1.6104e-16
+N=512 mass=M3 first_factor=9.453472 s numeric_refactor=0.359954 s factor_retained=4290772992 B system_retained=4861198336 B
+N=512 mass=M3 kind=residual_flux J=3.126394429976e-01 dJ_dnu=3.126394429979e+00 first=0.407025 s hot=0.059458 s device=0 B
+N=512 mass=M3 kind=surface J=3.126347221335e-01 dJ_dnu=3.126347221338e+00 first=0.413711 s hot=0.057157 s device=0 B
+N=512 mass=M3 hot_Newton_device=0 B free_device=34.479 GiB
+DONE status=0
