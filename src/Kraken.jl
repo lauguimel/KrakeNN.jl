@@ -378,7 +378,7 @@ export initialize_taylor_green_2d, run_taylor_green_2d
 export initialize_cylinder_2d, run_cylinder_2d, compute_drag_mea_2d
 export run_cylinder_libb_2d, compute_drag_libb_2d, compute_drag_libb_mei_2d
 export rebuild_inlet_outlet_libb_2d!, rebuild_inlet_outlet_libb_3d!
-export AbstractBC, HalfwayBB, InterfaceBC, ZouHeVelocity, ZouHePressure
+export AbstractBC, HalfwayBB, InterfaceBC, ZouHeVelocity, ZouHePressure, NeqExtrapolationPressure
 export BCSpec2D, BCSpec3D, apply_bc_rebuild_2d!, apply_bc_rebuild_3d!
 export compute_drag_libb_mei_2d_gpu!, compute_drag_libb_3d_gpu!
 export CutLinkList, CutLinkList3D, build_cut_link_list_2d, build_cut_link_list_3d

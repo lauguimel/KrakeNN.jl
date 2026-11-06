@@ -243,19 +243,18 @@ emit_code(::CollideRegularizedTRTLocal) = quote
     Pxy = (fp6-feq6) - (fp7-feq7) + (fp8-feq8) - (fp9-feq9)
     # Reconstruct regularized f_neq from Π only (Latt 2006, Eq. 17)
     # f_neq_reg[q] = w[q]/(2 cs⁴) × (c_qi c_qj - cs² δ_ij) Π_ij
-    # cs² = 1/3, cs⁴ = 1/9
-    # For q=1 (0,0): (-1/3 Pxx - 1/3 Pyy) × 4/9 / (2/9) = ...
-    # Simplified per-direction formulas:
-    inv2 = T(0.5)
-    fneq1 = -inv2 * T(2/9) * (Pxx + Pyy)
-    fneq2 =  inv2 * T(1/9) * (T(2)*Pxx - Pyy)
-    fneq3 =  inv2 * T(1/9) * (-Pxx + T(2)*Pyy)
-    fneq4 =  inv2 * T(1/9) * (T(2)*Pxx - Pyy)
-    fneq5 =  inv2 * T(1/9) * (-Pxx + T(2)*Pyy)
-    fneq6 =  inv2 * T(1/36) * (Pxx + Pyy) + T(1/4) * Pxy
-    fneq7 =  inv2 * T(1/36) * (Pxx + Pyy) - T(1/4) * Pxy
-    fneq8 =  inv2 * T(1/36) * (Pxx + Pyy) + T(1/4) * Pxy
-    fneq9 =  inv2 * T(1/36) * (Pxx + Pyy) - T(1/4) * Pxy
+    # cs² = 1/3, cs⁴ = 1/9, so w/(2 cs⁴) = 2, 1/2, 1/8 for rest, axis, diagonal;
+    # Σ f_neq = 0, Σ c f_neq = 0 and Σ c c f_neq = Π exactly.
+    # Same per-direction formulas as `_trt_collide_local`:
+    fneq1 = -T(2/3) * (Pxx + Pyy)
+    fneq2 =  T(1/6) * (T(2)*Pxx - Pyy)
+    fneq3 =  T(1/6) * (-Pxx + T(2)*Pyy)
+    fneq4 =  fneq2
+    fneq5 =  fneq3
+    fneq6 =  T(1/12) * (Pxx + Pyy) + T(1/4) * Pxy
+    fneq7 =  T(1/12) * (Pxx + Pyy) - T(1/4) * Pxy
+    fneq8 =  fneq6
+    fneq9 =  fneq7
     # TRT relaxation on regularized f_neq (symmetric/antisymmetric split)
     a = (sp_local + sm_local) * T(0.5)
     b = (sp_local - sm_local) * T(0.5)

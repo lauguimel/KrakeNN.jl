@@ -70,12 +70,13 @@ end
     Pxx = (f2 - fe2) + (f4 - fe4) + (f6 - fe6) + (f7 - fe7) + (f8 - fe8) + (f9 - fe9)
     Pyy = (f3 - fe3) + (f5 - fe5) + (f6 - fe6) + (f7 - fe7) + (f8 - fe8) + (f9 - fe9)
     Pxy = (f6 - fe6) - (f7 - fe7) + (f8 - fe8) - (f9 - fe9)
+    # f_neq_i = w_i / (2 c_s⁴) (c_iα c_iβ - c_s² δ_αβ) Π_αβ
     h = 0.5
-    fn1 = -h * (2 / 9) * (Pxx + Pyy)
-    fn2 = h * (1 / 9) * (2Pxx - Pyy); fn3 = h * (1 / 9) * (-Pxx + 2Pyy)
+    fn1 = -(2 / 3) * (Pxx + Pyy)
+    fn2 = (1 / 6) * (2Pxx - Pyy); fn3 = (1 / 6) * (-Pxx + 2Pyy)
     fn4 = fn2; fn5 = fn3
-    fn6 = h * (1 / 36) * (Pxx + Pyy) + 0.25 * Pxy
-    fn7 = h * (1 / 36) * (Pxx + Pyy) - 0.25 * Pxy
+    fn6 = (1 / 12) * (Pxx + Pyy) + 0.25 * Pxy
+    fn7 = (1 / 12) * (Pxx + Pyy) - 0.25 * Pxy
     fn8 = fn6; fn9 = fn7
     a = (s_p + s_m) * h; b = (s_p - s_m) * h
     return (fe1 + (1 - s_p) * fn1,
@@ -83,6 +84,42 @@ end
             fe4 + (1 - a) * fn4 - b * fn2, fe5 + (1 - a) * fn5 - b * fn3,
             fe6 + (1 - a) * fn6 - b * fn8, fe7 + (1 - a) * fn7 - b * fn9,
             fe8 + (1 - a) * fn8 - b * fn6, fe9 + (1 - a) * fn9 - b * fn7)
+end
+
+# East pressure outlet (mirror of `_bc_east_neq_extrap_2d!`,
+# `NeqExtrapolationPressure`): row j of column Nx is rebuilt, without collision,
+# from the post-collision populations of column Nx-1 already in `w_out`:
+#   f_q(Nx, j) = f_q(Nx-1, j) + f_q^eq(rho_out - rho, u)
+# with (rho, u) the raw moments of f(Nx-1, j). Moments in the order of
+# `moments_2d`, so the result matches the production kernel bit for bit.
+@inline function ad_ve_outlet_neq_extrap_row!(w_out, foff, rho_out, j, Nx, Ny)
+    @inbounds begin
+        g1 = w_out[foff + ad_ve_fpop(Nx - 1, j, 1, Nx, Ny)]
+        g2 = w_out[foff + ad_ve_fpop(Nx - 1, j, 2, Nx, Ny)]
+        g3 = w_out[foff + ad_ve_fpop(Nx - 1, j, 3, Nx, Ny)]
+        g4 = w_out[foff + ad_ve_fpop(Nx - 1, j, 4, Nx, Ny)]
+        g5 = w_out[foff + ad_ve_fpop(Nx - 1, j, 5, Nx, Ny)]
+        g6 = w_out[foff + ad_ve_fpop(Nx - 1, j, 6, Nx, Ny)]
+        g7 = w_out[foff + ad_ve_fpop(Nx - 1, j, 7, Nx, Ny)]
+        g8 = w_out[foff + ad_ve_fpop(Nx - 1, j, 8, Nx, Ny)]
+        g9 = w_out[foff + ad_ve_fpop(Nx - 1, j, 9, Nx, Ny)]
+        rho = g1 + g2 + g3 + g4 + g5 + g6 + g7 + g8 + g9
+        inv_rho = 1.0 / rho
+        ux = (g2 - g4 + g6 - g7 - g8 + g9) * inv_rho
+        uy = (g3 - g5 + g6 + g7 - g8 - g9) * inv_rho
+        usq = ux * ux + uy * uy
+        drho = rho_out - rho
+        w_out[foff + ad_ve_fpop(Nx, j, 1, Nx, Ny)] = g1 + ad_ve_feq(1, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 2, Nx, Ny)] = g2 + ad_ve_feq(2, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 3, Nx, Ny)] = g3 + ad_ve_feq(3, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 4, Nx, Ny)] = g4 + ad_ve_feq(4, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 5, Nx, Ny)] = g5 + ad_ve_feq(5, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 6, Nx, Ny)] = g6 + ad_ve_feq(6, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 7, Nx, Ny)] = g7 + ad_ve_feq(7, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 8, Nx, Ny)] = g8 + ad_ve_feq(8, drho, ux, uy, usq)
+        w_out[foff + ad_ve_fpop(Nx, j, 9, Nx, Ny)] = g9 + ad_ve_feq(9, drho, ux, uy, usq)
+    end
+    return nothing
 end
 
 # ----------------------------------------------------------------------------

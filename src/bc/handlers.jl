@@ -125,7 +125,10 @@ function _build_libb_bc_rebuild_spec_2d(setup::SimulationSetup, dx, dy,
             profile = _libb_velocity_profile_host(bc, setup, dx, dy, Nx, Ny, T)
             ZouHeVelocity(_copy_to_backend(backend, T, profile))
         elseif bc.type == :pressure
-            ZouHePressure(_libb_pressure_value(bc, T))
+            # East outlet: extrapolation rebuild (the Zou-He east closure keeps a
+            # non-decaying outlet mode on this path); other faces keep Zou-He.
+            bc.face == :east ? NeqExtrapolationPressure(_libb_pressure_value(bc, T)) :
+                               ZouHePressure(_libb_pressure_value(bc, T))
         elseif bc.type == :periodic
             throw(ArgumentError("periodic domain boundaries are not supported with STL wall=libb"))
         else

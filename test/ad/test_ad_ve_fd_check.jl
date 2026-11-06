@@ -17,7 +17,8 @@
 # directions, the adjoint gradient
 #     dJ/dθ = ∂J/∂θ + lambda' * ∂G/∂θ
 # with a central finite difference of J(θ) where the forward is reconverged at
-# θ ± h to fwd_tol = 1e-13. The step is checked by three-point Richardson
+# θ ± h to fwd_tol = 2e-15 (h = 1e-4 θ for directions 2-4). The step is checked
+# by three-point Richardson
 # (h, 2h, 4h): fd_err = |D(h) - D(2h)| / 3 estimates the error of D(h), and
 # fd_ratio = |D(2h) - D(4h)| / |D(h) - D(2h)| is ~4 when truncation dominates
 # (a value far from 4 means the FD is noise-limited at this step).
@@ -52,7 +53,9 @@ _relerr(a, b) = abs(a - b) / max(abs(b), eps(Float64))
 const FAST = (; Nx=24, Ny=24, cx=12.35, cy=11.65, R=5.13,
               Wi=0.5, beta=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16)
 
-const FWD_TOL = 1e-13
+# Forward tolerance (one-step relative change). 2e-15 sits about 4x above the
+# round-off floor of this case (~5e-16); see the gate note at the end of the file.
+const FWD_TOL = 2e-15
 
 _fwd_mode() = isdefined(Enzyme, :set_runtime_activity) ?
               Enzyme.set_runtime_activity(Enzyme.Forward) : Enzyme.Forward
@@ -261,7 +264,7 @@ function run()
         dG_chk = norm(dG .- dG_fd) / max(norm(dG_fd), eps(Float64))
         dJ_explicit = _dJ_dtheta_fwd(w_star, geom, c, which)
         adj_th = dJ_explicit + dot(lam, dG)
-        rich = _richardson(δ -> _J_primal_theta(w_star, geom, c, which, th + δ), 1e-3 * abs(th))
+        rich = _richardson(δ -> _J_primal_theta(w_star, geom, c, which, th + δ), 1e-4 * abs(th))
         rel = _relerr(adj_th, rich.fd)
         @printf("=== ve_fd dir=%d name=%s adj=%.10e fd=%.10e rel=%.3e fd_err=%.3e fd_ratio=%.2f fd_extrap=%.10e explicit=%.6e state_response=%.6e dG_fwd_vs_fd=%.2e reached_tol=%s topo_fixed=%s seconds=%.1f\n",
                 which, _name(which), adj_th, rich.fd, rel, rich.err, rich.ratio,
@@ -287,6 +290,16 @@ end # module
 #   After the TRT Guo source fix (#67), macOS arm64, Julia 1.11.9, 2026-10-08:
 #   R rel 1.05e-3; lambda 8.7e-7, Fx 1.2e-7, nu_s 1.17e-6 (gates unchanged)
 #   transpose residual 8.5e-16 / 6.4e-16;  API vs inline gradient 1.9e-15 / 6.4e-16
+#   East outlet switched to NeqExtrapolationPressure (#118), macOS arm64, Julia
+#   1.12.5, 2026-11-05. With the previous reference (fwd_tol 1e-13, h = 1e-3 θ)
+#   nu_s gave rel 1.9e-4 and Fx 5.1e-5, both limited by the FD reference, not by
+#   the adjoint: (i) for nu_s, stopping the reconverged forward at a one-step
+#   change of 1e-13 leaves an error in J of ~1e-8 relative, which 2h turns into
+#   ~2e-4 (20 000 more forward steps bring the same FD to 7e-7); (ii) J(Fx) has
+#   a slope jump near Fx0 (1 + 7.5e-4) (in a scan of J at steps of 5e-4 Fx0 the
+#   slope changes once by 5e-4 relative, ten times the change between its other
+#   neighbours), which the 1e-3 stencil straddles. With fwd_tol 2e-15 and h = 1e-4 θ (stencil within 4e-4 θ):
+#   R rel 1.05e-3; lambda 1.9e-7, Fx 4.1e-6, nu_s 2.4e-5 (gates unchanged).
 # The miscompiled reduced construct of #41 gives a 2.3e-2 gradient error or NaN.
 # Directions 2-4 depend on the reverse-mode adjoint only through lambda, so
 # their 1e-4 gate (100x the measured error) is the detector; the radius gate
