@@ -14,6 +14,9 @@ ENV["KRAKEN_REQUIRE_GPU"] = "1"
 # receipt stops execution before either large GPU timing is launched.
 include(joinpath(C5_TEST_DIR, "incns_fv_adjoint_compiler.jl"))
 include(joinpath(C5_TEST_DIR, "incns_fv_immersed_mass_compiler.jl"))
+# C3/C4 GPU contracts, rerun because the C5 port merged into their code.
+include(joinpath(C5_TEST_DIR, "incns_fv_gnf_gpu.jl"))
+include(joinpath(C5_TEST_DIR, "incns_fv_adjoint_gpu.jl"))
 include(joinpath(C5_TEST_DIR, "incns_fv_immersed_gpu.jl"))
 
 function c5_gpu_timing(N, mass)
