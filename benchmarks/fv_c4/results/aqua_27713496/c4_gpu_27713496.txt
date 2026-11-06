@@ -1,0 +1,201 @@
+CUDA.functional() = true
+Precompiling packages...
+  40926.6 ms  ✓ Kraken
+  1 dependency successfully precompiled in 57 seconds. 230 already precompiled.
+Precompiling packages...
+  25698.1 ms  ✓ Kraken → KrakenCUDSSExt
+  1 dependency successfully precompiled in 28 seconds. 233 already precompiled.
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.6.0  threads 8
+
+--- C4 test files ---
+
+--- incns_fv_adjoint.jl ---
+┌ Info: C3/C4 GNF adjoint errors
+│   law = :CarreauYasuda
+│   worst_dense = 6.818265789161442e-16
+│   worst_fd = 9.84533101896488e-10
+└   elapsed = 16.221024378
+┌ Info: C3/C4 GNF adjoint errors
+│   law = :PowerLaw
+│   worst_dense = 2.4194678107802373e-15
+│   worst_fd = 2.8144939976506196e-9
+└   elapsed = 15.493770511
+┌ Info: C4 adjoint error levels (max over cases)
+│   fd_best_step_rel = 9.04555824857512e-9
+│   tangent_rel = 1.5922052989326826e-15
+└   param_cotangent_vs_dense_rel = 1.2345836590322297e-15
+
+--- incns_fv_adjoint_gpu.jl ---
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "lid speed"
+└   rel = 0.0
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "nu field"
+└   rel = 1.3991604942133376e-16
+┌ Info: C4 GPU parity
+│   oname = "lid drag"
+│   mname = "FVProblemMap"
+└   rel = 1.3719132326281329e-16
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "lid speed"
+└   rel = 1.1838870711888457e-15
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "nu field"
+└   rel = 1.5503702354375641e-15
+┌ Info: C4 GPU parity
+│   oname = "u profile misfit"
+│   mname = "FVProblemMap"
+└   rel = 1.718392591425728e-15
+┌ Info: C4 GPU gradient loop
+└   free_memory_spread_MiB = 0.0
+Test Summary:   | Pass  Total     Time
+C4 GPU receipts | 1222   1222  2m24.0s
+
+================ cavity N = 512², Re = 100.0 (from rest) ================
+  unknowns 786432 | Newton converged true in 5 iterations, 14.22 s wall | one iteration (assembly + refactorize + solve, median) 0.444 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  uniform nu | lid drag  | 0.590 (0.009 / 0.435 / 0.008 / 0.000 / 0.000) | 0.001 | 0.0121 | 0.001 | 0.03 | 0
+    hot objective 0.003527 s | explicit 0.000032 s | (objective + explicit)/iteration 0.0080
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  uniform nu | u profile | 0.824 (0.281 / 0.435 / 0.008 / 0.000 / 0.000) | 0.000 | 0.2769 | 0.019 | 0.62 | 0
+    hot objective 0.268267 s | explicit 0.000001 s | (objective + explicit)/iteration 0.6048
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | lid drag  | 0.479 (0.002 / 0.468 / 0.008 / 0.001 / 0.000) | 0.001 | 0.0182 | 0.001 | 0.04 | 0
+    hot objective 0.009431 s | explicit 0.000125 s | (objective + explicit)/iteration 0.0215
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | u profile | 0.588 (0.143 / 0.436 / 0.008 / 0.001 / 0.000) | 0.000 | 0.2024 | 0.014 | 0.46 | 0
+    hot objective 0.193599 s | explicit 0.000001 s | (objective + explicit)/iteration 0.4364
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | lid drag  | 0.599 (0.002 / 0.465 / 0.008 / 0.001 / 0.005) | 0.142 | 0.0121 | 0.001 | 0.03 | 0
+    hot objective 0.002277 s | explicit 0.000743 s | (objective + explicit)/iteration 0.0070
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | u profile | 0.779 (0.270 / 0.438 / 0.008 / 0.001 / 0.001) | 0.088 | 0.1973 | 0.014 | 0.44 | 0
+    hot objective 0.187523 s | explicit 0.000710 s | (objective + explicit)/iteration 0.4243
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  n_factorize after all gradients: 1 (1 = no new analysis)
+  device free memory at end of case: 33.95 GiB
+
+================ cavity N = 1024², Re = 100.0 (from rest) ================
+  unknowns 3145728 | Newton converged true in 5 iterations, 61.74 s wall | one iteration (assembly + refactorize + solve, median) 2.384 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  uniform nu | lid drag  | 2.459 (0.064 / 2.361 / 0.031 / 0.001 / 0.000) | 0.320 | 0.1508 | 0.002 | 0.06 | 0
+    hot objective 0.118037 s | explicit 0.000093 s | (objective + explicit)/iteration 0.0496
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  uniform nu | u profile | 3.381 (0.976 / 2.372 / 0.031 / 0.001 / 0.000) | 0.000 | 0.8948 | 0.014 | 0.38 | 0
+    hot objective 0.857486 s | explicit 0.000001 s | (objective + explicit)/iteration 0.3597
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | lid drag  | 2.412 (0.008 / 2.371 / 0.031 / 0.001 / 0.001) | 0.001 | 0.0609 | 0.001 | 0.03 | 0
+    hot objective 0.027690 s | explicit 0.000201 s | (objective + explicit)/iteration 0.0117
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  lid speed  | u profile | 3.260 (0.872 / 2.355 / 0.031 / 0.001 / 0.000) | 0.000 | 1.0002 | 0.016 | 0.42 | 0
+    hot objective 0.967638 s | explicit 0.000001 s | (objective + explicit)/iteration 0.4060
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | lid drag  | 3.093 (0.119 / 2.383 / 0.032 / 0.003 / 0.017) | 0.569 | 0.0739 | 0.001 | 0.03 | 0
+    hot objective 0.036515 s | explicit 0.003042 s | (objective + explicit)/iteration 0.0165
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  nu field   | u profile | 3.823 (0.942 / 2.381 / 0.031 / 0.003 / 0.003) | 0.545 | 0.9456 | 0.015 | 0.40 | 0
+    hot objective 0.805714 s | explicit 0.100525 s | (objective + explicit)/iteration 0.3802
+    hot device allocation signature   0 B
+    hot device allocation host copies 0 B
+    hot device allocation objective   0 B
+    hot device allocation RHS copy    0 B
+    hot device allocation transpose   0 B
+    hot device allocation cotangent   0 B
+    hot device allocation residual    0 B
+    hot device allocation norms       0 B
+    hot device allocation explicit    0 B
+  n_factorize after all gradients: 1 (1 = no new analysis)
+  device free memory at end of case: 16.57 GiB
+DONE status=0
