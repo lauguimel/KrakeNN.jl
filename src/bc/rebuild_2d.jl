@@ -185,16 +185,18 @@ end
     end
 end
 
-# Rows 2:Ny-1 only; the corner rows keep the state written by the bulk step.
-# In particular, wall corners keep half-way bounce-back. Shared by the
-# uniform-rate and per-node-rate rebuilds: the rule uses no rate.
+# Use the same adjacent-face row ownership as the Zou-He x-face rebuilds.
+# At half-way walls, column Nx-1 already includes wall bounce-back before
+# collision; copying all nine post-collision populations needs no wall-link
+# special case. Shared by uniform-rate and per-node-rate rebuilds: no rate.
 function _apply_bc_2d_east_neq_extrap!(backend, f_out, bc::NeqExtrapolationPressure,
                                        Nx, Ny, south_bc, north_bc)
     Nx ≥ 3 || throw(ArgumentError(
         "NeqExtrapolationPressure needs Nx ≥ 3 (reads column Nx-1), got Nx = $Nx"))
-    count = Ny - 2
+    j_lo, j_hi, _, _ = _xface_rows_2d(Ny, south_bc, north_bc)
+    count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
-    _bc_east_neq_extrap_2d!(backend)(f_out, Nx, eltype(f_out)(bc.ρ_out), 1;
+    _bc_east_neq_extrap_2d!(backend)(f_out, Nx, eltype(f_out)(bc.ρ_out), j_lo - 1;
                                      ndrange=(count,))
     return nothing
 end
@@ -663,7 +665,9 @@ Apply the per-face BCs in `bcspec::BCSpec2D` to `f_out` after the bulk step.
 Zou-He faces read pre-step values from `f_in` (streamed from interior),
 close the populations, and collide locally with TRT Λ=3/16 at viscosity `ν`.
 The east `NeqExtrapolationPressure` face reads the completed post-collision
-column `Nx-1` of `f_out` and rebuilds rows `2:Ny-1` without collision.
+column `Nx-1` of `f_out` and rebuilds without collision. As for Zou-He x-faces,
+end rows next to `HalfwayBB` or `InterfaceBC` are included; an end row next to
+a Zou-He south/north face is excluded.
 
 If `sp_field` and `sm_field` (2D arrays) are provided, per-cell local
 rates are used at the west/east Zou-He faces instead of uniform ν-derived rates.

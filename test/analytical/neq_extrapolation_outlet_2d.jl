@@ -10,10 +10,10 @@
 #
 # Checked:
 #   (a) `NeqExtrapolationPressure`: the outlet change after 10 000 steps is at
-#       round-off (gate 1e-13; measured 2.2e-16, CPU, 2026-11-05, Apple M3 Max,
+#       round-off (gate 1e-13; measured 6.2e-14, CPU, 2026-11-06, macOS arm64,
 #       Julia 1.12.5); the outlet density equals ρ_out and the outlet raw
-#       velocity equals that of column Nx-1, rows 2:Ny-1 (gate 1e-14 each;
-#       measured <= 3.4e-16); the per-node-rate dispatch (`sp_field`,
+#       velocity equals that of column Nx-1, including rows 1 and Ny
+#       (gate 1e-14 each; measured <= 2.3e-16); the per-node-rate dispatch (`sp_field`,
 #       `sm_field`) gives the same state as the uniform-rate one (bitwise,
 #       uniform fields).
 #   (b) Sensitivity of the check: with `ZouHePressure` east, regularized TRT
@@ -77,7 +77,7 @@ end
         r = _neqout_channel(NeqExtrapolationPressure(1.0))
         @test r.d_end <= _NEQOUT_GATE
         drho = 0.0; du = 0.0
-        for j in 2:r.Ny-1
+        for j in 1:r.Ny
             ρo, uxo, uyo = _neqout_moments(r.f, r.Nx, j)
             _, uxm, uym = _neqout_moments(r.f, r.Nx - 1, j)
             drho = max(drho, abs(ρo - 1.0))
@@ -101,7 +101,7 @@ end
         @info "ZouHePressure outlet" d_half = r.d_half d_end = r.d_end
     end
 
-    @testset "Post-collision source, no collision, untouched corners" begin
+    @testset "Post-collision source, no collision, included end rows" begin
         Nx, Ny = 8, 6
         rng = MersenneTwister(1182)
         post = 0.05 .+ 0.01 .* rand(rng, Nx, Ny, 9)
@@ -109,7 +109,7 @@ end
         pre = 0.1 .+ 0.01 .* rand(rng, Nx, Ny, 9)
         rho_out = 1.01
         expected = copy(post)
-        for j in 2:Ny-1
+        for j in 1:Ny
             rho, ux, uy = _neqout_moments(post, Nx - 1, j)
             for q in 1:9
                 expected[Nx, j, q] = post[Nx - 1, j, q] +
@@ -117,7 +117,7 @@ end
                     Kraken.feq_2d(Val(q), rho, ux, uy, ux^2 + uy^2)
             end
         end
-        # The specification excludes both corner rows even at block interfaces.
+        # Half-way walls and block interfaces both include the end rows.
         # The round-off bound follows the analytic extrapolation formula above.
         for adjacent in (HalfwayBB(), InterfaceBC())
             bc = BCSpec2D(; east=NeqExtrapolationPressure(rho_out),
@@ -125,11 +125,52 @@ end
             actual = copy(post)
             apply_bc_rebuild_2d!(actual, pre, bc, 0.02, Nx, Ny)
             @test maximum(abs.(actual .- expected)) <= _NEQOUT_MOMENT_GATE
-            @test actual[Nx, [1, Ny], :] == post[Nx, [1, Ny], :]
+            @test maximum(abs.(actual[Nx, [1, Ny], :] .-
+                               expected[Nx, [1, Ny], :])) <= _NEQOUT_MOMENT_GATE
             @test actual[1:Nx-1, :, :] == post[1:Nx-1, :, :]
             local_rates = copy(post)
             apply_bc_rebuild_2d!(local_rates, pre, bc, 0.1, Nx, Ny;
                 sp_field=0.2 .+ rand(rng, Nx, Ny), sm_field=0.3 .+ rand(rng, Nx, Ny))
+            @test local_rates == actual
+        end
+    end
+
+    @testset "Corner rows next to a Zou-He face stay excluded" begin
+        Nx, Ny = 8, 6
+        rng = MersenneTwister(126)
+        post = 0.05 .+ 0.01 .* rand(rng, Nx, Ny, 9)
+        pre = 0.1 .+ 0.01 .* rand(rng, Nx, Ny, 9)
+        east = NeqExtrapolationPressure(1.01)
+        backend = Kraken.KernelAbstractions.get_backend(post)
+        # Exercise each endpoint independently, including mixed face types.
+        for (south, north, rows) in (
+            (ZouHePressure(1.0), HalfwayBB(), 2:Ny),
+            (InterfaceBC(), ZouHeVelocity(zeros(Nx)), 1:Ny-1),
+            (ZouHeVelocity(zeros(Nx)), ZouHePressure(1.0), 2:Ny-1),
+        )
+            expected = copy(post)
+            for j in rows
+                rho, ux, uy = _neqout_moments(post, Nx - 1, j)
+                for q in 1:9
+                    expected[Nx, j, q] = post[Nx - 1, j, q] +
+                        Kraken.feq_2d(Val(q), east.ρ_out, ux, uy, ux^2 + uy^2) -
+                        Kraken.feq_2d(Val(q), rho, ux, uy, ux^2 + uy^2)
+                end
+            end
+            # Isolate the east dispatch so the adjacent face's own rebuild
+            # cannot alter the reference source column after extrapolation.
+            actual = copy(post)
+            Kraken._apply_bc_2d_east!(backend, actual, pre, east, 0.8, 1.1, Nx, Ny;
+                south_bc=south, north_bc=north)
+            @test maximum(abs.(actual .- expected)) <= _NEQOUT_MOMENT_GATE
+            for j in setdiff([1, Ny], rows)
+                @test actual[Nx, j, :] == post[Nx, j, :]
+            end
+            @test actual[1:Nx-1, :, :] == post[1:Nx-1, :, :]
+            local_rates = copy(post)
+            Kraken._apply_bc_2d_east_local!(backend, local_rates, pre, east,
+                fill(0.7, Nx, Ny), fill(1.2, Nx, Ny), Nx, Ny;
+                south_bc=south, north_bc=north)
             @test local_rates == actual
         end
     end

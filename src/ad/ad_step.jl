@@ -238,7 +238,7 @@ end
 # half-way walls south and north (`_xface_rows_2d`): all rows 1:Ny are rebuilt,
 # and on rows 1 and Ny the populations pulled across the wall are the half-way
 # bounce-back of the same node, as in `ad_bulk_v2_step!`. The east outlet is
-# the extrapolation outlet on rows 2:Ny-1.
+# the extrapolation outlet on all rows 1:Ny under the same half-way walls.
 function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
                                   Nx::Int, Ny::Int)
     @inbounds for j in 1:Ny
@@ -268,13 +268,11 @@ function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
         out[1, j, 8] = F8
         out[1, j, 9] = F9
 
-        # East outlet (NeqExtrapolationPressure), rows 2:Ny-1 as in
+        # East outlet (NeqExtrapolationPressure), rows 1:Ny as in
         # `_apply_bc_2d_east_neq_extrap!`: from the post-collision column
-        # Nx-1 already written to `out` by the bulk step. The corner rows
-        # keep the bulk-step values.
-        if 1 < j < Ny
-            ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
-        end
+        # Nx-1 already written to `out` by the bulk step, including its
+        # half-way wall treatment on rows 1 and Ny.
+        ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
     end
     return nothing
 end
@@ -433,13 +431,11 @@ function ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out,
         out[1, j, 8] = F8
         out[1, j, 9] = F9
 
-        # East outlet (NeqExtrapolationPressure), rows 2:Ny-1 as in
+        # East outlet (NeqExtrapolationPressure), rows 1:Ny as in
         # `_apply_bc_2d_east_neq_extrap!`: from the post-collision column
-        # Nx-1 already written to `out` by the bulk step. The corner rows
-        # keep the bulk-step values.
-        if 1 < j < Ny
-            ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
-        end
+        # Nx-1 already written to `out` by the bulk step, including its
+        # half-way wall treatment on rows 1 and Ny.
+        ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
     end
     return nothing
 end

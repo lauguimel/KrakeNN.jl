@@ -213,10 +213,12 @@ so the rule does not depend on the relaxation rates.
 Density is imposed and velocity has zero normal gradient in the raw-moment
 sense. The log-FV drivers use TRT Guo forcing and read velocity as `Σ c f / ρ`,
 without a `+F/(2ρ)` correction; this outlet copies the neighbour's post-collision
-raw velocity and applies no additional force at `Nx`. Only rows `2:Ny-1` are
-rebuilt; the two corners retain the bulk-step state (half-way bounce-back at
-wall corners). The measured maximum Poiseuille velocity error is first order
-at the outlet corners. Place the outlet several obstacle diameters downstream.
+raw velocity and applies no additional force at `Nx`. Rows next to `HalfwayBB`
+or `InterfaceBC` south/north faces are included, as in the Zou-He x-face
+rebuilds; an end row next to a Zou-He face is excluded. At half-way walls,
+the copied neighbour already includes wall bounce-back before collision, so
+the full-node extrapolation needs no additional wall-link treatment.
+Place the outlet several obstacle diameters downstream.
 Backflow (`u_x < 0`) is not supported.
 
 Only the east face of `BCSpec2D` accepts it; requires `Nx ≥ 3`.

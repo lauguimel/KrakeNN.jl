@@ -147,10 +147,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   bordered-GMRES solver (`:gmres`), not the `:kstep` default of
   `gnf_steady_gradient` (#124).
 - New `NeqExtrapolationPressure(ρ_out)` east outlet for
-  `apply_bc_rebuild_2d!`: after the bulk step, rows `2:Ny-1` of column `Nx`
+  `apply_bc_rebuild_2d!`: after the bulk step, the selected rows of column `Nx`
   are set by non-equilibrium extrapolation from the completed column `Nx-1`,
-  with imposed density and no further collision; corners are left as they
-  are. It is now used by `run_cylinder_libb_2d`, the log-FV viscoelastic
+  with imposed density and no further collision. End rows next to `HalfwayBB`
+  or `InterfaceBC` are included, using the same row selection as Zou-He
+  x-faces; corners next to a south/north Zou-He face are excluded.
+  It is now used by `run_cylinder_libb_2d`, the log-FV viscoelastic
   drivers sharing `default_step_bcspec_2d`, the 2D STL `wall = libb` path and
   the Schäfer–Turek 2D-2 benchmark. With the corrected weights, the Zou-He
   pressure outlet of this path develops a sign-flipping mode that the old
@@ -158,7 +160,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - `ZouHePressure` is unchanged and its docstring describes that mode.
   Explicit callers, west/south/north pressure faces of the 2D STL path, the
   direct Zou-He drivers, the Gmsh physical-normal route and all 3D routes
-  keep their current behaviour. Place the new outlet several diameters
+  keep their current behaviour. The extrapolation outlet copies all nine
+  populations from the neighbour after its wall treatment and collision,
+  including wall-adjacent end rows. Place the new outlet several diameters
   downstream of obstacles; backflow through it is not supported (#126).
 
 ### Fixed

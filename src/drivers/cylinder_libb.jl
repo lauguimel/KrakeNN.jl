@@ -144,7 +144,8 @@ Legacy wrapper for the hardcoded (Zou-He velocity west + extrapolation
 pressure outlet east) rebuild. Prefer the modular `apply_bc_rebuild_2d!(f_out,
 f_in, BCSpec2D(west=ZouHeVelocity(u_profile),
 east=NeqExtrapolationPressure(ρ_out)), ν, Nx, Ny)` in new code — it decouples
-BC choice from the driver.
+BC choice from the driver. With the default half-way south/north walls,
+both inlet and outlet rebuild all rows `1:Ny`.
 """
 function rebuild_inlet_outlet_libb_2d!(f_out, f_in, u_profile, ρ_out::Real,
                                         ν::Real, Nx::Int, Ny::Int)
@@ -162,8 +163,8 @@ end
 2D cylinder with LI-BB V2 boundary condition. Parabolic / uniform
 Zou-He velocity inlet (reconstructed from pre-step populations) and an
 extrapolation pressure outlet (`NeqExtrapolationPressure`, rebuilt from the
-post-collision column Nx-1); both bypass the kernel's halfway-BB fallback
-at the non-wall boundaries. Top / bottom channel walls are
+post-collision column Nx-1, including rows 1 and Ny); both bypass the kernel's
+halfway-BB fallback at the non-wall boundaries. Top / bottom channel walls are
 halfway-BB via the kernel's fallback at j=1 and j=Ny, so they sit at
 y = -1/2 and y = Ny - 1/2 (node j at y = j - 1) and the channel height is Ny.
 
@@ -273,7 +274,7 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
     for step in 1:max_steps
         fused_trt_libb_v2_step!(f_out, f_in, ρ, ux, uy, is_solid,
                                  q_wall, uw_x, uw_y, Nx, Ny, T(ν))
-        # Zou-He velocity inlet at i=1 (j=1..Ny), extrapolation outlet at i=Nx (j=2..Ny-1)
+        # Zou-He velocity inlet at i=1 and extrapolation outlet at i=Nx (both j=1..Ny).
         rebuild_inlet_outlet_libb_2d!(f_out, f_in, u_profile, ρ_out, ν, Nx, Ny)
 
         if step > max_steps - avg_window
