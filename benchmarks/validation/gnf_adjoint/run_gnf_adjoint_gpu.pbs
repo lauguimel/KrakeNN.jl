@@ -12,6 +12,8 @@ cd "${PBS_O_WORKDIR:?PBS_O_WORKDIR is required}"
 JL="${JL:-julia}"
 PROJECT="${PROJECT:-.}"
 OUT="${OUT:-benchmarks/validation/gnf_adjoint/results}"
+EXTRA="${EXTRA:-}"   # further script options, e.g. "--grid=64x32 --hs=decades"
+# Provenance: run from a git checkout, or pass KRAKEN_GIT_COMMIT=<commit> with qsub -v.
 export JULIA_CUDA_USE_COMPAT=false
 
 nvidia-smi || { echo "ERROR: GPU not available"; exit 1; }
@@ -19,4 +21,4 @@ nvidia-smi || { echo "ERROR: GPU not available"; exit 1; }
     || { echo "ERROR: CUDA pre-flight failed"; exit 1; }
 
 exec "$JL" --project="$PROJECT" benchmarks/validation/gnf_adjoint/run_gnf_adjoint_gpu.jl \
-    --backend=cuda --out="$OUT"
+    --backend=cuda --out="$OUT" $EXTRA

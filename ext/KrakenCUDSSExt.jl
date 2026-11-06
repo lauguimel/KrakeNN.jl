@@ -42,7 +42,8 @@ using SparseArrays
 using LinearAlgebra
 
 import Kraken: lin_factorize, lin_solve!, _cudss_factorize, _lin_solve_into!,
-               _lin_refactorize!, _lin_solution_buffer, _lin_supports_transpose
+               _lin_refactorize!, _lin_solution_buffer, _lin_supports_transpose,
+               _fv_device_csr
 
 # cuDSS operates on CSR; host CSC operators are converted on upload.
 const _CUDSS_GPU_MAT = CuSparseMatrixCSR{Float64,Int32}
@@ -283,6 +284,19 @@ function _lin_refactorize!(::Kraken.CUDABackendTag, cache::Kraken.LinearSolveCac
     throw(ArgumentError("lin_refactorize! on the cuDSS backend takes a " *
                         "CuSparseMatrixCSR{Float64,Int32} or a SparseMatrixCSC, " *
                         "got $(typeof(A_new))"))
+end
+
+# --------------------------------------------------------------------------
+# Device CSR matrix for the FV Newton Jacobian (C2, src/methods/inc_ns/
+# fv_newton.jl): pattern built on the host, values written in place on device
+# by the coloured dual assembly, refactorized by `lin_refactorize!(cache)`.
+# --------------------------------------------------------------------------
+function _fv_device_csr(::Kraken.CUDABackendTag, rowptr::AbstractVector,
+                        colval::AbstractVector, n::Integer)
+    nzval = CUDA.zeros(Float64, length(colval))
+    J = _CUDSS_GPU_MAT(CuVector{Int32}(Int32.(rowptr)), CuVector{Int32}(Int32.(colval)),
+                       nzval, (Int(n), Int(n)))
+    return J, J.nzVal
 end
 
 end # module KrakenCUDSSExt

@@ -18,11 +18,12 @@
 #       verbatim from the circle builder.
 #   (2) psi-advection edge BC = production Dirichlet (west_phi=0, east_phi=psi[Nx,:],
 #       south/north wall mirror) + the WEST embedded face velocity = inlet profile.
-#   (3) fused rebuild on f cols i=1 and i=Nx, rows j=2..Ny-1, after the fused
-#       step (production order: fused step -> apply_bc_rebuild): west Zou-He
-#       velocity profile from the PRE-stream f via the regularized TRT collide;
-#       east NeqExtrapolationPressure (rho_out=1) from the post-collision
-#       column Nx-1, no collision.
+#   (3) fused rebuild on f cols i=1 and i=Nx, after the fused step (production
+#       order: fused step -> apply_bc_rebuild): west Zou-He velocity profile on
+#       rows j=1..Ny (half-way bounce-back on the wall rows, as in
+#       `_xface_rows_2d`) from the PRE-stream f via the regularized TRT collide;
+#       east NeqExtrapolationPressure (rho_out=1) on rows j=2..Ny-1 from the
+#       post-collision column Nx-1, no collision.
 #
 # Ported verbatim (preserving every formula / ordering / float op) from the
 # validated scratch chain (bench/scratch/ve_c0_matched.jl + ve_ad_c0.jl +
@@ -332,18 +333,23 @@ function ad_ve_coupled_step!(w_out, w_in, g::ADVEEmbeddedGeom, q_wall::Array{Flo
     end
 
     # ============================================================
-    # (3) FUSED rebuild on f cols i=1 (west Zou-He velocity, reading PRE-stream f
-    # from w_in) and i=Nx (east NeqExtrapolationPressure, reading column Nx-1 of
-    # w_out), rows j=2..Ny-1. Mirrors apply_bc_rebuild_2d!.
+    # (3) FUSED rebuild on f cols i=1 (west Zou-He velocity, rows j=1..Ny, reading
+    # PRE-stream f from w_in) and i=Nx (east NeqExtrapolationPressure, rows
+    # j=2..Ny-1, reading column Nx-1 of w_out). Mirrors apply_bc_rebuild_2d! with
+    # half-way walls south and north: on the west rows 1 and Ny the links pulled
+    # across the wall are the half-way bounce-back of the same node, as in the
+    # bulk pull above; the east corner rows keep the fused-step values.
     # ============================================================
-    @inbounds for j in 2:(Ny-1)
+    @inbounds for j in 1:Ny
+        bs = j == 1
+        bn = j == Ny
         # WEST velocity (i=1): unknown q=2,6,9 after pull
         fp1 = w_in[foff + ad_ve_fpop(1, j,   1, Nx, Ny)]
-        fp3 = w_in[foff + ad_ve_fpop(1, j-1, 3, Nx, Ny)]
+        fp3 = bs ? w_in[foff + ad_ve_fpop(1, j, 5, Nx, Ny)] : w_in[foff + ad_ve_fpop(1, j-1, 3, Nx, Ny)]
         fp4 = w_in[foff + ad_ve_fpop(2, j,   4, Nx, Ny)]
-        fp5 = w_in[foff + ad_ve_fpop(1, j+1, 5, Nx, Ny)]
-        fp7 = w_in[foff + ad_ve_fpop(2, j-1, 7, Nx, Ny)]
-        fp8 = w_in[foff + ad_ve_fpop(2, j+1, 8, Nx, Ny)]
+        fp5 = bn ? w_in[foff + ad_ve_fpop(1, j, 3, Nx, Ny)] : w_in[foff + ad_ve_fpop(1, j+1, 5, Nx, Ny)]
+        fp7 = bs ? w_in[foff + ad_ve_fpop(1, j, 9, Nx, Ny)] : w_in[foff + ad_ve_fpop(2, j-1, 7, Nx, Ny)]
+        fp8 = bn ? w_in[foff + ad_ve_fpop(1, j, 6, Nx, Ny)] : w_in[foff + ad_ve_fpop(2, j+1, 8, Nx, Ny)]
         u_in = u_profile[j]
         rho_w = (fp1 + fp3 + fp5 + 2.0*(fp4 + fp7 + fp8)) / (1.0 - u_in)
         fp2 = fp4 + (2.0/3.0)*rho_w*u_in
@@ -359,10 +365,12 @@ function ad_ve_coupled_step!(w_out, w_in, g::ADVEEmbeddedGeom, q_wall::Array{Flo
         w_out[foff + ad_ve_fpop(1, j, 7, Nx, Ny)] = F[7]
         w_out[foff + ad_ve_fpop(1, j, 8, Nx, Ny)] = F[8]
         w_out[foff + ad_ve_fpop(1, j, 9, Nx, Ny)] = F[9]
-        # EAST pressure outlet (i=Nx), NeqExtrapolationPressure: rebuilt
-        # without collision from the post-collision column Nx-1 that the fused
-        # step above already wrote to w_out.
-        ad_ve_outlet_neq_extrap_row!(w_out, foff, rho_out, j, Nx, Ny)
+        # EAST pressure outlet (i=Nx), NeqExtrapolationPressure, rows 2..Ny-1:
+        # rebuilt without collision from the post-collision column Nx-1 that
+        # the fused step above already wrote to w_out.
+        if 1 < j < Ny
+            ad_ve_outlet_neq_extrap_row!(w_out, foff, rho_out, j, Nx, Ny)
+        end
     end
 
     # ---- pack psi' ----

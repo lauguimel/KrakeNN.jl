@@ -108,6 +108,7 @@ end
     @Const(ux), @Const(uy), @Const(uz), @Const(is_solid),
     inv_dx, inv_dy, inv_dz, inv_2dx, inv_2dy, inv_2dz,
     west_bc, east_bc, south_bc, north_bc, back_bc, front_bc, Nx, Ny, Nz,
+    wall_normal_noslip,
 )
     i, j, k = @index(Global, NTuple)
     @inbounds begin
@@ -138,6 +139,14 @@ end
                 duydy[i, j, k] = _fvfd_velocity_gradient_dy_3d(
                     uy, is_solid, i, j, k, Ny, inv_dy, inv_2dy, south_bc, north_bc,
                 )
+                if wall_normal_noslip && south_bc == FVFD_BC_WALL && north_bc == FVFD_BC_WALL
+                    T = eltype(duydy)
+                    if j == 1 && Ny >= 3 && !is_solid[i, 2, k]
+                        duydy[i, j, k] = (uy[i, 1, k] + uy[i, 2, k] / T(3)) * inv_dy
+                    elseif j == Ny && Ny >= 3 && !is_solid[i, Ny - 1, k]
+                        duydy[i, j, k] = -(uy[i, Ny, k] + uy[i, Ny - 1, k] / T(3)) * inv_dy
+                    end
+                end
                 duydz[i, j, k] = _fvfd_velocity_gradient_dz_3d(
                     uy, is_solid, i, j, k, Nz, inv_dz, inv_2dz, back_bc, front_bc,
                 )
@@ -155,6 +164,13 @@ end
     end
 end
 
+"""
+    fvfd_velocity_gradient_3d!(duxdx, ..., duzdz, ux, uy, uz, is_solid; dx, dy, dz, ..., wall_normal_noslip=false)
+
+Cell-centred velocity gradient. With `wall_normal_noslip=true`, ∂u_y/∂y in the
+wall rows assumes `u_y = 0` at the half-way wall (as bounce-back enforces) and
+uses a second-order one-sided stencil; the default is unchanged.
+"""
 function fvfd_velocity_gradient_3d!(
     duxdx, duxdy, duxdz,
     duydx, duydy, duydz,
@@ -168,13 +184,14 @@ function fvfd_velocity_gradient_3d!(
     y_bc=:wall,
     z_bc=:periodic,
     sync::Bool=true,
+    wall_normal_noslip::Bool=false,
 )
     return fvfd_velocity_gradient_3d!(
         duxdx, duxdy, duxdz,
         duydx, duydy, duydz,
         duzdx, duzdy, duzdz,
         ux, uy, uz, is_solid, dx, dy, dz,
-        x_bc, x_bc, y_bc, y_bc, z_bc, z_bc; sync,
+        x_bc, x_bc, y_bc, y_bc, z_bc, z_bc; sync, wall_normal_noslip,
     )
 end
 
@@ -186,6 +203,7 @@ function fvfd_velocity_gradient_3d!(
     dx, dy, dz,
     west_bc, east_bc, south_bc, north_bc, back_bc, front_bc;
     sync::Bool=true,
+    wall_normal_noslip::Bool=false,
 )
     backend = KernelAbstractions.get_backend(ux)
     Nx, Ny, Nz = size(ux)
@@ -202,7 +220,8 @@ function fvfd_velocity_gradient_3d!(
         duzdx, duzdy, duzdz,
         ux, uy, uz, is_solid,
         inv(dx), inv(dy), inv(dz), inv(2 * dx), inv(2 * dy), inv(2 * dz),
-        west, east, south, north, back, front, Nx, Ny, Nz;
+        west, east, south, north, back, front, Nx, Ny, Nz,
+        wall_normal_noslip;
         ndrange=(Nx, Ny, Nz),
     )
     sync && KernelAbstractions.synchronize(backend)

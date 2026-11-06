@@ -234,15 +234,22 @@ end
     return nothing
 end
 
+# Mirror of the west Zou-He velocity kernel in `src/bc/rebuild_2d.jl` with
+# half-way walls south and north (`_xface_rows_2d`): all rows 1:Ny are rebuilt,
+# and on rows 1 and Ny the populations pulled across the wall are the half-way
+# bounce-back of the same node, as in `ad_bulk_v2_step!`. The east outlet is
+# the extrapolation outlet on rows 2:Ny-1.
 function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
                                   Nx::Int, Ny::Int)
-    @inbounds for j in 2:(Ny - 1)
+    @inbounds for j in 1:Ny
+        bs = j == 1   # south wall row: links from j - 1 bounce back (half-way)
+        bn = j == Ny  # north wall row: links from j + 1 bounce back
         fp1 = f[1, j, 1]
-        fp3 = f[1, j - 1, 3]
+        fp3 = bs ? f[1, j, 5] : f[1, j - 1, 3]
         fp4 = f[2, j, 4]
-        fp5 = f[1, j + 1, 5]
-        fp7 = f[2, j - 1, 7]
-        fp8 = f[2, j + 1, 8]
+        fp5 = bn ? f[1, j, 3] : f[1, j + 1, 5]
+        fp7 = bs ? f[1, j, 9] : f[2, j - 1, 7]
+        fp8 = bn ? f[1, j, 6] : f[2, j + 1, 8]
         u_in = u_profile[j]
         rho_w = (fp1 + fp3 + fp5 + 2.0 * (fp4 + fp7 + fp8)) / (1.0 - u_in)
         fp2 = fp4 + (2.0 / 3.0) * rho_w * u_in
@@ -261,9 +268,13 @@ function ad_apply_zou_he_rebuild!(out, f, u_profile, rho_out, s_plus, s_minus,
         out[1, j, 8] = F8
         out[1, j, 9] = F9
 
-        # East outlet (NeqExtrapolationPressure): from the post-collision
-        # column Nx-1 already written to `out` by the bulk step.
-        ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
+        # East outlet (NeqExtrapolationPressure), rows 2:Ny-1 as in
+        # `_apply_bc_2d_east_neq_extrap!`: from the post-collision column
+        # Nx-1 already written to `out` by the bulk step. The corner rows
+        # keep the bulk-step values.
+        if 1 < j < Ny
+            ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
+        end
     end
     return nothing
 end
@@ -393,15 +404,17 @@ for its TRT rates; the extrapolation outlet uses no rate. Same body as `ad_apply
 """
 function ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out,
                                           nu_field::Vector{Float64}, Nx::Int, Ny::Int)
-    @inbounds for j in 2:(Ny - 1)
+    @inbounds for j in 1:Ny
         s_plus_j, s_minus_j = ad_trt_rates_inline(nu_field[j])
 
+        bs = j == 1   # south wall row: links from j - 1 bounce back (half-way)
+        bn = j == Ny  # north wall row: links from j + 1 bounce back
         fp1 = f[1, j, 1]
-        fp3 = f[1, j - 1, 3]
+        fp3 = bs ? f[1, j, 5] : f[1, j - 1, 3]
         fp4 = f[2, j, 4]
-        fp5 = f[1, j + 1, 5]
-        fp7 = f[2, j - 1, 7]
-        fp8 = f[2, j + 1, 8]
+        fp5 = bn ? f[1, j, 3] : f[1, j + 1, 5]
+        fp7 = bs ? f[1, j, 9] : f[2, j - 1, 7]
+        fp8 = bn ? f[1, j, 6] : f[2, j + 1, 8]
         u_in = u_profile[j]
         rho_w = (fp1 + fp3 + fp5 + 2.0 * (fp4 + fp7 + fp8)) / (1.0 - u_in)
         fp2 = fp4 + (2.0 / 3.0) * rho_w * u_in
@@ -420,9 +433,13 @@ function ad_apply_zou_he_rebuild_nufield!(out, f, u_profile, rho_out,
         out[1, j, 8] = F8
         out[1, j, 9] = F9
 
-        # East outlet (NeqExtrapolationPressure): from the post-collision
-        # column Nx-1 already written to `out` by the bulk step.
-        ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
+        # East outlet (NeqExtrapolationPressure), rows 2:Ny-1 as in
+        # `_apply_bc_2d_east_neq_extrap!`: from the post-collision column
+        # Nx-1 already written to `out` by the bulk step. The corner rows
+        # keep the bulk-step values.
+        if 1 < j < Ny
+            ad_outlet_neq_extrap_row!(out, rho_out, Nx, j)
+        end
     end
     return nothing
 end

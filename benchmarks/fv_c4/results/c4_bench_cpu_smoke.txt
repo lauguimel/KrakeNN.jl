@@ -1,0 +1,24 @@
+CPU smoke run, Kraken 0.5.0, threads 1
+
+================ cavity N = 32², Re = 100.0 (from rest) ================
+  unknowns 3072 | Newton converged true in 5 iterations, 1.73 s wall | one iteration (assembly + refactorize + solve, median) 0.017 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  uniform nu | lid drag  | 0.856 (0.103 / 0.016 / 0.005 / 0.354 / 0.092) | 0.001 | 0.0037 | 0.002 | 0.22 | -1
+  uniform nu | u profile | 0.197 (0.056 / 0.017 / 0.000 / 0.002 / 0.000) | 0.000 | 0.0031 | 0.002 | 0.18 | -1
+  lid speed  | lid drag  | 0.695 (0.001 / 0.018 / 0.000 / 0.320 / 0.192) | 0.002 | 0.0040 | 0.002 | 0.23 | -1
+  lid speed  | u profile | 0.066 (0.000 / 0.016 / 0.001 / 0.005 / 0.000) | 0.000 | 0.0032 | 0.002 | 0.19 | -1
+  nu field   | lid drag  | 0.455 (0.001 / 0.017 / 0.000 / 0.206 / 0.033) | 0.002 | 0.0016 | 0.001 | 0.09 | -1
+  nu field   | u profile | 0.055 (0.000 / 0.019 / 0.000 / 0.000 / 0.000) | 0.000 | 0.0009 | 0.001 | 0.05 | -1
+  n_factorize after all gradients: 1 (1 = no new analysis)
+
+================ cavity N = 64², Re = 100.0 (from rest) ================
+  unknowns 12288 | Newton converged true in 5 iterations, 0.97 s wall | one iteration (assembly + refactorize + solve, median) 0.152 s
+  map        | objective | first: total s (obj / finalize / Jᵀ solve / param / explicit) | ws build s | hot median s | hot/Newton | hot/iteration | hot device B
+  uniform nu | lid drag  | 0.207 (0.004 / 0.066 / 0.003 / 0.134 / 0.000) | 0.000 | 0.0157 | 0.016 | 0.10 | -1
+  uniform nu | u profile | 0.083 (0.002 / 0.069 / 0.003 / 0.010 / 0.000) | 0.000 | 0.0194 | 0.020 | 0.13 | -1
+  lid speed  | lid drag  | 0.275 (0.007 / 0.086 / 0.003 / 0.180 / 0.000) | 0.002 | 0.0156 | 0.016 | 0.10 | -1
+  lid speed  | u profile | 0.076 (0.002 / 0.062 / 0.002 / 0.010 / 0.000) | 0.000 | 0.0142 | 0.015 | 0.09 | -1
+  nu field   | lid drag  | 0.142 (0.004 / 0.061 / 0.002 / 0.072 / 0.002) | 0.001 | 0.0096 | 0.010 | 0.06 | -1
+  nu field   | u profile | 0.068 (0.002 / 0.062 / 0.003 / 0.001 / 0.000) | 0.001 | 0.0045 | 0.005 | 0.03 | -1
+  n_factorize after all gradients: 1 (1 = no new analysis)
+DONE status=0

@@ -55,9 +55,14 @@ a gradient vs finite-difference path; an NL/agent layer checks what is feasible
 before dispatch).
 
 Values: `ForwardSolve`, `GPUExecution`, `SteadyAdjoint`, `TransientAdjoint`,
-`FiniteDiff`, `NeuralClosure`, `SteadyResidual`.
+`FiniteDiff`, `NeuralClosure`, `SteadyResidual`, `AssembledJacobian`.
+
+`AssembledJacobian`: the method assembles the exact sparse Jacobian `∂R/∂U` of
+its steady residual and keeps its factorization, so a steady adjoint is one
+transposed solve with those factors (declared by `IncNS(:fv_newton)` only;
+the LBM `SteadyAdjoint` is matrix-free).
 """
-@enum Capability ForwardSolve GPUExecution SteadyAdjoint TransientAdjoint FiniteDiff NeuralClosure SteadyResidual
+@enum Capability ForwardSolve GPUExecution SteadyAdjoint TransientAdjoint FiniteDiff NeuralClosure SteadyResidual AssembledJacobian
 
 """
     capabilities(m::AbstractMethod) -> Set{Capability}

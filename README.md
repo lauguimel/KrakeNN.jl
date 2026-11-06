@@ -124,7 +124,7 @@ If you use Kraken.jl in academic work, please cite:
   title   = {Kraken.jl: a GPU-portable Lattice Boltzmann framework in Julia},
   year    = {2026},
   url     = {https://github.com/lauguimel/Kraken.jl},
-  version = {0.3.0},
+  version = {0.6.0},
 }
 ```
 

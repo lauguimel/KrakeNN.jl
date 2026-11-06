@@ -1,14 +1,19 @@
+# x-face (west/east) Zou-He kernels. Row j = jm1 + j_shift. On row j_bb_s
+# (south wall) and j_bb_n (north wall) the populations pulled across the wall
+# are taken from the half-way bounce-back of the same node; see
+# `_xface_rows_2d` below.
 @kernel function _bc_west_zh_velocity_2d!(f_out, f_in, profile, s_p, s_m,
-                                           j_shift::Int=1)
+                                           j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[1, j,   1]
-        fp3 = f_in[1, j-1, 3]
+        fp3 = bs ? f_in[1, j, 5] : f_in[1, j-1, 3]
         fp4 = f_in[2, j,   4]
-        fp5 = f_in[1, j+1, 5]
-        fp7 = f_in[2, j-1, 7]
-        fp8 = f_in[2, j+1, 8]
+        fp5 = bn ? f_in[1, j, 3] : f_in[1, j+1, 5]
+        fp7 = bs ? f_in[1, j, 9] : f_in[2, j-1, 7]
+        fp8 = bn ? f_in[1, j, 6] : f_in[2, j+1, 8]
         u_in = profile[j]
         ρ_w  = (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / (one(T) - u_in)
         fp2  = fp4 + T(2/3) * ρ_w * u_in
@@ -23,16 +28,17 @@
 end
 
 @kernel function _bc_east_zh_pressure_2d!(f_out, f_in, Nx, ρ_out, s_p, s_m,
-                                           j_shift::Int=1)
+                                           j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,   j,   1]
         fp2 = f_in[Nx-1, j,   2]
-        fp3 = f_in[Nx,   j-1, 3]
-        fp5 = f_in[Nx,   j+1, 5]
-        fp6 = f_in[Nx-1, j-1, 6]
-        fp9 = f_in[Nx-1, j+1, 9]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,   j-1, 3]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,   j+1, 5]
+        fp6 = bs ? f_in[Nx, j, 8] : f_in[Nx-1, j-1, 6]
+        fp9 = bn ? f_in[Nx, j, 7] : f_in[Nx-1, j+1, 9]
         u_x = -one(T) + (fp1 + fp3 + fp5 + T(2)*(fp2 + fp6 + fp9)) / ρ_out
         fp4 = fp2 - T(2/3) * ρ_out * u_x
         fp7 = fp9 - T(0.5)*(fp3 - fp5) - T(1/6) * ρ_out * u_x
@@ -50,16 +56,17 @@ end
 # multi-block topologies (e.g. O-grid rings) where inlet/outlet migrate
 # from west/east after a transpose reorient.
 @kernel function _bc_east_zh_velocity_2d!(f_out, f_in, Nx, profile, s_p, s_m,
-                                           j_shift::Int=1)
+                                           j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,   j,   1]
         fp2 = f_in[Nx-1, j,   2]
-        fp3 = f_in[Nx,   j-1, 3]
-        fp5 = f_in[Nx,   j+1, 5]
-        fp6 = f_in[Nx-1, j-1, 6]
-        fp9 = f_in[Nx-1, j+1, 9]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,   j-1, 3]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,   j+1, 5]
+        fp6 = bs ? f_in[Nx, j, 8] : f_in[Nx-1, j-1, 6]
+        fp9 = bn ? f_in[Nx, j, 7] : f_in[Nx-1, j+1, 9]
         u_x = profile[j]
         ρ_w = (fp1 + fp3 + fp5 + T(2)*(fp2 + fp6 + fp9)) / (one(T) + u_x)
         fp4 = fp2 - T(2/3) * ρ_w * u_x
@@ -75,16 +82,17 @@ end
 
 # West-face pressure BC, symmetric to east-pressure, for the mirror case.
 @kernel function _bc_west_zh_pressure_2d!(f_out, f_in, ρ_in, s_p, s_m,
-                                           j_shift::Int=1)
+                                           j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[1, j,   1]
-        fp3 = f_in[1, j-1, 3]
+        fp3 = bs ? f_in[1, j, 5] : f_in[1, j-1, 3]
         fp4 = f_in[2, j,   4]
-        fp5 = f_in[1, j+1, 5]
-        fp7 = f_in[2, j-1, 7]
-        fp8 = f_in[2, j+1, 8]
+        fp5 = bn ? f_in[1, j, 3] : f_in[1, j+1, 5]
+        fp7 = bs ? f_in[1, j, 9] : f_in[2, j-1, 7]
+        fp8 = bn ? f_in[1, j, 6] : f_in[2, j+1, 8]
         u_x = one(T) - (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / ρ_in
         fp2 = fp4 + T(2/3) * ρ_in * u_x
         fp6 = fp8 - T(0.5)*(fp3 - fp5) + T(1/6) * ρ_in * u_x
@@ -101,16 +109,17 @@ end
 # Used when autoreorient maps a physical inlet (west-pointing) to logical east.
 # Known after pull: q=4,7,8 (cx<0 → depart towards interior). Unknown: q=2,6,9.
 @kernel function _bc_east_zh_velocity_westpops_2d!(f_out, f_in, Nx, profile, s_p, s_m,
-                                                     j_shift::Int=1)
+                                                     j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,     j,   1]
-        fp3 = f_in[Nx,     j-1, 3]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,     j-1, 3]
         fp4 = f_in[Nx-1,   j,   4]
-        fp5 = f_in[Nx,     j+1, 5]
-        fp7 = f_in[Nx-1,   j-1, 7]
-        fp8 = f_in[Nx-1,   j+1, 8]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,     j+1, 5]
+        fp7 = bs ? f_in[Nx, j, 9] : f_in[Nx-1,   j-1, 7]
+        fp8 = bn ? f_in[Nx, j, 6] : f_in[Nx-1,   j+1, 8]
         u_in = profile[j]
         ρ_w  = (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / (one(T) - u_in)
         fp2  = fp4 + T(2/3) * ρ_w * u_in
@@ -125,16 +134,17 @@ end
 end
 
 @kernel function _bc_east_zh_pressure_westpops_2d!(f_out, f_in, Nx, ρ_in, s_p, s_m,
-                                                     j_shift::Int=1)
+                                                     j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,     j,   1]
-        fp3 = f_in[Nx,     j-1, 3]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,     j-1, 3]
         fp4 = f_in[Nx-1,   j,   4]
-        fp5 = f_in[Nx,     j+1, 5]
-        fp7 = f_in[Nx-1,   j-1, 7]
-        fp8 = f_in[Nx-1,   j+1, 8]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,     j+1, 5]
+        fp7 = bs ? f_in[Nx, j, 9] : f_in[Nx-1,   j-1, 7]
+        fp8 = bn ? f_in[Nx, j, 6] : f_in[Nx-1,   j+1, 8]
         u_x = one(T) - (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / ρ_in
         fp2 = fp4 + T(2/3) * ρ_in * u_x
         fp6 = fp8 - T(0.5)*(fp3 - fp5) + T(1/6) * ρ_in * u_x
@@ -197,30 +207,44 @@ function _check_neq_extrap_faces_2d(bcspec)
     return nothing
 end
 
+# Rows rebuilt on an x-face (west/east), from the type of the adjacent
+# south/north faces:
+# - InterfaceBC: the end row is included and reads the ghost row.
+# - HalfwayBB: the end row is included. Its links that cross the wall (pulled
+#   from j = 0 or j = Ny + 1) are replaced by the half-way bounce-back of the
+#   same node, as the fused kernel does (`PullHalfwayBB`); the kernels do this
+#   on row `j_bb_s` (1) and `j_bb_n` (Ny), 0 meaning no wall. Without it the
+#   end rows kept the bulk-kernel values instead of the imposed profile, and the
+#   delivered flow rate was low by about 6/Ny^2 (parabolic) or 2/Ny (uniform).
+# - any other face (a Zou-He face): the corner row is left to that face.
+@inline function _xface_rows_2d(Ny, south_bc, north_bc)
+    wall_s = south_bc isa HalfwayBB
+    wall_n = north_bc isa HalfwayBB
+    j_lo = (wall_s || south_bc isa InterfaceBC) ? 1 : 2
+    j_hi = (wall_n || north_bc isa InterfaceBC) ? Ny : Ny - 1
+    return j_lo, j_hi, (wall_s ? 1 : 0), (wall_n ? Ny : 0)
+end
+
 # 2D dispatch per face. HalfwayBB is a no-op; other BCs call their kernel.
-# south_bc / north_bc: when the adjacent face is InterfaceBC, extend the
-# range to include the corner that would otherwise be skipped.
 @inline function _apply_bc_2d_west!(backend, f_out, f_in, ::HalfwayBB,
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing) end
 @inline function _apply_bc_2d_west!(backend, f_out, f_in, ::InterfaceBC,
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing) end
 @inline function _apply_bc_2d_west!(backend, f_out, f_in, bc::ZouHeVelocity,
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     _bc_west_zh_velocity_2d!(backend)(f_out, f_in, bc.profile, s_p, s_m,
-                                       j_lo - 1; ndrange=(count,))
+                                       j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
 end
 @inline function _apply_bc_2d_west!(backend, f_out, f_in, bc::ZouHePressure,
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     _bc_west_zh_pressure_2d!(backend)(f_out, f_in, eltype(f_out)(bc.ρ_out),
-                                        s_p, s_m, j_lo - 1; ndrange=(count,))
+                                        s_p, s_m, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
 end
 
 @inline function _apply_bc_2d_east!(backend, f_out, f_in, ::HalfwayBB,
@@ -229,16 +253,15 @@ end
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing) end
 @inline function _apply_bc_2d_east!(backend, f_out, f_in, bc::ZouHePressure,
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     if bc.physical_dir === :west
         _bc_east_zh_pressure_westpops_2d!(backend)(f_out, f_in, Nx, eltype(f_out)(bc.ρ_out),
-                                                     s_p, s_m, j_lo - 1; ndrange=(count,))
+                                                     s_p, s_m, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     else
         _bc_east_zh_pressure_2d!(backend)(f_out, f_in, Nx, eltype(f_out)(bc.ρ_out),
-                                            s_p, s_m, j_lo - 1; ndrange=(count,))
+                                            s_p, s_m, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     end
 end
 @inline function _apply_bc_2d_east!(backend, f_out, f_in, bc::NeqExtrapolationPressure,
@@ -247,16 +270,15 @@ end
 end
 @inline function _apply_bc_2d_east!(backend, f_out, f_in, bc::ZouHeVelocity,
                                      s_p, s_m, Nx, Ny; south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     if bc.physical_dir === :west
         _bc_east_zh_velocity_westpops_2d!(backend)(f_out, f_in, Nx, bc.profile,
-                                                     s_p, s_m, j_lo - 1; ndrange=(count,))
+                                                     s_p, s_m, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     else
         _bc_east_zh_velocity_2d!(backend)(f_out, f_in, Nx, bc.profile,
-                                            s_p, s_m, j_lo - 1; ndrange=(count,))
+                                            s_p, s_m, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     end
 end
 
@@ -364,16 +386,17 @@ end
 
 # Local-tau variants: read sp/sm from 2D arrays at the face index
 @kernel function _bc_west_zh_velocity_local_2d!(f_out, f_in, profile, sp_field, sm_field,
-                                                  j_shift::Int=1)
+                                                  j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[1, j,   1]
-        fp3 = f_in[1, j-1, 3]
+        fp3 = bs ? f_in[1, j, 5] : f_in[1, j-1, 3]
         fp4 = f_in[2, j,   4]
-        fp5 = f_in[1, j+1, 5]
-        fp7 = f_in[2, j-1, 7]
-        fp8 = f_in[2, j+1, 8]
+        fp5 = bn ? f_in[1, j, 3] : f_in[1, j+1, 5]
+        fp7 = bs ? f_in[1, j, 9] : f_in[2, j-1, 7]
+        fp8 = bn ? f_in[1, j, 6] : f_in[2, j+1, 8]
         u_in = profile[j]
         ρ_w  = (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / (one(T) - u_in)
         fp2  = fp4 + T(2/3) * ρ_w * u_in
@@ -389,16 +412,17 @@ end
 end
 
 @kernel function _bc_east_zh_pressure_local_2d!(f_out, f_in, Nx, ρ_out, sp_field, sm_field,
-                                                  j_shift::Int=1)
+                                                  j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,   j,   1]
         fp2 = f_in[Nx-1, j,   2]
-        fp3 = f_in[Nx,   j-1, 3]
-        fp5 = f_in[Nx,   j+1, 5]
-        fp6 = f_in[Nx-1, j-1, 6]
-        fp9 = f_in[Nx-1, j+1, 9]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,   j-1, 3]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,   j+1, 5]
+        fp6 = bs ? f_in[Nx, j, 8] : f_in[Nx-1, j-1, 6]
+        fp9 = bn ? f_in[Nx, j, 7] : f_in[Nx-1, j+1, 9]
         u_x = -one(T) + (fp1 + fp3 + fp5 + T(2)*(fp2 + fp6 + fp9)) / ρ_out
         fp4 = fp2 - T(2/3) * ρ_out * u_x
         fp7 = fp9 - T(0.5)*(fp3 - fp5) - T(1/6) * ρ_out * u_x
@@ -414,16 +438,17 @@ end
 
 @kernel function _bc_east_zh_velocity_local_2d!(f_out, f_in, Nx, profile,
                                                     sp_field, sm_field,
-                                                    j_shift::Int=1)
+                                                    j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,   j,   1]
         fp2 = f_in[Nx-1, j,   2]
-        fp3 = f_in[Nx,   j-1, 3]
-        fp5 = f_in[Nx,   j+1, 5]
-        fp6 = f_in[Nx-1, j-1, 6]
-        fp9 = f_in[Nx-1, j+1, 9]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,   j-1, 3]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,   j+1, 5]
+        fp6 = bs ? f_in[Nx, j, 8] : f_in[Nx-1, j-1, 6]
+        fp9 = bn ? f_in[Nx, j, 7] : f_in[Nx-1, j+1, 9]
         u_x = profile[j]
         ρ_w = (fp1 + fp3 + fp5 + T(2)*(fp2 + fp6 + fp9)) / (one(T) + u_x)
         fp4 = fp2 - T(2/3) * ρ_w * u_x
@@ -440,16 +465,17 @@ end
 
 @kernel function _bc_west_zh_pressure_local_2d!(f_out, f_in, ρ_in,
                                                    sp_field, sm_field,
-                                                   j_shift::Int=1)
+                                                   j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[1, j,   1]
-        fp3 = f_in[1, j-1, 3]
+        fp3 = bs ? f_in[1, j, 5] : f_in[1, j-1, 3]
         fp4 = f_in[2, j,   4]
-        fp5 = f_in[1, j+1, 5]
-        fp7 = f_in[2, j-1, 7]
-        fp8 = f_in[2, j+1, 8]
+        fp5 = bn ? f_in[1, j, 3] : f_in[1, j+1, 5]
+        fp7 = bs ? f_in[1, j, 9] : f_in[2, j-1, 7]
+        fp8 = bn ? f_in[1, j, 6] : f_in[2, j+1, 8]
         u_x = one(T) - (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / ρ_in
         fp2 = fp4 + T(2/3) * ρ_in * u_x
         fp6 = fp8 - T(0.5)*(fp3 - fp5) + T(1/6) * ρ_in * u_x
@@ -465,16 +491,17 @@ end
 
 @kernel function _bc_east_zh_velocity_westpops_local_2d!(f_out, f_in, Nx, profile,
                                                               sp_field, sm_field,
-                                                              j_shift::Int=1)
+                                                              j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,     j,   1]
-        fp3 = f_in[Nx,     j-1, 3]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,     j-1, 3]
         fp4 = f_in[Nx-1,   j,   4]
-        fp5 = f_in[Nx,     j+1, 5]
-        fp7 = f_in[Nx-1,   j-1, 7]
-        fp8 = f_in[Nx-1,   j+1, 8]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,     j+1, 5]
+        fp7 = bs ? f_in[Nx, j, 9] : f_in[Nx-1,   j-1, 7]
+        fp8 = bn ? f_in[Nx, j, 6] : f_in[Nx-1,   j+1, 8]
         u_in = profile[j]
         ρ_w  = (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / (one(T) - u_in)
         fp2  = fp4 + T(2/3) * ρ_w * u_in
@@ -491,16 +518,17 @@ end
 
 @kernel function _bc_east_zh_pressure_westpops_local_2d!(f_out, f_in, Nx, ρ_in,
                                                               sp_field, sm_field,
-                                                              j_shift::Int=1)
+                                                              j_shift::Int=1, j_bb_s::Int=0, j_bb_n::Int=0)
     jm1 = @index(Global); j = jm1 + j_shift
     T = eltype(f_out)
     @inbounds begin
+        bs = j == j_bb_s; bn = j == j_bb_n
         fp1 = f_in[Nx,     j,   1]
-        fp3 = f_in[Nx,     j-1, 3]
+        fp3 = bs ? f_in[Nx, j, 5] : f_in[Nx,     j-1, 3]
         fp4 = f_in[Nx-1,   j,   4]
-        fp5 = f_in[Nx,     j+1, 5]
-        fp7 = f_in[Nx-1,   j-1, 7]
-        fp8 = f_in[Nx-1,   j+1, 8]
+        fp5 = bn ? f_in[Nx, j, 3] : f_in[Nx,     j+1, 5]
+        fp7 = bs ? f_in[Nx, j, 9] : f_in[Nx-1,   j-1, 7]
+        fp8 = bn ? f_in[Nx, j, 6] : f_in[Nx-1,   j+1, 8]
         u_x = one(T) - (fp1 + fp3 + fp5 + T(2)*(fp4 + fp7 + fp8)) / ρ_in
         fp2 = fp4 + T(2/3) * ρ_in * u_x
         fp6 = fp8 - T(0.5)*(fp3 - fp5) + T(1/6) * ρ_in * u_x
@@ -523,22 +551,20 @@ end
 @inline function _apply_bc_2d_west_local!(backend, f_out, f_in, bc::ZouHeVelocity,
                                            sp_field, sm_field, Nx, Ny;
                                            south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     _bc_west_zh_velocity_local_2d!(backend)(f_out, f_in, bc.profile, sp_field, sm_field,
-                                             j_lo - 1; ndrange=(count,))
+                                             j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
 end
 @inline function _apply_bc_2d_west_local!(backend, f_out, f_in, bc::ZouHePressure,
                                            sp_field, sm_field, Nx, Ny;
                                            south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     _bc_west_zh_pressure_local_2d!(backend)(f_out, f_in, eltype(f_out)(bc.ρ_out),
-                                              sp_field, sm_field, j_lo - 1; ndrange=(count,))
+                                              sp_field, sm_field, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
 end
 @inline function _apply_bc_2d_east_local!(backend, f_out, f_in, ::HalfwayBB,
                                            sp_field, sm_field, Nx, Ny;
@@ -554,31 +580,29 @@ end
 @inline function _apply_bc_2d_east_local!(backend, f_out, f_in, bc::ZouHeVelocity,
                                            sp_field, sm_field, Nx, Ny;
                                            south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     if bc.physical_dir === :west
         _bc_east_zh_velocity_westpops_local_2d!(backend)(f_out, f_in, Nx, bc.profile,
-                                                           sp_field, sm_field, j_lo - 1; ndrange=(count,))
+                                                           sp_field, sm_field, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     else
         _bc_east_zh_velocity_local_2d!(backend)(f_out, f_in, Nx, bc.profile,
-                                                  sp_field, sm_field, j_lo - 1; ndrange=(count,))
+                                                  sp_field, sm_field, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     end
 end
 @inline function _apply_bc_2d_east_local!(backend, f_out, f_in, bc::ZouHePressure,
                                            sp_field, sm_field, Nx, Ny;
                                            south_bc=nothing, north_bc=nothing)
-    j_lo = (south_bc isa InterfaceBC) ? 1 : 2
-    j_hi = (north_bc isa InterfaceBC) ? Ny : Ny - 1
+    j_lo, j_hi, j_bb_s, j_bb_n = _xface_rows_2d(Ny, south_bc, north_bc)
     count = j_hi - j_lo + 1
     count ≤ 0 && return nothing
     if bc.physical_dir === :west
         _bc_east_zh_pressure_westpops_local_2d!(backend)(f_out, f_in, Nx, eltype(f_out)(bc.ρ_out),
-                                                           sp_field, sm_field, j_lo - 1; ndrange=(count,))
+                                                           sp_field, sm_field, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     else
         _bc_east_zh_pressure_local_2d!(backend)(f_out, f_in, Nx, eltype(f_out)(bc.ρ_out),
-                                                  sp_field, sm_field, j_lo - 1; ndrange=(count,))
+                                                  sp_field, sm_field, j_lo - 1, j_bb_s, j_bb_n; ndrange=(count,))
     end
 end
 

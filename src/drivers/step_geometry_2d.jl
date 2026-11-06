@@ -211,6 +211,41 @@ function transfer_step_geometry_2d(geom::StepChannelGeometry2D{T}, backend) wher
         west_conformation_mask, east_conformation_mask)
 end
 
+# Plane-Poiseuille inlet profile on `H` cell-centred rows between two half-way
+# walls, which sit half a spacing outside rows 1 and H (channel height H):
+#     u_k = 6 u_mean (k - 1/2)(H + 1/2 - k) / (H^2 + 1/2),   k = 1..H.
+# The shape vanishes on the walls (k = 1/2 and k = H + 1/2). Because
+# sum_k (k - 1/2)(H + 1/2 - k) = H (2H^2 + 1)/12, the discrete flux is exact:
+# sum_k u_k = H u_mean. The parabola with mean u_mean, sampled at the rows
+# (denominator H^2), would sum to H u_mean (1 + 1/(2H^2)); the normalisation
+# changes each value by that O(H^-2) factor only. Computed in Float64, then
+# converted to FT.
+function _halfway_poiseuille_profile(::Type{FT}, H::Integer, u_mean) where {FT<:AbstractFloat}
+    H >= 1 || throw(ArgumentError("the channel needs at least one row, got H = $H"))
+    Hf = Float64(H)
+    um = Float64(u_mean)
+    return [FT(6.0 * um * (k - 0.5) * (Hf + 0.5 - k) / (Hf * Hf + 0.5)) for k in 1:H]
+end
+
+"""
+    parabolic_face_profile_2d(geom; face=:west, mean_velocity, FT=Float64) -> Vector{FT}
+
+Plane-Poiseuille velocity profile (length `geom.Ny`) on the open rows of the
+`:west` (`geom.inlet_open`) or `:east` (`geom.outlet_open`) face; rows outside
+the opening are zero. The walls bounding an opening of `H` rows are half-way
+(half a spacing outside its first and last rows: domain-edge bounce-back or a
+solid neighbour with `q_wall = 1/2`), so the profile on opening row `k` is
+
+```math
+u_k = \\frac{6\\,\\bar u\\,(k - \\tfrac12)(H + \\tfrac12 - k)}{H^2 + \\tfrac12},
+\\qquad \\sum_{k=1}^{H} u_k = H\\,\\bar u ,
+```
+
+with ``\\bar u`` = `mean_velocity`: it vanishes on the walls and the discrete
+flux over the open rows is exactly `H * mean_velocity`. The Zou-He inlet imposes
+it on the interior rows of the opening (`geom.west_hydro_mask`); the two end rows
+keep the wall treatment.
+"""
 function parabolic_face_profile_2d(geom::StepChannelGeometry2D;
                                    face::Symbol=:west,
                                    mean_velocity,
@@ -220,13 +255,8 @@ function parabolic_face_profile_2d(geom::StepChannelGeometry2D;
            error("face must be :west or :east")
     H = length(open)
     H >= 2 || error("open face must contain at least two rows")
-    u_max = FT(1.5) * FT(mean_velocity)
     profile = zeros(FT, geom.Ny)
-    denom = FT(H - 1)^2
-    @inbounds for (k, j) in enumerate(open)
-        y_node = FT(k - 1)
-        profile[j] = FT(4) * u_max * y_node * FT(H - k) / denom
-    end
+    profile[open] .= _halfway_poiseuille_profile(FT, H, mean_velocity)
     return profile
 end
 

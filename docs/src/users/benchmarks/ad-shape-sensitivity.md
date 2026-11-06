@@ -63,7 +63,9 @@ drag for the cylinder, and the coupled Boussinesq natural-convection step plus
 hot-wall Nusselt sum for the cavity. The permanent anti-drift checks compare the
 inline AD drag with `compute_drag_libb_mei_2d`, the inline steady state with the
 production `run_cylinder_libb_2d` path, and the inline Nusselt value with the
-thermal driver formula.
+thermal driver formula. The AD Boussinesq step is also compared, field by
+field over 200 steps, with the production fused cavity kernel
+(`test/analytical/thermal_adiabatic_walls.jl`).
 
 ## Julia Example
 
@@ -224,10 +226,18 @@ the conduction geometry chain, and the full convection-cavity `dNu/dL` check:
 
 | Rung | Check | Gate |
 |---|---|---|
-| TC0 | coupled VJP on the stacked `(f, g)` state | relative agreement `6.1e-11` |
-| TC1 | `dNu/dβ_g` adjoint check | finite-difference agreement `6.9e-6` |
-| TC2 | conduction geometry chain | analytic `-alpha DeltaT/L^2` agreement `2.7e-15` |
-| TC3 | convection cavity `dNu/dL` | central finite-difference agreement `1.2e-5` |
+| TC0 | coupled VJP on the stacked `(f, g)` state | relative agreement `5.7e-11` |
+| TC1 | `dNu/dβ_g` adjoint check | finite-difference agreement `1.1e-5` |
+| TC2 | conduction geometry chain | analytic `-alpha DeltaT/L^2` agreement `7.3e-15` |
+| TC3 | convection cavity `dNu/dL` | central finite-difference agreement `2.0e-3` (test gate `< 2e-2`) |
+
+The values are the ones the `AD thermal (Nusselt)` testset of
+`test/ad/test_ad_sensitivity.jl` gives (CPU, Float64, measured 2026-11-04,
+v0.7). With v0.7 the adiabatic walls of the AD step reflect the thermal
+populations specularly, as the production kernels do; this halves `dNu/dL`
+at `N = 16` (6.93e-4, against 1.44e-3 before v0.7) while the finite-difference
+error stays near 1.4e-6, so the relative agreement of TC3 went from `1.0e-3`
+to `2.0e-3`.
 
 ## Validation
 
@@ -239,7 +249,10 @@ trusted:
 | C0 | one-step VJP against dense finite-difference Jacobian transpose | Enzyme VJP matches the discrete step |
 | C1 | steady fixed-point adjoint on a Poiseuille/body-force case | adjoint solve and finite-difference derivative agree |
 | C2 | geometry chain on planar Poiseuille flow rate | analytic anchor `Q proportional to H^3` |
-| C3 | confined-cylinder `d(Cd)/dR` | central finite difference agreement to `9e-5` |
+| C3 | confined-cylinder `d(Cd)/dR` | central finite difference agreement to `3.0e-3` (test gate `< 1e-2`) |
+
+The C3 value is the one the `C3 cylinder radius sensitivity` testset of
+`test/ad/test_ad_sensitivity.jl` gives (CPU, Float64, measured 2026-11-04).
 
 The C2 anchor is the substitute reference for the geometry derivative: RheoTool
 can compute a drag value for its own finite-volume operator, but it cannot

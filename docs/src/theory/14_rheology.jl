@@ -229,14 +229,14 @@
 # that multiply all rheological parameters by a thermal shift factor
 # ``a_T(T)``:
 #
-# **Arrhenius**:
+# **Arrhenius** (`T` and `T_ref` absolute temperatures in kelvin, `E_a` is `E_a/R` in kelvin; set-up refuses `T ≤ 0`):
 # ```math
 # a_T = \exp\!\left[E_a\left(\frac{1}{T} - \frac{1}{T_\text{ref}}\right)\right]
 # ```
 #
-# **Williams-Landel-Ferry (WLF)**:
+# **Williams-Landel-Ferry (WLF)**, base-10 form with the published constants (`C1 = 8.86`, `C2 = 101.6` K):
 # ```math
-# \log a_T = -\frac{C_1\,(T - T_\text{ref})}{C_2 + T - T_\text{ref}}
+# \log_{10} a_T = -\frac{C_1\,(T - T_\text{ref})}{C_2 + T - T_\text{ref}}
 # ```
 #
 # Both are implemented as lightweight structs with zero overhead when

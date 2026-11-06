@@ -1,0 +1,43 @@
+C4 wall-closure study (Stokes, obstacle channel), arm64-apple-darwin24.0.0, Julia 1.12.5
+
+=== θ0 = 0.0 (constant ν) ===
+    FD check N=8 θ0=0 FVWallForce(cell)            adjoint 1.4158499963e+02  FD 1.4158499963e+02  rel 2.2e-11
+    FD check N=8 θ0=0 FVWallForce(linear)          adjoint 1.4245486404e+02  FD 1.4245486405e+02  rel 9.5e-12
+    FD check N=8 θ0=0 FVLinearFunctional           adjoint 2.1242714201e+02  FD 2.1242714201e+02  rel 6.3e-12
+  N=   8 (   768 unknowns, Newton 1.55 s) | drag(cell) J= 9.83161998e+01 dJ/dθ= 1.41585000e+02 | drag(linear) J= 9.89382711e+01 dJ/dθ= 1.42454864e+02 | Δp J= 1.51839411e+02 dJ/dθ= 2.12427142e+02 | pressure part of drag(cell)  7.080180e+01
+  N=  16 (  3072 unknowns, Newton 0.30 s) | drag(cell) J= 1.27452863e+02 dJ/dθ= 1.83836417e+02 | drag(linear) J= 1.28718027e+02 dJ/dθ= 1.85618091e+02 | Δp J= 1.90783466e+02 dJ/dθ= 2.68708657e+02 | pressure part of drag(cell)  9.256168e+01
+  N=  32 ( 12288 unknowns, Newton 0.15 s) | drag(cell) J= 1.40263134e+02 dJ/dθ= 2.02329216e+02 | drag(linear) J= 1.41550318e+02 dJ/dθ= 2.04152207e+02 | Δp J= 2.07667505e+02 dJ/dθ= 2.93045232e+02 | pressure part of drag(cell)  1.033482e+02
+  N=  64 ( 49152 unknowns, Newton 0.40 s) | drag(cell) J= 1.45041605e+02 dJ/dθ= 2.09194665e+02 | drag(linear) J= 1.46075800e+02 dJ/dθ= 2.10663554e+02 | Δp J= 2.13887501e+02 dJ/dθ= 3.01975688e+02 | pressure part of drag(cell)  1.082519e+02
+  N= 128 (196608 unknowns, Newton 2.25 s) | drag(cell) J= 1.46846075e+02 dJ/dθ= 2.11773574e+02 | drag(linear) J= 1.47605672e+02 dJ/dθ= 2.12854053e+02 | Δp J= 2.16208882e+02 dJ/dθ= 3.05292699e+02 | pressure part of drag(cell)  1.106750e+02
+  observed orders (from three successive grids, finest triple last):
+    drag(cell)    J: 1.19, 1.42, 1.40 | dJ/dθ: 1.19, 1.43, 1.41
+    drag(linear)  J: 1.21, 1.50, 1.56 | dJ/dθ: 1.22, 1.51, 1.57
+    Δp            J: 1.21, 1.44, 1.42 | dJ/dθ: 1.21, 1.45, 1.43
+    drag pressure J: 1.01, 1.14, 1.02
+    drag(cell)    J      finest 1.46846075e+02, Richardson (p=1.40) 1.47940934e+02, finest-grid rel. error ≈ 7.4e-03
+    drag(cell)    dJ/dθ  finest 2.11773574e+02, Richardson (p=1.41) 2.13325121e+02, finest-grid rel. error ≈ 7.3e-03
+    drag(linear)  J      finest 1.47605672e+02, Richardson (p=1.56) 1.48386986e+02, finest-grid rel. error ≈ 5.3e-03
+    drag(linear)  dJ/dθ  finest 2.12854053e+02, Richardson (p=1.57) 2.13964549e+02, finest-grid rel. error ≈ 5.2e-03
+    Δp            J      finest 2.16208882e+02, Richardson (p=1.42) 2.17591118e+02, finest-grid rel. error ≈ 6.4e-03
+    Δp            dJ/dθ  finest 3.05292699e+02, Richardson (p=1.43) 3.07252735e+02, finest-grid rel. error ≈ 6.4e-03
+
+=== θ0 = 1.0 (variable ν, max/min ≈ 3) ===
+    FD check N=8 θ0=1 FVWallForce(cell)            adjoint 1.3498711801e+02  FD 1.3498711801e+02  rel 1.4e-11
+    FD check N=8 θ0=1 FVWallForce(linear)          adjoint 1.3584612217e+02  FD 1.3584612217e+02  rel 1.9e-12
+    FD check N=8 θ0=1 FVLinearFunctional           adjoint 2.0245171726e+02  FD 2.0245171726e+02  rel 7.9e-12
+  N=   8 (   768 unknowns, Newton 0.00 s) | drag(cell) J= 2.35236552e+02 dJ/dθ= 1.34987118e+02 | drag(linear) J= 2.36720925e+02 dJ/dθ= 1.35846122e+02 | Δp J= 3.57225988e+02 dJ/dθ= 2.02451717e+02 | pressure part of drag(cell)  1.690404e+02
+  N=  16 (  3072 unknowns, Newton 0.01 s) | drag(cell) J= 3.05083633e+02 dJ/dθ= 1.75061603e+02 | drag(linear) J= 3.08105168e+02 dJ/dθ= 1.76806817e+02 | Δp J= 4.50264907e+02 dJ/dθ= 2.55642553e+02 | pressure part of drag(cell)  2.210492e+02
+  N=  32 ( 12288 unknowns, Newton 0.06 s) | drag(cell) J= 3.35698020e+02 dJ/dθ= 1.92579934e+02 | drag(linear) J= 3.38773283e+02 dJ/dθ= 1.94352926e+02 | Δp J= 4.90525729e+02 dJ/dθ= 2.78620460e+02 | pressure part of drag(cell)  2.467697e+02
+  N=  64 ( 49152 unknowns, Newton 0.28 s) | drag(cell) J= 3.47079261e+02 dJ/dθ= 1.99073436e+02 | drag(linear) J= 3.49548835e+02 dJ/dθ= 2.00494525e+02 | Δp J= 5.05316389e+02 dJ/dθ= 2.87041275e+02 | pressure part of drag(cell)  2.584340e+02
+  N= 128 (196608 unknowns, Newton 2.74 s) | drag(cell) J= 3.51362122e+02 dJ/dθ= 2.01510007e+02 | drag(linear) J= 3.53174724e+02 dJ/dθ= 2.02551395e+02 | Δp J= 5.10819289e+02 dJ/dθ= 2.90166363e+02 | pressure part of drag(cell)  2.641880e+02
+  observed orders (from three successive grids, finest triple last):
+    drag(cell)    J: 1.19, 1.43, 1.41 | dJ/dθ: 1.19, 1.43, 1.41
+    drag(linear)  J: 1.22, 1.51, 1.57 | dJ/dθ: 1.22, 1.51, 1.58
+    Δp            J: 1.21, 1.44, 1.43 | dJ/dθ: 1.21, 1.45, 1.43
+    drag pressure J: 1.02, 1.14, 1.02
+    drag(cell)    J      finest 3.51362122e+02, Richardson (p=1.41) 3.53946218e+02, finest-grid rel. error ≈ 7.3e-03
+    drag(cell)    dJ/dθ  finest 2.01510007e+02, Richardson (p=1.41) 2.02973397e+02, finest-grid rel. error ≈ 7.2e-03
+    drag(linear)  J      finest 3.53174724e+02, Richardson (p=1.57) 3.55013561e+02, finest-grid rel. error ≈ 5.2e-03
+    drag(linear)  dJ/dθ  finest 2.02551395e+02, Richardson (p=1.58) 2.03587135e+02, finest-grid rel. error ≈ 5.1e-03
+    Δp            J      finest 5.10819289e+02, Richardson (p=1.43) 5.14079700e+02, finest-grid rel. error ≈ 6.3e-03
+    Δp            dJ/dθ  finest 2.90166363e+02, Richardson (p=1.43) 2.92010525e+02, finest-grid rel. error ≈ 6.3e-03

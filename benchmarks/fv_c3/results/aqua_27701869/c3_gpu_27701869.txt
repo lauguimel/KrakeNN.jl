@@ -1,0 +1,300 @@
+CUDA.functional() = true
+Precompiling packages...
+  38103.9 ms  ✓ Kraken
+  1 dependency successfully precompiled in 52 seconds. 230 already precompiled.
+Precompiling packages...
+  22988.9 ms  ✓ Kraken → KrakenCUDSSExt
+  1 dependency successfully precompiled in 26 seconds. 233 already precompiled.
+GPU: NVIDIA A100-SXM4-40GB  CUDA.jl 6.4.1  CUDSS.jl 1.0.0  Kraken 0.5.0  threads 8
+
+--- C3 test files ---
+
+--- incns_fv_gnf.jl ---
+┌ Info: C3 power-law Poiseuille
+│   n = 0.5
+│   Ny = 16
+│   eps = 0.01
+│   iterations = 7
+│   rel_L2_vs_regularised = 0.012259101305416525
+└   residual_2norm = 8-element Vector{Float64}: …
+┌ Info: C3 power-law Poiseuille
+│   n = 0.5
+│   Ny = 32
+│   eps = 0.01
+│   iterations = 7
+│   rel_L2_vs_regularised = 0.0030650374445455792
+└   residual_2norm = 8-element Vector{Float64}: …
+┌ Info: C3 power-law Poiseuille
+│   n = 0.5
+│   Ny = 64
+│   eps = 0.01
+│   iterations = 6
+│   rel_L2_vs_regularised = 0.000766274762678617
+└   residual_2norm = 7-element Vector{Float64}: …
+┌ Info: C3 power-law Poiseuille
+│   n = 1.5
+│   Ny = 16
+│   eps = 0.01
+│   iterations = 5
+│   rel_L2_vs_regularised = 0.003601782376308254
+└   residual_2norm = 6-element Vector{Float64}: …
+┌ Info: C3 power-law Poiseuille
+│   n = 1.5
+│   Ny = 32
+│   eps = 0.01
+│   iterations = 5
+│   rel_L2_vs_regularised = 0.0009106499635474868
+└   residual_2norm = 6-element Vector{Float64}: …
+┌ Info: C3 power-law Poiseuille
+│   n = 1.5
+│   Ny = 64
+│   eps = 0.01
+│   iterations = 5
+│   rel_L2_vs_regularised = 0.0002295080269516382
+└   residual_2norm = 6-element Vector{Float64}: …
+┌ Info: C3 Newton, power-law cavity n=0.5 32² (CPU)
+│   residual_2norm =
+│    9-element Vector{Float64}:
+│     0.014142135537414209
+│     0.012856258856653192
+│     ⋮
+│     3.323047389765212e-17
+│   alpha =
+│    8-element Vector{Float64}:
+│     1.0
+│     0.5
+│     ⋮
+└     1.0
+┌ Info: C3 CY obstacle channel FV vs LBM
+│   m = 4
+│   newton_iterations = 5
+│   lbm_steps = 1880
+│   rel_L2_u = 0.16732338830475732
+│   flux_gap = 0.15221065214480378
+└   residual_2norm = 6-element Vector{Float64}: …
+┌ Info: C3 CY obstacle channel FV vs LBM
+│   m = 8
+│   newton_iterations = 5
+│   lbm_steps = 5920
+│   rel_L2_u = 0.05002443841537052
+│   flux_gap = 0.0441656649401551
+└   residual_2norm = 6-element Vector{Float64}: …
+
+--- incns_fv_gnf_gpu.jl ---
+┌ Info: C3 Newton, power-law cavity n=0.5 64² (GPU, cuDSS)
+│   residual_2norm =
+│    11-element Vector{Float64}:
+│     0.014142135602151766
+│     0.013137185026989217
+│     0.00902736347020956
+│     0.005535532750618243
+│     ⋮
+│     1.3975679744810684e-6
+│     6.936600672655309e-9
+└     1.5547245461100235e-13
+Test Summary:   | Pass  Total     Time
+C3 GPU receipts |  757    757  2m05.7s
+
+================ power-law cavity n = 0.5, N = 256 (256 x 256, from rest) ================
+  unknowns 196608 | nnz 5280780 (26.86/row) | colours 39 | chunk 4 -> 10 dual passes
+  set-up (CPU pattern 0.38 s, colouring 0.42 s, total incl. upload 0.98 s)
+  converged true in 13 iterations, 3.31 s wall (n_factorize 1, n_refactorize 12)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 1.414e-02 |  1.414e-02 |  0.000e+00 | 8.839e-04 |
+   1 | 1.302e-02 |  1.299e-02 |  8.044e-04 | 7.620e-04 | 1.000 |       4.11 |       2.020 |   175.87 |     0.25
+   2 | 6.953e-03 |  6.561e-03 |  2.301e-03 | 5.220e-04 | 0.500 |       3.30 |       0.086 |     2.61 |     0.36
+   3 | 5.257e-03 |  4.754e-03 |  2.244e-03 | 7.649e-04 | 1.000 |       3.30 |       0.086 |     2.60 |     0.19
+   4 | 1.936e-03 |  1.932e-03 |  1.278e-04 | 2.983e-04 | 1.000 |       3.31 |       0.086 |     2.60 |     0.18
+   5 | 1.019e-03 |  1.019e-03 |  1.333e-05 | 1.789e-04 | 1.000 |       3.30 |       0.086 |     2.58 |     0.18
+   6 | 4.768e-04 |  4.768e-04 |  3.351e-06 | 1.758e-04 | 1.000 |       3.30 |       0.086 |     2.60 |     0.18
+   7 | 1.450e-04 |  1.450e-04 |  6.668e-07 | 5.039e-05 | 1.000 |       3.30 |       0.086 |     2.59 |     0.19
+   8 | 3.446e-05 |  3.446e-05 |  1.230e-07 | 2.058e-05 | 1.000 |       3.30 |       0.086 |     2.59 |     0.19
+   9 | 9.461e-06 |  9.461e-06 |  2.418e-08 | 7.021e-06 | 1.000 |       3.31 |       0.087 |     2.59 |     0.19
+  10 | 1.560e-06 |  1.560e-06 |  2.268e-09 | 1.112e-06 | 1.000 |       3.30 |       0.086 |     2.60 |     0.19
+  11 | 2.589e-08 |  2.589e-08 |  3.222e-11 | 1.705e-08 | 1.000 |       3.30 |       0.086 |     2.59 |     0.19
+  12 | 1.070e-11 |  1.070e-11 |  6.850e-15 | 6.877e-12 | 1.000 |       3.30 |       0.086 |     2.60 |     0.19
+  13 | 9.894e-17 |  9.491e-17 |  2.795e-17 | 6.180e-18 | 1.000 |       3.29 |       0.086 |     2.60 |     0.19
+  first factorization (analysis + numeric) 2.02 s | median refactorization 0.086 s | analysis (deduced) 1.93 s
+  per Newton iteration (median, it >= 2): assembly 3.30 ms | refactorize 0.086 s | solve 2.60 ms | line search 0.19 ms
+  flux through x = 0 (sum of u over the first column, x h): 2.699860e-04 | max u 9.752918e-01
+  cuDSS memory_estimates: permanent device 1.06 GiB, peak device 1.06 GiB, peak host 0.08 GiB
+  cuDSS lu_nnz 102309122 (fill ratio 19.4 vs nnz(J))
+  device memory used: after set-up 0.16 GiB | after Newton (factors resident) 1.22 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 37.819
+     2 | 0 | 0 | 0 | 0 | 37.819
+     3 | 0 | 0 | 0 | 0 | 37.819
+     4 | 0 | 0 | 0 | 0 | 37.819
+     5 | 0 | 0 | 0 | 0 | 37.819
+     6 | 0 | 0 | 0 | 0 | 37.819
+     7 | 0 | 0 | 0 | 0 | 37.819
+     8 | 0 | 0 | 0 | 0 | 37.819
+     9 | 0 | 0 | 0 | 0 | 37.819
+    10 | 0 | 0 | 0 | 0 | 37.819
+  free-memory spread over the 10 hot iterations: 0.0 MiB | allocated by 3 full Newton iterations from a perturbed state: 0 B
+  Jacobian GPU vs CPU: max |Δ| / max |J| = 2.2e-16 (CPU KA assembly 0.09 s)
+
+================ power-law cavity n = 0.5, N = 512 (512 x 512, from rest) ================
+  unknowns 786432 | nnz 21178380 (26.93/row) | colours 38 | chunk 4 -> 10 dual passes
+  set-up (CPU pattern 1.44 s, colouring 1.49 s, total incl. upload 3.38 s)
+  converged true in 32 iterations, 20.27 s wall (n_factorize 1, n_refactorize 31)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 1.414e-02 |  1.414e-02 |  0.000e+00 | 6.250e-04 |
+   1 | 1.263e-02 |  1.262e-02 |  4.705e-04 | 5.480e-04 | 1.000 |      13.99 |       6.700 |     6.70 |     0.33
+   2 | 1.183e-02 |  1.077e-02 |  4.882e-03 | 8.128e-04 | 1.000 |      11.23 |       0.419 |     6.71 |     0.29
+   3 | 9.157e-03 |  9.028e-03 |  1.532e-03 | 4.587e-04 | 1.000 |      11.22 |       0.420 |     6.70 |     0.28
+   4 | 8.142e-03 |  8.114e-03 |  6.771e-04 | 4.395e-04 | 1.000 |      11.21 |       0.417 |     6.69 |     0.28
+   5 | 6.865e-03 |  6.863e-03 |  1.807e-04 | 4.084e-04 | 1.000 |      11.22 |       0.420 |     6.72 |     0.29
+   6 | 5.743e-03 |  5.719e-03 |  5.290e-04 | 3.604e-04 | 1.000 |      11.22 |       0.419 |     6.69 |     0.29
+   7 | 4.515e-03 |  4.511e-03 |  1.908e-04 | 2.811e-04 | 1.000 |      11.21 |       0.419 |     6.68 |     0.28
+   8 | 4.273e-03 |  4.263e-03 |  2.885e-04 | 2.947e-04 | 1.000 |      11.22 |       0.421 |     6.71 |     0.29
+   9 | 3.389e-03 |  3.388e-03 |  8.108e-05 | 2.272e-04 | 1.000 |      11.23 |       0.419 |     6.67 |     0.29
+  10 | 3.262e-03 |  3.259e-03 |  1.237e-04 | 2.619e-04 | 1.000 |      11.22 |       0.419 |     6.71 |     0.28
+  11 | 2.430e-03 |  2.430e-03 |  3.526e-05 | 2.364e-04 | 1.000 |      11.22 |       0.420 |     6.70 |     0.29
+  12 | 2.303e-03 |  2.303e-03 |  4.743e-05 | 2.319e-04 | 1.000 |      11.23 |       0.418 |     6.69 |     0.29
+  13 | 1.491e-03 |  1.491e-03 |  1.954e-05 | 2.251e-04 | 1.000 |      11.22 |       0.419 |     6.66 |     0.28
+  14 | 1.379e-03 |  1.379e-03 |  1.416e-05 | 1.732e-04 | 1.000 |      11.21 |       0.417 |     6.69 |     0.28
+  15 | 6.619e-04 |  6.618e-04 |  8.497e-06 | 1.005e-04 | 1.000 |      11.22 |       0.419 |     6.71 |     0.29
+  16 | 3.473e-04 |  3.473e-04 |  3.630e-06 | 5.356e-05 | 1.000 |      11.23 |       0.418 |     6.70 |     0.28
+  17 | 2.183e-04 |  2.183e-04 |  1.572e-06 | 4.251e-05 | 1.000 |      11.21 |       0.419 |     6.69 |     0.29
+  18 | 1.685e-04 |  1.684e-04 |  1.480e-06 | 3.596e-05 | 1.000 |      11.20 |       0.418 |     6.68 |     0.28
+  19 | 1.424e-04 |  1.424e-04 |  1.032e-06 | 3.640e-05 | 1.000 |      11.22 |       0.418 |     6.68 |     0.28
+  20 | 1.174e-04 |  1.174e-04 |  8.938e-07 | 2.833e-05 | 1.000 |      11.23 |       0.419 |     6.71 |     0.28
+  21 | 9.641e-05 |  9.641e-05 |  5.278e-07 | 2.887e-05 | 1.000 |      11.22 |       0.420 |     6.71 |     0.28
+  22 | 7.725e-05 |  7.725e-05 |  4.263e-07 | 2.747e-05 | 1.000 |      11.22 |       0.419 |     6.71 |     0.28
+  23 | 5.894e-05 |  5.894e-05 |  2.096e-07 | 2.176e-05 | 1.000 |      11.23 |       0.418 |     6.71 |     0.28
+  24 | 4.437e-05 |  4.437e-05 |  1.446e-07 | 1.845e-05 | 1.000 |      11.22 |       0.419 |     6.70 |     0.28
+  25 | 3.148e-05 |  3.148e-05 |  5.854e-08 | 1.601e-05 | 1.000 |      11.21 |       0.421 |     6.70 |     0.28
+  26 | 2.117e-05 |  2.117e-05 |  4.394e-08 | 1.087e-05 | 1.000 |      11.21 |       0.418 |     6.70 |     0.29
+  27 | 1.135e-05 |  1.135e-05 |  1.047e-08 | 6.516e-06 | 1.000 |      11.21 |       0.418 |     6.69 |     0.28
+  28 | 5.194e-06 |  5.194e-06 |  2.625e-09 | 3.730e-06 | 1.000 |      11.22 |       0.419 |     6.70 |     0.29
+  29 | 1.354e-06 |  1.354e-06 |  8.282e-10 | 9.975e-07 | 1.000 |      11.22 |       0.420 |     6.73 |     0.28
+  30 | 3.897e-08 |  3.897e-08 |  3.462e-11 | 2.567e-08 | 1.000 |      11.22 |       0.418 |     6.70 |     0.28
+  31 | 3.458e-11 |  3.458e-11 |  1.693e-14 | 1.873e-11 | 1.000 |      11.22 |       0.417 |     6.71 |     0.29
+  32 | 1.917e-16 |  1.897e-16 |  2.785e-17 | 2.598e-17 | 1.000 |      11.22 |       0.419 |     6.69 |     0.28
+  first factorization (analysis + numeric) 6.70 s | median refactorization 0.419 s | analysis (deduced) 6.28 s
+  per Newton iteration (median, it >= 2): assembly 11.22 ms | refactorize 0.419 s | solve 6.70 ms | line search 0.28 ms
+  flux through x = 0 (sum of u over the first column, x h): 1.399861e-04 | max u 9.877900e-01
+  cuDSS memory_estimates: permanent device 4.63 GiB, peak device 4.63 GiB, peak host 0.31 GiB
+  cuDSS lu_nnz 506065732 (fill ratio 23.9 vs nnz(J))
+  device memory used: after set-up 0.50 GiB | after Newton (factors resident) 5.14 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 33.895
+     2 | 0 | 0 | 0 | 0 | 33.895
+     3 | 0 | 0 | 0 | 0 | 33.895
+     4 | 0 | 0 | 0 | 0 | 33.895
+     5 | 0 | 0 | 0 | 0 | 33.895
+     6 | 0 | 0 | 0 | 0 | 33.895
+     7 | 0 | 0 | 0 | 0 | 33.895
+     8 | 0 | 0 | 0 | 0 | 33.895
+     9 | 0 | 0 | 0 | 0 | 33.895
+    10 | 0 | 0 | 0 | 0 | 33.895
+  free-memory spread over the 10 hot iterations: 0.0 MiB | allocated by 3 full Newton iterations from a perturbed state: 0 B
+
+================ CY obstacle channel m = 32 (256 x 128, from rest) ================
+  unknowns 98304 | nnz 2072478 (21.08/row) | colours 42 | chunk 4 -> 11 dual passes
+  set-up (CPU pattern 0.11 s, colouring 0.14 s, total incl. upload 0.30 s)
+  converged true in 5 iterations, 0.91 s wall (n_factorize 1, n_refactorize 4)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 2.114e-04 |  2.114e-04 |  0.000e+00 | 1.323e-06 |
+   1 | 1.510e-04 |  1.360e-04 |  6.549e-05 | 1.055e-05 | 0.500 |       2.18 |       0.594 |     1.84 |     0.39
+   2 | 5.241e-05 |  4.279e-05 |  3.027e-05 | 7.914e-06 | 1.000 |       2.22 |       0.037 |     1.81 |     0.17
+   3 | 2.971e-06 |  1.996e-06 |  2.201e-06 | 3.614e-07 | 1.000 |       2.21 |       0.036 |     1.82 |     0.17
+   4 | 4.890e-09 |  3.454e-09 |  3.461e-09 | 8.452e-10 | 1.000 |       2.20 |       0.037 |     1.82 |     0.17
+   5 | 1.308e-14 |  9.845e-15 |  8.617e-15 | 2.612e-15 | 1.000 |       2.21 |       0.037 |     1.81 |     0.17
+  first factorization (analysis + numeric) 0.59 s | median refactorization 0.037 s | analysis (deduced) 0.56 s
+  per Newton iteration (median, it >= 2): assembly 2.21 ms | refactorize 0.037 s | solve 1.82 ms | line search 0.17 ms
+  flux through x = 0 (sum of u over the first column, x h): 2.068770e-01 | max u 8.851360e-03
+  cuDSS memory_estimates: permanent device 0.46 GiB, peak device 0.46 GiB, peak host 0.03 GiB
+  cuDSS lu_nnz 33763182 (fill ratio 16.3 vs nnz(J))
+  device memory used: after set-up 0.06 GiB | after Newton (factors resident) 0.53 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 38.509
+     2 | 0 | 0 | 0 | 0 | 38.509
+     3 | 0 | 0 | 0 | 0 | 38.509
+     4 | 0 | 0 | 0 | 0 | 38.509
+     5 | 0 | 0 | 0 | 0 | 38.509
+     6 | 0 | 0 | 0 | 0 | 38.509
+     7 | 0 | 0 | 0 | 0 | 38.509
+     8 | 0 | 0 | 0 | 0 | 38.509
+     9 | 0 | 0 | 0 | 0 | 38.509
+    10 | 0 | 0 | 0 | 0 | 38.509
+  free-memory spread over the 10 hot iterations: 0.0 MiB | allocated by 3 full Newton iterations from a perturbed state: 0 B
+
+================ CY obstacle channel m = 64 (512 x 256, from rest) ================
+  unknowns 393216 | nnz 8322030 (21.16/row) | colours 42 | chunk 4 -> 11 dual passes
+  set-up (CPU pattern 0.46 s, colouring 0.58 s, total incl. upload 1.25 s)
+  converged true in 5 iterations, 3.20 s wall (n_factorize 1, n_refactorize 4)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 5.284e-05 |  5.284e-05 |  0.000e+00 | 1.654e-07 |
+   1 | 4.357e-05 |  3.621e-05 |  2.424e-05 | 2.607e-06 | 0.500 |       5.98 |       2.586 |     3.37 |     0.50
+   2 | 1.686e-05 |  1.187e-05 |  1.197e-05 | 2.337e-06 | 1.000 |       6.11 |       0.142 |     3.35 |     0.23
+   3 | 1.072e-06 |  5.922e-07 |  8.931e-07 | 1.147e-07 | 1.000 |       6.12 |       0.143 |     3.37 |     0.23
+   4 | 1.942e-09 |  1.067e-09 |  1.622e-09 | 2.788e-10 | 1.000 |       6.11 |       0.142 |     3.36 |     0.23
+   5 | 6.011e-15 |  3.485e-15 |  4.898e-15 | 1.020e-15 | 1.000 |       6.11 |       0.142 |     3.36 |     0.23
+  first factorization (analysis + numeric) 2.59 s | median refactorization 0.142 s | analysis (deduced) 2.44 s
+  per Newton iteration (median, it >= 2): assembly 6.11 ms | refactorize 0.142 s | solve 3.36 ms | line search 0.23 ms
+  flux through x = 0 (sum of u over the first column, x h): 2.083009e-01 | max u 4.446877e-03
+  cuDSS memory_estimates: permanent device 1.99 GiB, peak device 1.99 GiB, peak host 0.13 GiB
+  cuDSS lu_nnz 170746028 (fill ratio 20.5 vs nnz(J))
+  device memory used: after set-up 0.25 GiB | after Newton (factors resident) 2.25 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 36.794
+     2 | 0 | 0 | 0 | 0 | 36.794
+     3 | 0 | 0 | 0 | 0 | 36.794
+     4 | 0 | 0 | 0 | 0 | 36.794
+     5 | 0 | 0 | 0 | 0 | 36.794
+     6 | 0 | 0 | 0 | 0 | 36.794
+     7 | 0 | 0 | 0 | 0 | 36.794
+     8 | 0 | 0 | 0 | 0 | 36.794
+     9 | 0 | 0 | 0 | 0 | 36.794
+    10 | 0 | 0 | 0 | 0 | 36.794
+  free-memory spread over the 10 hot iterations: 0.0 MiB | allocated by 3 full Newton iterations from a perturbed state: 0 B
+
+================ power-law cavity n = 0.5, N = 1024 (1024 x 1024, from rest) ================
+  unknowns 3145728 | nnz 84824076 (26.96/row) | colours 39 | chunk 4 -> 10 dual passes
+  set-up (CPU pattern 5.12 s, colouring 5.71 s, total incl. upload 12.42 s)
+  converged true in 22 iterations, 82.95 s wall (n_factorize 1, n_refactorize 21)
+  it | ‖R‖₂ after  | ‖R_mom‖₂   | ‖R_cont‖₂  | ‖R‖∞      | alpha | assembly ms | (re)factor s | solve ms | line search ms
+   0 | 1.414e-02 |  1.414e-02 |  0.000e+00 | 4.419e-04 |
+   1 | 1.201e-02 |  1.200e-02 |  2.675e-04 | 3.942e-04 | 1.000 |      54.10 |      31.630 |    27.73 |     0.75
+   2 | 1.065e-02 |  1.024e-02 |  2.904e-03 | 4.691e-04 | 1.000 |      43.75 |       2.367 |    27.58 |     0.72
+   3 | 9.282e-03 |  9.243e-03 |  8.425e-04 | 3.299e-04 | 1.000 |      43.72 |       2.366 |    27.54 |     0.72
+   4 | 8.291e-03 |  8.284e-03 |  3.312e-04 | 3.219e-04 | 1.000 |      43.64 |       2.370 |    27.39 |     0.71
+   5 | 7.296e-03 |  7.295e-03 |  7.869e-05 | 3.027e-04 | 1.000 |      43.31 |       2.371 |    27.71 |     0.73
+   6 | 6.711e-03 |  6.705e-03 |  2.780e-04 | 2.842e-04 | 1.000 |      43.83 |       2.363 |    27.81 |     0.73
+   7 | 5.485e-03 |  5.483e-03 |  1.137e-04 | 2.586e-04 | 1.000 |      43.72 |       2.369 |    27.55 |     0.72
+   8 | 2.035e-03 |  2.030e-03 |  1.412e-04 | 8.716e-05 | 0.500 |      43.69 |       2.367 |    27.54 |     1.41
+   9 | 8.984e-04 |  8.957e-04 |  6.969e-05 | 3.746e-05 | 0.500 |      43.74 |       2.362 |    27.58 |     1.41
+  10 | 2.535e-04 |  2.535e-04 |  5.318e-06 | 1.443e-05 | 1.000 |      43.71 |       2.365 |    27.51 |     0.72
+  11 | 5.803e-05 |  5.803e-05 |  4.103e-08 | 8.737e-06 | 1.000 |      43.78 |       2.369 |    27.40 |     0.71
+  12 | 3.619e-05 |  3.619e-05 |  3.236e-08 | 7.093e-06 | 1.000 |      43.34 |       2.368 |    27.39 |     0.71
+  13 | 2.719e-05 |  2.719e-05 |  1.640e-08 | 6.055e-06 | 1.000 |      43.34 |       2.365 |    27.46 |     0.71
+  14 | 2.258e-05 |  2.258e-05 |  2.149e-08 | 5.994e-06 | 1.000 |      43.31 |       2.374 |    27.60 |     0.72
+  15 | 1.696e-05 |  1.696e-05 |  1.121e-08 | 5.283e-06 | 1.000 |      43.73 |       2.370 |    27.62 |     0.72
+  16 | 1.331e-05 |  1.331e-05 |  1.019e-08 | 5.079e-06 | 1.000 |      43.84 |       2.363 |    27.52 |     0.72
+  17 | 8.932e-06 |  8.932e-06 |  5.712e-09 | 3.934e-06 | 1.000 |      43.70 |       2.364 |    27.72 |     0.72
+  18 | 5.447e-06 |  5.447e-06 |  2.126e-09 | 3.325e-06 | 1.000 |      43.70 |       2.370 |    27.43 |     0.71
+  19 | 2.541e-06 |  2.541e-06 |  6.736e-10 | 1.687e-06 | 1.000 |      43.34 |       2.366 |    27.63 |     0.72
+  20 | 2.763e-07 |  2.763e-07 |  8.425e-11 | 2.244e-07 | 1.000 |      43.79 |       2.372 |    27.45 |     0.71
+  21 | 2.006e-09 |  2.006e-09 |  9.447e-13 | 1.694e-09 | 1.000 |      43.32 |       2.377 |    27.58 |     0.72
+  22 | 1.632e-13 |  1.632e-13 |  1.323e-16 | 1.342e-13 | 1.000 |      43.68 |       2.366 |    27.73 |     0.73
+  first factorization (analysis + numeric) 31.63 s | median refactorization 2.367 s | analysis (deduced) 29.26 s
+  per Newton iteration (median, it >= 2): assembly 43.70 ms | refactorize 2.367 s | solve 27.55 ms | line search 0.72 ms
+  flux through x = 0 (sum of u over the first column, x h): 7.204871e-05 | max u 9.939285e-01
+  cuDSS memory_estimates: permanent device 21.01 GiB, peak device 21.01 GiB, peak host 1.25 GiB
+  cuDSS lu_nnz 2449924548 (fill ratio 28.9 vs nnz(J))
+  device memory used: after set-up 1.97 GiB | after Newton (factors resident) 23.03 GiB
+  hot loop | assembly B | refactorize B | solve B | residual+norms B | device free GiB
+     1 | 0 | 0 | 0 | 0 | 16.014
+     2 | 0 | 0 | 0 | 0 | 16.014
+     3 | 0 | 0 | 0 | 0 | 16.014
+     4 | 0 | 0 | 0 | 0 | 16.014
+     5 | 0 | 0 | 0 | 0 | 16.014
+     6 | 0 | 0 | 0 | 0 | 16.014
+     7 | 0 | 0 | 0 | 0 | 16.014
+     8 | 0 | 0 | 0 | 0 | 16.014
+     9 | 0 | 0 | 0 | 0 | 16.014
+    10 | 0 | 0 | 0 | 0 | 16.014
+  free-memory spread over the 10 hot iterations: 0.0 MiB | allocated by 3 full Newton iterations from a perturbed state: 0 B
+DONE status=0

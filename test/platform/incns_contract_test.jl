@@ -11,8 +11,11 @@ using KernelAbstractions
 @testset "IncNS platform contract" begin
 
     @testset "capabilities introspection + driver validation" begin
+        # SteadyResidual = the C1 steady FV residual (fv_steady_residual.jl),
+        # declared only by the driver that solves it (decision 2026-11-04)
         @test capabilities(IncNS(:projection)) == Set((ForwardSolve,))
         @test capabilities(IncNS(:simple)) == Set((ForwardSolve,))
+        @test capabilities(IncNS(:fv_newton)) == Set((ForwardSolve, SteadyResidual, SteadyAdjoint, AssembledJacobian))
         # CPU forward solve only: the CUDA seam methods are manual-load.
         @test GPUExecution ∉ capabilities(IncNS(:projection))
         @test_throws ArgumentError IncNS(:not_a_driver)

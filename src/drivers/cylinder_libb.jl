@@ -156,25 +156,49 @@ end
 """
     run_cylinder_libb_2d(; Nx=300, Ny=80, cx=Nx÷4, cy=Ny÷2, radius=10,
                           u_in=0.04, ν=0.04, max_steps=50000,
-                          avg_window=5000, inlet=:parabolic, ρ_out=1.0)
+                          avg_window=5000, inlet=:parabolic, ρ_out=1.0,
+                          stop=:none, tol=1e-6, check_every=nothing)
 
 2D cylinder with LI-BB V2 boundary condition. Parabolic / uniform
 Zou-He velocity inlet (reconstructed from pre-step populations) and an
 extrapolation pressure outlet (`NeqExtrapolationPressure`, rebuilt from the
 post-collision column Nx-1); both bypass the kernel's halfway-BB fallback
 at the non-wall boundaries. Top / bottom channel walls are
-halfway-BB via the kernel's fallback at j=1 and j=Ny.
+halfway-BB via the kernel's fallback at j=1 and j=Ny, so they sit at
+y = -1/2 and y = Ny - 1/2 (node j at y = j - 1) and the channel height is Ny.
 
 Arguments:
-- `u_in`: centerline u_max for `:parabolic` inlet; uniform u for `:uniform`.
+- `u_in`: for the `:parabolic` inlet, the centreline velocity U_m of the
+  channel parabola, i.e. 3/2 of the delivered mean velocity (the sampled
+  peak is `u_in · Ny² / (Ny² + 1/2)`); uniform u for `:uniform`.
 - `inlet`: `:parabolic` (Schäfer-Turek 2D convention) or `:uniform`.
 - `ρ_out`: outlet density imposed by the east pressure outlet (default 1).
+- `stop`: `:none` (default) runs exactly `max_steps` steps and computes the same
+  values as without the option. `:cd_change` samples the drag coefficient every
+  `check_every` steps and stops as soon as two consecutive samples satisfy
+  `|Cd_k - Cd_(k-1)| <= tol * |Cd_k|`. `max_steps` stays the hard cap.
+- `tol`: relative tolerance of the `:cd_change` rule (default `1e-6`).
+- `check_every`: steps between two samples. Default `nothing`: one flow-through,
+  `round(Int, Nx / u_ref)` steps.
+
+The `:parabolic` profile vanishes on the half-way walls and its row sum is
+exactly `u_ref · Ny`, `u_ref = (2/3) u_in`:
+`u(j) = 4 u_in (j - 1/2)(Ny + 1/2 - j) / (Ny² + 1/2)`. The Zou-He rebuild
+imposes it on every row `1:Ny`, rows 1 and Ny included.
 
 Returns a NamedTuple with:
 - `ρ`, `ux`, `uy`, `is_solid`, `q_wall`, `u_ref`, `D`, `Fx`, `Fy`
 - `Cd = 2·Fx / (u_ref² · D)` with `u_ref = u_mean = 2/3 · u_max`
   (parabolic) or `u_ref = u_in` (uniform).
 - `Cl` analogously.
+- `converged::Bool`: `true` if the `:cd_change` rule was met (always `false` with
+  `stop = :none`); `stop_step`: the number of steps run.
+- `cd_history`: vector of `(step, Cd)` samples taken every `check_every` steps
+  (empty with `stop = :none`). These are instantaneous values, not window means.
+
+`Cd`, `Cl`, `Fx`, `Fy` are the mean over the last `avg_window` steps of `max_steps`.
+A run stopped inside that window averages the samples taken so far; a run stopped
+before it has none, so they take the values of the last `cd_history` sample.
 
 Reference for Schäfer-Turek 2D-1 (Re=20, blockage ≈ 25%): Cd ≈ 5.58.
 """
@@ -187,15 +211,24 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
                                 avg_window::Int=5_000,
                                 inlet::Symbol=:parabolic,
                                 ρ_out::Real=1.0,
+                                stop::Symbol=:none,
+                                tol::Real=1e-6,
+                                check_every::Union{Nothing,Integer}=nothing,
                                 backend=KernelAbstractions.CPU(),
                                 T::Type{<:AbstractFloat}=Float64)
+    stop in (:none, :cd_change) ||
+        throw(ArgumentError("stop must be :none or :cd_change, got $(stop)"))
+    tol >= 0 || throw(ArgumentError("tol must be non-negative"))
     cx = isnothing(cx) ? Nx ÷ 4 : Float64(cx)
     cy = isnothing(cy) ? Ny ÷ 2 : Float64(cy)
 
     q_wall_h, is_solid_h = precompute_q_wall_cylinder(Nx, Ny, cx, cy, radius; FT=T)
 
     u_prof_h = if inlet === :parabolic
-        [T(4) * T(u_in) * T(j - 1) * T(Ny - j) / T(Ny - 1)^2 for j in 1:Ny]
+        # Half-way channel walls at y = -1/2 and Ny - 1/2 (node j at y = j - 1):
+        # the parabola vanishes on them and its row sum is exactly
+        # (2/3) u_in Ny, i.e. a mean velocity of u_ref over the height Ny.
+        _halfway_poiseuille_profile(T, Ny, (2 / 3) * Float64(u_in))
     elseif inlet === :uniform
         fill(T(u_in), Ny)
     else
@@ -229,10 +262,18 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
 
     Fx_sum = 0.0; Fy_sum = 0.0; n_avg = 0
 
+    D = 2 * Float64(radius)
+    check_n = isnothing(check_every) ? max(1, round(Int, Nx / u_ref)) : Int(check_every)
+    check_n >= 1 || throw(ArgumentError("check_every must be >= 1"))
+    cd_history = Tuple{Int,Float64}[]
+    last_Fx = NaN; last_Fy = NaN
+    converged = false
+    stop_step = max_steps
+
     for step in 1:max_steps
         fused_trt_libb_v2_step!(f_out, f_in, ρ, ux, uy, is_solid,
                                  q_wall, uw_x, uw_y, Nx, Ny, T(ν))
-        # Zou-He velocity inlet at i=1, extrapolation outlet at i=Nx (j=2..Ny-1)
+        # Zou-He velocity inlet at i=1 (j=1..Ny), extrapolation outlet at i=Nx (j=2..Ny-1)
         rebuild_inlet_outlet_libb_2d!(f_out, f_in, u_profile, ρ_out, ν, Nx, Ny)
 
         if step > max_steps - avg_window
@@ -241,18 +282,32 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
             n_avg  += 1
         end
 
+        if stop === :cd_change && step % check_n == 0
+            drag = compute_drag_libb_mei_2d(f_out, q_wall, uw_x, uw_y, Nx, Ny)
+            last_Fx = drag.Fx; last_Fy = drag.Fy
+            push!(cd_history, (step, 2.0 * drag.Fx / (u_ref^2 * D)))
+            if length(cd_history) >= 2
+                cd_new = cd_history[end][2]; cd_old = cd_history[end - 1][2]
+                if isfinite(cd_new) && abs(cd_new - cd_old) <= tol * abs(cd_new)
+                    converged = true
+                    stop_step = step
+                    f_in, f_out = f_out, f_in
+                    break
+                end
+            end
+        end
+
         f_in, f_out = f_out, f_in
     end
     KernelAbstractions.synchronize(backend)
 
-    Fx_avg = Fx_sum / n_avg
-    Fy_avg = Fy_sum / n_avg
-    D      = 2 * Float64(radius)
+    Fx_avg = n_avg > 0 ? Fx_sum / n_avg : last_Fx
+    Fy_avg = n_avg > 0 ? Fy_sum / n_avg : last_Fy
     Cd     = 2.0 * Fx_avg / (u_ref^2 * D)
     Cl     = 2.0 * Fy_avg / (u_ref^2 * D)
 
     return (; ρ = Array(ρ), ux = Array(ux), uy = Array(uy),
              Cd, Cl, Fx = Fx_avg, Fy = Fy_avg,
              q_wall = Array(q_wall), is_solid = Array(is_solid),
-             u_ref, D, inlet)
+             u_ref, D, inlet, converged, stop_step, cd_history)
 end

@@ -153,6 +153,21 @@ Run the open-x coupled log-FV polymer path on a circular cylinder with
 precomputed cut-link geometry. This is the curved-wall macro canary above BFS
 and square-obstacle tests; benchmark Cd convergence still belongs in a
 separate harness after the lower ladder is green.
+
+# Stop option
+
+All keywords are forwarded to the shared coupled driver. Off by default.
+
+- `stop=:none`: run exactly `max_steps` steps (default). `stop=:cd_change`: sample the
+  total drag coefficient every `check_every` steps and stop when
+  `|Cd_k - Cd_(k-1)| <= tol * |Cd_k|`. `max_steps` stays the hard cap.
+- `tol=2e-4`: relative tolerance of that rule.
+- `check_every=nothing`: steps between samples; default `round(Int, Nx / u_mean)`.
+- `step_callback(step, fields)`: a callback that returns exactly `true` stops the run.
+
+The result gains `converged`, `stop_reason` (`:rule`, `:callback` or `:max_steps`),
+`stop_step`, `cd_history` (vector of `(step, Cd)`) and `Cd_last`. `Cd` stays the mean over
+the last `avg_window` steps; a run stopped before that window reports the last sample.
 """
 function run_viscoelastic_logfv_cylinder_coupled_2d(;
     radius::Real=6,

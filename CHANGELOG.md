@@ -6,7 +6,247 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- Steady discrete adjoint of the generalised-Newtonian (GNF) lattice Boltzmann step:
+- Opt-in steady stop rule for `run_cylinder_libb_2d`,
+  `run_viscoelastic_fvfd_poiseuille_3d` and the 2D log-FV coupled viscoelastic
+  drivers (including `run_viscoelastic_logfv_cylinder_coupled_2d`).
+  `stop = :cd_change` samples the drag coefficient every `check_every` steps
+  (default: one flow-through) and stops when two consecutive samples differ by
+  at most `tol` in relative value (defaults `1e-6` for the LI-BB cylinder,
+  `2e-4` for the log-FV drivers); `stop = :change` of the 3D channel stops when
+  the relative change of the velocity and of the polymer stress between two
+  checks are both at most `tol` (default `1e-12`). The results gain
+  `converged`, `stop_step` and the sample history (`cd_history`,
+  `change_history`), and the log-FV drivers also `stop_reason` and `Cd_last`.
+  With the default `stop = :none` the drivers run exactly `max_steps` steps and
+  return the same values as before. In the log-FV drivers a `step_callback`
+  that returns exactly `true` now ends the run (#123).
+- Linear-solve seam, opt-in additions (the existing `lin_factorize` /
+  `lin_solve!(cache, b)` calls are unchanged): `lin_refactorize!(cache[, A_new])`
+  re-runs the numeric factorization with new values on the same sparsity pattern,
+  reusing the symbolic analysis (CPU CHOLMOD/UMFPACK and cuDSS); in-place
+  `lin_solve!(x, cache, b)`; multiple right-hand sides `lin_solve!(cache, B)`;
+  transposed solves `lin_solve!(...; transpose = true)` and
+  `lin_supports_transpose(cache)`. On cuDSS the in-place solve and the device-side
+  refactorization allocate nothing on the Kraken side (preallocated staging
+  buffers). The cuDSS transposed solve requires CUDSS.jl >= 1.0: older versions
+  silently ignore the transpose mode, so Kraken raises an explicit error there
+  instead of returning `A \ b`. A different sparsity pattern is refused (#104).
+- Newton solver for the steady colocated FV residual (step C2 of the FV Newton
+  roadmap), `solve_incns_fv_newton(; problem, to, linsolve)` and
+  `solve(params, IncNS(:fv_newton))`. The Jacobian is the exact derivative of
+  the residual kernel, assembled by coloured forward-mode duals (pattern built
+  from the stencil, colouring by SparseMatrixColorings, new dependency) through
+  the same KernelAbstractions kernel on CPU and GPU, written directly into the
+  CSC (UMFPACK) or CSR (cuDSS) matrix values. Linear solves go through the
+  linear-solve seam: one `lin_factorize` (symbolic analysis), then
+  `lin_refactorize!` and in-place `lin_solve!` at every iteration. Armijo line
+  search; optional pseudo-transient continuation (`dtau0`).
+  `fv_newton_finalize!` leaves the factors of the unshifted Jacobian at the
+  solution, for a later adjoint solve. Checked on CPU: the assembled Jacobian
+  equals the dense Jacobian on four configurations (cavity, masked channel,
+  periodic channel, doubly periodic); quadratic convergence to ‖R‖₂ ≈ 1e-16
+  (cavity Re = 100, 32², 5 iterations; Re = 1000, 64², 11 iterations);
+  agreement with the SIMPLE cavity within 5e-3 and with Ghia et al. (1982) at
+  128², Re = 100 (max centreline error 0.0072 of the lid speed). On an A100
+  (Aqua job 27632281) the GPU Jacobian equals the CPU one (1e-12 bound), Newton
+  on cuDSS follows the CPU residual history at 64² (one symbolic analysis, then
+  refactorizations; direct and transposed solves of the finalized factors), and
+  assembly, refactorization, solve and whole Newton iterations allocate 0 device
+  bytes. Lid-driven cavity from rest on an A100 (Aqua job 27631719): 512²,
+  Re = 100 in 5 iterations and 12.6 s, Re = 1000 in 12 iterations and 15.3 s
+  (symbolic analysis 10 s once, refactorization 0.43 s); 1024², Re = 100 in 5
+  iterations and 56 s, Re = 1000 in 11 iterations and 69 s (analysis 44 s once,
+  refactorization 2.3 s, 22 GiB with the factors resident).
+- `benchmarks/validation/gnf_calibration/`: a calibration script that fits the
+  three Carreau parameters (`a = 2` fixed) to synthetic steady velocity fields
+  on the periodic obstacle channel using `gnf_steady_gradient` and a small BFGS
+  minimiser (five fixed starts, ten fixed noise seeds at 0.1, 1 and 5 %), and a
+  cost bench that times one forward solve, one adjoint gradient and the `2p`
+  forward solves of a finite-difference gradient on four grids.
+  `run_gnf_adjoint_gpu.jl` takes the test point, grid and finite-difference
+  step sweep as options. CPU smoke runs pass; GPU results are not yet
+  produced (#124).
+- Generalised-Newtonian viscosity in the steady FV residual and its Newton
+  solver (step C3 of the FV Newton roadmap):
+  `fv_steady_problem(...; rheology = law, gnf_eps = ε)` with the existing
+  `PowerLaw`, `CarreauYasuda`, `Cross`, `Bingham`, `HerschelBulkley` and
+  `Newtonian` laws (kinematic units, the same law objects and the same
+  `gnf_viscosity` evaluation as the LBM GNF drivers). The face viscosity is the
+  law at the face strain rate `γ̇_ε = √(2 S:S + ε²)` (full strain-rate tensor;
+  `ε > 0` is a change of model, required except for Carreau–Yasuda with
+  `a ≥ 2`). The Jacobian includes `∂ν/∂U` because the residual kernel computes
+  ν itself; its sparsity pattern is derived from the exact stencil of the face
+  strain rate (3 × 3 cell block, 27 entries per interior row instead of 23).
+  `fv_gnf_parameters` / `fv_with_gnf_parameters` expose the law parameters as
+  a vector that may hold duals (for the coming adjoint). A `PowerLaw` with finite
+  clamp bounds (zero derivative where active, Newton may stall) triggers one `@warn`. Checked on CPU: the
+  assembled Jacobian equals the dense ForwardDiff Jacobian bit for bit for five
+  laws on four configurations; power-law Poiseuille (n = 0.5 and 1.5) within
+  1.3 % of the regularised 1D reference at 16 cells across and second order
+  under refinement, tending to the analytical power-law profile as ε → 0;
+  quadratic Newton convergence from rest (5–7 iterations); n = 1 gives the
+  Newtonian residual bit for bit; on the Carreau–Yasuda obstacle channel of
+  the LBM GNF adjoint tests, FV and LBM velocities differ by 16.7 %, 5.0 % and
+  1.6 % (relative L2) at 4, 8 and 16 cells per unit length. The PowerLaw
+  `nu_min`/`nu_max` clamp is applied as written and stalls Newton where
+  active. FV viscosity-type promotion now uses the law's numeric field types
+  (excluding `thermal`), keeping the residual accumulators concrete for scalar
+  and ForwardDiff dual states. CPU inference guards cover all six law types,
+  mixed law/regularisation precisions and dual law parameters. On an A100
+  (Aqua job 27701869) the GPU tests pass (CPU/GPU parity of the GNF residual,
+  Jacobian and dual-law residual; Newton on cuDSS against the CPU history;
+  0 device bytes in the hot loop). Power-law cavity n = 0.5 from rest: 256² in
+  13 iterations and 3.3 s, 512² in 32 iterations and 20.3 s, 1024² in 22
+  iterations and 83 s (first factorization 31.6 s, refactorization 2.4 s,
+  23 GiB with the factors resident).
+- Steady discrete adjoint on the FV Newton solver (step C4 of the FV Newton
+  roadmap), `src/methods/inc_ns/fv_adjoint.jl`. `fv_steady_gradient(solver, U,
+  θ, objective; params)` re-assembles the unshifted Jacobian at the converged
+  state, refactorizes it (no new symbolic analysis), solves Jᵀλ = ∂J/∂U with
+  the Newton factors (UMFPACK on CPU, cuDSS with CUDSS.jl ≥ 1.0 on GPU) and
+  returns dJ/dθ = ∂J/∂θ − λᵀ∂R/∂θ, with ∂R/∂θ from parameter duals through
+  the same residual kernel. Parameters: uniform viscosity, viscosity field
+  (coloured, one cotangent per cell), side velocity (e.g. lid speed or inlet
+  amplitude), uniform source, or any `FVProblemMap(f, n)` building the problem
+  from θ. Objectives: state misfit (`FVStateObs`, also from a `LineProfile`),
+  linear functionals (`fv_flow_rate`, `fv_pressure_drop`) and wall force
+  (`FVWallForce`, drag/lift on the solid mask or a side). Also
+  `fv_steady_adjoint` (any ∂J/∂U), `fv_steady_tangent` (forward sensitivity)
+  and `fv_adjoint_workspace` (preallocated buffers). New capability value
+  `AssembledJacobian`; `IncNS(:fv_newton)` now also declares `SteadyAdjoint`.
+  Checked on CPU against dense forward-mode Jacobians (parameter cotangent to
+  2e-15), central finite differences (worst relative gap 9e-9 over the tested
+  directions) and the forward tangent (6e-16); dQ/dν = −Q/ν in Stokes flow.
+  Generalised-Newtonian problems: the parameter maps keep the viscosity law,
+  the law parameters are adjoint parameters through
+  `FVProblemMap(fv_with_gnf_parameters, n)`, and `FVWallForce` uses the law at
+  the wall strain rate, as the residual does (adjoint vs central differences
+  within 3e-9 for Carreau–Yasuda and power law). On an A100 (Aqua job
+  27713496) the GPU tests pass, including CPU/GPU parity of a GNF
+  law-parameter gradient; lid-driven cavity at 1024² (3.1 M unknowns, Newton
+  62 s): one gradient costs 0.06–1.0 s once the factors exist (lid drag or
+  velocity profile; uniform ν, viscosity field or lid speed), with 0 device
+  bytes allocated and no new symbolic analysis.
+  Wall-closure study in `benchmarks/fv_c4/`: drag, pressure drop and their
+  gradients converge at order ≈ 1.4 whether ν is constant or variable;
+  `FVWallForce(...; pressure = :linear)` is the recommended drag objective
+  (the default stays `:cell`, the residual's own wall pressure).
+
+### Changed
+- `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
+  declares `SteadyResidual`; the other drivers declare `ForwardSolve` only, and
+  `residual(prob, IncNS(:simple), U)` raises an `ArgumentError`.
+- Compat widened to `CUDA = "5, 6"` and `CUDSS = "0.3, 0.4, 0.5, 0.6, 1"`
+  (CUDSS.jl 1.0 requires CUDA.jl 6). Existing CUDA.jl 5 environments keep
+  resolving; a fresh environment now resolves to CUDA.jl 6. LinearSolve.jl does
+  not yet allow CUDSS.jl 1.0, so an environment with both stays on CUDSS.jl <= 0.8
+  (no cuDSS transposed solve) (#104).
+- The EHD direct Poisson GPU solve writes into a preallocated device buffer
+  (`EhdPoissonSetupGPU.sol`) instead of allocating a vector each step (#104).
+- The GNF adjoint documentation now states that the GPU check ran the
+  bordered-GMRES solver (`:gmres`), not the `:kstep` default of
+  `gnf_steady_gradient` (#124).
+- New `NeqExtrapolationPressure(ρ_out)` east outlet for
+  `apply_bc_rebuild_2d!`: after the bulk step, rows `2:Ny-1` of column `Nx`
+  are set by non-equilibrium extrapolation from the completed column `Nx-1`,
+  with imposed density and no further collision; corners are left as they
+  are. It is now used by `run_cylinder_libb_2d`, the log-FV viscoelastic
+  drivers sharing `default_step_bcspec_2d`, the 2D STL `wall = libb` path and
+  the Schäfer–Turek 2D-2 benchmark. With the corrected weights, the Zou-He
+  pressure outlet of this path develops a sign-flipping mode that the old
+  weights damped (#118, #126).
+- `ZouHePressure` is unchanged and its docstring describes that mode.
+  Explicit callers, west/south/north pressure faces of the 2D STL path, the
+  direct Zou-He drivers, the Gmsh physical-normal route and all 3D routes
+  keep their current behaviour. Place the new outlet several diameters
+  downstream of obstacles; backflow through it is not supported (#126).
+
+### Fixed
+- Parabolic inlets now deliver the nominal flow rate between half-way walls. The
+  profile of `run_cylinder_libb_2d`, `parabolic_face_profile_2d`,
+  `run_sphere_libb_3d`, `run_conformation_sphere_libb_3d` and the AD cylinder and
+  viscoelastic models is sampled with an exact discrete mean, and the Zou-He inlet
+  rebuild (2D, 3D and the AD copies) now imposes the profile on every row,
+  including the rows next to the walls; in 3D, `apply_bc_rebuild_3d!` takes an
+  opt-in `halfway_walls` argument that covers edges and corners. The delivered
+  flow-rate error of `run_cylinder_libb_2d` at Ny = 24/40/80 drops from
+  -0.89/-0.32/-0.081 % to +0.032/+0.012/+0.0029 % (parabolic) and from
+  -7.9/-4.7/-2.4 % to +0.43/+0.26/+0.13 % (uniform); the 3D doubly parabolic inlet
+  at N = 16 from -12.45 % to +0.12 %. Drag coefficients of cylinder and sphere
+  runs change accordingly (R = 3, Ny = 40: parabolic Cd 24.056 to 24.083, uniform
+  16.08 to 17.02); published values that used the old inlet are marked in the
+  documentation as measured before v0.7 (#111, #115, #119).
+- Adiabatic walls of the thermal solver reflect the thermal populations
+  specularly (zero normal heat flux, tangential flux kept) instead of bouncing the
+  diagonals back, in the fused 2D kernels, the GNF natural-convection transport,
+  the CPU step used for gradients, the 3D thermal kernels and the Rayleigh-Benard
+  horizontal walls. Pure conduction is now exact on every row and the Ra = 1e3
+  Nusselt numbers converge at second order. Thermal results change; GPU numbers
+  in the documentation measured before this fix are marked as such (#113, #119).
+- The hot-wall Nusselt number of `run_natural_convection_2d`,
+  `run_natural_convection_gnf_2d` and the 3D cavity is averaged over all wall rows
+  instead of rows 2 to N-1. At N = 64, Ra = 1e3 the 2D cavity gives Nu = 1.1175
+  (De Vahl Davis hot-wall Nu₀ = 1.117) (#119).
+- `WLFCoupling` now evaluates the shift in base 10,
+  `a_T = 10^(-C1 dT/(C2 + dT))`, so the published Williams-Landel-Ferry
+  constants (the `.krk` defaults `C1 = 8.86`, `C2 = 101.6`) are used as written;
+  the previous natural-exponential form made the default shift too weak, and
+  results that use `WLFCoupling` change. `ArrheniusCoupling` requires absolute
+  temperatures: `run_natural_convection_gnf_2d` and the `.krk` rheology loader
+  now throw an `ArgumentError` for `T <= 0` or a non-finite `T_ref` or `E_a` (the
+  default walls `T_hot = 1`, `T_cold = 0` are refused with an Arrhenius
+  coupling). An isothermal `.krk` run that sets `E_a`, `C1`, `C2` or `T_ref` now
+  warns that they are ignored. The FENE-P docstring states which Peterlin
+  function each kernel set uses (#108, #120).
+- Viscoelastic cylinder runs with a small solvent fraction (`beta <= 0.1`) no
+  longer diverge within a few hundred steps. The x second derivative of the
+  both-sides-diffusion correction is now zero at the first or last column of an
+  open x end; the one-sided stencil used there had the wrong sign on the
+  period-2 mode of the outlet corner cells and anti-damped it. Wall-x and
+  periodic-x stencils are unchanged and results at `beta = 0.59` are unchanged
+  to within 1e-5. Runs at `beta <= 0.1` now complete (cylinder R = 50, Wi = 1,
+  300 000 steps, A100), but no grid study exists for them and their `Cd` values
+  are not validated (#121).
+- The 3D FVFD Oldroyd-B channel (`run_viscoelastic_fvfd_poiseuille_3d`) no
+  longer develops a growing wall-normal checkerboard mode that made `tau_yy`
+  grow from zero until the run crashed after a few thousand steps.
+  `fvfd_velocity_gradient_3d!` has a new keyword `wall_normal_noslip` (default
+  `false`, unchanged); the channel driver sets it, which imposes `u_y = 0` at
+  the half-way wall in the wall-row `du_y/dy`. In a 4000-step test run
+  `max|tau_yy|/max|tau_xy|` falls from 1.4e2 to 1.3e-12 and the velocity errors
+  are unchanged (#116, #122).
+- The D2Q9 normal-stress weights in the regularized TRT rebuild at 2D Zou-He
+  nodes and in the generated local collision brick, including the AD copies,
+  are corrected. The rebuild now preserves mass and momentum and reproduces
+  the prescribed stress moments; it previously created `(1 − s₊)·S/18` of
+  mass per rebuilt node and step (#118, #126).
+
+## [0.6.0] — 2026-11-04
+
+This release corrects a forcing defect that changed viscoelastic results, and repairs
+the repository front (quickstart, capability table, benchmark pages, test wiring). See
+the erratum below before reusing any viscoelastic number from 0.2.0 to 0.5.1.
+
+### Erratum — viscoelastic results before 0.6.0 (#67, #70)
+The TRT collision with a per-cell Guo force injected `g·F` per step instead of `F`,
+with `g = 1 + (s₋ − s₊)/2` (`g = 0.52` at `ν = 0.05`, `0.44` at `ν = 0.04`, `0.82` at
+`ν = 0.10`, `1.02` at `ν = 0.15`; source: #67 and PR #70). The defect was present from
+v0.2.0 to v0.5.1 on the 2D log-FV viscoelastic drivers, the 3D VE sphere and coupled
+planar-extension drivers, and the AD viscoelastic shape-sensitivity mirror. The BGK
+Guo kernels, the imposed-velocity planar extension and the Poiseuille drivers were not
+affected. Measured effect of the fix: Oldroyd-B confined cylinder vs RheoTool,
+`Cd` 129.92 / 118.68 / 119.24 → 129.95 / 118.92 / 119.49 at `Wi = 0.1 / 0.5 / 1`
+(`benchmarks/results/rheotool_compare/viscoelastic/kraken_cd_vs_wi.csv`, pre-fix values
+in its header), so the error against RheoTool goes from −0.40 / −0.86 / −0.96 % to
+−0.37 / −0.66 / −0.75 % (`error_norms.csv`): small shifts, still under 1 %. The `β = 0.3`
+case is no longer claimed within 1 %. The 3D VE sphere canary `Cd` at `Wi = 0.01` moves
+16.212 → 17.331 (+6.9 %), and the AD shape gradient `d(Cd_polymer)/dR` moves −1.6 %
+(#70); sensitivities with respect to `ν_s` and `Fx` move more (`ν_s` changes sign), see
+#67. No sphere number and none of those sensitivities was published. Results of your
+own that went through these paths with a nonzero force and `ν ≠ √3/12` should be rerun.
+
+### Added
+- Steady discrete adjoint of the generalised-Newtonian (GNF) lattice Boltzmann step (#100):
   `gnf_steady_gradient` returns the objective `J = ½ Σ (value − target)²` of the
   converged steady velocity (`GNFVelocityObs`) and its gradient with respect to the
   four Carreau–Yasuda viscosity-law parameters `(ln η∞*, ln k*, n, a)`;
@@ -26,6 +266,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   7.1e-08 or better; the Float32 operator is informational only. The in-suite
   CPU/GPU parity test is skipped without CUDA. See
   `users/benchmarks/gnf-adjoint-gradient.md`.
+- `Backend <cpu|cuda|metal>` directive in `.krk` files, resolved by the simulation runner (#93).
+- `examples/quickstart.jl`, the exact script the README shows, run on CPU by a
+  `quickstart` CI job (#95).
+- Opt-in test tier `KRAKEN_TEST_EXPERIMENTAL=1` for 23 test files that were never wired
+  into the suite; the scalar advection order test now runs in the default suite (#94).
+- Electroconvection checkpoint and resume (#60): snapshot and restore of the completed-cycle
+  populations, force history and convergence scalars, with controlled updates of the
+  temperature parameter and rejection of incompatible or corrupt state. The opt-in moment
+  injector (above) is extended to the transient electroconvection driver and to the
+  checkpoint format, which moves to schema 2 (#79); a schema-1 file is migrated on read.
+- `test/analytical/ve3d_ext_velocity_readback.jl` and `ve3d_ext_zouhe_zplanes.jl` record two
+  defects of the coupled 3D extensional driver as `@test_broken` (#71; issues #68, #69, open):
+  it overwrites the collision velocity with a read-back of the post-collision populations,
+  and its Zou-He face rebuilds skip the first and last z planes although z is periodic.
+  Treat the coupled 3D extensional mode as not validated until they are fixed.
+- RheoTool reference data for the viscoelastic cavity (#57) and a regression test for the
+  field-stopping repair of #23 (#58).
 - Experimental hydrostatic `injector_closure=:static_moment` Julia keyword and
   `.krk` `Physics injector_closure = static_moment` selector (#73, #78).
   The opt-in normal-moment reconstruction preserves the outgoing charge aggregate
@@ -36,19 +293,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   Opt-in analytic diagnostics use wall-node coordinates (`y_mapping=:wall_nodes`),
   not the legacy interior half-link mapping; their errors are not directly
   comparable across closures. This does not establish complete EHD validation.
-- Linear-solve seam, opt-in additions (the existing `lin_factorize` /
-  `lin_solve!(cache, b)` calls are unchanged): `lin_refactorize!(cache[, A_new])`
-  re-runs the numeric factorization with new values on the same sparsity pattern,
-  reusing the symbolic analysis (CPU CHOLMOD/UMFPACK and cuDSS); in-place
-  `lin_solve!(x, cache, b)`; multiple right-hand sides `lin_solve!(cache, B)`;
-  transposed solves `lin_solve!(...; transpose = true)` and
-  `lin_supports_transpose(cache)`. On cuDSS the in-place solve and the device-side
-  refactorization allocate nothing on the Kraken side (preallocated staging
-  buffers). The cuDSS transposed solve requires CUDSS.jl >= 1.0: older versions
-  silently ignore the transpose mode, so Kraken raises an explicit error there
-  instead of returning `A \ b`. A different sparsity pattern is refused.
 - 3D generalised-Newtonian (GNF) flow on D3Q19 with TRT collision, linearly
-  interpolated bounce-back walls and Guo forcing: `run_gnf_channel_3d` and the fused
+  interpolated bounce-back walls and Guo forcing (#101): `run_gnf_channel_3d` and the fused
   step `fused_trt_gnf_libb_guo_field_step_3d!`. Supports `PowerLaw`, `CarreauYasuda`
   and `Cross` (and Newtonian), isothermal only, Julia API only (no `.krk` keyword yet).
   On planar channels against an independent analytical reference the observed order is
@@ -57,7 +303,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   that ran is kept reachable by the tag `archive/gnf3d-gpu-sweep`). Float32 was only
   run through on the GPU, not validated. See
   `docs/src/users/benchmarks/gnf3d-channel-convergence.md`.
-- `run_natural_convection_gnf_2d`, `gnf_reference_scales` and `cavity_powerlaw`:
+- `run_natural_convection_gnf_2d`, `gnf_reference_scales` and `cavity_powerlaw` (#105):
   differentially heated D2Q9 cavity for generalised Newtonian fluids, driving
   `collide_rheology_thermal_2d!` with the thermal double-distribution populations.
   Ra and Pr are defined with the reference kinematic viscosity `nu0`; with
@@ -65,7 +311,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   A `.krk` `natural_convection` case with a non-Newtonian `Rheology` block now
   routes to this driver. Thermal walls half-way, as in the Newtonian driver
   (H = N). 2D only, Float64. n = 1 reproduces the Newtonian driver to round-off
-  (Nu = 1.1185 at N = 64, Ra = 1e3; De Vahl Davis 1.118). Against Turan et al.
+  (Nu = 1.1185 at N = 64, Ra = 1e3; de Vahl Davis hot-wall value 1.117, +0.13 %). Against Turan et al.
   (Pr = 10, figure readings) on CPU: Nu = 5.393 vs 5.40 at Ra = 1e4, n = 0.6
   (N = 32/48 extrapolated). On one A100 (CUDA Float64, N = 64/128/256): Ra = 1e4,
   n = 0.6 and 1.0 within 0.6 % at every N; Ra = 1e3, n = 1.8 within 0.13 %;
@@ -76,18 +322,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `benchmarks/validation/natconv_gnf/results/`; the code that ran is kept reachable
   by the tag `archive/gnf-thermal-turan-gpu`. No 3D, no grid refinement. See
   `docs/src/users/benchmarks/gnf-natural-convection.md`.
+- Steady 2D colocated finite-volume residual of the incompressible Navier–Stokes
+  (or Stokes) equations, `fv_residual!(R, U, prob)`, written as one
+  KernelAbstractions kernel that runs unchanged on CPU and GPU and is generic in
+  the element type (Float64, Float32, ForwardDiff duals in the state or in the
+  parameter arrays). It is step C1 of the FV Newton roadmap: the residual that
+  the coming Newton solve (Jacobian by coloured duals) and discrete adjoint will
+  differentiate. Discretisation: first-order upwind convection on Rhie–Chow face
+  fluxes with `d_f = h²/(4ν_f + |ū_f|h)`, full viscous stress tensor with a cell
+  viscosity field, body/mass sources, wall / inlet / outlet / periodic sides,
+  solid mask, one pressure pin per closed fluid pocket (`fv_pressure_pins!`).
+  Problems are built with `fv_steady_problem` and moved to a device with
+  `fv_adapt`. `SteadyResidual` is declared by `IncNS(:fv_newton)`
+  (`residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`); this is the residual of the
+  coupled FV discretisation, not of the SIMPLE drivers. Checked on CPU against the
+  J0 prototype (identical residuals on 11 configurations), exact discrete
+  solutions (R = 0), manufactured solutions with variable viscosity (velocity
+  order 2 for Stokes; the pressure is first order in the wall cells), duals
+  against finite differences, and the SIMPLE cavity (centreline difference
+  1.2e-3 at 32², Re = 100). On an A100 (Aqua job 27617685) the GPU residual
+  matches the CPU one (1.8e-17 relative at 1024² in Float64, within the 1e-14
+  test bound in Dual{4} on three cases), allocates 0
+  bytes per call, and takes 0.43 ms at 1024² in Float64 (2.4 ms in Dual{4}).
+  No Newton solver yet: nothing user-facing solves with it.
 
 ### Changed
-- Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature.
-- Compat widened to `CUDA = "5, 6"` and `CUDSS = "0.3, 0.4, 0.5, 0.6, 1"`
-  (CUDSS.jl 1.0 requires CUDA.jl 6). Existing CUDA.jl 5 environments keep
-  resolving; a fresh environment now resolves to CUDA.jl 6. LinearSolve.jl does
-  not yet allow CUDSS.jl 1.0, so an environment with both stays on CUDSS.jl <= 0.8
-  (no cuDSS transposed solve).
-- The EHD direct Poisson GPU solve writes into a preallocated device buffer
-  (`EhdPoissonSetupGPU.sol`) instead of allocating a vector each step.
-- Jiachen Zhao (Queensland University of Technology) joins the authors, second position, in `CITATION.cff`, `Project.toml` and the BibTeX entries of the README and the documentation home page. `CITATION.cff` now carries the ORCIDs of J. Zhao and E. Sauret.
-- Electroconvection `.krk` cases now apply paired `Boundary west wall` / `Boundary east wall` as stationary no-slip sidewalls instead of ignoring them; omitted sides retain free slip. Explicit non-lateral `Boundary` declarations are rejected because electrode/plate conditions are built into this driver.
+- Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature (#103).
+- CI builds the documentation on pull requests into `dev/platform` with a pinned Vitepress npm tree (#81); the contributor guide states the full-suite gate as CI actually runs it (#59).
+- Capability table (`docs/src/capabilities.md`) (#96) now lists MRT, TRT, the `bin/kraken` CLI,
+  Saramito, thermal VE/GNF, 3D outlet, refined 3D thermal and the Metal/CUDA backends.
+  The H100 throughput figures, which no script or log backs, are removed. The GPU
+  certification page said 0.68 of the bandwidth ceiling (PASS) using the 304 bytes of
+  D3Q19; a D2Q9 Float64 update moves 144 bytes, so 3461 MLUPS on an A100-40GB is 0.32 of
+  the ceiling, below the 0.5 gate. The viscoelastic cylinder page now states what the
+  archived rheoFoam logs show (serial runs, end time 6 or 10) instead of 2-core MPI to
+  t = 20.
+- Documentation statements corrected against the code: the VE cylinder wall is a linearly
+  interpolated (Bouzidi) bounce-back with the analytic cut-link distance, only the channel
+  walls are half-way; the VE cylinder page no longer says the residual gap to RheoTool is
+  discretisation (the grid extrapolation of the R = 30 and 50 values sits +0.7 % or -0.2 %
+  from the single RheoTool value, for a first- or second-order error); the FENE-P Oldroyd-B
+  limit is checked at `L² = 1e8` to 1e-3, not byte-identical; coupled 3D planar extension is
+  not validated (#68, #69 open); the buoyancy force has no density factor; GNF thermal
+  coupling has a driver; the De Vahl Davis comparison uses the hot-wall values (Nu₀ = 1.117,
+  2.238, 4.509; the cavity average is 1.118, 2.243, 4.519) and the old "1.4 %" is +0.13 %;
+  in `.krk` files natural-convection and Rayleigh-Bénard cases do not read the wall `T`
+  values and do not switch buoyancy on from them; the GNF adjoint Enzyme check has its own
+  CI step; the GNF thermal page lists the non-zero fractions of nodes at a viscosity bound
+  in the A100 sweep; the GPU certification README uses 144 bytes per D2Q9 update; the
+  Guo (2002) Boussinesq, Schäfer-Turek and Krüger entries of `docs/refs.bib`.
+- Electroconvection `.krk` cases (#37) now apply paired `Boundary west wall` / `Boundary east wall` as stationary no-slip sidewalls instead of ignoring them; omitted sides retain free slip. Explicit non-lateral `Boundary` declarations are rejected because electrode/plate conditions are built into this driver.
 - Documentation numbers re-measured after the TRT Guo forcing fix (#67), same settings
   as before (Aqua A100, CUDA Float64; post-fix source `edbc20916`, jobs 26763246/47/48,
   26766115, 26766116/17; pre-fix control `249146d4d`, job 26763249, reproduces the
@@ -110,7 +394,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   pre-fix values as the dated record of the M8 study.
 
 ### Fixed
-- **Thermal Dirichlet walls are half-way, like the no-slip walls** (#97). The
+- **Thermal Dirichlet walls are half-way, like the no-slip walls** (#97, PR #102). The
   fixed-temperature kernels (`apply_fixed_temp_*_2d!`, `apply_fixed_temp_*_3d!`, the
   fused natural-convection step) put the wall on the first and last nodes, so the
   thermal cavity was `N − 1` wide while the flow cavity was `N` wide. They now apply
@@ -153,9 +437,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   off-diagonal stress was present. Inside this repository, no `src/` driver, test or
   benchmark called it before the 3D GNF path, so no previously published Kraken result
   changes; it affects only external callers.
-- The 0.3.0 entry "GPU-validated (parity ≤1.6e-12)" for the cuDSS solve and the matching
-  line of `docs/agent/solve-linear-implication.md` now carry a correction note (#61): the
-  loading path of that July run is not recorded. Same note as in 0.5.1.
 - **TRT Guo forcing injects exactly `F` per step** (#67). The TRT collision
   bricks with a per-cell Guo force (`CollideTRTDirectGuoField`,
   `CollideTRTDirectGuoField_3D`) scaled the whole Guo source by `1 − s₊/2`. The odd
@@ -176,13 +457,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   test moves from 0.83 % to 0.18 % on `C_xx` against the nominal strain rate (the
   coupled flow now runs 0.72 % above it, down from 1.41 %). Published numbers
   affected: see the documentation entry under Changed above.
-- **CUDSS weak-dependency UUID corrected** (#61). Since v0.3.0 the `KrakenCUDSSExt`
-  extension could not be activated by `using CUDA, CUDSS, Kraken`, because `Project.toml`
-  declared a UUID that differs from the registered one in one character. Whether the
-  July 2026 GPU validation exercised the extension is not recorded; it is being re-run.
-  New offline test `test/platform/weakdeps_metadata_test.jl` checks every `[weakdeps]`
-  UUID against the registry; the GPU test now asserts the extension is active when
-  CUDSS loads.
 - **Corrected the 0.5.0 notes** (#52). The four log-conformation closures run on the
   FVFD path only; the LBM-CDE drivers (sphere, Couette, Poiseuille) accept Oldroyd-B
   only, in direct conformation form. Couette and LBM-CDE Poiseuille are not reachable
@@ -257,6 +531,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   on grids with `Ny - 1 ≳ 100`, the iteration freezes at bit level before `E` converges
   and the check accepts whatever `field_tol` is: use `phi_scheme = :direct` or Float64
   for an accurate `E`.
+
+## [0.5.1] — 2026-10-23
+
+### Changed
+- Jiachen Zhao (Queensland University of Technology) joins the authors, second position,
+  in `CITATION.cff`, `Project.toml` and the BibTeX entries of the README and the
+  documentation home page. `CITATION.cff` now carries the ORCIDs of J. Zhao and
+  E. Sauret. The `version` field of those two BibTeX entries now reads 0.5.1 (it read
+  0.2.0 in the README and 0.4.0 on the home page).
+
+### Fixed
+- **CUDSS weak-dependency UUID corrected** (#61). Since v0.3.0 the `KrakenCUDSSExt`
+  extension could not be activated by `using CUDA, CUDSS, Kraken`, because `Project.toml`
+  declared a UUID that differs from the registered one in one character. Whether the
+  July 2026 GPU validation exercised the extension is not recorded. The corrected
+  extension was run on an H100 on the fix branch (Julia 1.11.9, CUDA 5.11.3,
+  CUDSS 0.6.5, Float64): it loads through plain `using`, and 41/41 GPU assertions pass
+  with no CPU fallback. New offline test `test/platform/weakdeps_metadata_test.jl`
+  checks every `[weakdeps]` UUID against the registry; the GPU test now asserts the
+  extension is active when CUDSS loads.
+- The 0.3.0 entry "GPU-validated (parity ≤1.6e-12)" for the cuDSS solve and the matching
+  line of `docs/agent/solve-linear-implication.md` now carry a correction note (#61): the
+  loading path of that July run is not recorded.
 
 ## [0.5.0] — 2026-09-24
 
