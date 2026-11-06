@@ -131,6 +131,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   gradients converge at order ≈ 1.4 whether ν is constant or variable;
   `FVWallForce(...; pressure = :linear)` is the recommended drag objective
   (the default stays `:cell`, the residual's own wall pressure).
+- Immersed curved walls in the steady FV residual, Newton and adjoint (step C5
+  of the FV Newton roadmap), `src/methods/inc_ns/fv_immersed*.jl`. Analytic cut
+  geometry (`fv_immersed_circle`, `fv_immersed_annulus`,
+  `fv_immersed_boundary`) with a ghost-cell wall closure (`FVImmersedClosure`,
+  linear or quadratic) that enters the same residual kernel, so the coloured
+  Jacobian, cuDSS factors and discrete adjoint apply unchanged. Mass
+  compatibility `FVImmersedMass`: M3 (default) adds one unknown per connected
+  body / fluid region pair, so closed domains conserve mass to roundoff and the
+  solution does not depend on the pressure pin; M1 stays as an explicit
+  comparison mode. New objectives `FVWallTorque` and immersed `FVWallForce`;
+  `FVShapeMap` gives shape derivatives (radius, centre) at fixed cell topology.
+  Checked on CPU: Jacobian vs dense duals 8.9e-16; force and torque gradients
+  vs finite differences within 6.6e-8 (relative); Taylor–Couette and a
+  non-rigid manufactured solution converge at velocity order ≈ 2.0 and 2.6.
+  Known limits, documented in `benchmarks/fv_c5/README.md`: the pressure drop
+  across a cylinder in a channel is not monotone in h on the tested grids, and
+  the surface-integral torque derivative converges more slowly than the
+  residual-flux one.
 
 ### Changed
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`

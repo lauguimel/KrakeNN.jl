@@ -74,6 +74,7 @@ _fvc4_dense_cot(p, map, U, θ, λ) =
     for (map, θ) in maps
         q = fv_param_problem(map, p, θ)
         @test q.visc === p.visc
+        # Exact preservation contract: only the selected arrays may change.
         ref = FVSteadyProblem2D(p.grid, p.tag, q.nu, q.bvel, q.src, p.visc)
         @test fv_residual(U, q) == fv_residual(U, ref)
     end
@@ -122,6 +123,13 @@ _fvc4_dense_cot(p, map, U, θ, λ) =
         @test all(a == b for (a, b) in zip(arrays, oldarrays))
         @test s.prob.visc === oldvisc
     end
+    # A different model can require a different Jacobian pattern; reject it
+    # before copying any parameter arrays into the existing solver.
+    oldsrc = copy(s.prob.src)
+    incompatible = FVProblemMap((q, t) ->
+        FVSteadyProblem2D(q.grid, q.tag, q.nu, q.bvel, ones(length(q.src))), 0)
+    @test_throws ArgumentError fv_set_params!(s, incompatible, Float64[])
+    @test s.prob.src == oldsrc
 end
 
 # Small nonimmersed C3/C4 integration cases. Thresholds are the existing C4
@@ -351,6 +359,9 @@ end
                 bc = (W = :periodic, E = :periodic, S = :wall, N = :wall)),
             fv_steady_problem(4, 2; nu = (x, y) -> 0.04 + 0.01x,
                 bc = (W = :wall, E = :wall, S = :periodic, N = :periodic)),
+            fv_steady_problem(5, 4; solid,
+                rheology = CarreauYasuda(0.1, 0.01, 2.0, 2.0, 0.6), gnf_eps = 1e-2,
+                boundary_velocity = (side, x, y) -> (x + y, x - y)),
         )
         for (case, p) in enumerate(cases), dir in 1:2,
             region in (:solid, :E, :W, :N, :S), pressure in (:cell, :linear)

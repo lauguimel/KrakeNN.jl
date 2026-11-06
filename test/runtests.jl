@@ -127,6 +127,21 @@ function run_incns_testset()
         # dQ/dν = −Q/ν (~25 s CPU), and its opt-in GPU contract
         include("analytical/incns_fv_adjoint.jl")
         include("analytical/incns_fv_adjoint_gpu.jl")
+        # C5-S012 immersed geometry, wall closures and preservation of C1-C4.
+        include("analytical/incns_fv_immersed.jl")
+        include("analytical/incns_fv_immersed_mms.jl") # C5-S3: injected/solved local wall MMS
+        include("analytical/incns_fv_aligned_c1.jl") # A0: aligned C1 local reference, no order gate
+        include("analytical/incns_fv_immersed_objectives.jl") # C5: residual/surface force and torque
+        include("analytical/incns_fv_immersed_mass.jl") # C5: closed-domain M1 balance and pressure pins
+        include("analytical/incns_fv_immersed_m3_algebra.jl") # M3: identities, exact Jacobian and full rank first
+        include("analytical/incns_fv_immersed_mass_compiler.jl") # M3: inferred numerical kernels
+        include("analytical/incns_fv_immersed_mass_contract.jl") # M3: default, topology and GNF contracts
+        include("analytical/incns_fv_immersed_mass_quadrature.jl") # M3: preserve physical-target uncertainty
+        include("analytical/incns_fv_immersed_m3_adjoint.jl") # M3: force/torque state and shape derivatives
+        include("analytical/incns_fv_immersed_m3_convergence.jl") # M3: closed mass and pin-independent solutions
+        include("analytical/incns_fv_immersed_channel.jl") # M3: normalized open-channel mass and drag comparison
+        include("analytical/incns_fv_immersed_shape.jl") # M3: discrete shape derivatives and reported continuous limit
+        include("analytical/incns_fv_immersed_gpu.jl") # Prepared opt-in CUDA contract
         include("analytical/scalar_transport_heated_channel.jl")
         include("analytical/scalar_transport_advection_order.jl")
 

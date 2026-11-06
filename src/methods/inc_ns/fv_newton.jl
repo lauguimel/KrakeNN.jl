@@ -48,12 +48,21 @@ valid across a Stokes → Navier–Stokes continuation). For a fluid cell `P`:
 Interior rows carry 23, 23 and 15 entries (20.3 per row on a large grid). The
 pattern is the Newtonian one: a viscosity that depends on the state (C3)
 widens it.
+
+An immersed ghost reads the opposite fluid neighbour O. O already belongs to
+the same axial pair used by the Green–Gauss gradient: replacing a wall face
+value with L/Q or linear pressure does not widen that gradient's support.
+The momentum star and the normal-velocity continuity star also already
+contain O. Extrapolating tangential gradients from O to a nominal immersed
+face reads O's tangential neighbours, already in the cross-term support of
+the opposite interior face. Thus this pattern covers all immersed closure
+combinations and remains inside the existing radius-two (5 × 5) box.
 """
 function fv_jacobian_pattern(prob::FVSteadyProblem2D)
     g = prob.grid
     tag = Array(prob.tag)
     Nx, Ny = g.Nx, g.Ny
-    n = fv_nunknowns(g)
+    n = fv_nunknowns(prob)
     I = Int[]; J = Int[]
     sizehint!(I, 21 * n); sizehint!(J, 21 * n)
     # neighbour through face d, or (0, 0) when the face is not interior
@@ -107,15 +116,17 @@ function fv_jacobian_pattern(prob::FVSteadyProblem2D)
             end
         end
     end
+    _fv_mass_pattern!(I, J, prob)
     return sparse(I, J, trues(length(I)), n, n, |)
 end
 
 """
-    fv_jacobian_coloring(S::SparseMatrixCSC) -> (colors::Vector{Int}, ncolors::Int)
+    fv_jacobian_coloring(S::SparseMatrixCSC[, prob]) -> (colors::Vector{Int}, ncolors::Int)
 
 Column colouring of the pattern `S` for compressed forward-mode assembly
 (columns of one colour share no row): SparseMatrixColorings greedy colouring
-with the largest-first order, CPU, once per geometry.
+with the largest-first order, CPU, once per geometry. Pass `prob` for M3 to
+exclude directly assembled pair rows while retaining local lambda columns.
 """
 function fv_jacobian_coloring(S::SparseMatrixCSC)
     prob = SparseMatrixColorings.ColoringProblem(; structure = :nonsymmetric,
@@ -124,6 +135,11 @@ function fv_jacobian_coloring(S::SparseMatrixCSC)
         SparseMatrixColorings.GreedyColoringAlgorithm(SparseMatrixColorings.LargestFirst()))
     return SparseMatrixColorings.column_colors(res), SparseMatrixColorings.ncolors(res)
 end
+
+# Pair rows are affine and assembled directly. Their long support must never
+# participate in column coloring; lambda columns retain their local FV rows.
+fv_jacobian_coloring(S::SparseMatrixCSC, prob::FVSteadyProblem2D) =
+    fv_jacobian_coloring(S[1:fv_nunknowns(prob.grid), :])
 
 # ------------------------------------------------------------------ assembly
 """
@@ -228,11 +244,11 @@ end
 end
 
 @kernel function _fv_decompress_kernel!(nzval, @Const(nzrow), @Const(nzcol), @Const(colors),
-                                        @Const(Rd), offset, ::Val{N}) where {N}
+                                        @Const(Rd), offset, ::Val{N}, nlocal) where {N}
     q = @index(Global)
     @inbounds begin
         c = colors[nzcol[q]] - offset
-        if 1 <= c <= N
+        if 1 <= c <= N && nzrow[q] <= nlocal
             nzval[q] = ForwardDiff.partials(Rd[nzrow[q]])[c]
         end
     end
@@ -255,7 +271,9 @@ the sparse matrix whose storage order `asm` was built for: `nonzeros(J)` of a
 `SparseMatrixCSC`, `J.nzVal` of a cuDSS CSR matrix). `ceil(ncolors / chunk)`
 passes of three kernels (seed, C1 residual kernel on duals, decompression); the
 residual is the C1 kernel itself, so the matrix is the exact Jacobian of the
-residual evaluated by [`fv_residual!`](@ref). Allocation-free on the device.
+residual evaluated by [`fv_residual!`](@ref). M3 pair rows are omitted from
+compressed differentiation and filled from their lowered affine coefficients.
+Allocation-free on the device.
 """
 function fv_assemble_jacobian!(nzval, asm::FVJacobianAssembler{N}, U,
                                prob::FVSteadyProblem2D; sync::Bool = true) where {N}
@@ -266,9 +284,10 @@ function fv_assemble_jacobian!(nzval, asm::FVJacobianAssembler{N}, U,
     dec! = _fv_decompress_kernel!(backend, 256)
     for offset in 0:N:(asm.ncolors - 1)
         seed!(asm.Ud, U, asm.colors, offset, Val(N); ndrange = asm.n)
-        fv_residual!(asm.Rd, asm.Ud, prob; sync = false)
-        dec!(nzval, asm.nzrow, asm.nzcol, asm.colors, asm.Rd, offset, Val(N); ndrange = asm.nnz)
+        fv_residual!(asm.Rd, asm.Ud, prob; sync = false, mass_rows = false)
+        dec!(nzval, asm.nzrow, asm.nzcol, asm.colors, asm.Rd, offset, Val(N), fv_nunknowns(prob.grid); ndrange = asm.nnz)
     end
+    _fv_mass_jacobian!(nzval, asm, prob, backend)
     sync && KernelAbstractions.synchronize(backend)
     return nzval
 end
@@ -279,14 +298,20 @@ end
     T = eltype(Pt)
     m2 = zero(T); c2 = zero(T); mi = zero(T); ci = zero(T)
     c0 = (t - 1) * per + 1
-    c1 = min(t * per, ncell)
+    c1 = min(t * per, ncell + length(R) - 3ncell)
     @inbounds for c in c0:c1
-        b = 3 * (c - 1)
-        ru = R[b + 1]; rv = R[b + 2]; rc = R[b + 3]
-        m2 += ru * ru + rv * rv
-        c2 += rc * rc
-        mi = max(mi, abs(ru), abs(rv))
-        ci = max(ci, abs(rc))
+        if c <= ncell
+            b = 3 * (c - 1)
+            ru = R[b + 1]; rv = R[b + 2]; rc = R[b + 3]
+            m2 += ru * ru + rv * rv
+            c2 += rc * rc
+            mi = max(mi, abs(ru), abs(rv))
+            ci = max(ci, abs(rc))
+        else
+            rc = R[3ncell + c - ncell]
+            c2 += rc * rc
+            ci = max(ci, abs(rc))
+        end
     end
     @inbounds begin
         Pt[1, t] = m2; Pt[2, t] = c2; Pt[3, t] = mi; Pt[4, t] = ci
@@ -297,17 +322,18 @@ struct _FVNormBuffers{D,H}
     dev::D
     host::H
     per::Int
+    ncell::Int
 end
 
-function _FVNormBuffers(to, ncell::Int; per::Int = 256)
-    nt = cld(ncell, per)
-    return _FVNormBuffers(to(zeros(Float64, 4, nt)), zeros(Float64, 4, nt), per)
+function _FVNormBuffers(to, ncell::Int; per::Int = 256, nextra::Int = 0)
+    nt = cld(ncell + nextra, per)
+    return _FVNormBuffers(to(zeros(Float64, 4, nt)), zeros(Float64, 4, nt), per, ncell)
 end
 
 # (‖R_momentum‖₂, ‖R_continuity‖₂, ‖R‖∞): one kernel + one copy of the
 # 4 × ncell/256 partial sums to the host; deterministic, no device allocation.
 function _fv_norms(nb::_FVNormBuffers, R)
-    ncell = length(R) ÷ 3
+    ncell = nb.ncell
     backend = KernelAbstractions.get_backend(R)
     _fv_norm_partials_kernel!(backend, 64)(nb.dev, R, ncell, nb.per; ndrange = size(nb.dev, 2))
     KernelAbstractions.synchronize(backend)
@@ -361,7 +387,7 @@ end
     t = @index(Global)
     su = 0.0; sq = 0.0
     k0 = 3 * (t - 1) * per + 1
-    k1 = 3 * min(t * per, ncell)
+    k1 = min(3 * t * per, length(U))
     @inbounds for k in k0:k1
         u = Float64(U[k])
         su += u
@@ -374,7 +400,7 @@ end
 end
 
 function _fv_state_sig(nb::_FVNormBuffers, shift, U)
-    ncell = length(U) ÷ 3
+    ncell = nb.ncell
     backend = KernelAbstractions.get_backend(U)
     _fv_state_sig_kernel!(backend, 64)(nb.dev, U, ncell, nb.per; ndrange = size(nb.dev, 2))
     KernelAbstractions.synchronize(backend)
@@ -413,7 +439,7 @@ function fv_newton_solver(prob::FVSteadyProblem2D; to = Array,
                           linsolve::LinearSolveBackend = CPUBackendTag(),
                           chunk::Int = 4)
     t_pattern = @elapsed S = fv_jacobian_pattern(prob)
-    t_coloring = @elapsed colors, ncol = fv_jacobian_coloring(S)
+    t_coloring = @elapsed colors, ncol = fv_jacobian_coloring(S, prob)
     n = size(S, 1)
     if linsolve isa CPUBackendTag
         J = SparseMatrixCSC{Float64,Int}(n, n, copy(S.colptr), copy(rowvals(S)),
@@ -429,7 +455,7 @@ function fv_newton_solver(prob::FVSteadyProblem2D; to = Array,
     dprob = fv_adapt(to, prob)
     vec0() = to(zeros(Float64, n))
     return FVNewtonSolver(dprob, asm, J, nzval, linsolve, nothing,
-                          vec0(), vec0(), vec0(), _FVNormBuffers(to, n ÷ 3), 0, 0,
+                          vec0(), vec0(), vec0(), _FVNormBuffers(to, prob.grid.Nx * prob.grid.Ny; nextra=_fv_npairs(prob.immersed)), 0, 0,
                           t_pattern, t_coloring,
                           (NaN, NaN, NaN), (NaN, NaN, NaN))
 end
@@ -449,7 +475,7 @@ function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0)
     if shift != 0
         backend = KernelAbstractions.get_backend(U)
         _fv_diag_shift_kernel!(backend, 256)(s.nzval, s.asm.diag, Float64(shift);
-                                             ndrange = s.asm.n ÷ 3)
+                                             ndrange = s.prob.grid.Nx * s.prob.grid.Ny)
         KernelAbstractions.synchronize(backend)
     end
     return s.J

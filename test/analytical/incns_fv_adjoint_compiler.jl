@@ -107,8 +107,49 @@ end
         for (payload, q, U) in cases
             @testset "$(nameof(typeof(law))) $payload" begin
                 T = promote_type(eltype(U), eltype(q.nu), eltype(q.bvel), Kraken._fv_visc_eltype(q.visc))
-                args = (zeros(T, n), U, q.tag, q.nu, q.bvel, q.src, q.grid, q.visc)
+                args = (zeros(T, n), U, q.tag, q.nu, q.bvel, q.src, q.grid,
+                        q.visc, Kraken._fv_immersed_args(q.immersed)..., nothing)
                 @test isempty(_fvc4_kernel_issues(Kraken._fv_residual_kernel!, args, (3, 2)))
+            end
+        end
+    end
+end
+
+@testset "FV state checksum kernel inference" begin
+    # This newly merged Newton kernel shares the adjoint norm workspace.
+    for T in (Float32, Float64)
+        args = (zeros(4, 2), zeros(T, 3 * 257), 257, 256)
+        @test isempty(_fvc4_kernel_issues(Kraken._fv_state_sig_kernel!, args, 2))
+    end
+end
+
+@testset "FV immersed and GNF residual kernel inference" begin
+    D = ForwardDiff.Dual{Kraken.FVParamTag,Float64,4}
+    S = ForwardDiff.Dual{Kraken.FVJacobianTag,Float64,4}
+    law = CarreauYasuda(0.1, 0.01, 2.0, 2.0, 0.6)
+    for closure in (:linear, :quadratic), rheology in (nothing, law)
+        ib = fv_immersed_circle(12, 12, 6.13, 5.87, 2.21; h = 1.0, closure, mass=:M1)
+        p = fv_steady_problem(12, 12; h = 1.0, immersed = ib, rheology, gnf_eps = 1e-2)
+        n = fv_nunknowns(p)
+        dual_q = FVImmersedBoundary2D(D.(ib.qcut), ib.wvel, ib.tag, ib.h, ib.closure)
+        dual_w = FVImmersedBoundary2D(ib.qcut, D.(ib.wvel), ib.tag, ib.h, ib.closure)
+        cases = Any[
+            ("state", p, fill(S(0.1), n)),
+            ("viscosity field", Kraken._fv_with(p; nu = D.(p.nu)), fill(0.1, n)),
+            ("cut fraction", Kraken._fv_with(p; immersed = dual_q), fill(0.1, n)),
+            ("wall velocity", Kraken._fv_with(p; immersed = dual_w), fill(0.1, n)),
+        ]
+        if rheology !== nothing
+            push!(cases, ("law", fv_with_gnf_parameters(p, D.(fv_gnf_parameters(p))), fill(0.1, n)))
+        end
+        for (payload, q, U) in cases
+            @testset "$closure $(nameof(typeof(p.visc))) $payload" begin
+                T = promote_type(eltype(U), eltype(q.nu), Kraken._fv_visc_eltype(q.visc),
+                                 Kraken._fv_immersed_eltype(q.immersed))
+                args = (zeros(T, n), U, q.tag, q.nu, q.bvel, q.src, q.grid,
+                        q.visc, Kraken._fv_immersed_args(q.immersed)..., nothing)
+                issues = _fvc4_kernel_issues(Kraken._fv_residual_kernel!, args, (12, 12))
+                @test isempty(issues)
             end
         end
     end
