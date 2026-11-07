@@ -51,6 +51,113 @@ function law_write_csv(path, records)
     end
 end
 
+# L3 fixed-state measurements: no Newton iterations, Jacobian assembly, or
+# factorization. Workspaces and all device arrays are allocated before timing.
+function law_gpu_fixed_setup(law, theta, N; immersed=false)
+    fields = law_ninputs(law) == 1 ? () :
+        ([0.2*(i-0.5)/N+0.1*(j-0.5)/N for i in 1:N,j in 1:N],)
+    ib = immersed ? fv_immersed_circle(N,N,0.511,0.489,0.184;h=1/N,mass=:M1) : nothing
+    p = law_channel(N; immersed=ib,
+        viscosity=FVLawViscosity(law,theta,fields;eps=LAW_EPS))
+    s = fv_newton_solver(p;to=CUDA.CuArray,linsolve=CUDABackendTag())
+    map = FVLawParameters(length(theta))
+    ws = fv_adjoint_workspace(s,map;chunk=4)
+    Uh = 0.03randn(MersenneTwister(71),fv_nunknowns(p))
+    lambda = randn(MersenneTwister(72),length(Uh))
+    U = CUDA.CuArray(Uh)
+    copyto!(ws.λ,lambda)
+    return (;p,s,map,ws,U,Uh,lambda)
+end
+
+function law_gpu_fixed_operation(case, theta, path)
+    r = Kraken._fv_param_cotangent!(case.ws,case.map,case.s,case.U,theta;
+        law_gradient=path)
+    CUDA.synchronize()
+    return r
+end
+
+law_gradient_relative(a,b) = norm(a-b)/max(norm(a),norm(b),eps(Float64))
+
+function law_gpu_contraction_main()
+    CUDA.allowscalar(false)
+    output = get(ENV,"KRAKEN_LAW_OUTPUT",@__DIR__)
+    mkpath(output)
+    println("L3 GPU=",CUDA.name(CUDA.device())," precision=Float64 fixed_state=true")
+    checks = NamedTuple[]
+    @testset "GPU law cotangent: both paths, CPU parity, immersed boundary" begin
+        for kind in (:classical,:monotone,:free), immersed in (false,true)
+            law = kind == :classical ? ClassicalLaw(CarreauYasuda(0.3,0.03,2.0,2.0,0.7)) :
+                LearnedViscosity(TinyMLP{2,2,1}();nu_ref=0.3,monotone=kind == :monotone)
+            theta = law_init(law;rng=MersenneTwister(33))
+            if kind != :classical
+                theta[3:4] .= (0.3,-0.2)
+                kind == :free && (theta[7:8] .= (0.2,-0.15))
+            end
+            case = law_gpu_fixed_setup(law,theta,12;immersed)
+            c = copy(law_gpu_fixed_operation(case,theta,:contraction))
+            d = copy(law_gpu_fixed_operation(case,theta,:duals))
+            relative_error = law_gradient_relative(c,d)
+            @test relative_error <= 1e-12
+            cpu = fv_newton_solver(case.p)
+            cpuws = fv_adjoint_workspace(cpu,case.map;chunk=4)
+            copyto!(cpuws.λ,case.lambda)
+            reference = Kraken._fv_param_cotangent!(cpuws,case.map,cpu,case.Uh,theta;
+                law_gradient=:duals)
+            cpu_relative_error = law_gradient_relative(c,reference)
+            @test cpu_relative_error <= 1e-12
+            bytes = law_device_allocated(() -> law_gpu_fixed_operation(case,theta,:contraction))
+            @test bytes == 0
+            @test case.s.n_factorize == 0
+            push!(checks,(;kind,immersed,N=12,parameters=length(theta),relative_error,
+                cpu_relative_error,contraction_device_bytes=bytes))
+            @info "L3 GPU cotangent parity" checks[end]
+        end
+    end
+    law_write_csv(joinpath(output,"law_gpu_contraction_checks.csv"),checks)
+    GC.gc(); CUDA.reclaim()
+
+    N = parse(Int,get(ENV,"KRAKEN_LAW_N","512"))
+    dual_N = parse(Int,get(ENV,"KRAKEN_LAW_DUAL_N","128"))
+    min(N,dual_N) >= 4 || error("Both grids must have at least four cells per direction")
+    law = LearnedViscosity(TinyMLP{2,35,1}();nu_ref=0.3,monotone=true)
+    theta = law_init(law;rng=MersenneTwister(33))
+    records = NamedTuple[]
+    for grid_N in unique((N,dual_N))
+        setup = @timed law_gpu_fixed_setup(law,theta,grid_N)
+        case = setup.value
+        paths = grid_N == dual_N ? (:contraction,:duals) : (:contraction,)
+        results = Vector{Float64}[]
+        current = NamedTuple[]
+        for path in paths
+            operation() = law_gpu_fixed_operation(case,theta,path)
+            cold = @timed operation()
+            reference = copy(cold.value)
+            push!(results,reference)
+            @test all(isfinite,reference)
+            warm = [@timed operation() for _ in 1:3]
+            @test all(r -> r.value == reference,warm)
+            bytes = law_device_allocated(operation)
+            @test bytes == 0
+            push!(current,(;N=grid_N,precision="Float64",parameters=length(theta),path,
+                chunk=4,residual_sweeps=path == :duals ? cld(length(theta),4) : 1,
+                setup_s=setup.time,cold_s=cold.time,cold_compile_s=cold.compile_time,
+                warm_s=median(r.time for r in warm),
+                warm_host_bytes=minimum(r.bytes for r in warm),warm_device_bytes=bytes,
+                contraction_norm=norm(reference)))
+        end
+        relative_error = length(results) == 2 ? law_gradient_relative(results...) : NaN
+        length(results) == 2 && (@test relative_error <= 1e-12)
+        @test case.s.n_factorize == 0
+        append!(records,[merge(row,(;relative_error)) for row in current])
+        law_write_csv(joinpath(output,"law_gpu_contraction_timings.csv"),records)
+        foreach(r -> println(r),current)
+        flush(stdout)
+        case = setup = nothing
+        GC.gc(); CUDA.reclaim()
+    end
+    println("DONE contraction_status=0")
+end
+
 function law_gpu_main()
     CUDA.allowscalar(false)
     N = parse(Int, get(ENV, "KRAKEN_LAW_N", "512"))
@@ -100,6 +207,9 @@ function law_gpu_main()
         r
     end
     result = first_gradient.value
+    dual_result = fv_steady_gradient(s,U,theta,obj;params=map,ws,
+        law_gradient=:duals,finalize=false)
+    @test law_gradient_relative(result.grad,dual_result.grad) <= 1e-12
     @test result.residual_inf <= 1e-10
     @test all(isfinite, result.grad)
     @test s.n_factorize == 1
@@ -168,7 +278,10 @@ function law_gpu_main()
 end
 
 if LAW_GPU_READY
-    law_gpu_main()
+    if get(ENV,"KRAKEN_LAW_CONTRACTION_ONLY","0") != "1"
+        law_gpu_main()
+    end
+    law_gpu_contraction_main()
 elseif LAW_REQUIRE_GPU
     error("KRAKEN_REQUIRE_GPU=1 but CUDA/cuDSS is unavailable or CUDA.functional() is false")
 else

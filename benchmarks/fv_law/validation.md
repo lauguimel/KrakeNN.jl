@@ -1,5 +1,6 @@
-# FV scalar-law integration: local validation receipt
+# FV scalar-law integration: validation receipts
 
+The first sections preserve the L2 receipt. L3 measurements are appended below.
 Date: 2026-11-07. Machine: Apple M3, macOS arm64, Julia 1.12.5.
 Backend: KernelAbstractions CPU. Numerical integration checks: Float64;
 scalar inference checks also exercise Float32 and mixed numeric metadata.
@@ -127,3 +128,135 @@ remain unexecuted gates.
 
 Both shell files passed `bash -n`; both Julia scripts parsed successfully;
 `git diff --check` passed. No dependencies were installed for these checks.
+
+## L3 local contraction validation
+
+Date: 2026-11-07. Apple M3, macOS arm64, Julia 1.12.5, CPU Float64.
+The new `test/analytical/incns_fv_law_contraction_test.jl` passed **99/99**
+checks. A fresh process, with Kraken loaded before the timer, took
+`27.715442833 s` for the complete file inclusion, including
+`27.482308501 s` of compilation. The test therefore meets the 30-second
+unit-test gate without subtracting compilation. Reproduction:
+
+```sh
+julia --startup-file=no --project=. -e 'using Kraken; t=@timed include("test/analytical/incns_fv_law_contraction_test.jl"); println((elapsed_seconds=t.time,compile_seconds=t.compile_time));'
+```
+
+Every law (ClassicalLaw/Carreau--Yasuda, monotone LearnedViscosity, and free
+LearnedViscosity) is checked in a periodic channel and around an immersed
+circle. Learned laws have one fixed, spatially varying prescribed input field.
+Full gradients agree between `law_gradient=:contraction` (the default) and
+`:duals` for the channel probe and both immersed force definitions
+(`:residual_flux`, `:surface`). The maximum relative gradient difference is
+`1.2162686446611086e-13`, below the frozen `1e-12` gate.
+
+Two seeded central-difference directions are checked for each of the six
+law/geometry combinations. Immersed finite differences use residual-flux force
+for the classical and monotone laws, surface force for the free law. The maximum
+relative difference is `3.963468746555463e-7`, below the frozen `1e-6` gate.
+Additional fixed-state comparisons cover inlet/outlet boundaries with
+convection enabled, random nonzero velocity and pressure, random adjoint values,
+and supplied parameters differing from those in the solver problem. Invalid
+gradient-mode keywords are rejected.
+
+The unchanged-test runner shown in the L2 receipt was rerun with the following
+six paths. The before process loaded Kraken before any L3 source edits, and the
+after process loaded the finished implementation. Both exited 0. Counts and
+rounded test-summary times follow; times include compilation and are not warmed
+flow timings.
+
+| Test file | Before Pass / Total | Before time | After Pass / Total | After time |
+| --- | ---: | ---: | ---: | ---: |
+| `test/platform/law_closure_test.jl` | 2421 / 2421 | 7.3 s | 2421 / 2421 | 7.0 s |
+| `test/analytical/incns_fv_law_test.jl` | 240 / 240 | 26.4 s | 240 / 240 | 27.4 s |
+| `test/analytical/incns_fv_gnf.jl` | 731 / 731 | 50.3 s | 731 / 731 | 51.8 s |
+| `test/analytical/incns_fv_adjoint.jl` | 1319 / 1319 | 35.8 s | 1319 / 1319 | 36.5 s |
+| `test/analytical/incns_fv_immersed.jl` | 1005 / 1005 | 30.6 s | 1005 / 1005 | 30.5 s |
+| `test/analytical/incns_fv_immersed_objectives.jl` | 149 / 149 | 16.4 s | 149 / 149 | 16.3 s |
+
+Totals: 5865 passing checks before and after; 5964 after including the new
+99-check file. No failures, errors, or broken tests occurred. This is focused
+validation, not the complete repository suite.
+
+## L3 parameter cost at fixed state
+
+`parameter_sweep_cost.csv` retains all original L2 values in its three rows;
+16 appended `l3_` columns record the new same-session comparison. Measured
+operations include parameter upload, local derivative work, reduction, and the
+returned host vector. Both paths use identical states, cotangents, fields,
+parameters, and 64² grids. No Newton solve, Jacobian assembly, factorization,
+adjoint solve, or explicit objective derivative is timed. Warm times are medians
+of three calls and host bytes are minima; no other validation process ran during
+this measurement. Cold and compilation times remain available in the CSV.
+
+| Parameters | Contraction (ms) | Duals (ms) | Contraction host bytes | Dual host bytes | Relative difference |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 3.723041 | 5.655083 | 640 | 4656 | 2.887956189761536e-16 |
+| 59 | 16.708417 | 90.659500 | 1024 | 55248 | 3.238959237284326e-16 |
+| 248 | 66.662125 | 1455.281042 | 2560 | 704400 | 1.905802552307277e-16 |
+
+At 248 parameters, this part of one gradient decreases from about 1.46 seconds
+to 0.067 seconds on the measured 64² CPU case. The result does not establish a
+speedup for a complete gradient or simulation.
+
+The explicit objective derivative retains host parameter duals with its existing
+chunk size of 8. Its cost was measured separately at 64² with the same
+248-parameter learned law, temperature field, and state/adjoint seeds, but with
+a periodic channel and an immersed M1 circle centered at `(0.511, 0.489)` with
+radius `0.184` and 92 wall faces. The state remains arbitrary and fixed; no
+Newton or adjoint solve is performed. Reproduce with:
+
+```sh
+julia --startup-file=no --project=. benchmarks/fv_law/objective_explicit_cost.jl
+```
+
+Three warm calls of `_fv_objective_grad_theta` give:
+
+| Operation on the immersed case | Median time (ms) | Minimum host bytes |
+| --- | ---: | ---: |
+| Residual parameter contraction | 60.827917 | 2592 |
+| Explicit residual-flux force derivative | 11.851833 | 5853872 |
+| Explicit surface-force derivative | 11.849833 | 5169392 |
+
+Each explicit term costs about 19.5% of the residual contraction on this case,
+so it is not negligible. The measured cost supports retaining the existing objective path here, while
+the allocations and repeated parameter sweeps remain a limitation. The complete
+gradient is not independent of parameter-count sweeps, and no larger-grid or
+GPU claim follows from this host objective measurement.
+
+## L3 CUDA execution on Aqua
+
+The fixed-state path of `law_gpu.jl` ran on Aqua node `gpu0n008`, using a full
+NVIDIA A100-SXM4-40GB, Julia 1.12.5, CUDA.jl 6.4.1, and CUDSS.jl 1.0.0.
+PBS job `27746360.aqua` completed with exit status 0 after 3 min 22 s and
+`DONE contraction_status=0`. Exact receipts are retained in
+[checks CSV](results_l3_a100/law_gpu_contraction_checks.csv),
+[timings CSV](results_l3_a100/law_gpu_contraction_timings.csv), and
+[run log](results_l3_a100/run.log).
+`JULIA_CUDA_USE_COMPAT=false` was exported. Execution selected:
+
+```sh
+KRAKEN_LAW_CONTRACTION_ONLY=1 KRAKEN_LAW_N=512 KRAKEN_LAW_DUAL_N=512 julia --startup-file=no --project=env benchmarks/fv_law/law_gpu.jl
+```
+
+The six 12² cases (three laws, each with and without an immersed boundary)
+passed **24/24** checks. They compare contraction against parameter duals,
+compare GPU against CPU, require zero warm device allocation, and verify that
+no factorization occurred. The maximum CPU/GPU relative difference was
+`2.8496337976897043e-15`. The 59.3-second small-case testset includes GPU compilation; it is
+not a CPU simulation or a warm kernel timing.
+
+At 512² with 248 parameters and Float64, median warm times over three calls
+were `47.554339 ms` for contraction and `418.841663 ms` for parameter duals.
+Both paths allocated zero device bytes; host allocations were 5536 and 748640
+bytes respectively. Their relative difference was
+`2.2277313084470435e-15`, below the frozen `1e-12` gate. These measurements include
+the returned host parameter vector but exclude setup, compilation, Newton
+iterations, Jacobian assembly, factorization, transposed solves, and objective
+derivatives.
+
+A separate completed run on an A100 MIG 3g.20gb partition also passed the
+same checks; its timings are not used for the full-device comparison above.
+The full GPU Newton and converged-objective-gradient path remains unexecuted
+in L3. Neither the fixed-state GPU checks nor the CPU measurements establish
+a complete-gradient or complete-simulation speedup.

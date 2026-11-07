@@ -156,6 +156,8 @@ struct FVNewtonianViscosity end
     _fv_face_nu(v, nuP, nuN, ux, uy, vx, vy)
 @inline _fv_wall_nu(v, nuP, ux, uy, vx, vy, i, j) =
     _fv_wall_nu(v, nuP, ux, uy, vx, vy)
+# Context for one oriented residual face; ordinary viscosity models are unchanged.
+@inline _fv_face_viscosity(v, d) = v
 # zero carrying the number type of the model's parameters (Bool: neutral)
 @inline _fv_visc_zero(::FVNewtonianViscosity) = false
 _fv_visc_eltype(::FVNewtonianViscosity) = Bool
@@ -350,6 +352,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
     gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
     Ru = z; Rv = z; Rc = z
     for d in 1:4
+        face_visc = _fv_face_viscosity(visc, d)
         isx = d <= 2
         sx = (d == 1 || d == 3) ? 1 : -1
         kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
@@ -362,10 +365,10 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
             # face velocity gradient: compact normal difference, mean of the
             # two cell gradients tangentially (read by a GNF model only)
             if isx
-                nuf = _fv_face_nu(visc, nuP, nuN, sx * dun, (gP[2] + gN[2]) / 2,
+                nuf = _fv_face_nu(face_visc, nuP, nuN, sx * dun, (gP[2] + gN[2]) / 2,
                                   sx * dvn, (gP[4] + gN[4]) / 2, i, j, ii, jj)
             else
-                nuf = _fv_face_nu(visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
+                nuf = _fv_face_nu(face_visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
                                   (gP[3] + gN[3]) / 2, sx * dvn, i, j, ii, jj)
             end
             ubn = sx * (isx ? (uP + uN) / 2 : (vP + vN) / 2)
@@ -394,7 +397,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
             Rc += F
         else
             au, av, tx, ty, pf, F = _fv_wall_flux_components(U, tag, nu, bvel, g, i, j, d,
-                                                            visc, qcut, wvel, closure, gP, face_pair)
+                                                            face_visc, qcut, wvel, closure, gP, face_pair)
             Ru += au; Rv += av
             Ru -= h * tx; Rv -= h * ty
             Rc += F

@@ -802,8 +802,11 @@ Preallocated device buffers of the FV adjoint (build with
 tangent buffers, the dual residual `Rd` and dual parameter arrays
 (`Dual{FVParamTag,Float64,N}`), partial sums of `λᵀ ∂R/∂θ`, and for
 [`FVViscosityField`](@ref) the colouring of `∂R/∂ν` and the cotangent field.
+[`FVLawParameters`](@ref) additionally stores real parameters, face inputs and
+cotangents, tile partial sums and a parameter reduction buffer. Both scalar-law
+gradient modes reuse these buffers without allocating device arrays per call.
 """
-struct FVAdjointWorkspace{N,M,V,VD,B,VI,S,PT}
+struct FVAdjointWorkspace{N,M,V,VD,B,VI,S,PT,LC}
     map::M
     λ::V
     g::V
@@ -816,7 +819,11 @@ struct FVAdjointWorkspace{N,M,V,VD,B,VI,S,PT}
     Pt::PT
     Ph::Matrix{Float64}
     per::Int
+    law::LC
 end
+
+# Scalar-law maps specialize this after their constitutive adapter is loaded.
+_fv_law_workspace(s, m) = nothing
 
 """
     fv_nu_coloring(prob) -> (colors, ncolors)
@@ -870,9 +877,10 @@ function fv_adjoint_workspace(s::FVNewtonSolver, m::FVParameterMap; chunk::Int =
         Pt = fill!(similar(s.R, Float64, chunk, nt), 0)
         Ph = zeros(Float64, chunk, nt)
     end
+    law = _fv_law_workspace(s, m)
     return FVAdjointWorkspace{chunk,typeof(m),typeof(s.R),typeof(Rd),typeof(buf),
-                              typeof(nucolors),typeof(sfield),typeof(Pt)}(
-        m, vec0(), vec0(), vec0(), Rd, buf, nucolors, ncol, sfield, Pt, Ph, per)
+                              typeof(nucolors),typeof(sfield),typeof(Pt),typeof(law)}(
+        m, vec0(), vec0(), vec0(), Rd, buf, nucolors, ncol, sfield, Pt, Ph, per, law)
 end
 
 _fv_ws_chunk(::FVAdjointWorkspace{N}) where {N} = N
@@ -952,8 +960,20 @@ end
 end
 
 # ------------------------------------------------------------------ ∂R/∂θ products
+function _fv_check_law_gradient(mode)
+    mode in (:contraction, :duals) ||
+        throw(ArgumentError("law_gradient must be :contraction or :duals, got $mode"))
+    return nothing
+end
+
+function _fv_param_cotangent!(ws::FVAdjointWorkspace, m::FVParameterMap,
+                              s::FVNewtonSolver, U, θ; law_gradient = :contraction)
+    _fv_check_law_gradient(law_gradient)
+    return _fv_param_cotangent_duals!(ws, m, s, U, θ)
+end
+
 # −λᵀ ∂R/∂θ for a scalar map: ceil(P / N) dual residual evaluations
-function _fv_param_cotangent!(ws::FVAdjointWorkspace{N}, m::FVParameterMap, s::FVNewtonSolver,
+function _fv_param_cotangent_duals!(ws::FVAdjointWorkspace{N}, m::FVParameterMap, s::FVNewtonSolver,
                               U, θ) where {N}
     θ === nothing && throw(ArgumentError("θ is required for the parameter map $(typeof(m))"))
     prob = s.prob
@@ -982,7 +1002,7 @@ end
 
 # −λᵀ ∂R/∂ν (Nx × Ny, on the device) for the viscosity field: ceil(ncolors / N)
 # passes of seed → C1 residual on duals → gather
-function _fv_param_cotangent!(ws::FVAdjointWorkspace{N}, ::FVViscosityField, s::FVNewtonSolver,
+function _fv_param_cotangent_duals!(ws::FVAdjointWorkspace{N}, ::FVViscosityField, s::FVNewtonSolver,
                               U, θ) where {N}
     prob = s.prob
     g = prob.grid
@@ -1031,7 +1051,7 @@ end
 
 """
     fv_steady_adjoint(solver, U, gU; params = FVViscosityField(), θ = nothing,
-                      ws = nothing, finalize = true) -> (s, stats)
+                      ws = nothing, finalize = true, law_gradient = :contraction) -> (s, stats)
 
 Discrete adjoint of the steady FV residual at the converged state `U` (device
 vector of `solver`), for a cotangent `gU = ∂𝒥/∂U` (host or device vector,
@@ -1041,8 +1061,10 @@ length `3 Nx Ny`, unknown ordering of [`fv_index`](@ref)):
    Jacobian at `U` and refactorizes it — numeric only, the symbolic analysis
    of the Newton solve is reused (`solver.n_factorize` does not change);
 2. `Jᵀ λ = gU` with the Newton factors (`lin_solve!(...; transpose = true)`);
-3. `s = −λᵀ ∂R/∂θ` with the parameter duals of `params`
-   ([`FVParameterMap`](@ref)) through the C1 residual kernel.
+3. `s = −λᵀ ∂R/∂θ` through the residual kernel. [`FVLawParameters`](@ref)
+   contracts face-viscosity cotangents with local law pullbacks by default;
+   `law_gradient = :duals` selects its parameter-dual reference. Other maps
+   ([`FVParameterMap`](@ref)) retain their existing parameter-dual path.
 
 Returns `s` — for [`FVViscosityField`](@ref) the per-cell cotangent of ν
 (`Nx × Ny`, on the device of `solver`, zero at solid cells; the FV analogue of
@@ -1059,7 +1081,9 @@ With `finalize = false` the solver must hold the unshifted Jacobian at `U`
 thrown on mismatch (shifted factors, other `U`, or `fv_set_params!` since).
 """
 function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FVViscosityField(),
-                           θ = nothing, ws = nothing, finalize::Bool = true)
+                           θ = nothing, ws = nothing, finalize::Bool = true,
+                           law_gradient = :contraction)
+    _fv_check_law_gradient(law_gradient)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
     ws.map isa typeof(params) ||
         throw(ArgumentError("workspace built for $(typeof(ws.map)), called with $(typeof(params))"))
@@ -1072,7 +1096,7 @@ function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FV
     lin_solve!(ws.λ, s.cache, ws.g; transpose = true)
     _fv_sync(U)
     t2 = time_ns()
-    cot = _fv_param_cotangent!(ws, params, s, U, θ)
+    cot = _fv_param_cotangent!(ws, params, s, U, θ; law_gradient)
     t3 = time_ns()
     fv_residual!(s.R, U, s.prob)
     _, _, rinf = _fv_norms(s.norms, s.R)
@@ -1081,7 +1105,8 @@ function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FV
 end
 
 """
-    fv_steady_gradient(solver, U, θ, obj; params, ws = nothing, finalize = true)
+    fv_steady_gradient(solver, U, θ, obj; params, ws = nothing, finalize = true,
+                       law_gradient = :contraction)
         -> NamedTuple
 
 Value and gradient of the objective `obj` ([`FVObjective`](@ref)) of the
@@ -1096,7 +1121,12 @@ objective's support. Wall forces use local face stencils for state and
 viscosity derivatives, and parameter chunks for other maps. The adjoint is
 [`fv_steady_adjoint`](@ref) (one
 refactorization of the Newton Jacobian at `U`, no new symbolic analysis, one
-transposed solve, `⌈P/chunk⌉` or `⌈ncolours/chunk⌉` dual residual evaluations).
+transposed solve). For [`FVLawParameters`](@ref), `law_gradient = :contraction`
+uses one face-seeded residual traversal followed by local law pullbacks;
+`:duals` retains `⌈P/chunk⌉` parameter-dual residual evaluations as a reference.
+Other maps keep their parameter/colour dual evaluations. Explicit parameter
+derivatives of wall force and torque objectives still use host parameter duals
+in both modes; the selector changes only the residual cotangent.
 
 Returns `(; J, grad, gU, explicit, s, λ, residual_inf, t_objective,
 t_finalize, t_solve, t_param, t_explicit, t_total)` with `grad` a host vector
@@ -1104,13 +1134,15 @@ t_finalize, t_solve, t_param, t_explicit, t_total)` with `grad` a host vector
 `fv_steady_adjoint`) and `explicit = ∂𝒥/∂θ`; times in seconds.
 """
 function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVObjective;
-                            params::FVParameterMap, ws = nothing, finalize::Bool = true)
+                            params::FVParameterMap, ws = nothing, finalize::Bool = true,
+                            law_gradient = :contraction)
+    _fv_check_law_gradient(law_gradient)
     t0 = time_ns()
     hprob = _fv_host_problem(s.prob)
     Uh = Vector{Float64}(Array(U))
     J, gU = _fv_objective_grad_u(obj, Uh, hprob)
     t1 = time_ns()
-    cot, st = fv_steady_adjoint(s, U, gU; params, θ, ws, finalize)
+    cot, st = fv_steady_adjoint(s, U, gU; params, θ, ws, finalize, law_gradient)
     t2 = time_ns()
     θh = params isa FVViscosityField ? vec(Array(hprob.nu)) : Vector{Float64}(Array(θ))
     explicit = _fv_objective_grad_theta(obj, params, Uh, hprob, θh)

@@ -18,8 +18,9 @@ unchanged. The velocity-gradient reconstruction is exactly the GNF one.
 It must be positive except for a regular-at-rest `ClassicalLaw` (currently
 Carreau--Yasuda with `a >= 2`); that adapter uses the existing invariant form
 at rest and retains the GNF rounding everywhere. Non-smooth classical clamps
-are preserved. [`FVLawParameters`](@ref) differentiates `theta` through the
-existing parameter-dual residual chunks, without a separate face pullback.
+are preserved. [`FVLawParameters`](@ref) differentiates `theta` by contracting
+face-viscosity cotangents with local law pullbacks. The parameter-dual residual
+chunks remain available as a reference with `law_gradient = :duals`.
 """
 struct FVLawViscosity{L<:AbstractScalarLaw,A,F,T}
     law::L
@@ -132,9 +133,12 @@ end
     FVLawParameters(n) <: FVParameterMap
 
 Map `theta` (length `n = law_nparams(law)`) to an [`FVLawViscosity`](@ref)
-problem. The immutable law and prescribed fields stay fixed. The adjoint
-uploads parameter duals into a preallocated vector on the solver backend,
-then uses the existing residual chunks and global adjoint contraction.
+problem. The immutable law and prescribed fields stay fixed. The adjoint uses
+one residual traversal to collect four oriented face-viscosity cotangents per
+cell, then accumulates local [`law_pullback!`](@ref) contributions in bounded
+tiles. The state Jacobian already includes the shear-rate dependence on `U`;
+this parameter pullback holds `U` fixed. `law_gradient = :duals` selects the
+parameter-dual reference using the same workspace.
 `fv_set_params!(solver, map, theta; fields=(...))` can also replace prescribed
 field values while retaining the Jacobian structure and symbolic analysis.
 """
@@ -155,4 +159,144 @@ function _fv_param_problem!(theta, ::FVLawParameters, p::_FVLawProblem, values)
     copyto!(theta, values)
     v = p.visc
     return _fv_with(p; visc=FVLawViscosity(v.law, theta, v.fields, v.eps))
+end
+
+# A residual face evaluates its law once: either the interior/periodic hook or
+# _fv_wall_flux_components -> _fv_wall_stress. Physical-cut evaluations belong
+# to the objective, not the residual. Slots deliberately retain both oriented
+# evaluations of a shared face; each belongs to a different residual row block.
+# At fixed U, R_i = r_i(U, nu_i1, ..., nu_i4) gives
+# -lambda' * R_theta = -sum_i,d (lambda_i' * dr_i/dnu_id) * dlaw(x_id,theta)/dtheta.
+# The returned input cotangent is unused: x_id(U) already belongs to the state
+# Jacobian, and differentiating it here would count that dependence twice.
+const _FVLawFaceDual = ForwardDiff.Dual{FVParamTag,Float64,4}
+struct _FVLawCapture{L,X} <: AbstractScalarLaw
+    law::L
+    inputs::X
+    cell::Int
+    face::Int
+end
+@inline law_ninputs(law::_FVLawCapture) = law_ninputs(law.law)
+@inline law_nparams(law::_FVLawCapture) = law_nparams(law.law)
+@inline _fv_law_number_type(::Type{<:_FVLawCapture}) = _FVLawFaceDual
+@inline function _fv_face_viscosity(v::FVLawViscosity{<:_FVLawCapture}, d)
+    c = v.law
+    return FVLawViscosity(_FVLawCapture(c.law, c.inputs, c.cell, d),
+                          v.theta, v.fields, v.eps)
+end
+@inline function _fv_law_invariant(c::_FVLawCapture, theta, I1, fields)
+    # Preserve the original invariant evaluation, including Carreau at rest.
+    nu = _fv_law_invariant(c.law, theta, I1, fields)
+    x = (gnf_shear_rate(I1), fields...)
+    @inbounds for a in 1:law_ninputs(c)
+        c.inputs[c.cell, c.face, a] = x[a]
+    end
+    return _FVLawFaceDual(Float64(nu),
+        ForwardDiff.Partials(ntuple(k -> k == c.face ? 1.0 : 0.0, Val(4))))
+end
+
+struct _FVLawCotangentWorkspace{V,X,S,P}
+    theta::V
+    inputs::X
+    sensitivity::S
+    partials::P
+    gradient::V
+    per::Int
+end
+function _fv_law_workspace(s::FVNewtonSolver, m::FVLawParameters)
+    law = s.prob.visc.law
+    nc = s.prob.grid.Nx * s.prob.grid.Ny
+    per = 64
+    theta = similar(s.R, Float64, m.nparams)
+    inputs = similar(s.R, Float64, nc, 4, law_ninputs(law))
+    sensitivity = similar(s.R, Float64, nc, 4)
+    # Tile first makes neighbouring GPU workers update adjacent addresses.
+    partials = similar(s.R, Float64, cld(nc, per), m.nparams)
+    return _FVLawCotangentWorkspace(theta, inputs, sensitivity, partials,
+                                    similar(theta), per)
+end
+
+# Construct the capture wrapper inside the kernel from adapted arguments.
+# No wrapper containing host arrays crosses the device launch boundary.
+@kernel function _fv_law_capture_kernel!(inputs, sensitivity, @Const(U), @Const(lambda),
+                                        @Const(tag), @Const(nu), @Const(bvel), @Const(src),
+                                        g, visc, qcut, wvel, closure, face_pair)
+    i, j = @index(Global, NTuple)
+    c = i + (j - 1) * g.Nx
+    @inbounds for d in 1:4, a in 1:law_ninputs(visc.law)
+        inputs[c, d, a] = 0.0
+    end
+    capture = _FVLawCapture(visc.law, inputs, c, 0)
+    v = FVLawViscosity(capture, visc.theta, visc.fields, visc.eps)
+    ru, rv, rc = fv_cell_residual(U, tag, nu, bvel, src, g, i, j, v,
+                                  qcut, wvel, closure, face_pair)
+    pu, pv, pc = ForwardDiff.partials(ru), ForwardDiff.partials(rv), ForwardDiff.partials(rc)
+    b = fv_index(g, i, j, 0)
+    @inbounds for d in 1:4
+        sensitivity[c, d] = -(lambda[b + 1] * pu[d] + lambda[b + 2] * pv[d] +
+                              lambda[b + 3] * pc[d])
+    end
+end
+
+# Allocation-free AbstractVector interface to one exclusive tile accumulator.
+struct _FVLawPartialColumn{T,A} <: AbstractVector{T}
+    values::A
+    tile::Int
+end
+Base.size(g::_FVLawPartialColumn) = (size(g.values, 2),)
+Base.IndexStyle(::Type{<:_FVLawPartialColumn}) = IndexLinear()
+@inline Base.getindex(g::_FVLawPartialColumn, p::Int) = @inbounds g.values[g.tile, p]
+@inline Base.setindex!(g::_FVLawPartialColumn, v, p::Int) = (@inbounds g.values[g.tile, p] = v)
+
+@kernel function _fv_law_pullback_kernel!(partials, @Const(inputs), @Const(sensitivity),
+                                         law, @Const(theta), nc, per, ::Val{NI}) where {NI}
+    tile = @index(Global)
+    g = _FVLawPartialColumn{eltype(partials),typeof(partials)}(partials, tile)
+    @inbounds for p in 1:law_nparams(law)
+        g[p] = 0.0
+    end
+    @inbounds for c in ((tile - 1) * per + 1):min(tile * per, nc), d in 1:4
+        s = sensitivity[c, d]
+        if !iszero(s)
+            x = ntuple(a -> inputs[c, d, a], Val(NI))
+            law_pullback!(g, law, x, theta, s)
+        end
+    end
+end
+
+@kernel function _fv_law_reduce_kernel!(gradient, @Const(partials))
+    p = @index(Global)
+    acc = 0.0
+    @inbounds for tile in axes(partials, 1)
+        acc += partials[tile, p]
+    end
+    @inbounds gradient[p] = acc
+end
+
+function _fv_param_cotangent!(ws::FVAdjointWorkspace, m::FVLawParameters,
+                              s::FVNewtonSolver, U, theta; law_gradient = :contraction)
+    _fv_check_law_gradient(law_gradient)
+    law_gradient === :duals && return _fv_param_cotangent_duals!(ws, m, s, U, theta)
+    theta === nothing && throw(ArgumentError("theta is required for FVLawParameters"))
+    prob = s.prob
+    _fv_check_nparams(m, prob, theta)
+    w = ws.law
+    copyto!(w.theta, theta)
+    # Read the current prescribed fields, including replacements by fv_set_params!.
+    v = FVLawViscosity(prob.visc.law, w.theta, prob.visc.fields, prob.visc.eps)
+    qcut, wvel, closure = _fv_immersed_args(prob.immersed)
+    g = prob.grid
+    backend = KernelAbstractions.get_backend(U)
+    _fv_law_capture_kernel!(backend, 64)(w.inputs, w.sensitivity, U, ws.λ,
+        prob.tag, prob.nu, prob.bvel, prob.src, g, v, qcut, wvel, closure,
+        _fv_face_pair(prob.immersed); ndrange = (g.Nx, g.Ny))
+    _fv_law_pullback_kernel!(backend, 64)(w.partials, w.inputs, w.sensitivity,
+        v.law, w.theta, g.Nx * g.Ny, w.per, Val(law_ninputs(v.law));
+        ndrange = size(w.partials, 1))
+    if m.nparams > 0
+        _fv_law_reduce_kernel!(backend, 64)(w.gradient, w.partials; ndrange = m.nparams)
+    end
+    KernelAbstractions.synchronize(backend)
+    # Preserve the established owning host-vector return contract across reuse.
+    return w.gradient isa Array ? copy(w.gradient) : Array(w.gradient)
 end
