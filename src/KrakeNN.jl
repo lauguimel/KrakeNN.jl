@@ -29,6 +29,8 @@ export observe, predict, Prediction, FieldProbe, LineProfile, FieldReduction
 export residual, adjoint_vjp
 export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldParams
 export ParameterSpace, loss, fit, CalibResult
+export AbstractScalarLaw, ClassicalLaw, TinyMLP, LearnedViscosity
+export law_nparams, law_ninputs, law_value, law_pullback!, law_init
 export AbstractSimulationState, StateSnapshot, CheckpointError
 export init_state, advance!, solution, restore_state
 export update_parameter!, updatable_parameters, export_state, check_compatible
@@ -246,6 +248,8 @@ include("ad/gnf_adjoint_solvers.jl")
 # Phase 2a platform residual/VJP seam depends on AD param types and step maps.
 include("platform/residual.jl")
 include("platform/calibration.jl")
+include("platform/closures/law.jl")
+include("platform/closures/tiny_mlp.jl")
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---
 include("curvilinear/mesh.jl")

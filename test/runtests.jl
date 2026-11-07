@@ -173,6 +173,7 @@ include("platform/weakdeps_metadata_test.jl")
         @info "Skipping calibration twin experiments (KRAKEN_SKIP_AD=true)"
     else
         include("platform/calibration_test.jl")
+        include("platform/law_closure_test.jl")
         include("platform/calibration_nufield_test.jl")
     end
     include("test_lbm_basic.jl")
