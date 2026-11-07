@@ -4,7 +4,8 @@
 #PBS -l walltime=02:00:00
 #PBS -j oe
 
-# Prepared only. Run setup_law.sh on the login node before submission.
+# Runs setup_law.sh on the compute node first when env/.ready is missing:
+# on the login node it competed for a CPU quota and did not finish in 4 h.
 # Layout: ~/kraken_law/{src_law,env,depot,logs}.
 # Submission from ~/kraken_law: qsub src_law/benchmarks/fv_law/law_gpu.pbs
 set -o pipefail
@@ -20,6 +21,12 @@ export JULIA_CUDA_USE_COMPAT=false
 export JULIA_PKG_OFFLINE=true
 export JULIA_PKG_PRECOMPILE_AUTO=0
 export JULIA_NUM_THREADS=${NCPUS:-8}
+export JULIA_NUM_PRECOMPILE_TASKS=${NCPUS:-8}
+if [ ! -f env/.ready ]; then
+    JULIA_PKG_OFFLINE=false WORKDIR=$WORKDIR bash src_law/benchmarks/fv_law/setup_law.sh 2>&1 | tee "$LOGDIR/law_setup_$TAG.txt"
+    [ "${PIPESTATUS[0]}" -eq 0 ] || exit 3
+    touch env/.ready
+fi
 export KRAKEN_LAW_N=${KRAKEN_LAW_N:-512}
 export KRAKEN_LAW_OUTPUT=$LOGDIR/law_$TAG
 mkdir -p "$KRAKEN_LAW_OUTPUT"
