@@ -31,6 +31,7 @@ export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldPa
 export ParameterSpace, loss, fit, CalibResult
 export AbstractScalarLaw, ClassicalLaw, TinyMLP, LearnedViscosity
 export law_nparams, law_ninputs, law_value, law_pullback!, law_init
+export FVLawViscosity, FVLawParameters
 export AbstractSimulationState, StateSnapshot, CheckpointError
 export init_state, advance!, solution, restore_state
 export update_parameter!, updatable_parameters, export_state, check_compatible
@@ -250,6 +251,7 @@ include("platform/residual.jl")
 include("platform/calibration.jl")
 include("platform/closures/law.jl")
 include("platform/closures/tiny_mlp.jl")
+include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing FV/adjoint seam
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---
 include("curvilinear/mesh.jl")

@@ -237,7 +237,7 @@ function fv_param_problem(m::FVParameterMap, prob::FVSteadyProblem2D, θ::Abstra
 end
 
 """
-    fv_set_params!(solver, map, θ) -> solver
+    fv_set_params!(solver, map, θ; fields = nothing) -> solver
 
 Write the Float64 parameters `θ` into the arrays of `solver.prob` in place
 (viscosity, boundary velocities, sources), and replace its viscosity model
@@ -250,9 +250,13 @@ type or immersed topology requires a new solver because the Jacobian pattern
 may change. These constraints are checked before any parameter arrays are
 overwritten. Cut fractions, wall velocities, surface data and mass coefficients
 are copied into the existing device arrays.
+For [`FVLawViscosity`](@ref), `fields` may replace prescribed field values;
+their count, shapes, array types and backend must remain unchanged.
 """
-function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector)
-    P = fv_param_problem(m, s.prob, Vector{Float64}(θ))
+function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector; fields = nothing)
+    P = fv_param_problem(m, s.prob, Vector{Float64}(Array(θ)))
+    fields === nothing || (P = _fv_with(P; visc = _fv_with_fields(P.visc, fields)))
+    _fv_validate_viscosity(P.visc, P.grid, P.nu)
     typeof(P.visc) === typeof(s.prob.visc) ||
         throw(ArgumentError("the parameter map must keep the solver's viscosity-model type"))
     typeof(P) === typeof(s.prob) ||
@@ -954,6 +958,7 @@ function _fv_param_cotangent!(ws::FVAdjointWorkspace{N}, m::FVParameterMap, s::F
     θ === nothing && throw(ArgumentError("θ is required for the parameter map $(typeof(m))"))
     prob = s.prob
     _fv_check_nparams(m, prob, θ)
+    θ = θ isa Array ? θ : Array(θ)
     P = length(θ)
     D = ForwardDiff.Dual{FVParamTag,Float64,N}
     out = zeros(Float64, P)
@@ -1107,7 +1112,7 @@ function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVObjective;
     t1 = time_ns()
     cot, st = fv_steady_adjoint(s, U, gU; params, θ, ws, finalize)
     t2 = time_ns()
-    θh = params isa FVViscosityField ? vec(Array(hprob.nu)) : Vector{Float64}(θ)
+    θh = params isa FVViscosityField ? vec(Array(hprob.nu)) : Vector{Float64}(Array(θ))
     explicit = _fv_objective_grad_theta(obj, params, Uh, hprob, θh)
     grad = vec(Array(cot)) .+ explicit
     t3 = time_ns()
@@ -1140,6 +1145,8 @@ function fv_steady_tangent(s::FVNewtonSolver, U, θ, δθ; params::FVParameterMa
     else
         _fv_check_nparams(params, prob, θ)
         length(δθ) == length(θ) || throw(DimensionMismatch("δθ and θ differ in length"))
+        θ = θ isa Array ? θ : Array(θ)
+        δθ = δθ isa Array ? δθ : Array(δθ)
         D = ForwardDiff.Dual{FVParamTag,Float64,N}
         θd = D[D(Float64(θ[k]), ForwardDiff.Partials(ntuple(c -> c == 1 ? Float64(δθ[k]) : 0.0, Val(N))))
                for k in eachindex(θ)]
