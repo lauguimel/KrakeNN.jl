@@ -30,7 +30,7 @@ et exporte les nouveaux verbes. Rien n'est retiré.
 
 ## PR 1 — Le contrat nu (Phase 0a)
 
-**Fichiers :** `src/platform/contract.jl` (nouveau), `src/Kraken.jl` (include+export).
+**Fichiers :** `src/platform/contract.jl` (nouveau), `src/KrakeNN.jl` (include+export).
 **Contenu :** `abstract type AbstractProblem/AbstractMethod/AbstractSolution/AbstractObservable/
 AbstractClosure end` ; enum/Set `Capability` (`ForwardSolve, GPUExecution, SteadyAdjoint,
 TransientAdjoint, FiniteDiff, NeuralClosure`) ; `capabilities(::AbstractMethod)=Set()`.
@@ -59,7 +59,7 @@ observables `DragCoefficient`, `FieldProbe`, `LineProfile`, `NusseltNumber` ;
 
 ## PR 4 — Seam résidu + VJP (Phase 2a)
 
-**Fichiers :** `src/platform/residual.jl`, branchement sur `ext/KrakenADExt.jl` (existant).
+**Fichiers :** `src/platform/residual.jl`, branchement sur `ext/KrakeNNADExt.jl` (existant).
 **Contenu :** `residual(problem, ::LBM, u, p) = u .- G(u,p)` (expose l'implicite,
 BILAN §A1) ; si `SteadyAdjoint ∈ capabilities`, exposer `(∂R/∂u)ᵀv`, `(∂R/∂p)ᵀv` en réutilisant
 `apply_GtT` / la pile Richardson→GMRES de `ad_adjoint.jl`.

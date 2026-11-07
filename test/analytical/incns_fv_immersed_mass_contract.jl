@@ -1,7 +1,7 @@
 # M3 mode boundaries and augmented GNF sparsity, CPU unit cases only.
 # Exact equality enforces unchanged C1/domain arithmetic. The GNF matrix
 # bound is the existing C2 1e-12 dense-dual parity gate.
-using Test, Kraken, ForwardDiff, LinearAlgebra, Random
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random
 
 @testset "M3 default and exact C1/domain compatibility" begin
     @test FVImmersedClosure().mass == 0x03

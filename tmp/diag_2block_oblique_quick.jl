@@ -1,5 +1,5 @@
 # Quick 2-block oblique Poiseuille — higher viscosity to avoid τ→0.5
-using Gmsh, Kraken, KernelAbstractions
+using Gmsh, KrakeNN, KernelAbstractions
 
 const FT = Float64
 const Lx, Ly = 90.0, 90.0
@@ -75,7 +75,7 @@ mktempdir() do dir
         m = blk.mesh
         fi = zeros(FT, m.Nξ, m.Nη, 9)
         for j in 1:m.Nη, i in 1:m.Nξ, q in 1:9
-            fi[i,j,q] = Kraken.equilibrium(D2Q9(), 1.0, prof_full(m.Y[i,j]), 0.0, q)
+            fi[i,j,q] = KrakeNN.equilibrium(D2Q9(), 1.0, prof_full(m.Y[i,j]), 0.0, q)
         end
         copyto!(interior_f(states[k]), fi)
     end

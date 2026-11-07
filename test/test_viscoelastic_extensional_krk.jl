@@ -1,7 +1,7 @@
-using Kraken
+using KrakeNN
 using Test
 
-# .krk reproducibility (Kraken mandate §3.3) for the 3D FVFD log-conformation
+# .krk reproducibility (KrakeNN mandate §3.3) for the 3D FVFD log-conformation
 # planar-extension canary. Mirrors test/test_viscoelastic_krk.jl: load the
 # benchmark .krk, dispatch to run_viscoelastic_fvfd_extensional_3d, and assert
 # the analytical Oldroyd-B fixed point C_xx = 1/(1-2λε̇), C_yy = 1/(1+2λε̇).

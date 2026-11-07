@@ -16,8 +16,8 @@
 using Test
 using LinearAlgebra
 using Random
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 
 if !isdefined(@__MODULE__, :_fvc2_ghia_error)
     include(joinpath(@__DIR__, "fv_newton_helpers.jl"))
@@ -111,7 +111,7 @@ _fvc2_host(J) = sparse(transpose(SparseMatrixCSC(size(J)..., Array(J.rowPtr), Ar
             @test _fvc2_gpu_allocated(() -> lin_refactorize!(sg.cache)) == 0
             @test _fvc2_gpu_allocated(() -> (lin_solve!(dU, sg.cache, R); CU.synchronize())) == 0
             @test _fvc2_gpu_allocated(() -> fv_residual!(R, U, sg.prob)) == 0
-            @test _fvc2_gpu_allocated(() -> Kraken._fv_norms(sg.norms, R)) == 0
+            @test _fvc2_gpu_allocated(() -> KrakeNN._fv_norms(sg.norms, R)) == 0
             # whole Newton iterations from a perturbed state
             U .+= 1e-3 .* CU.CuArray(randn(rng, length(U)))
             @test _fvc2_gpu_allocated(() -> fv_newton!(sg, U; maxit = 4)) == 0

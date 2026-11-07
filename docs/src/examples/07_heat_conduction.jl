@@ -39,7 +39,7 @@
 # ## Double Distribution Function (DDF) method
 #
 # Standard LBM uses a single set of populations ``f_i`` to recover the
-# Navier--Stokes equations.  For thermal flows, Kraken uses the **Double
+# Navier--Stokes equations.  For thermal flows, KrakeNN uses the **Double
 # Distribution Function** (DDF) approach
 # [He *et al.* (1998)](@cite he1998novel):
 #
@@ -82,7 +82,7 @@
 #
 # ## Why sub-critical Rayleigh number?
 #
-# We use Kraken's Rayleigh--Bénard driver with a **sub-critical** Rayleigh
+# We use KrakeNN's Rayleigh--Bénard driver with a **sub-critical** Rayleigh
 # number (``\mathrm{Ra} = 100 \ll \mathrm{Ra}_c \approx 1708``).  At such low
 # ``\mathrm{Ra}``, buoyancy is far too weak to destabilise the conductive state.
 # The fluid remains motionless, and the temperature settles to the linear
@@ -107,7 +107,7 @@
 #
 # ## Simulation
 
-using Kraken
+using KrakeNN
 
 Ra     = 100.0
 Pr     = 1.0

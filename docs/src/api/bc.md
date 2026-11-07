@@ -7,7 +7,7 @@ On the east face of the 2D rebuild path (`apply_bc_rebuild_2d!`), `NeqExtrapolat
 Pressure outlets on the west, south, and north faces of the 2D STL `wall = libb` path retain textbook `ZouHePressure` and its regularized-rebuild warning; in the measured viscoelastic channel, the new east outlet's error changes are confined to the last few columns.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "kernels/boundary_2d.jl",
     "kernels/boundary_3d.jl",

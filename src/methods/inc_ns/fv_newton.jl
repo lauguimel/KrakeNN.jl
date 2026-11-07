@@ -418,7 +418,7 @@ end
 
 Backend hook: build the device CSR matrix with the given (host, 1-based)
 pattern and zero values, and return it with its value vector. Implemented for
-`CUDABackendTag()` by `ext/KrakenCUDSSExt.jl` (`using CUDA, CUDSS`).
+`CUDABackendTag()` by `ext/KrakeNNCUDSSExt.jl` (`using CUDA, CUDSS`).
 """
 _fv_device_csr(tag::LinearSolveBackend, rowptr, colval, n) =
     throw(ArgumentError("no FV Jacobian matrix for the $(_lin_backend_name(tag)) backend " *

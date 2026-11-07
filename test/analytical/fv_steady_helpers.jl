@@ -7,7 +7,7 @@
 # periodic sides.
 
 using LinearAlgebra
-using Kraken.SparseArrays
+using KrakeNN.SparseArrays
 using ForwardDiff
 
 struct _FVC1TestTag end

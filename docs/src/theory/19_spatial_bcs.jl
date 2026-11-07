@@ -2,7 +2,7 @@
 #
 # Many practical LBM simulations require boundary conditions that vary
 # in space — parabolic inlet profiles, spatially varying pressure outlets,
-# time-dependent forcing.  Kraken provides a two-layer system for this:
+# time-dependent forcing.  KrakeNN provides a two-layer system for this:
 # spatially varying **Zou-He kernels** that accept per-node arrays, and
 # the **KrakenExpr** expression engine that compiles user-defined math
 # expressions from `.krk` config files into these arrays.
@@ -10,7 +10,7 @@
 # ## Spatially varying Zou-He BCs
 #
 # The standard Zou-He boundary conditions impose a **uniform** velocity
-# or pressure along a wall.  For non-uniform profiles, Kraken provides
+# or pressure along a wall.  For non-uniform profiles, KrakeNN provides
 # spatial variants that accept per-node arrays instead of scalar values.
 #
 # ### Velocity BCs

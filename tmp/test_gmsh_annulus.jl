@@ -1,6 +1,6 @@
 # Validate WP-MESH-2 Phase B (topological loader) on a gmsh annulus,
 # matched to polar_mesh.
-using Kraken, Gmsh
+using KrakeNN, Gmsh
 
 R_in, R_out = 1.0, 2.0
 N_theta, N_r = 32, 9   # gmsh Transfinite quad annulus

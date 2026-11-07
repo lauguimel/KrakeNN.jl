@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 function _stream_zero_boundary_packets_3d!(coarse_F, patch, topology)
     for idx in topology.boundary_links
@@ -280,10 +280,10 @@ end
         mass0 = active_mass_F_3d(coarse, patch)
 
         for _ in 1:12
-            Kraken.collide_Guo_composite_solid_F_3d!(
+            KrakeNN.collide_Guo_composite_solid_F_3d!(
                 coarse, patch, topology_solid, is_solid,
                 1.0, 0.125, 1.0, 1.0, 0.0, 0.0, 0.0)
-            Kraken.stream_composite_routes_periodic_x_wall_yz_solid_F_3d!(
+            KrakeNN.stream_composite_routes_periodic_x_wall_yz_solid_F_3d!(
                 coarse_next, patch_next, coarse, patch, topology_solid, is_solid)
             coarse, coarse_next = coarse_next, coarse
             patch, patch_next = patch_next, patch
@@ -294,7 +294,7 @@ end
     end
 
     @testset "route-native 3D fixed-patch forced channel accelerates conservatively" begin
-        result = Kraken.run_conservative_tree_poiseuille_route_native_3d(; steps=80)
+        result = KrakeNN.run_conservative_tree_poiseuille_route_native_3d(; steps=80)
 
         @test result.flow == :poiseuille_route_native_3d
         @test isfinite(result.ux_mean)
@@ -311,7 +311,7 @@ end
     end
 
     @testset "route-native 3D full-domain patch matches dense leaf oracle" begin
-        result = Kraken.run_conservative_tree_poiseuille_route_native_3d(;
+        result = KrakeNN.run_conservative_tree_poiseuille_route_native_3d(;
             Nx=4, Ny=4, Nz=3,
             patch_strategy=:full,
             steps=20)
@@ -322,7 +322,7 @@ end
     end
 
     @testset "route-native 3D cross-section buffered patch reduces dense-oracle gap" begin
-        result = Kraken.run_conservative_tree_poiseuille_route_native_3d(;
+        result = KrakeNN.run_conservative_tree_poiseuille_route_native_3d(;
             steps=80, patch_strategy=:cross_section_buffered)
         relative_linf = result.linf_error / maximum(abs.(result.oracle_ux_profile))
 
@@ -331,7 +331,7 @@ end
     end
 
     @testset "route-native 3D fixed-patch forced channel is Float32-clean" begin
-        result = Kraken.run_conservative_tree_poiseuille_route_native_3d(;
+        result = KrakeNN.run_conservative_tree_poiseuille_route_native_3d(;
             steps=4, T=Float32)
 
         @test result.ux_mean > 0f0

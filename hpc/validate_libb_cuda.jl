@@ -1,5 +1,5 @@
 # =============================================================================
-# Kraken LI-BB + trt_rates fix validation on Aqua (CUDA / H100).
+# KrakeNN LI-BB + trt_rates fix validation on Aqua (CUDA / H100).
 #
 # Runs the canonical benchmarks with a single CUDA backend:
 #   - Schäfer-Turek 2D-1 (parabolic Re=20) grid-refinement at D=40, 80, 160.
@@ -12,7 +12,7 @@
 # =============================================================================
 
 using Pkg; Pkg.activate(dirname(@__DIR__))
-using Kraken
+using KrakeNN
 using CUDA, KernelAbstractions
 using FFTW
 
@@ -27,7 +27,7 @@ end
 _logln("=" ^ 78)
 _logln("Aqua CUDA validation: LI-BB V2 + trt_rates fix")
 _logln("GPU: $(CUDA.name(CUDA.device()))")
-_logln("Julia: $VERSION,  Kraken: $(pathof(Kraken))")
+_logln("Julia: $VERSION,  KrakeNN: $(pathof(KrakeNN))")
 _logln("=" ^ 78)
 
 # -----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ let
     max_steps = Int(round((transient_periods + measure_periods) * T_period))
     measure_start = Int(round(transient_periods * T_period))
 
-    q_wall_h, is_solid_h = Kraken.precompute_q_wall_cylinder(Nx, Ny, cx, cy, radius; FT=T)
+    q_wall_h, is_solid_h = KrakeNN.precompute_q_wall_cylinder(Nx, Ny, cx, cy, radius; FT=T)
     u_prof_h = [T(4)*T(u_max)*T(j-1)*T(Ny-j)/T(Ny-1)^2 for j in 1:Ny]
 
     q_wall   = KernelAbstractions.allocate(backend, T, Nx, Ny, 9)
@@ -103,7 +103,7 @@ let
     copyto!(u_prof, u_prof_h)
     f_in_h = zeros(T, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
-        f_in_h[i,j,q] = Kraken.equilibrium(Kraken.D2Q9(), one(T),
+        f_in_h[i,j,q] = KrakeNN.equilibrium(KrakeNN.D2Q9(), one(T),
                                             u_prof_h[j], zero(T), q)
     end
     copyto!(f_in, f_in_h); fill!(f_out, zero(T))
@@ -117,11 +117,11 @@ let
     t0 = time()
     let f_in = f_in, f_out = f_out
         for step in 1:max_steps
-            Kraken.fused_trt_libb_v2_step!(f_out, f_in, ρ, ux, uy, is_solid,
+            KrakeNN.fused_trt_libb_v2_step!(f_out, f_in, ρ, ux, uy, is_solid,
                                              q_wall, uw_x, uw_y, Nx, Ny, T(ν))
             apply_bc_rebuild_2d!(f_out, f_in, bcspec, ν, Nx, Ny)
             if step >= measure_start
-                drag = Kraken.compute_drag_libb_mei_2d(f_out, q_wall, uw_x, uw_y, Nx, Ny)
+                drag = KrakeNN.compute_drag_libb_mei_2d(f_out, q_wall, uw_x, uw_y, Nx, Ny)
                 push!(Cd_t, 2*drag.Fx/(u_ref^2 * D_phys))
                 push!(Cl_t, 2*drag.Fy/(u_ref^2 * D_phys))
             end

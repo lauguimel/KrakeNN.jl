@@ -2,7 +2,7 @@
 
 A planar channel driven by a uniform body force is the simplest 3D flow whose exact
 solution is known for a shear-rate-dependent viscosity. This page documents the check of
-Kraken's 3D generalised-Newtonian (GNF) lattice-Boltzmann path against that exact solution:
+KrakeNN's 3D generalised-Newtonian (GNF) lattice-Boltzmann path against that exact solution:
 the observed order of convergence is 2 for the two Carreau cases and for the shear-thinning
 power law, and between 1.93 and 1.95 for the shear-thickening power law (CPU, Float64,
 N = 16 → 64). The same cases on an A100 GPU (Float64, N = 32 → 256) give an observed order
@@ -28,7 +28,7 @@ of 1.95 to 2.00 between adjacent resolutions.
 
 With a uniform force `F`, the momentum balance across the gap gives a linear shear stress
 `|τ(z)| = F·|z − H/2|`. The velocity is the integral of the inverse stress law
-`γ̇ = τ⁻¹(|τ|)`, computed independently of Kraken's viscosity and strain-rate code
+`γ̇ = τ⁻¹(|τ|)`, computed independently of KrakeNN's viscosity and strain-rate code
 (`test/analytical/gnf3d_reference.jl`; the Carreau inverse is solved by bisection to
 floating-point resolution, the power law is closed-form). The reference viscosity profile
 is compared as well as the velocity.
@@ -42,8 +42,8 @@ is compared as well as the velocity.
 ## Run it
 
 ```julia
-using Kraken, KernelAbstractions
-include(joinpath(pkgdir(Kraken), "test", "analytical", "gnf3d_reference.jl"))
+using KrakeNN, KernelAbstractions
+include(joinpath(pkgdir(KrakeNN), "test", "analytical", "gnf3d_reference.jl"))
 
 ref = _gnf3d_reference(:carreau, 16, 0.5)       # law, N, q_w
 out = run_gnf_channel_3d(; rheology = ref.rheology, N = 16, q_w = 0.5, F = ref.F,

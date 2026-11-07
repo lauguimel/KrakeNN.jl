@@ -53,7 +53,7 @@ reproduces the J0 prototype (`benchmarks/fv_newton_j0/FVJ0.jl` on
 ## Reads from
 
 - `IncNS`, `residual`, `SteadyResidual` from `src/methods/inc_ns/method.jl`
-  and `src/platform/` (included after `method.jl` in `src/Kraken.jl`; the
+  and `src/platform/` (included after `method.jl` in `src/KrakeNN.jl`; the
   generic `residual` fallback in `platform/residual.jl` is less specific).
 - KernelAbstractions only; no FVFD operator is reused: the residual is a fused
   per-cell stencil, so that one kernel launch evaluates every equation in any
@@ -109,7 +109,7 @@ the pin marks of a host `tag` in place.
 ## Touch order
 
 1. `src/methods/inc_ns/fv_steady_residual.jl` — discretisation, setup helpers.
-2. `src/Kraken.jl` — include after `methods/inc_ns/method.jl`, export block.
+2. `src/KrakeNN.jl` — include after `methods/inc_ns/method.jl`, export block.
 3. `test/analytical/incns_fv_steady_residual.jl` (+ `fv_steady_helpers.jl`) —
    pins, exact discrete solutions, MMS orders, duals vs FD, SIMPLE agreement.
 4. `test/analytical/incns_fv_steady_residual_gpu.jl` — GPU parity, allocations.

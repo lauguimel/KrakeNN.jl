@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ==========================================================================
@@ -64,7 +64,7 @@ using KernelAbstractions
     # n_steps for a *periodic* box — the physical basis here is viscous
     # diffusion t_diff = H²/ν_total ≈ 23 k; the flow is empirically converged by
     # 20 k, verified offline.)
-    plan = Kraken.Units.compile(; physics = :viscoelastic,
+    plan = KrakeNN.Units.compile(; physics = :viscoelastic,
                                   geometry = (; type = :couette, blockage = 0.0),
                                   bc = (; wall_bc = :halfwayBB),
                                   Re = U_top * H / ν_total, Wi = Wi_target,
@@ -73,11 +73,11 @@ using KernelAbstractions
                                   strict = false)
     @test plan.units.tau_hydro > 0.55
     @test plan.units.Ma < 0.05
-    est = Kraken.Units.estimate_steady_state(plan)
+    est = KrakeNN.Units.estimate_steady_state(plan)
     @test est.exists                      # Couette admits a steady state
     @test est.t_diff > 0 && isfinite(est.t_diff)
     # No FATAL/blocking issues for this well-resolved config.
-    @test isempty(Kraken.Units.blocking_issues(plan.warnings))
+    @test isempty(KrakeNN.Units.blocking_issues(plan.warnings))
 
     res = run_conformation_couette_libb_3d(; Nx = Nx, Ny = Ny, Nz = Nz,
                                              U = U_top, ν_s = ν_s, ν_p = ν_p,

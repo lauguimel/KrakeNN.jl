@@ -1,7 +1,7 @@
 using Test
-using Kraken
+using KrakeNN
 # Client hooks are deliberately unexported: name them explicitly.
-using Kraken: snapshot, validate_snapshot, at_boundary, check_updatable, migrate
+using KrakeNN: snapshot, validate_snapshot, at_boundary, check_updatable, migrate
 
 include(joinpath(@__DIR__, "state_contract_suite.jl"))
 
@@ -12,7 +12,7 @@ include(joinpath(@__DIR__, "state_contract_suite.jl"))
 # parameter, a String and a `nothing` configuration value, a derived value.
 # (structs are top-level only in Julia, so it lives outside the @testset.)
 # ---------------------------------------------------------------------------
-mutable struct ToyState{T} <: Kraken.AbstractSimulationState
+mutable struct ToyState{T} <: KrakeNN.AbstractSimulationState
     a::Matrix{T}
     b::Array{T,3}
     mask::Matrix{Bool}
@@ -29,7 +29,7 @@ mutable struct ToyState{T} <: Kraken.AbstractSimulationState
     boundary::Bool
 end
 
-struct ToySolution{T} <: Kraken.AbstractSolution
+struct ToySolution{T} <: KrakeNN.AbstractSolution
     a::Matrix{T}
 end
 
@@ -41,7 +41,7 @@ function toy_identity(::Type{T}, nx, ny, label, limiter, history_interval) where
                             "limiter" => limiter, "history_interval" => history_interval)
 end
 
-function Kraken.init_state(::Type{ToyState{T}}; nx, ny, label="toy", limiter=nothing,
+function KrakeNN.init_state(::Type{ToyState{T}}; nx, ny, label="toy", limiter=nothing,
                            history_interval=3, max_cycles=100, gain=0.25) where {T}
     a = T[sin(0.3i) + cos(0.7j) for i in 1:nx, j in 1:ny]
     b = T[0.1 * cos(0.2i * k) - 0.05j for i in 1:nx, j in 1:ny, k in 1:3]
@@ -50,8 +50,8 @@ function Kraken.init_state(::Type{ToyState{T}}; nx, ny, label="toy", limiter=not
                        history_interval, max_cycles, -1, true)
 end
 
-function Kraken.advance!(s::ToyState{T}, n::Integer; sample_final::Bool=false) where {T}
-    Kraken.require_boundary(s, "advance!")
+function KrakeNN.advance!(s::ToyState{T}, n::Integer; sample_final::Bool=false) where {T}
+    KrakeNN.require_boundary(s, "advance!")
     nx, ny = size(s.a)
     for step in 1:n
         s.boundary = false
@@ -79,20 +79,20 @@ function Kraken.advance!(s::ToyState{T}, n::Integer; sample_final::Bool=false) w
     return s
 end
 
-function Kraken.solution(s::ToyState)
-    Kraken.require_boundary(s, "solution")
+function KrakeNN.solution(s::ToyState)
+    KrakeNN.require_boundary(s, "solution")
     return ToySolution(copy(s.a))
 end
-Kraken.at_boundary(s::ToyState) = s.boundary
-Kraken.updatable_parameters(::Type{<:ToyState}) = ParameterSpace([:gain], [0.0], [1.0])
+KrakeNN.at_boundary(s::ToyState) = s.boundary
+KrakeNN.updatable_parameters(::Type{<:ToyState}) = ParameterSpace([:gain], [0.0], [1.0])
 
-function Kraken.update_parameter!(s::ToyState{T}, name::Symbol, value) where {T}
+function KrakeNN.update_parameter!(s::ToyState{T}, name::Symbol, value) where {T}
     check_updatable(typeof(s), name, value)
     s.gain = T(value)
     return s
 end
 
-function Kraken.snapshot(s::ToyState{T}) where {T}
+function KrakeNN.snapshot(s::ToyState{T}) where {T}
     nx, ny = size(s.a)
     return StateSnapshot(solver="toy", schema_version=TOY_SCHEMA, cycle=s.cycle,
         fields=Dict("a" => copy(s.a), "aux/b" => copy(s.b), "aux/mask" => copy(s.mask)),
@@ -104,7 +104,7 @@ function Kraken.snapshot(s::ToyState{T}) where {T}
         derived=Dict("coef" => toy_coef(nx, ny)))
 end
 
-function Kraken.validate_snapshot(::Type{ToyState{T}}, snap::StateSnapshot) where {T}
+function KrakeNN.validate_snapshot(::Type{ToyState{T}}, snap::StateSnapshot) where {T}
     nx, ny = snap.identity["nx"], snap.identity["ny"]
     expected = ("a" => Array{T,2} => (nx, ny), "aux/b" => Array{T,3} => (nx, ny, 3),
                 "aux/mask" => Array{Bool,2} => (nx, ny))
@@ -121,7 +121,7 @@ function Kraken.validate_snapshot(::Type{ToyState{T}}, snap::StateSnapshot) wher
     return nothing
 end
 
-function Kraken.restore_state(::Type{ToyState{T}}, snap::StateSnapshot; backend=nothing, nx, ny,
+function KrakeNN.restore_state(::Type{ToyState{T}}, snap::StateSnapshot; backend=nothing, nx, ny,
                               label="toy", limiter=nothing, history_interval=3,
                               max_cycles=100) where {T}
     snap = check_compatible(ToyState{T}, snap; solver="toy", schema_version=TOY_SCHEMA,
@@ -145,7 +145,7 @@ function toy_interrupt!(s::ToyState)
     return s
 end
 
-struct BareState <: Kraken.AbstractSimulationState end
+struct BareState <: KrakeNN.AbstractSimulationState end
 
 # --- raw-byte helpers: damage a file without going through the storage library ---
 function byte_offsets(buf::Vector{UInt8}, pattern::Vector{UInt8})
@@ -318,9 +318,9 @@ end
 
         @testset "unknown container version and unlisted attribute rejected" begin
             # The only place that touches the storage library directly (through
-            # Kraken's own binding, not a test dependency): these two files cannot
+            # KrakeNN's own binding, not a test dependency): these two files cannot
             # be produced by damaging bytes, their checksums must stay valid.
-            H5 = Kraken.HDF5
+            H5 = KrakeNN.HDF5
             future = joinpath(dir, "future.h5")
             cp(path, future)
             H5.h5open(f -> (H5.delete_attribute(f, "container_version"); H5.attributes(f)["container_version"] = 2), future, "r+")

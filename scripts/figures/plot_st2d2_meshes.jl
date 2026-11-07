@@ -7,7 +7,7 @@
 # (C) gmsh + SLBM + LI-BB v2     → load_gmsh_mesh_2d on a Transfinite
 #                                   block with the SAME parameters as A/B
 using CairoMakie
-using Kraken, Gmsh
+using KrakeNN, Gmsh
 
 const Lx, Ly         = 2.2, 0.41
 const cx_p, cy_p, R_p = 0.2, 0.2, 0.05
@@ -21,7 +21,7 @@ println("D_lu=$D_lu  →  Nx=$Nx  Ny=$Ny  cells=$(Nx*Ny)")
 # (A) and (B) — Julia native cartesian_mesh (analytic linear mapping)
 mesh_AB = cartesian_mesh(; x_min=0.0, x_max=Lx, y_min=0.0, y_max=Ly, Nx=Nx, Ny=Ny)
 
-# (C) — generate the SAME Transfinite gmsh block, then load via Kraken
+# (C) — generate the SAME Transfinite gmsh block, then load via KrakeNN
 mktemp() do path, _io
     fpath = path * ".msh"
     gmsh.initialize()

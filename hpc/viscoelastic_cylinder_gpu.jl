@@ -7,7 +7,7 @@
 #
 # Usage: julia --project=. hpc/viscoelastic_cylinder_gpu.jl
 
-using Kraken
+using KrakeNN
 using CUDA
 
 backend = CUDABackend()

@@ -6,7 +6,7 @@
 # Usage: julia --project=. tmp/smoke_focus_local_metal.jl
 # Env   : D_LU (default 20), STEPS (default 5000), STRENGTH (default 1.0)
 
-using Kraken, KernelAbstractions, Metal
+using KrakeNN, KernelAbstractions, Metal
 
 T = Float32
 backend = MetalBackend()
@@ -68,7 +68,7 @@ bcspec = BCSpec2D(; west=ZouHeVelocity(u_prof), east=ZouHePressure(one(T)),
 f_h = zeros(T, mesh.Nξ, mesh.Nη, 9)
 for j in 1:mesh.Nη, i in 1:mesh.Nξ, q in 1:9
     u = is_solid_h[i,j] ? T(0) : T(u_max)
-    f_h[i,j,q] = T(Kraken.equilibrium(D2Q9(), one(T), u, zero(T), q))
+    f_h[i,j,q] = T(KrakeNN.equilibrium(D2Q9(), one(T), u, zero(T), q))
 end
 fa = DeviceArray(f_h); fb = similar(fa); fill!(fb, zero(T))
 ρ = KernelAbstractions.allocate(backend, T, mesh.Nξ, mesh.Nη); fill!(ρ, one(T))

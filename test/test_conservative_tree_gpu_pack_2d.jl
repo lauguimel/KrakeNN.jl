@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Conservative tree GPU route pack 2D" begin
     @testset "route pack uses primitive structure-of-arrays" begin

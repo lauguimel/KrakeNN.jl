@@ -110,7 +110,7 @@ Same singularity caveat as [`solve_poisson_embedded`](@ref): with all-Neumann BC
 pin a fluid DOF before solving. Receipt:
 `test/analytical/poisson_embedded_fvfd_mms.jl` (FVFD-built fractions reproduce
 the hand-built tilted half-plane assembly and converge ~2nd order). Registered
-in `src/Kraken.jl` (exported by `using Kraken`).
+in `src/KrakeNN.jl` (exported by `using KrakeNN`).
 """
 function assemble_poisson_embedded_from_fvfd(eb, f;
                                              outer_bc::Symbol=:neumann,

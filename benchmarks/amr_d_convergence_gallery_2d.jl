@@ -2,7 +2,7 @@
 
 using CairoMakie
 using Dates
-using Kraken
+using KrakeNN
 using Printf
 
 const AMR_D_GALLERY_METHODS = (:cartesian_coarse, :leaf_oracle, :amr_route_native)

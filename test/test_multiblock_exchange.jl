@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Multi-block ghost exchange (v0.3 Phase A.5b)" begin
 

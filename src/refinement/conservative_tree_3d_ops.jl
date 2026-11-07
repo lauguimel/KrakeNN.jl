@@ -34,9 +34,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_Guo_integrated_D3Q19!)
+methods(KrakeNN.collide_Guo_integrated_D3Q19!)
 ```
 """
 function collide_Guo_integrated_D3Q19!(Fcell::AbstractVector,
@@ -95,9 +95,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_BGK_composite_F_3d!)
+methods(KrakeNN.collide_BGK_composite_F_3d!)
 ```
 """
 function collide_BGK_composite_F_3d!(coarse_F::AbstractArray{<:Any,4},
@@ -128,9 +128,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_Guo_composite_F_3d!)
+methods(KrakeNN.collide_Guo_composite_F_3d!)
 ```
 """
 function collide_Guo_composite_F_3d!(coarse_F::AbstractArray{<:Any,4},
@@ -165,9 +165,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_parent_index_3d)
+methods(KrakeNN.conservative_tree_parent_index_3d)
 ```
 """
 @inline function conservative_tree_parent_index_3d(i_f::Int, j_f::Int, k_f::Int)

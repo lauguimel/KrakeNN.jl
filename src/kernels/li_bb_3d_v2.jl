@@ -309,7 +309,7 @@ function run_sphere_libb_3d(; Nx::Int=120, Ny::Int=60, Nz::Int=60,
 
     f_in_h = zeros(T, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
-        f_in_h[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(T),
+        f_in_h[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(T),
                                                  u_profile_h[j, k],
                                                  zero(T), zero(T), q)
     end

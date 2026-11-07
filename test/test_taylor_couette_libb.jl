@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # ===========================================================================
 # Taylor-Couette on Cartesian grid with Bouzidi LI-BB + TRT Λ=3/16.
@@ -32,7 +32,7 @@ function run_taylor_couette_libb(; L::Real=80.0,
 
     f_in = zeros(Float64, N, N, 9)
     for j in 1:N, i in 1:N, q in 1:9
-        f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+        f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
     end
     f_out = similar(f_in)
     ρ = ones(N, N); ux = zeros(N, N); uy = zeros(N, N)

@@ -21,9 +21,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.allocate_conservative_tree_F_2d)
+methods(KrakeNN.allocate_conservative_tree_F_2d)
 ```
 """
 function allocate_conservative_tree_F_2d(spec::ConservativeTreeSpec2D;
@@ -38,9 +38,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.active_population_sums_F_2d)
+methods(KrakeNN.active_population_sums_F_2d)
 ```
 """
 function active_population_sums_F_2d(F::AbstractMatrix,
@@ -62,9 +62,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.level_population_sums_F_2d)
+methods(KrakeNN.level_population_sums_F_2d)
 ```
 """
 function level_population_sums_F_2d(F::AbstractMatrix,
@@ -99,9 +99,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.coalesce_conservative_tree_ledgers_F_2d!)
+methods(KrakeNN.coalesce_conservative_tree_ledgers_F_2d!)
 ```
 """
 function coalesce_conservative_tree_ledgers_F_2d!(F::AbstractMatrix,
@@ -138,9 +138,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.explode_conservative_tree_ledgers_F_2d!)
+methods(KrakeNN.explode_conservative_tree_ledgers_F_2d!)
 ```
 """
 function explode_conservative_tree_ledgers_F_2d!(F::AbstractMatrix,

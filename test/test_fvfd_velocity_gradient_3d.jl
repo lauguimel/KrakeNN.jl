@@ -1,9 +1,9 @@
 using Test
 using Printf
-using Kraken
+using KrakeNN
 
 const CHANNEL3_BC = (:periodic, :periodic, :wall, :wall, :periodic, :periodic)
-const CHANNEL2_BC = Kraken.FVFDDomainBC2D(;
+const CHANNEL2_BC = KrakeNN.FVFDDomainBC2D(;
     west=:periodic, east=:periodic, south=:wall, north=:wall,
 )
 const W1_TOL = 1.0e-12
@@ -28,7 +28,7 @@ function run_gradient_3d(ux, uy, uz, is_solid, dx, dy, dz; bc=CHANNEL3_BC,
                          wall_normal_noslip=false)
     Nx, Ny, Nz = size(ux)
     out = gradient_outputs_3d(eltype(ux), Nx, Ny, Nz)
-    Kraken.fvfd_velocity_gradient_3d!(
+    KrakeNN.fvfd_velocity_gradient_3d!(
         out..., ux, uy, uz, is_solid, dx, dy, dz, bc...; wall_normal_noslip,
     )
     return out
@@ -191,7 +191,7 @@ end
         uz3 = zeros(Float64, Nx, Ny, Nz)
         out3 = run_gradient_3d(ux3, uy3, uz3, is_solid3, dx, dy, dz)
         out2 = ntuple(_ -> zeros(Float64, Nx, Ny), 4)
-        Kraken.fvfd_velocity_gradient_2d!(
+        KrakeNN.fvfd_velocity_gradient_2d!(
             out2..., ux2, uy2, is_solid2, dx, dy, CHANNEL2_BC,
         )
         W4_MAX_ERROR[] = max(

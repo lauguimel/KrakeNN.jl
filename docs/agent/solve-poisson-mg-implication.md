@@ -16,7 +16,7 @@ under-uses the GPU at ~9% occupancy, the RBGS-smoothed V-cycle saturates it).
 Same source CPU + CUDA; O(N) per V-cycle with an N-independent cycle count.
 Operator conventions (Dirichlet GHOST-0 "+1/h²", Neumann mirror "-1/h²") match
 `src/solve/poisson.jl` EXACTLY — that parity is test-pinned. **Registered in
-`src/Kraken.jl`** (`solve_poisson_mg` and `solve_poisson_mgcg` exported).
+`src/KrakeNN.jl`** (`solve_poisson_mg` and `solve_poisson_mgcg` exported).
 
 ## Public surface
 

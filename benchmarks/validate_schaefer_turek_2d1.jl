@@ -22,7 +22,7 @@
 # =============================================================================
 
 using Pkg; Pkg.activate(dirname(@__DIR__))
-using Kraken
+using KrakeNN
 using Metal, KernelAbstractions
 
 backend = Metal.MetalBackend()

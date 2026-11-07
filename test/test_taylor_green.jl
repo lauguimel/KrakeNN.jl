@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Taylor-Green vortex 2D" begin
     N = 64

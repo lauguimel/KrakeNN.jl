@@ -18,7 +18,7 @@
 # The effective stretching ratio between near-wall and far-field cells
 # is roughly `exp(2*strength)`, so strength=1 → ~7×, strength=2 → ~55×.
 
-using Kraken, CUDA, KernelAbstractions
+using KrakeNN, CUDA, KernelAbstractions
 using FFTW: rfft, rfftfreq
 
 const Lx, Ly         = 1.0, 0.5
@@ -53,7 +53,7 @@ function _init_f(Nx, Ny, u_prof_h, is_solid_h)
     f_h = zeros(T, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
         u = is_solid_h[i, j] ? 0.0 : Float64(u_prof_h[j])
-        f_h[i, j, q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+        f_h[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
     end
     return f_h
 end

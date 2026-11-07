@@ -1,9 +1,9 @@
-using Test, Kraken, Enzyme
+using Test, KrakeNN, Enzyme
 
 module KrakenADSensitivityTests
 
 using Test
-using Kraken
+using KrakeNN
 using Enzyme
 using KernelAbstractions
 using LinearAlgebra
@@ -532,7 +532,7 @@ function _run_c1()
     profile_rel = _profile_error_halfway(base.f_star, g, nu, Nx, Ny)
     djdf = _dJdf(base.f_star, Nx, Ny)
     djdf_fd_rel = _check_dJdf_fd(base.f_star, djdf, Nx, Ny)
-    adj = Kraken.gmres_adjoint(v -> _channel_vjp(base.f_star, v, q_wall,
+    adj = KrakeNN.gmres_adjoint(v -> _channel_vjp(base.f_star, v, q_wall,
                                                  is_solid, omega, g, Nx, Ny),
                                djdf; tol=1e-11, restart=80,
                                max_restarts=6, max_richardson=240,
@@ -562,7 +562,7 @@ function _run_c2()
                                      geom.y_bot, geom.y_top)
     J0 = _channel_J(base.f_star, Nx, Ny)
     djdf = _dJdf(base.f_star, Nx, Ny)
-    adj = Kraken.gmres_adjoint(v -> _channel_vjp(base.f_star, v, geom.q_wall,
+    adj = KrakeNN.gmres_adjoint(v -> _channel_vjp(base.f_star, v, geom.q_wall,
                                                  geom.is_solid, omega, g, Nx, Ny),
                                djdf; tol=1e-11, restart=80,
                                max_restarts=6, max_richardson=240,
@@ -587,7 +587,7 @@ function _run_c3()
               (NU_KEY)=>nu, tol=1e-9, max_steps=60_000,
               inlet=:parabolic, fd_check=true, fd_h=0.05,
               gmres_tol=1e-9, adjoint_tol=1e-8)
-    result = Kraken.steady_shape_sensitivity(; kwargs...)
+    result = KrakeNN.steady_shape_sensitivity(; kwargs...)
     return (; Nx, Ny, radius, nu, u_in, result,
             fd_value=result.fd_check.value, rel=result.fd_check.relerr)
 end
@@ -595,8 +595,8 @@ end
 function _run_c4_krk()
     path = normpath(joinpath(@__DIR__, "..", "..", "examples",
                              "sensitivity_cylinder.krk"))
-    setup = Kraken.load_kraken(path)
-    krk = Kraken.run_simulation(setup)
+    setup = KrakeNN.load_kraken(path)
+    krk = KrakeNN.run_simulation(setup)
 
     nu = Float64(setup.physics.params[:nu])
     kwargs = (;
@@ -616,7 +616,7 @@ function _run_c4_krk()
         gmres_tol=Float64(setup.user_vars[:gmres_tol]),
         adjoint_tol=Float64(setup.user_vars[:adjoint_tol]),
     )
-    direct = Kraken.steady_shape_sensitivity(; kwargs...)
+    direct = KrakeNN.steady_shape_sensitivity(; kwargs...)
     rel = _relerr(krk.gradient, direct.gradient)
     return (; path, setup, krk, direct, rel)
 end
@@ -627,27 +627,27 @@ function _run_antidrift()
     nu = 0.05
     u_in = 0.05
     cx, cy = Nx ÷ 4, Ny ÷ 2
-    base = Kraken.ad_forward_solve(; Nx, Ny, cx, cy, radius, u_in,
+    base = KrakeNN.ad_forward_solve(; Nx, Ny, cx, cy, radius, u_in,
                                    nu, inlet=:parabolic, tol=1e-9,
                                    max_steps=60_000)
     uwx = zeros(Float64, size(base.q_wall))
     uwy = zeros(Float64, size(base.q_wall))
-    drag = Kraken.compute_drag_libb_mei_2d(base.f_star, base.q_wall, uwx, uwy, Nx, Ny)
+    drag = KrakeNN.compute_drag_libb_mei_2d(base.f_star, base.q_wall, uwx, uwy, Nx, Ny)
     cd_mei = 2.0 * Float64(drag.Fx) / (base.u_ref * base.u_ref * base.D)
-    cd_inline = Kraken.cd_pure(base.f_star, base.q_wall, base.u_ref, base.D, Nx, Ny)
+    cd_inline = KrakeNN.cd_pure(base.f_star, base.q_wall, base.u_ref, base.D, Nx, Ny)
 
     run_kwargs = (; Nx, Ny, cx, cy, radius, u_in, (NU_KEY)=>nu,
                   inlet=:parabolic, max_steps=base.n_iter, avg_window=1,
                   backend=KernelAbstractions.CPU(), T=Float64,
                   (RHO_OUT_KEY)=>base.rho_out)
-    fused = Kraken.run_cylinder_libb_2d(; run_kwargs...)
+    fused = KrakeNN.run_cylinder_libb_2d(; run_kwargs...)
     return (; Nx, Ny, radius, nu, u_in, base, cd_inline, cd_mei,
             cd_mei_delta=abs(cd_inline - cd_mei),
             cd_fused=fused.Cd, cd_fused_delta=abs(cd_inline - fused.Cd))
 end
 
 function _thermal_params_with_beta(p, beta_g)
-    return Kraken.ADNatconvParams(p.Nx, p.Ny, p.omega_f, p.omega_T,
+    return KrakeNN.ADNatconvParams(p.Nx, p.Ny, p.omega_f, p.omega_T,
                                   Float64(beta_g), p.T_ref, p.T_hot,
                                   p.T_cold, p.Ra, p.Pr)
 end
@@ -655,17 +655,17 @@ end
 function _thermal_forward_from(p; L=nothing, q_hot=0.5, q_cold=0.7,
                                tol=1e-11, max_steps=120_000, w_init=nothing)
     L_f = Float64(L === nothing ? Float64(p.Nx - 1) + q_hot + q_cold : L)
-    geom = Kraken.ad_cavity_wall_geometry(p.Nx, p.Ny, L_f; q_hot=q_hot)
+    geom = KrakeNN.ad_cavity_wall_geometry(p.Nx, p.Ny, L_f; q_hot=q_hot)
     w_in = w_init === nothing ?
-           Kraken.ad_initial_thermal_w(p, geom.x_cold, geom.q_hot) :
+           KrakeNN.ad_initial_thermal_w(p, geom.x_cold, geom.q_hot) :
            copy(w_init)
     w_out = similar(w_in)
     residual = Inf
     n_iter = 0
     converged = false
     for step in 1:max_steps
-        Kraken.ad_thermal_cut_step!(w_out, w_in, geom.q_wall, geom.q_wall, p)
-        residual = Kraken.ad_relative_step_residual(w_out, w_in)
+        KrakeNN.ad_thermal_cut_step!(w_out, w_in, geom.q_wall, geom.q_wall, p)
+        residual = KrakeNN.ad_relative_step_residual(w_out, w_in)
         n_iter = step
         if residual < tol
             converged = true
@@ -675,7 +675,7 @@ function _thermal_forward_from(p; L=nothing, q_hot=0.5, q_cold=0.7,
     end
     return (; w_star=copy(w_out), q_wall=geom.q_wall, dq_dL=geom.dq_dL,
             q_hot=geom.q_hot, q_cold=geom.q_cold, L=L_f, params=p,
-            Nu=Kraken.nu_pure(w_out, geom.q_wall, p),
+            Nu=KrakeNN.nu_pure(w_out, geom.q_wall, p),
             n_iter, residual=Float64(residual), converged)
 end
 
@@ -689,8 +689,8 @@ function _thermal_dense_fd_vjp(w, v, q_wall, p; h=1e-6)
         old = w[idx]
         wp[idx] = old + h
         wm[idx] = old - h
-        Kraken.ad_thermal_cut_step!(outp, wp, q_wall, q_wall, p)
-        Kraken.ad_thermal_cut_step!(outm, wm, q_wall, q_wall, p)
+        KrakeNN.ad_thermal_cut_step!(outp, wp, q_wall, q_wall, p)
+        KrakeNN.ad_thermal_cut_step!(outm, wm, q_wall, q_wall, p)
         s = 0.0
         for jdx in eachindex(v, outp, outm)
             s += v[jdx] * (outp[jdx] - outm[jdx])
@@ -704,23 +704,23 @@ end
 
 function _run_tc0()
     N = 3
-    p = Kraken.ad_natconv_params(; N, Ra=1e3, Pr=0.71)
-    geom = Kraken.ad_cavity_wall_geometry(N, N, Float64(N - 1) + 1.2;
+    p = KrakeNN.ad_natconv_params(; N, Ra=1e3, Pr=0.71)
+    geom = KrakeNN.ad_cavity_wall_geometry(N, N, Float64(N - 1) + 1.2;
                                           q_hot=0.5)
     rng = MersenneTwister(0x7c0)
-    w = Kraken.ad_initial_thermal_w(p, geom.x_cold, geom.q_hot)
+    w = KrakeNN.ad_initial_thermal_w(p, geom.x_cold, geom.q_hot)
     @inbounds for idx in eachindex(w)
         w[idx] += 1e-4 * randn(rng)
     end
-    nf = Kraken.ad_thermal_nlat(p)
+    nf = KrakeNN.ad_thermal_nlat(p)
     vf = zeros(Float64, length(w))
     vg = zeros(Float64, length(w))
     vf[1:nf] .= randn(rng, nf)
     vg[(nf + 1):end] .= randn(rng, nf)
 
-    ad_f = Kraken._ad_thermal_vjp_GtT(w, vf, geom.q_wall, geom.q_wall, p)
+    ad_f = KrakeNN._ad_thermal_vjp_GtT(w, vf, geom.q_wall, geom.q_wall, p)
     fd_f = _thermal_dense_fd_vjp(w, vf, geom.q_wall, p)
-    ad_g = Kraken._ad_thermal_vjp_GtT(w, vg, geom.q_wall, geom.q_wall, p)
+    ad_g = KrakeNN._ad_thermal_vjp_GtT(w, vg, geom.q_wall, geom.q_wall, p)
     fd_g = _thermal_dense_fd_vjp(w, vg, geom.q_wall, p)
 
     rel_f = norm(ad_f .- fd_f) / max(norm(fd_f), eps(Float64))
@@ -734,10 +734,10 @@ end
 function _thermal_scalarLG_beta(w_star, lambda, beta_g, q_wall,
                                 Nx::Int, Ny::Int, omega_f, omega_T,
                                 T_ref, T_hot, T_cold, Ra, Pr)
-    p = Kraken.ADNatconvParams(Nx, Ny, omega_f, omega_T, beta_g,
+    p = KrakeNN.ADNatconvParams(Nx, Ny, omega_f, omega_T, beta_g,
                                T_ref, T_hot, T_cold, Ra, Pr)
     out = zeros(Float64, length(w_star))
-    Kraken.ad_thermal_cut_step!(out, w_star, q_wall, q_wall, p)
+    KrakeNN.ad_thermal_cut_step!(out, w_star, q_wall, q_wall, p)
     return _dot_arrays(lambda, out)
 end
 
@@ -758,11 +758,11 @@ end
 
 function _thermal_adjoint_for_rhs(base, p, rhs; gmres_tol=1e-10,
                                   linear_tol=1e-9, max_restarts=8)
-    apply_GtT = v -> Kraken._ad_thermal_vjp_GtT(base.w_star, v,
+    apply_GtT = v -> KrakeNN._ad_thermal_vjp_GtT(base.w_star, v,
                                                 base.q_wall, base.q_wall, p)
-    rhohat = Kraken.ad_richardson_rhohat(apply_GtT, rhs; n_iter=80)
-    mass = Kraken.ad_thermal_mass_gradient(p)
-    adj = Kraken.ad_gauge_augmented_adjoint(apply_GtT, rhs, mass;
+    rhohat = KrakeNN.ad_richardson_rhohat(apply_GtT, rhs; n_iter=80)
+    mass = KrakeNN.ad_thermal_mass_gradient(p)
+    adj = KrakeNN.ad_gauge_augmented_adjoint(apply_GtT, rhs, mass;
                                             tol=gmres_tol,
                                             restart=min(256, length(rhs) + 1),
                                             max_restarts=max_restarts,
@@ -773,7 +773,7 @@ end
 
 function _thermal_adjoint(base, p; gmres_tol=1e-10, linear_tol=1e-9,
                           max_restarts=8)
-    rhs = Kraken._ad_dNudw(base.w_star, base.q_wall, p)
+    rhs = KrakeNN._ad_dNudw(base.w_star, base.q_wall, p)
     return _thermal_adjoint_for_rhs(base, p, rhs; gmres_tol=gmres_tol,
                                     linear_tol=linear_tol,
                                     max_restarts=max_restarts)
@@ -795,7 +795,7 @@ end
 
 function _run_tc1()
     N = 8
-    p = Kraken.ad_natconv_params(; N, Ra=1e3, Pr=0.71)
+    p = KrakeNN.ad_natconv_params(; N, Ra=1e3, Pr=0.71)
     L = Float64(N - 1) + 1.2
     base = _thermal_forward_from(p; L, q_hot=0.5, tol=1e-10,
                                  max_steps=120_000)
@@ -815,10 +815,10 @@ function _run_tc1()
 end
 
 function _thermal_temperature(w, p, i::Int, j::Int)
-    goff = Kraken.ad_thermal_nlat(p)
+    goff = KrakeNN.ad_thermal_nlat(p)
     s = 0.0
     @inbounds for q in 1:9
-        s += Kraken.ad_thermal_readpop(w, goff, i, j, q, p.Nx, p.Ny)
+        s += KrakeNN.ad_thermal_readpop(w, goff, i, j, q, p.Nx, p.Ny)
     end
     return s
 end
@@ -849,7 +849,7 @@ function _thermal_lambda_dot_dG_dqwalls(w_star, lambda, q_flow, q_therm, p)
     out = zeros(Float64, length(w_star))
     dqw_flow = zeros(Float64, size(q_flow))
     dqw_therm = zeros(Float64, size(q_therm))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_thermal_cut_step!,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_thermal_cut_step!,
                     Enzyme.Duplicated(out, copy(lambda)),
                     Enzyme.Const(w_star),
                     Enzyme.Duplicated(copy(q_flow), dqw_flow),
@@ -1039,7 +1039,7 @@ function _run_tc2()
     rhs = _tc2_dQdg(base.g_star, geom.q_wall, N, Ny, alpha, T_hot, q_hot)
     apply_GtT = v -> _tc2_Gt_vjp(base.g_star, v, geom.q_wall, N, Ny,
                                  relax, T_hot, T_cold)
-    adj = Kraken.gmres_adjoint(apply_GtT, rhs; tol=1e-11,
+    adj = KrakeNN.gmres_adjoint(apply_GtT, rhs; tol=1e-11,
                                restart=min(256, length(rhs)),
                                max_restarts=8, max_richardson=80,
                                linear_tol=1e-9)
@@ -1057,7 +1057,7 @@ function _run_tc3()
     q_hot = 0.5
     q_cold = 0.7
     L = Float64(N - 1) + q_hot + q_cold
-    result = Kraken.steady_shape_sensitivity(; qoi=:nusselt,
+    result = KrakeNN.steady_shape_sensitivity(; qoi=:nusselt,
         wrt=:wall_position, N, Ra=1e3, Pr=0.71, L, q_hot, q_cold,
         tol=1e-11, max_steps=450_000, fd_check=true, fd_h=0.01,
         gmres_tol=1e-10, adjoint_tol=1e-10)
@@ -1067,9 +1067,9 @@ end
 function _run_tc_krk()
     path = normpath(joinpath(@__DIR__, "..", "..", "examples",
                              "sensitivity_cavity_nusselt.krk"))
-    setup = Kraken.load_kraken(path)
-    krk = Kraken.run_simulation(setup)
-    direct = Kraken.steady_shape_sensitivity(;
+    setup = KrakeNN.load_kraken(path)
+    krk = KrakeNN.run_simulation(setup)
+    direct = KrakeNN.steady_shape_sensitivity(;
         qoi=setup.sensitivity.qoi,
         wrt=setup.sensitivity.wrt,
         N=setup.domain.Nx,
@@ -1090,15 +1090,15 @@ end
 
 function _run_thermal_antidrift()
     N = 8
-    base = Kraken.ad_thermal_forward_solve(; N, Ra=1e3, Pr=0.71,
+    base = KrakeNN.ad_thermal_forward_solve(; N, Ra=1e3, Pr=0.71,
                                            L=Float64(N - 1) + 1.2,
                                            q_hot=0.5, q_cold=0.7,
                                            tol=1e-10,
                                            max_steps=120_000)
-    nu_pure = Kraken.nu_pure(base.w_star, base.q_wall, base.params)
+    nu_pure = KrakeNN.nu_pure(base.w_star, base.q_wall, base.params)
     # The AD QoI reads the wall distance and the cavity width from q_wall;
     # the scalar formula must give the same value for the same geometry.
-    nu_driver = Kraken.nu_driver(base.w_star, base.params;
+    nu_driver = KrakeNN.nu_driver(base.w_star, base.params;
                                  q_hot=base.q_hot, L=base.L)
     return (; N, base, nu_pure, nu_driver,
             delta=abs(nu_pure - nu_driver),
@@ -1106,7 +1106,7 @@ function _run_thermal_antidrift()
 end
 
 @testset "AD steady shape-adjoint" begin
-    @test Base.get_extension(Kraken, :KrakenADExt) !== nothing
+    @test Base.get_extension(KrakeNN, :KrakeNNADExt) !== nothing
 
     @testset "C0 bulk VJP" begin
         elapsed = @elapsed c0 = _run_c0()
@@ -1165,7 +1165,7 @@ end
 end
 
 @testset "AD thermal (Nusselt)" begin
-    @test Base.get_extension(Kraken, :KrakenADExt) !== nothing
+    @test Base.get_extension(KrakeNN, :KrakeNNADExt) !== nothing
 
     @testset "TC0 coupled one-step VJP" begin
         elapsed = @elapsed tc0 = _run_tc0()

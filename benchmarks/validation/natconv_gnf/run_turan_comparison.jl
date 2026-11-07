@@ -4,7 +4,7 @@
 #   julia --project benchmarks/validation/natconv_gnf/run_turan_comparison.jl            # CUDA, N = 64,128,256
 #   julia --project ... run_turan_comparison.jl --backend=cpu --grids=64 --cases=RA3_N06  # CPU check
 #   julia --project ... run_turan_comparison.jl --smoke                                  # CPU, N = 16, 200 steps
-using Kraken
+using KrakeNN
 using KernelAbstractions: CPU
 
 # Paper Nu values are figure readings (journal pages, reading uncertainty).

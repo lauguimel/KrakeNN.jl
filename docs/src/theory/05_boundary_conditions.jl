@@ -3,7 +3,7 @@
 # After streaming, some populations at boundary nodes are **unknown** because
 # their upstream source lies outside the domain. Boundary conditions provide
 # the missing information. This page covers the three main types implemented
-# in Kraken.jl: bounce-back, Zou--He velocity, and Zou--He pressure.
+# in KrakeNN: bounce-back, Zou--He velocity, and Zou--He pressure.
 #
 # ## Bounce-back (no-slip walls)
 #
@@ -69,7 +69,7 @@
 #
 # !!! note "Sign convention"
 #     The signs in the Zou--He formulae depend on which wall is being treated.
-#     Kraken.jl provides dedicated kernels for each wall to avoid sign errors.
+#     KrakeNN provides dedicated kernels for each wall to avoid sign errors.
 #
 # ## Zou--He pressure boundary
 #
@@ -98,9 +98,9 @@
 # These are handled implicitly inside `stream_fully_periodic_2d!` and
 # `stream_periodic_x_wall_y_2d!`.
 #
-# ## Kraken.jl boundary kernels
+# ## KrakeNN boundary kernels
 
-using Kraken
+using KrakeNN
 
 lattice = D2Q9()
 

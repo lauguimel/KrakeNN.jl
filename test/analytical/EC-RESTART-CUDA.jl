@@ -1,4 +1,4 @@
-using Test, Kraken
+using Test, KrakeNN
 
 # Explicit opt-in: a missing GPU is an error when GPU acceptance is requested.
 # KRAKEN_TEST_EC_RESTART_CUDA=true julia --project test/analytical/EC-RESTART-CUDA.jl

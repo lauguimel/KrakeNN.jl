@@ -240,7 +240,7 @@ function run_cylinder_libb_2d(; Nx::Int=300, Ny::Int=80,
     # Host-side initial populations
     f_in_h  = zeros(T, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
-        f_in_h[i, j, q] = Kraken.equilibrium(D2Q9(), one(T), u_prof_h[j],
+        f_in_h[i, j, q] = KrakeNN.equilibrium(D2Q9(), one(T), u_prof_h[j],
                                                zero(T), q)
     end
 

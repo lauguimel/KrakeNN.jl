@@ -1,7 +1,7 @@
 using Test
-using Kraken
+using KrakeNN
 
-const UEHD = Kraken.Units
+const UEHD = KrakeNN.Units
 
 function _ehd_reference_params()
     return (
@@ -45,7 +45,7 @@ end
         @test getproperty(p, name) ≈ getproperty(ref, name) atol=1e-12 rtol=0
     end
 
-    wrapped = Kraken._ehd_ec_lattice_params(321, C, M, T_ehd, Ma_E, alpha, 1.0, 0.3; FT=Float64)
+    wrapped = KrakeNN._ehd_ec_lattice_params(321, C, M, T_ehd, Ma_E, alpha, 1.0, 0.3; FT=Float64)
     for name in propertynames(p)
         @test isequal(getproperty(wrapped, name), getproperty(p, name))
     end

@@ -2,23 +2,23 @@
 # Algebraic identities use 2e-11 absolute roundoff allowance for O(10^2)
 # accumulated face terms. Adjoint/centred-FD gate: 1e-6 relative, 2e-7 absolute
 # (C4 derivative gate, with a fixed two-step truncation/cancellation check).
-using Test, Kraken, ForwardDiff, LinearAlgebra, Random
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random
 
 _c5obj_cross(a, b) = a[1] * b[2] - a[2] * b[1]
 function _c5obj_interior_flux(U, p, i, j, d)
     g, h = p.grid, p.grid.h
     ex, ey = (d == 1) - (d == 2), (d == 3) - (d == 4)
     ni, nj = i + ex, j + ey
-    q, w, c = Kraken._fv_immersed_args(p.immersed)
-    a = Kraken._fv_cell_grad(U, p.tag, p.bvel, g, i, j, q, w, c)
-    b = Kraken._fv_cell_grad(U, p.tag, p.bvel, g, ni, nj, q, w, c)
+    q, w, c = KrakeNN._fv_immersed_args(p.immersed)
+    a = KrakeNN._fv_cell_grad(U, p.tag, p.bvel, g, i, j, q, w, c)
+    b = KrakeNN._fv_cell_grad(U, p.tag, p.bvel, g, ni, nj, q, w, c)
     u, v, pressure = ntuple(k -> U[fv_index(g, i, j, k)], 3)
     un, vn, pn = ntuple(k -> U[fv_index(g, ni, nj, k)], 3)
     isx, sx = d <= 2, ex + ey
     du, dv = (un - u) / h, (vn - v) / h
-    nu = isx ? Kraken._fv_face_nu(p.visc, p.nu[i, j], p.nu[ni, nj],
+    nu = isx ? KrakeNN._fv_face_nu(p.visc, p.nu[i, j], p.nu[ni, nj],
         sx * du, (a[2] + b[2]) / 2, sx * dv, (a[4] + b[4]) / 2) :
-        Kraken._fv_face_nu(p.visc, p.nu[i, j], p.nu[ni, nj],
+        KrakeNN._fv_face_nu(p.visc, p.nu[i, j], p.nu[ni, nj],
         (a[1] + b[1]) / 2, sx * du, (a[3] + b[3]) / 2, sx * dv)
     speed = sx * (isx ? (u + un) / 2 : (v + vn) / 2)
     df = h^2 / (4nu + g.conv * abs(speed) * h)
@@ -47,15 +47,15 @@ end
             force .+= f
             moment += _c5obj_cross(r, f)
             for d in (1, 3)
-                kind, _, _ = Kraken._fv_face_kind(g, p.tag, i, j, d)
-                kind == Kraken._FV_F_INT || continue
+                kind, _, _ = KrakeNN._fv_face_kind(g, p.tag, i, j, d)
+                kind == KrakeNN._FV_F_INT || continue
                 e = d == 1 ? (-g.h, 0.0) : (0.0, -g.h)
                 internal += _c5obj_cross(e, _c5obj_interior_flux(U, p, i, j, d))
             end
         end
-        q, w, c = Kraken._fv_immersed_args(ib)
-        for (i, j, d) in Kraken._fv_wall_faces(FVWallForce(1), p)
-            f = ntuple(k -> Kraken._fv_wall_force_face(FVWallForce(k; kind=:residual_flux), U, p, i, j, d, q, w, c), 2)
+        q, w, c = KrakeNN._fv_immersed_args(ib)
+        for (i, j, d) in KrakeNN._fv_wall_faces(FVWallForce(1), p)
+            f = ntuple(k -> KrakeNN._fv_wall_force_face(FVWallForce(k; kind=:residual_flux), U, p, i, j, d, q, w, c), 2)
             shift += _c5obj_cross((((d == 1) - (d == 2)) * g.h / 2,
                                    ((d == 3) - (d == 4)) * g.h / 2), f)
         end
@@ -85,7 +85,7 @@ end
     surface = [fv_objective(FVWallForce(k; kind=:surface), U, p) for k in 1:2]
     torque = fv_objective(FVWallTorque((4.2, 4.7); kind=:surface), U, p)
     exact = zeros(3)
-    for (i, j, d) in Kraken._fv_wall_faces(FVWallForce(1), p)
+    for (i, j, d) in KrakeNN._fv_wall_faces(FVWallForce(1), p)
         x, y, nx, ny, weight = ib.surface.values[1:5, d, i, j]
         f = weight .* (1.2nx - 0.7 * (0.4nx - 0.1ny),
                        1.2ny - 0.7 * (-0.1nx - 0.4ny))
@@ -113,13 +113,13 @@ end
     U = randn(MersenneTwister(11), fv_nunknowns(p))
     for kind in (:residual_flux, :surface),
         obj in (FVWallForce(1; kind), FVWallTorque((6.13, 5.87); kind))
-        value, gu = Kraken._fv_objective_grad_u(obj, U, p)
+        value, gu = KrakeNN._fv_objective_grad_u(obj, U, p)
         ref = ForwardDiff.gradient(x -> fv_objective(obj, x, p), U)
         @test value ≈ fv_objective(obj, U, p) rtol=1e-13 atol=1e-13
         @test norm(gu - ref, Inf) <= 1e-11
         for (map, theta) in ((FVUniformViscosity(), [0.4]),
                              (FVViscosityField(), vec(copy(p.nu))))
-            grad = Kraken._fv_objective_grad_theta(obj, map, U, p, theta)
+            grad = KrakeNN._fv_objective_grad_theta(obj, map, U, p, theta)
             direct = ForwardDiff.gradient(t -> fv_objective(obj, U, fv_param_problem(map, p, t)), theta)
             @test norm(grad - direct, Inf) <= 1e-10
         end
@@ -127,14 +127,14 @@ end
     s = fv_newton_solver(p)
     before = (copy(s.prob.nu), copy(s.prob.immersed.qcut), copy(s.prob.immersed.surface.values))
     raw = FVImmersedBoundary2D(p.immersed.qcut, p.immersed.wvel, p.immersed.tag, p.immersed.h, p.immersed.closure)
-    bad = FVProblemMap((q, t) -> Kraken._fv_with(q; nu=fill(99.0, size(q.nu)), immersed=raw), 0)
+    bad = FVProblemMap((q, t) -> KrakeNN._fv_with(q; nu=fill(99.0, size(q.nu)), immersed=raw), 0)
     @test_throws ArgumentError fv_set_params!(s, bad, Float64[])
     @test before == (s.prob.nu, s.prob.immersed.qcut, s.prob.immersed.surface.values)
     data = p.immersed.surface
-    invalid = Kraken.FVImmersedSurface(data.values, data.wall, data.given_viscosity, 0.5)
+    invalid = KrakeNN.FVImmersedSurface(data.values, data.wall, data.given_viscosity, 0.5)
     invalid_ib = FVImmersedBoundary2D(p.immersed.qcut, p.immersed.wvel,
         p.immersed.tag, p.immersed.h, p.immersed.closure, invalid)
-    bad = FVProblemMap((q, t) -> Kraken._fv_with(q; nu=fill(99.0, size(q.nu)), immersed=invalid_ib), 0)
+    bad = FVProblemMap((q, t) -> KrakeNN._fv_with(q; nu=fill(99.0, size(q.nu)), immersed=invalid_ib), 0)
     @test_throws ArgumentError fv_set_params!(s, bad, Float64[])
     @test before == (s.prob.nu, s.prob.immersed.qcut, s.prob.immersed.surface.values)
     adapted = fv_adapt(Array, p)
@@ -153,9 +153,9 @@ end
         U = [k == 3 ? 1.2 : velocity(1, i - 0.5, j - 0.5)[k]
              for k in 1:3, i in 1:12, j in 1:12][:]
         exact = zeros(2)
-        for (i, j, d) in Kraken._fv_wall_faces(FVWallForce(1), p)
+        for (i, j, d) in KrakeNN._fv_wall_faces(FVWallForce(1), p)
             x, y, nx, ny, weight = ib.surface.values[1:5, d, i, j]
-            nu = Kraken._fv_wall_nu(p.visc, physical(1, x, y), 0.2, 0.3, -0.4, -0.2)
+            nu = KrakeNN._fv_wall_nu(p.visc, physical(1, x, y), 0.2, 0.3, -0.4, -0.2)
             exact .+= weight .* (1.2nx - nu * (0.4nx - 0.1ny), 1.2ny - nu * (-0.1nx - 0.4ny))
         end
         for k in 1:2
@@ -163,7 +163,7 @@ end
         end
         if rheology !== nothing
             for kind in (:surface, :residual_flux)
-                grad = Kraken._fv_objective_grad_theta(FVWallForce(1; kind),
+                grad = KrakeNN._fv_objective_grad_theta(FVWallForce(1; kind),
                     FVUniformViscosity(), U, p, [99.0])
                 @test iszero(only(grad))
             end

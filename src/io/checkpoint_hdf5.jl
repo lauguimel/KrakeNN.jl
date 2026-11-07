@@ -2,7 +2,7 @@
 # src/io/checkpoint_hdf5.jl
 # On-disk layer of the platform state contract (src/platform/state.jl):
 # one HDF5 file per checkpoint, flat schema, no Julia-specific type metadata.
-# This is the only file of Kraken that talks to HDF5.
+# This is the only file of KrakeNN that talks to HDF5.
 #
 # Integrity rests on three measured facts (docs/platform/07-STATE-CONTRACT.md):
 #   1. payload: every dataset is chunked and carries the Fletcher32 filter;

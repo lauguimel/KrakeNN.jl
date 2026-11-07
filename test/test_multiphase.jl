@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using Statistics: var, mean
 
 @testset "Shan-Chen multiphase" begin
@@ -60,7 +60,7 @@ using Statistics: var, mean
         Fy_sc = zeros(Float64, Nx, Ny)
         is_solid = zeros(Bool, Nx, Ny)
 
-        w = Kraken.weights(D2Q9())
+        w = KrakeNN.weights(D2Q9())
         for j in 1:Ny, i in 1:Nx
             ρ_init = j <= Ny ÷ 2 ? ρ_high : ρ_low
             for q in 1:9
@@ -70,15 +70,15 @@ using Statistics: var, mean
         copy!(f_out, f_in)
 
         for step in 1:3000
-            Kraken.stream_fully_periodic_2d!(f_out, f_in, Nx, Ny)
-            Kraken.compute_macroscopic_2d!(ρ, ux, uy, f_out)
-            Kraken.compute_psi_2d!(ψ, ρ, ρ0)
-            Kraken.compute_sc_force_2d!(Fx_sc, Fy_sc, ψ, G, Nx, Ny)
-            Kraken.collide_sc_2d!(f_out, Fx_sc, Fy_sc, is_solid, ω)
+            KrakeNN.stream_fully_periodic_2d!(f_out, f_in, Nx, Ny)
+            KrakeNN.compute_macroscopic_2d!(ρ, ux, uy, f_out)
+            KrakeNN.compute_psi_2d!(ψ, ρ, ρ0)
+            KrakeNN.compute_sc_force_2d!(Fx_sc, Fy_sc, ψ, G, Nx, Ny)
+            KrakeNN.collide_sc_2d!(f_out, Fx_sc, Fy_sc, is_solid, ω)
             f_in, f_out = f_out, f_in
         end
 
-        Kraken.compute_macroscopic_2d!(ρ, ux, uy, f_in)
+        KrakeNN.compute_macroscopic_2d!(ρ, ux, uy, f_in)
         ρ_cpu = Array(ρ)
 
         # Verify stability

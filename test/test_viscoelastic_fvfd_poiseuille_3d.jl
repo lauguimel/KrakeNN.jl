@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 @testset "FVFD log-conformation planar Poiseuille — 3D Oldroyd-B canary" begin
@@ -17,7 +17,7 @@ using KernelAbstractions
     λ = Wi_wall_target / γ̇_wall
     max_steps = 10_000
 
-    res = Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+    res = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
         Nx, Ny, Nz, Fx, ν_s, ν_p, lambda=λ,
         max_steps, backend, FT,
         advection_scheme=:muscl_superbee,
@@ -64,7 +64,7 @@ using KernelAbstractions
     @testset "C3 no spurious wall-normal polymer stress" begin
         # Without u_y = 0 at the half-way wall in the gradient, tau_yy grew
         # exponentially (about 1e2 after 4000 steps) in this channel.
-        res3 = Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+        res3 = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
             Nx=6, Ny=12, Nz=6, Fx=1.0e-5, ν_s=0.05, ν_p=0.05, lambda=5.0,
             max_steps=4000, backend, FT,
         )

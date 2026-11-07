@@ -66,7 +66,7 @@ For details on the Shan-Chen model see
 ## Code
 
 ```julia
-using Kraken
+using KrakeNN
 
 result = run_spinodal_2d(;
     N         = 128,

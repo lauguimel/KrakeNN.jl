@@ -3,7 +3,7 @@
 # (`lin_factorize` after a value change == `lin_refactorize!`), in-place and
 # multi-RHS solves, native transposed solve (CUDSS.jl >= 1.0) or its explicit
 # refusal (older CUDSS.jl), and the reduced allocation contract
-# (`CUDA.@allocated == 0` per refactorize + solve iteration on the Kraken side).
+# (`CUDA.@allocated == 0` per refactorize + solve iteration on the KrakeNN side).
 #
 # Self-gated like poisson_cudss_gpu.jl: skipped when CUDA + CUDSS are not
 # loadable or CUDA is not functional. KRAKEN_REQUIRE_GPU=1 turns the skip into
@@ -13,7 +13,7 @@
 
 using Test
 using LinearAlgebra
-using Kraken.SparseArrays
+using KrakeNN.SparseArrays
 
 const _C0_GPU_OK = (try
     @eval Main using CUDA, CUDSS
@@ -46,10 +46,10 @@ end
     else
         CU = Main.CUDA
         CUDSS = Main.CUDSS
-        ext = Base.get_extension(Kraken, :KrakenCUDSSExt)
+        ext = Base.get_extension(KrakeNN, :KrakeNNCUDSSExt)
         @test ext !== nothing
         CSR = ext._CUDSS_GPU_MAT
-        has_T = Kraken._cudss_transpose_supported(pkgversion(CUDSS))
+        has_T = KrakeNN._cudss_transpose_supported(pkgversion(CUDSS))
         @info "cuDSS C0 GPU" CUDA = pkgversion(CU) CUDSS = pkgversion(CUDSS) transpose_native = has_T
 
         rel(A, x, b) = norm(A * Array(x) - Array(b)) / norm(Array(b))

@@ -14,11 +14,11 @@ curl -fsSL https://install.julialang.org | sh
 winget install julia -s msstore
 ```
 
-Kraken.jl requires **Julia 1.10** or later.
+KrakeNN requires **Julia 1.10** or later.
 
-## Installing Kraken.jl
+## Installing KrakeNN
 
-Kraken.jl is not yet registered in the General registry. Install it directly
+KrakeNN is not yet registered in the General registry. Install it directly
 from GitHub:
 
 ```julia
@@ -36,7 +36,7 @@ For a development checkout (clone + activate):
 
 ```julia
 using Pkg
-Pkg.activate("/path/to/Kraken.jl")
+Pkg.activate("/path/to/KrakeNN")
 Pkg.instantiate()
 ```
 
@@ -74,7 +74,7 @@ CUDA.versioninfo()
 ## Verifying Installation
 
 ```julia
-using Kraken
+using KrakeNN
 
 # Run a tiny lid-driven cavity as a smoke test (CPU)
 config = LBMConfig(D2Q9(); Nx=32, Ny=32, ν=0.1, u_lid=0.1, max_steps=100)
@@ -89,11 +89,11 @@ max |ux| = 0.1000000000000001
 ```
 
 If the cavity simulation completes without errors and prints a value close
-to the lid speed (`0.1`), Kraken.jl is correctly installed.
+to the lid speed (`0.1`), KrakeNN is correctly installed.
 
 To check that a GPU backend actually loads on your machine, `using CUDA;
 CUDA.functional()` or `using Metal; Metal.functional()` (see above) — there
-is no `available_backends()` helper in Kraken itself. To run a `.krk` case
+is no `available_backends()` helper in KrakeNN itself. To run a `.krk` case
 on that backend, either pass it explicitly
 (`run_simulation(setup; backend=CUDABackend())` /
 `backend=MetalBackend()`), or add a `Backend cuda` / `Backend metal` line to

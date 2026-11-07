@@ -18,7 +18,7 @@
 #   - Implement FH-rescaled MEA on fine patches (Lagrava 2012), or
 #   - Add pressure+viscous stress surface integration (resolution-agnostic).
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 using Dates
@@ -82,7 +82,7 @@ function run_refined(Ny::Int; ratio::Int=2, u_in::Float64=0.05,
     f_in, f_out = state.f_in, state.f_out
     ρ, ux, uy = state.ρ, state.ux, state.uy
     is_solid = state.is_solid
-    ω = FT(Kraken.omega(config))
+    ω = FT(KrakeNN.omega(config))
 
     # Refinement patch: axis-aligned rectangle around cylinder
     margin = patch_margin_R * Float64(R)
@@ -91,10 +91,10 @@ function run_refined(Ny::Int; ratio::Int=2, u_in::Float64=0.05,
     xmax = min(Float64(Nx), cx + 2*margin)    # extend downstream for wake
     ymax = min(Float64(Ny), cy + margin)
 
-    patch = Kraken.create_patch("cyl_patch", 1, ratio,
+    patch = KrakeNN.create_patch("cyl_patch", 1, ratio,
                                 (xmin, ymin, xmax, ymax),
                                 Nx, Ny, 1.0, Float64(ω), FT; backend=backend)
-    domain = Kraken.create_refined_domain(Nx, Ny, 1.0, Float64(ω), [patch])
+    domain = KrakeNN.create_refined_domain(Nx, Ny, 1.0, Float64(ω), [patch])
 
     # Rasterise cylinder on the fine patch.
     # Fine node if_ ∈ [1, Nx_p] with Nx_p = Nx_inner + 2·ng; interior is
@@ -115,23 +115,23 @@ function run_refined(Ny::Int; ratio::Int=2, u_in::Float64=0.05,
     copyto!(patch.is_solid, patch_is_solid_cpu)
 
     # Initialise patch from coarse (already uniform u_in equilibrium)
-    Kraken.compute_macroscopic_2d!(ρ, ux, uy, f_in)
-    Kraken.prolongate_f_rescaled_full_2d!(
+    KrakeNN.compute_macroscopic_2d!(ρ, ux, uy, f_in)
+    KrakeNN.prolongate_f_rescaled_full_2d!(
         patch.f_in, f_in, ρ, ux, uy,
         patch.ratio, patch.Nx_inner, patch.Ny_inner,
         patch.n_ghost, first(patch.parent_i_range), first(patch.parent_j_range),
         Nx, Ny, Float64(ω), Float64(patch.omega))
     copyto!(patch.f_out, patch.f_in)
-    Kraken.compute_macroscopic_2d!(patch.rho, patch.ux, patch.uy, patch.f_in)
+    KrakeNN.compute_macroscopic_2d!(patch.rho, patch.ux, patch.uy, patch.f_in)
 
     # Closures: coarse BCs (Zou-He inlet, pressure outlet), patch uses coarse
-    stream_fn! = Kraken.stream_2d!
+    stream_fn! = KrakeNN.stream_2d!
     bc_base_fn = f -> begin
-        Kraken.apply_zou_he_west_2d!(f, u_in, Nx, Ny)
-        Kraken.apply_zou_he_pressure_east_2d!(f, Nx, Ny)
+        KrakeNN.apply_zou_he_west_2d!(f, u_in, Nx, Ny)
+        KrakeNN.apply_zou_he_pressure_east_2d!(f, Nx, Ny)
     end
-    collide_fn = (f, is_s) -> Kraken.collide_2d!(f, is_s, ω)
-    macro_fn = Kraken.compute_macroscopic_2d!
+    collide_fn = (f, is_s) -> KrakeNN.collide_2d!(f, is_s, ω)
+    macro_fn = KrakeNN.compute_macroscopic_2d!
 
     # Coarse-grid MEA: the restriction step at the end of each coarse call
     # pushes fine-patch data back into `f_in` over the cylinder region, so
@@ -148,7 +148,7 @@ function run_refined(Ny::Int; ratio::Int=2, u_in::Float64=0.05,
     for step in 1:steps
         diag_this_step = step > steps - avg
         cdf = diag_this_step ? coarse_diag : nothing
-        f_in, f_out = Kraken.advance_refined_step!(
+        f_in, f_out = KrakeNN.advance_refined_step!(
             domain, f_in, f_out, ρ, ux, uy, is_solid;
             stream_fn=stream_fn!, collide_fn=collide_fn, macro_fn=macro_fn,
             bc_base_fn=bc_base_fn, coarse_diag_fn=cdf)

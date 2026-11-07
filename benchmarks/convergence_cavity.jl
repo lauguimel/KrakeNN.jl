@@ -1,5 +1,5 @@
 # Cavity flow validation — Re sweep vs Ghia et al. (1982)
-using Kraken
+using KrakeNN
 using Printf
 
 # Ghia et al. (1982) reference data: (y/L, ux/U) on vertical centerline

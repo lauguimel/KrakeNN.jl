@@ -32,7 +32,7 @@
 #
 # Run from the repo root:  julia --project=. benchmarks/natconv_3d_meshladder_sweep.jl
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 

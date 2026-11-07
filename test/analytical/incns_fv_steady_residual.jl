@@ -19,7 +19,7 @@ using Test
 using LinearAlgebra
 using Random
 using ForwardDiff
-using Kraken
+using KrakeNN
 
 if !isdefined(@__MODULE__, :_fvc1_sparse_jacobian)
     include(joinpath(@__DIR__, "fv_steady_helpers.jl"))

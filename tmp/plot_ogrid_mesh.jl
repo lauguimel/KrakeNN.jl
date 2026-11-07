@@ -1,7 +1,7 @@
 # Plot the 8-block O-grid mesh + recompute cell aspect ratios from
 # actual point-to-point distances (not spline derivatives).
 
-using Kraken, Gmsh
+using KrakeNN, Gmsh
 using CairoMakie
 
 include(joinpath(@__DIR__, "gen_ogrid_rect_8block.jl"))

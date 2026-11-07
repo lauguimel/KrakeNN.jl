@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # ===========================================================================
 # Taylor-Green vortex decay on the SLBM path (Week 3 validation).
@@ -21,7 +21,7 @@ function run_slbm_taylor_green(; N::Int=64, ν::Float64=0.01,
                                  u0::Float64=0.01,
                                  max_steps::Int=1000,
                                  collision::Symbol=:bgk)
-    mesh = Kraken.build_mesh((ξ, η) -> (ξ * N, η * N);
+    mesh = KrakeNN.build_mesh((ξ, η) -> (ξ * N, η * N);
                               Nξ=N, Nη=N,
                               periodic_ξ=true, periodic_η=true,
                               type=:custom)
@@ -38,7 +38,7 @@ function run_slbm_taylor_green(; N::Int=64, ν::Float64=0.01,
         uy_ij =  u0 * sin(k * x) * cos(k * y)
         ux[i, j] = ux_ij; uy[i, j] = uy_ij
         for q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, ux_ij, uy_ij, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, ux_ij, uy_ij, q)
         end
     end
 
@@ -126,7 +126,7 @@ end
         steps = 200
         k = 2π / N
 
-        mesh = Kraken.build_mesh(
+        mesh = KrakeNN.build_mesh(
             (ξ, η) -> (ξ * N,
                        N * (tanh(0.3 * (2η - 1)) / tanh(0.3) + 1) / 2);
             Nξ=N, Nη=N,
@@ -143,7 +143,7 @@ end
             uy_ij =  u0 * sin(k * x) * cos(k * y)
             ux[i, j] = ux_ij; uy[i, j] = uy_ij
             for q in 1:9
-                f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, ux_ij, uy_ij, q)
+                f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, ux_ij, uy_ij, q)
             end
         end
         f_out = similar(f_in)
@@ -176,7 +176,7 @@ end
         # should deliver its O(Δx³) advantage over bilinear O(Δx²).
         function l2_error(interp)
             N = 64; ν = 0.02; u0 = 0.01; steps = 200
-            mesh = Kraken.build_mesh(
+            mesh = KrakeNN.build_mesh(
                 (ξ, η) -> (ξ * N,
                            N * (tanh(0.3 * (2η - 1)) / tanh(0.3) + 1) / 2);
                 Nξ=N, Nη=N, periodic_ξ=true, periodic_η=true)
@@ -190,7 +190,7 @@ end
                 uxi = -u0 * cos(k * x) * sin(k * y)
                 uyi =  u0 * sin(k * x) * cos(k * y)
                 for q in 1:9
-                    f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, uxi, uyi, q)
+                    f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, uxi, uyi, q)
                 end
             end
             f_out = similar(f_in)

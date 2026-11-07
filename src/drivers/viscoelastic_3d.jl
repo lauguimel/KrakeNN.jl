@@ -186,7 +186,7 @@ function run_conformation_sphere_libb_3d(;
     f_in_h = zeros(FT, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
         u0 = is_solid_h[i, j, k] ? zero(FT) : u_profile_h[j, k]
-        f_in_h[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(FT), u0,
+        f_in_h[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(FT), u0,
                                                  zero(FT), zero(FT), q)
     end
     copyto!(f_in, f_in_h); fill!(f_out, zero(FT))

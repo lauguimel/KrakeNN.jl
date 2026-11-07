@@ -5,10 +5,10 @@
 #   standard_LBM_EC/run_standard_LBM_electroconvection.m
 #   standard_LBM_EC/Lattice.m
 #
-# It is kept independent of Kraken internals ON PURPOSE. Its value as an
+# It is kept independent of KrakeNN internals ON PURPOSE. Its value as an
 # oracle depends on it NOT sharing code with src/.
 #
-# Do NOT refactor this file to reuse Kraken kernels/helpers, even for
+# Do NOT refactor this file to reuse KrakeNN kernels/helpers, even for
 # "obvious" deduplication, without deliberately re-deriving parity from the
 # MATLAB source again.
 

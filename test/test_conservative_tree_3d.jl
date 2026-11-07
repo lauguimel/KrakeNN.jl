@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @inline function _test_face_normal_3d(face)
     if face == :west

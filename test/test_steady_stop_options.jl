@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # Steady stop options of three drivers (cylinder LI-BB, 3D FVFD Oldroyd-B channel,
@@ -56,13 +56,13 @@ using KernelAbstractions
 
     @testset "3D FVFD Oldroyd-B Poiseuille" begin
         kw = (; Nx=4, Ny=12, Nz=4, Fx=1e-5, ν_s=0.05, ν_p=0.05, lambda=5.0)
-        base = Kraken.run_viscoelastic_fvfd_poiseuille_3d(; kw..., max_steps=600)
+        base = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(; kw..., max_steps=600)
 
         @testset "default keywords: nothing changes" begin
             @test base.converged == false
             @test base.stop_step == 600
             @test isempty(base.change_history)
-            sampled = Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+            sampled = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
                 kw..., max_steps=600, stop=:change, tol=0.0, check_every=50)
             @test sampled.converged == false
             @test length(sampled.change_history) == 11
@@ -76,7 +76,7 @@ using KernelAbstractions
             # tol = 1e-5: on this small grid the change falls to ~1e-6 near step 1500
             # and then grows again (round-off mode, present with the option off too),
             # so a tighter tolerance is never met.
-            r = Kraken.run_viscoelastic_fvfd_poiseuille_3d(; kw...,
+            r = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(; kw...,
                 max_steps=20_000, stop=:change, tol=1e-5, check_every=100)
             @test r.converged
             @test r.stop_step < 20_000
@@ -86,13 +86,13 @@ using KernelAbstractions
         end
 
         @testset "stop on: cannot settle within the cap" begin
-            r = Kraken.run_viscoelastic_fvfd_poiseuille_3d(; kw...,
+            r = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(; kw...,
                 max_steps=300, stop=:change, tol=1e-14, check_every=100)
             @test !r.converged
             @test r.stop_step == 300
         end
 
-        @test_throws ArgumentError Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+        @test_throws ArgumentError KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
             kw..., max_steps=10, stop=:bogus)
     end
 

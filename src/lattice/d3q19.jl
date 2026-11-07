@@ -56,9 +56,9 @@ Public function in the lattice trait API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.velocities_z)
+methods(KrakeNN.velocities_z)
 ```
 """
 velocities_z(::D3Q19) = _D3Q19_CZ

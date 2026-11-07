@@ -1,4 +1,4 @@
-# Issue #23: the adaptive DDF potential solve (`Kraken.ehd_phi_ddf_solve!`) stops on
+# Issue #23: the adaptive DDF potential solve (`KrakeNN.ehd_phi_ddf_solve!`) stops on
 # the field as well as on the potential. Complements ES-002-STOP.jl with
 #   1. the #23 mechanism on the public EC driver, with a tight field_tol;
 #   2. wiring guards: the drivers' defaults switch the field check on;
@@ -13,7 +13,7 @@
 module EHDPhiDDFSolveTests
 
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 const CPU_BACKEND = KernelAbstractions.CPU()
@@ -27,18 +27,18 @@ function cold_capacitor(xbc, tau, FT)
     nx = xbc === :neumann ? 11 : 10
     ny = H + 1
     phi_profile = [one(FT) - FT(j - 1) / FT(H) for j in 1:ny]
-    f = Kraken._fill_phi_populations!(zeros(FT, nx, ny, 9), phi_profile, nx, ny, FT)
+    f = KrakeNN._fill_phi_populations!(zeros(FT, nx, ny, 9), phi_profile, nx, ny, FT)
     g = copy(f)
     phi = zeros(FT, nx, ny)
-    Kraken.compute_ehd_scalar_2d!(phi, f)
+    KrakeNN.compute_ehd_scalar_2d!(phi, f)
     p = (; eps=FT(0.7), omega_U=inv(FT(tau)), nu_U=(FT(tau) - FT(0.5)) / FT(3),
          tau_U=FT(tau))
-    return (; f, g, phi, q=zeros(FT, nx, ny), p, ws=Kraken.ehd_phi_ddf_workspace(phi))
+    return (; f, g, phi, q=zeros(FT, nx, ny), p, ws=KrakeNN.ehd_phi_ddf_workspace(phi))
 end
 
 function solve(c, xbc; kwargs...)
     FT = eltype(c.phi)
-    return Kraken.ehd_phi_ddf_solve!(c.f, c.g, c.phi, c.q, c.p, xbc, c.ws; kwargs...,
+    return KrakeNN.ehd_phi_ddf_solve!(c.f, c.g, c.phi, c.q, c.p, xbc, c.ws; kwargs...,
                                      phi_bottom=one(FT), phi_top=zero(FT))
 end
 
@@ -54,7 +54,7 @@ end
 
 function field(f, tau_U)
     ex, ey = similar(f, size(f, 1), size(f, 2)), similar(f, size(f, 1), size(f, 2))
-    Kraken.compute_electric_field_2d!(ex, ey, f, tau_U)
+    KrakeNN.compute_electric_field_2d!(ex, ey, f, tau_U)
     return ex, ey
 end
 
@@ -86,8 +86,8 @@ stopping_bound(tau, m, field_tol) = (rho = abs(1 - 1 / tau)^m; field_tol * rho /
 # (1e-4 against 3.1e-5 at tau_U = 2), so the two terms are added.
 roundoff_floor(FT) = 16 * eps(FT) * H
 
-check_every(xbc) = xbc === :neumann ? Kraken.EHD_EC_PHI_CHECK_EVERY :
-                                      Kraken.EHD_HYDROSTATIC_PHI_CHECK_EVERY
+check_every(xbc) = xbc === :neumann ? KrakeNN.EHD_EC_PHI_CHECK_EVERY :
+                                      KrakeNN.EHD_HYDROSTATIC_PHI_CHECK_EVERY
 
 field_difference(a, b) = H * max(maximum(abs.(a.Ex .- b.Ex)), maximum(abs.(a.Ey .- b.Ey)))
 
@@ -125,7 +125,7 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
         # Hydrostatic default run, one iteration per solve: the potential meets
         # phi_tol after one iteration from the analytic start, the field (zero on
         # entry) cannot, so the error must name the field.
-        err = thrown(() -> Kraken.run_ehd_hydrostatic_2d(; phi_max_iter=1))
+        err = thrown(() -> KrakeNN.run_ehd_hydrostatic_2d(; phi_max_iter=1))
         @test err isa ErrorException
         @test err !== nothing && occursin("field", err.msg)
         # EC, public-driver case: the pre-#23 rule accepted at the first check
@@ -142,7 +142,7 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
 
     @testset "function contract (cold :neumann capacitor)" begin
         tau = 2.0
-        m = Kraken.EHD_EC_PHI_CHECK_EVERY
+        m = KrakeNN.EHD_EC_PHI_CHECK_EVERY
 
         # Not converged: stats, no exception; the returned f_in carries ws.Ex/ws.Ey.
         c = cold_capacitor(:neumann, tau, Float64)
@@ -163,7 +163,7 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
         ex, ey = field(f, tau)
         @test ex == c.ws.Ex && ey == c.ws.Ey
         phi_check = similar(c.phi)
-        Kraken.compute_ehd_scalar_2d!(phi_check, f)
+        KrakeNN.compute_ehd_scalar_2d!(phi_check, f)
         @test phi_check == c.phi
 
         # field_tol = Inf: the phi-only rule accepts at the first check (the cold
@@ -172,7 +172,7 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
         _, _, st = solve(c, :neumann; phi_tol=1e-10, field_tol=Inf, max_iter=128,
                          check_every=m)
         @test st.converged
-        @test st.iters == Kraken.EHD_EC_PHI_CHECK_EVERY
+        @test st.iters == KrakeNN.EHD_EC_PHI_CHECK_EVERY
 
         # Off-cadence final check: tau = 0.8 (r = -0.25), max_iter = 12, m = 8. At
         # iteration 8 the field has moved by ~1 from zero; at 12 it moves by
@@ -200,7 +200,7 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
                                              max_iter=args.max_iter,
                                              check_every=args.check_every)
         end
-        @test_throws ArgumentError Kraken.ehd_phi_ddf_step!(c.f, c.g, c.phi, c.q, c.p, :bogus;
+        @test_throws ArgumentError KrakeNN.ehd_phi_ddf_step!(c.f, c.g, c.phi, c.q, c.p, :bogus;
                                                             phi_bottom=1.0, phi_top=0.0)
     end
 
@@ -210,7 +210,7 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
                     (; phi_max_iter=2.5), (; phi_max_iter=-3))
             @test_throws ArgumentError init_state(ECState; small..., bad...)
             @test_throws ArgumentError run_electroconvection_2d(; small..., bad...)
-            @test_throws ArgumentError Kraken.run_ehd_hydrostatic_2d(; small..., bad...)
+            @test_throws ArgumentError KrakeNN.run_ehd_hydrostatic_2d(; small..., bad...)
         end
         # An integral phi_max_iter is stored as an Int; field_tol as given.
         s = init_state(ECState; small..., phi_max_iter=10000.0)
@@ -255,7 +255,7 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
         tau = 2.0
         for field_tol in (0.0, 1e-4, Inf)
             c = zero_capacitor(xbc, tau, FT)
-            f, _, st = Kraken.ehd_phi_ddf_solve!(c.f, c.g, c.phi, c.q, c.p, xbc, c.ws;
+            f, _, st = KrakeNN.ehd_phi_ddf_solve!(c.f, c.g, c.phi, c.q, c.p, xbc, c.ws;
                                                  phi_tol=0.0, field_tol=field_tol,
                                                  max_iter=4m, check_every=m,
                                                  phi_bottom=zero(FT), phi_top=zero(FT))
@@ -271,8 +271,8 @@ const PUBLIC = (; Nx=11, Ny=H + 1, C=0.01, M=10.0, T=175.0, Ma_E=0.01, alpha=1e-
         nx, ny = size(zero_capacitor(xbc, tau, FT).phi)
         z = zeros(FT, nx, ny)
         diag = fill(FT(NaN), 4)
-        Kraken.ehd_rel_change_2d!(diag, z, z, nx, ny)
-        Kraken.ehd_field_change_2d!(diag, z, z, z, z, 0.0, nx, ny, 2)
+        KrakeNN.ehd_rel_change_2d!(diag, z, z, nx, ny)
+        KrakeNN.ehd_field_change_2d!(diag, z, z, z, z, 0.0, nx, ny, 2)
         @test diag == FT[0, 1, 0, 1]
     end
 

@@ -114,7 +114,7 @@
 #
 # ## Simulation Code
 
-using Kraken
+using KrakeNN
 
 Re     = 20
 radius = 10
@@ -177,7 +177,7 @@ err    = abs(Cd - Cd_ref) / Cd_ref * 100   ## percent error
 #
 # | Source | ``C_d`` |
 # |--------|---------|
-# | Kraken (LBM, MEA) | computed from simulation |
+# | KrakeNN (LBM, MEA) | computed from simulation |
 # | Schafer--Turek (1996) | 5.58 |
 #
 # At ``N_y = 100`` (5 nodes per radius), the agreement is typically within
@@ -185,7 +185,7 @@ err    = abs(Cd - Cd_ref) / Cd_ref * 100   ## percent error
 # the bounce-back staircase approximation of the circular cylinder becomes
 # smoother.
 #
-# ![Bar chart comparing the drag coefficient from the Kraken LBM simulation with the Schafer-Turek reference value at Re = 20.  The MEA-computed drag agrees with the benchmark to within a few percent.](cylinder_drag.svg)
+# ![Bar chart comparing the drag coefficient from the KrakeNN LBM simulation with the Schafer-Turek reference value at Re = 20.  The MEA-computed drag agrees with the benchmark to within a few percent.](cylinder_drag.svg)
 #
 # ---
 #

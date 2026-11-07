@@ -102,7 +102,7 @@ The relaxation parameter ``\omega`` is comfortably in the stable range
 ## Simulation Code
 
 ```julia
-using Kraken
+using KrakeNN
 
 N     = 128
 Re    = 100

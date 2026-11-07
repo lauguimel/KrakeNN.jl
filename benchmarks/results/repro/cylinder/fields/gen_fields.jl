@@ -1,6 +1,6 @@
 # Generate 2D velocity fields for the flow-past-cylinder case (Re=20).
 # Runs the examples/cylinder.krk case and writes ux/uy CSVs (Nx rows x Ny cols).
-using Kraken
+using KrakeNN
 using DelimitedFiles
 
 const HERE = @__DIR__

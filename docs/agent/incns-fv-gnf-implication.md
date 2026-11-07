@@ -130,7 +130,7 @@ model type, solver arrays and sparsity structure. A model-type change throws
 1. `src/methods/inc_ns/fv_steady_residual.jl` — hooks, face gradient, `visc`
    field (any stencil change there must update the GNF pattern).
 2. `src/methods/inc_ns/fv_gnf.jl` — model, pattern rule, parameter helpers.
-3. `src/Kraken.jl` — include after `fv_newton.jl`, exports.
+3. `src/KrakeNN.jl` — include after `fv_newton.jl`, exports.
 4. `test/analytical/incns_fv_gnf.jl` — dense-Jacobian parity (catches dropped
    entries), concrete viscosity/residual inference, parameters, n = 1,
    Poiseuille, cavity, LBM obstacle channel.

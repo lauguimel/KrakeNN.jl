@@ -37,7 +37,7 @@ S1 refactor), which calls into `src/bc/handlers.jl`.
 
 ## Public surface
 
-Standalone post-stream BC kernels (all exported, called as `Kraken.apply_*`):
+Standalone post-stream BC kernels (all exported, called as `KrakeNN.apply_*`):
 
 - `apply_bounce_back_walls_2d!(f, Nx, Ny)` — no-slip BB on south/west/east of a
   2D cavity (north left for a velocity lid). `apply_bounce_back_wall_2d!(f, Nx, Ny, side)` does ONE face (`:south/:west/:east/:north`), used by refinement patches.

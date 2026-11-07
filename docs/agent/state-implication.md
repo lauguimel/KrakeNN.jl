@@ -21,7 +21,7 @@ Positioning: a state is the transient counterpart of the `u` of
 ## Public surface
 
 Defined in `src/platform/state.jl`; export status verified against
-`src/Kraken.jl` (drift found and fixed here on 2026-09-17: five client hooks
+`src/KrakeNN.jl` (drift found and fixed here on 2026-09-17: five client hooks
 are **unexported**, not re-exported as an earlier version of this map claimed):
 
 - `AbstractSimulationState` — supertype of every client state. **Exported.**
@@ -37,13 +37,13 @@ are **unexported**, not re-exported as an earlier version of this map claimed):
   `restore_state(::Type{S}, snap; backend, kwargs...)`,
   `update_parameter!(state, name, value)`, `updatable_parameters(::Type{S})`
   (default: empty `ParameterSpace`).
-- Client verbs, **unexported** — call as `Kraken.<name>`: `snapshot(state)`,
+- Client verbs, **unexported** — call as `KrakeNN.<name>`: `snapshot(state)`,
   `validate_snapshot(::Type{S}, snap)` (default: no check), `at_boundary(state)`
   (default: `true`), `migrate(::Type{S}, snap, from_version)` (default: throws
   `CheckpointError`).
 - Platform-owned, **exported**: `export_state(state)`, `check_compatible([S,] snap;
   solver, schema_version, identity, identity_defaults)`.
-- Platform-owned, **unexported** — call as `Kraken.<name>`:
+- Platform-owned, **unexported** — call as `KrakeNN.<name>`:
   `check_updatable(S, name, value)`, `require_boundary(state, what)` (throws
   `ArgumentError` when `!at_boundary(state)`). Internal companions (unexported, not
   part of the contract surface): `validate_content`, `check_finite`.
@@ -138,7 +138,7 @@ established on CPU; it has not been measured on CUDA.
    the layout changes (a layout change bumps `CHECKPOINT_CONTAINER_VERSION`).
 2. `src/platform/state.jl` — container, verbs, platform-owned checks.
 3. `src/io/checkpoint_hdf5.jl` — layout, integrity, rotation.
-4. `src/Kraken.jl` — include/export lines (choke file; edits serialized on `dev/platform`).
+4. `src/KrakeNN.jl` — include/export lines (choke file; edits serialized on `dev/platform`).
 5. `test/platform/state_contract_suite.jl` — the reusable suite every client runs;
    `test/platform/state_contract_test.jl` — toy client and disk-layer cases.
 6. A new client: its own state file under `src/drivers/`, its `schema_version`, and

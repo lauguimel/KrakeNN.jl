@@ -33,7 +33,7 @@
 # ``\nu`` the kinematic viscosity.
 #
 # This example is special because it is the **first axisymmetric case** in the
-# Kraken tutorial series.  It validates the cylindrical source-term formulation
+# KrakeNN tutorial series.  It validates the cylindrical source-term formulation
 # before we apply it to more complex problems like the Rayleigh--Plateau
 # instability.
 #
@@ -48,7 +48,7 @@
 # (no variation in the azimuthal direction ``\theta``), we can work in the
 # **meridional half-plane** ``(z, r)`` with ``r \geq 0``.
 #
-# In practice, Kraken uses a standard **D2Q9 lattice** where:
+# In practice, KrakeNN uses a standard **D2Q9 lattice** where:
 # - the *x*-direction maps to the **axial** coordinate ``z``
 # - the *y*-direction maps to the **radial** coordinate ``r``
 #
@@ -59,7 +59,7 @@
 #
 # ## Axisymmetric source terms
 #
-# Two schemes are available in Kraken for the axisymmetric source terms:
+# Two schemes are available in KrakeNN for the axisymmetric source terms:
 #
 # ### Zhou (2011) — simple scheme
 #
@@ -124,7 +124,7 @@
 #
 # ## Simulation
 
-using Kraken
+using KrakeNN
 
 Nr = 32
 Nz = 8

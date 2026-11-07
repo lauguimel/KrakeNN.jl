@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using Statistics
 
 @testset "Phase-field two-phase LBM" begin

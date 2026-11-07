@@ -2,15 +2,15 @@
 # Generate SVG figures for examples 01–09
 # Run: julia --project=docs docs/generate_figures_01_09.jl
 
-using Kraken
+using KrakeNN
 using CairoMakie
 
-# BC / geometry schematic primitives (pure CairoMakie, no Kraken dependency).
+# BC / geometry schematic primitives (pure CairoMakie, no KrakeNN dependency).
 # The 7 *_geometry.svg blocks below are assembled exclusively from these so every
 # schematic shares one visual identity. See docs/bc_schematic.jl for the contract.
 include(joinpath(@__DIR__, "bc_schematic.jl"))
 
-const KA = Kraken.KernelAbstractions
+const KA = KrakeNN.KernelAbstractions
 const OUTDIR = joinpath(@__DIR__, "src", "examples")
 
 # --- Dark docs theme (#1b1b1f Vitepress page bg, light text/ticks/spines/grid) ---
@@ -92,7 +92,7 @@ let
     ax = Axis(fig[1, 1]; xlabel="u_x (lattice units)", ylabel="y (lattice units)",
               title="Poiseuille flow — Ny = $Ny")
     lines!(ax, u_ana, y_phys; label="Analytical", linewidth=2)
-    scatter!(ax, u_num, y_phys; label="Kraken", markersize=8)
+    scatter!(ax, u_num, y_phys; label="KrakeNN", markersize=8)
     axislegend(ax; position=:rb)
     save(joinpath(OUTDIR, "poiseuille_profile.svg"), fig)
     println("  ✓ poiseuille_profile.svg")
@@ -121,7 +121,7 @@ let
     fig = Figure(size=(500, 400))
     ax = Axis(fig[1, 1]; xlabel="Ny", ylabel="Relative L2 error",
               title="Convergence — Poiseuille flow", xscale=log10, yscale=log10)
-    scatterlines!(ax, Float64.(Ny_list), errors; linewidth=2, markersize=10, label="Kraken")
+    scatterlines!(ax, Float64.(Ny_list), errors; linewidth=2, markersize=10, label="KrakeNN")
     ref = errors[1] .* (Ny_list[1] ./ Ny_list).^2
     lines!(ax, Float64.(Ny_list), ref; linestyle=:dash, color=:gray, label="slope 2")
     axislegend(ax; position=:lb)
@@ -179,7 +179,7 @@ let
     ax = Axis(fig[1, 1]; xlabel="u_x (lattice units)", ylabel="y (lattice units)",
               title="Couette flow — Ny = $Ny")
     lines!(ax, u_ana, y_phys; label="Analytical", linewidth=2)
-    scatter!(ax, u_num, y_phys; label="Kraken", markersize=8)
+    scatter!(ax, u_num, y_phys; label="KrakeNN", markersize=8)
     axislegend(ax; position=:rt)
     save(joinpath(OUTDIR, "couette_profile.svg"), fig)
     println("  ✓ couette_profile.svg")
@@ -211,7 +211,7 @@ let
     fig = Figure(size=(500, 400))
     ax = Axis(fig[1, 1]; xlabel="Ny", ylabel="Relative L2 error",
               title="Couette — exact to machine precision", xscale=log10, yscale=log10)
-    scatterlines!(ax, Float64.(Ny_list), errors; linewidth=2, markersize=10, label="Kraken")
+    scatterlines!(ax, Float64.(Ny_list), errors; linewidth=2, markersize=10, label="KrakeNN")
     hlines!(ax, [eps(Float64)]; linestyle=:dash, color=:gray, label="machine ε (Float64)")
     ylims!(ax, 1e-16, 1e-9)
     axislegend(ax; position=:lt)
@@ -293,7 +293,7 @@ let
     ax = Axis(fig[1, 1]; xlabel="Time step", ylabel="Mean kinetic energy",
               title="Taylor-Green vortex decay — N = $N")
     lines!(ax, collect(steps_list), E_ana; label="Analytical", linewidth=2)
-    scatter!(ax, collect(steps_list), E_num; label="Kraken", markersize=10)
+    scatter!(ax, collect(steps_list), E_num; label="KrakeNN", markersize=10)
     axislegend(ax; position=:rt)
     save(joinpath(OUTDIR, "taylor_green_decay.svg"), fig)
     println("  ✓ taylor_green_decay.svg")
@@ -380,13 +380,13 @@ let
     fig = Figure(size=(900, 420))
     ax1 = Axis(fig[1, 1]; xlabel="u_x / u_lid", ylabel="y / N",
                title="Vertical centreline")
-    lines!(ax1, ux_profile, y_norm; label="Kraken (N=$N)", linewidth=2)
+    lines!(ax1, ux_profile, y_norm; label="KrakeNN (N=$N)", linewidth=2)
     scatter!(ax1, ux_ghia, y_ghia; label="Ghia et al.", color=:red, markersize=8)
     axislegend(ax1; position=:lb)
 
     ax2 = Axis(fig[1, 2]; xlabel="x / N", ylabel="u_y / u_lid",
                title="Horizontal centreline")
-    lines!(ax2, x_norm, uy_profile; label="Kraken (N=$N)", linewidth=2)
+    lines!(ax2, x_norm, uy_profile; label="KrakeNN (N=$N)", linewidth=2)
     axislegend(ax2; position=:rt)
     save(joinpath(OUTDIR, "cavity_centerlines.svg"), fig)
     println("  ✓ cavity_centerlines.svg")
@@ -498,7 +498,7 @@ let
     barplot!(ax2, [1, 2], [Cd, Cd_ref]; color=[:steelblue, :tomato],
              bar_labels=[string(round(Cd; digits=3)), string(Cd_ref)],
              label_color="gray92")
-    ax2.xticks = ([1, 2], ["Kraken", "Schafer-Turek"])
+    ax2.xticks = ([1, 2], ["KrakeNN", "Schafer-Turek"])
     ax2.ylabel = "Cd"
     save(joinpath(OUTDIR, "cylinder_drag.svg"), fig2)
     println("  ✓ cylinder_drag.svg")
@@ -542,7 +542,7 @@ let
     ax = Axis(fig[1, 1]; xlabel="Temperature", ylabel="y / H",
               title="Heat conduction — Ra = $Ra (sub-critical)")
     lines!(ax, T_ana, y_phys; label="Analytical (linear)", linewidth=2)
-    scatter!(ax, T_num, y_phys; label="Kraken", markersize=8)
+    scatter!(ax, T_num, y_phys; label="KrakeNN", markersize=8)
     axislegend(ax; position=:rt)
     save(joinpath(OUTDIR, "heat_profile.svg"), fig)
     println("  ✓ heat_profile.svg")
@@ -668,7 +668,7 @@ let
     ax = Axis(fig[1, 1]; xlabel="u_z (lattice units)", ylabel="r (lattice units)",
               title="Hagen-Poiseuille flow — Nr = $Nr")
     lines!(ax, u_ana, r_phys; label="Analytical", linewidth=2)
-    scatter!(ax, u_num, r_phys; label="Kraken (axisymmetric)", markersize=8)
+    scatter!(ax, u_num, r_phys; label="KrakeNN (axisymmetric)", markersize=8)
     axislegend(ax; position=:rt)
     save(joinpath(OUTDIR, "hagen_poiseuille_profile.svg"), fig)
     println("  ✓ hagen_poiseuille_profile.svg")

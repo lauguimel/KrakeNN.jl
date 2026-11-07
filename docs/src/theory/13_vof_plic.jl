@@ -67,7 +67,7 @@
 # reconstruction.  This reduces orientation-dependent errors, especially
 # for interfaces aligned with grid diagonals.
 #
-# In Kraken.jl:
+# In KrakeNN:
 # ```julia
 # compute_vof_normal_2d!(nx, ny, C, Nx, Ny)
 # ```
@@ -92,7 +92,7 @@
 #
 # where ``n_1 = \min(|n_x|, |n_y|)`` and ``n_2 = \max(|n_x|, |n_y|)``.
 # These are the exact Basilisk `line_alpha` / `line_area` formulas,
-# reimplemented in Kraken.jl as branchless GPU-safe inline functions.
+# reimplemented in KrakeNN as branchless GPU-safe inline functions.
 #
 # ## VOF advection
 #
@@ -122,14 +122,14 @@
 # where ``\tilde{C}_i = \mathbb{1}_{C_i > 0.5}`` is frozen before the
 # sweeps to avoid race conditions.
 #
-# In Kraken.jl:
+# In KrakeNN:
 # ```julia
 # advect_vof_plic_2d!(C_new, C, nx_n, ny_n, cc_field, ux, uy, Nx, Ny; step=1)
 # ```
 #
 # ### MUSCL-Superbee TVD advection
 #
-# As an alternative to geometric PLIC advection, Kraken provides a
+# As an alternative to geometric PLIC advection, KrakeNN provides a
 # second-order **MUSCL scheme** with the **Superbee flux limiter**:
 # ```math
 # \phi(r) = \max\!\big(0,\; \min(2r, 1),\; \min(r, 2)\big)
@@ -141,7 +141,7 @@
 # cheaper per time step, but produces slightly more diffusion than PLIC
 # over long integration times.
 #
-# In Kraken.jl:
+# In KrakeNN:
 # ```julia
 # advect_vof_2d!(C_new, C, ux, uy, Nx, Ny)
 # ```
@@ -173,7 +173,7 @@
 # curvature, in contrast to first-order methods based on fitting or
 # direct differentiation of the volume fraction field.
 #
-# In Kraken.jl:
+# In KrakeNN:
 # ```julia
 # compute_hf_curvature_2d!(κ, C, nx_n, ny_n, Nx, Ny)
 # ```
@@ -191,7 +191,7 @@
 # the force to interface cells.  This force is added to the LBM via the
 # Guo forcing scheme.
 #
-# In Kraken.jl:
+# In KrakeNN:
 # ```julia
 # compute_surface_tension_2d!(Fx, Fy, κ, C, σ, Nx, Ny)
 # ```

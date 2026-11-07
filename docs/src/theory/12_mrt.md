@@ -116,9 +116,9 @@ The post-collision distributions are obtained by the inverse transform:
 \mathbf{f}^\star = \mathsf{M}^{-1} \, \mathbf{m}^\star
 ```
 
-## Implementation in Kraken
+## Implementation in KrakeNN
 
-In Kraken.jl, the MRT collision is implemented as a single GPU kernel
+In KrakeNN, the MRT collision is implemented as a single GPU kernel
 with the moment-space operations fully unrolled (no matrix multiplications):
 
 ```julia
@@ -167,7 +167,7 @@ MRT is recommended when:
 - Flows with complex geometries where boundary stability matters
 - Phase-field simulations (the pressure-based MRT collision is used by default)
 
-In Kraken.jl, the CIJ jet simulation (example 16) uses MRT collision
+In KrakeNN, the CIJ jet simulation (example 16) uses MRT collision
 for the pressure equation in the phase-field formulation.
 
 ## Real source excerpt

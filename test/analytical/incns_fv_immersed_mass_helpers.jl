@@ -2,7 +2,7 @@
 # Q/M1/linear-pressure; mass=:M3 evaluates the augmented compatibility system.
 # No mass-source correction or projection is applied. Diagnostics restore
 # the continuity equation replaced by the pressure pin.
-using Kraken
+using KrakeNN
 using LinearAlgebra
 using KernelAbstractions
 

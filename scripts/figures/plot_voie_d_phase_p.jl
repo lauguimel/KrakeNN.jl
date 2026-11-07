@@ -1,7 +1,7 @@
 #!/usr/bin/env julia --project=.
 
 using CairoMakie
-using Kraken
+using KrakeNN
 using Printf
 
 const FIGDIR = joinpath("paper", "figures")

@@ -80,7 +80,7 @@
 # u_x(y) = u_{\max} \left[ 1 - \left(\frac{2y - H}{H}\right)^2 \right]
 # ```
 #
-# ## Kraken.jl API
+# ## KrakeNN API
 #
 # The `collide_guo_2d!` kernel performs BGK collision with Guo forcing:
 #
@@ -94,7 +94,7 @@
 # compute_macroscopic_forced_2d!(ρ, ux, uy, f, Fx, Fy)
 # ```
 
-using Kraken
+using KrakeNN
 
 ## Set up a Poiseuille-like configuration
 lattice = D2Q9()

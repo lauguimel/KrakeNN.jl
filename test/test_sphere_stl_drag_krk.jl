@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ==========================================================================
@@ -56,7 +56,7 @@ _pick_drag_backend() =
             setup = load_kraken(krk)
             dom = setup.domain
             mask = falses(dom.Nx, dom.Ny, dom.Nz)
-            Kraken._apply_geometry_3d!(mask, setup, dom.Lx / dom.Nx)
+            KrakeNN._apply_geometry_3d!(mask, setup, dom.Lx / dom.Nx)
             @test count(mask) > 0
             @test count(mask) < length(mask)
         end

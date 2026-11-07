@@ -11,9 +11,9 @@ Public enumeration for the grid-refinement and conservative-tree AMR API. Export
 Use these tags when inspecting or constructing route and topology metadata.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.LinkKind
+KrakeNN.LinkKind
 ```
 """
 @enum LinkKind::UInt8 SAME_LEVEL=0 COARSE_TO_FINE=1 FINE_TO_COARSE=2 BOUNDARY=3
@@ -24,9 +24,9 @@ Public enumeration for the grid-refinement and conservative-tree AMR API. Export
 Use these tags when inspecting or constructing route and topology metadata.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.RouteKind
+KrakeNN.RouteKind
 ```
 """
 @enum RouteKind::UInt8 DIRECT=0 SPLIT_FACE=1 SPLIT_CORNER=2 COALESCE_FACE=3 COALESCE_CORNER=4 ROUTE_BOUNDARY=5
@@ -38,9 +38,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.AbstractCellMetrics
+KrakeNN.AbstractCellMetrics
 ```
 """
 abstract type AbstractCellMetrics end
@@ -52,9 +52,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.CartesianMetrics2D
+KrakeNN.CartesianMetrics2D
 ```
 """
 struct CartesianMetrics2D <: AbstractCellMetrics
@@ -68,9 +68,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeCell2D
+KrakeNN.ConservativeTreeCell2D
 ```
 """
 struct ConservativeTreeCell2D
@@ -89,9 +89,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeLink2D
+KrakeNN.ConservativeTreeLink2D
 ```
 """
 struct ConservativeTreeLink2D
@@ -107,9 +107,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeRoute2D
+KrakeNN.ConservativeTreeRoute2D
 ```
 """
 struct ConservativeTreeRoute2D
@@ -127,9 +127,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeTopology2D
+KrakeNN.ConservativeTreeTopology2D
 ```
 """
 struct ConservativeTreeTopology2D
@@ -153,9 +153,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeBlock2D
+KrakeNN.ConservativeTreeBlock2D
 ```
 """
 struct ConservativeTreeBlock2D
@@ -172,9 +172,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreePackedRoute2D
+KrakeNN.ConservativeTreePackedRoute2D
 ```
 """
 struct ConservativeTreePackedRoute2D
@@ -194,9 +194,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreePackedTopology2D
+KrakeNN.ConservativeTreePackedTopology2D
 ```
 """
 struct ConservativeTreePackedTopology2D

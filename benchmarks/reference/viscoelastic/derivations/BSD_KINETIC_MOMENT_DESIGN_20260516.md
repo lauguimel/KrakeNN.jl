@@ -298,9 +298,9 @@ see `src/kernels/li_bb_2d_v2.jl:119-125` and
 
 Edit budget: about 10--30 lines in
 `src/drivers/viscoelastic_logfv_2d.jl`, about 80--150 lines in the new
-`src/kernels/bsd_kinetic.jl`, and about 2 lines in `src/Kraken.jl` to
+`src/kernels/bsd_kinetic.jl`, and about 2 lines in `src/KrakeNN.jl` to
 include/export the new function near the existing kernel includes and
-exports (`src/Kraken.jl:27-80`, `src/Kraken.jl:141-188`).  The default
+exports (`src/KrakeNN.jl:27-80`, `src/KrakeNN.jl:141-188`).  The default
 must remain `:fd`, so no caller changes behaviour unless it explicitly
 sets `bsd_kind=:kinetic`.
 
@@ -421,7 +421,7 @@ Files to create: 2.
 
 Files to modify: 2.
 
-- `src/Kraken.jl`: include/export the new kinetic BSD function.
+- `src/KrakeNN.jl`: include/export the new kinetic BSD function.
 - `src/drivers/viscoelastic_logfv_2d.jl`: thread `bsd_kind` through
   `run_viscoelastic_logfv_cavity_coupled_2d` only, not the other
   drivers in Phase B.

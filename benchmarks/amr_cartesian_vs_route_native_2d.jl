@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 
 using Dates
-using Kraken
+using KrakeNN
 using Printf
 
 function _amr_benchmark_flows()

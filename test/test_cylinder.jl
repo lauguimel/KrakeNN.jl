@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Cylinder 2D Re=20" begin
     # Flow around cylinder in confined channel (blockage D/H = 25%)

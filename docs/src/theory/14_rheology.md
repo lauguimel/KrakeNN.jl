@@ -7,7 +7,7 @@ EditURL = "14_rheology.jl"
 Many fluids of practical interest — polymer solutions, blood, cement,
 food products — exhibit a viscosity that depends on the local deformation
 rate (shear-thinning or shear-thickening) or possess a yield stress.
-Kraken.jl provides a modular rheology framework that plugs into the LBM
+KrakeNN provides a modular rheology framework that plugs into the LBM
 collision operator, with all models implemented as lightweight structs
 suitable for direct GPU kernel arguments.
 
@@ -229,7 +229,7 @@ HerschelBulkley(tau_y, K, n; m_reg=1000.0)
 
 ## Thermal coupling
 
-For temperature-dependent rheology, Kraken provides two shift models
+For temperature-dependent rheology, KrakeNN provides two shift models
 that multiply all rheological parameters by a thermal shift factor
 ``a_T(T)``:
 
@@ -253,7 +253,7 @@ CarreauYasuda(eta_0, eta_inf, lambda, a, n; thermal=WLFCoupling(T_ref, C1, C2))
 
 ## Viscoelastic models
 
-For fluids with memory (polymer melts, Boger fluids), Kraken provides
+For fluids with memory (polymer melts, Boger fluids), KrakeNN provides
 viscoelastic constitutive models that evolve a **conformation tensor**
 ``\mathbf{C}`` alongside the LBM distributions.
 
@@ -309,7 +309,7 @@ OldroydB(nu_s, nu_p, lambda; formulation=LogConfFormulation())
 FENEP(nu_s, nu_p, lambda, L_max; formulation=LogConfFormulation())
 ```
 
-## Implementation in Kraken
+## Implementation in KrakeNN
 
 ### Type hierarchy
 

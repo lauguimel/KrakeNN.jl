@@ -1,13 +1,13 @@
 #!/usr/bin/env julia
 """
 Parametric study: Rc sweep for natural convection cavity.
-Compares Kraken.jl LBM vs NatConv OpenFOAM results.
+Compares KrakeNN LBM vs NatConv OpenFOAM results.
 
 Pr=0.71, Ra ∈ {1e3, 1e4}, Rc ∈ {1, 2, 5, 10, 20, 50, 100}, N=512.
 Requires CUDA — will error if GPU not available.
 """
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using CUDA
 using Printf
@@ -43,7 +43,7 @@ function load_natconv(path)
 end
 
 function run_rc_sweep()
-    println("\n  Kraken.jl — Rc Sweep: Natural Convection (Pr=0.71)\n")
+    println("\n  KrakeNN — Rc Sweep: Natural Convection (Pr=0.71)\n")
 
     backend = CUDABackend()
     FT = Float64

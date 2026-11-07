@@ -99,7 +99,7 @@ Nusselt number on a differentially heated square cavity at Rayleigh number
 ``\text{Ra} = 10^3``, validated against the reference solution of
 De Vahl Davis (1983).
 
-| ``N`` | ``\text{Nu}_{\text{Kraken}}`` | ``\text{Nu}_{\text{ref}}`` | Relative error |
+| ``N`` | ``\text{Nu}_{\text{KrakeNN}}`` | ``\text{Nu}_{\text{ref}}`` | Relative error |
 |------:|------------------------------:|---------------------------:|---------------:|
 |    64 |                         1.093 |                      1.117 |         2.17 % |
 

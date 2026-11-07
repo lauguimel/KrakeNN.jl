@@ -1,12 +1,12 @@
 # Concepts index
 
-Kraken is a method-agnostic PDE framework; the Lattice Boltzmann Method
+KrakeNN is a method-agnostic PDE framework; the Lattice Boltzmann Method
 is its mature core method, and it is the one this page maps. For how LBM
 sits within the broader platform — and what is shipped versus on the
 roadmap — see the [architecture overview](architecture.md).
 
 This page is a map of the Lattice Boltzmann concepts implemented in
-Kraken.jl v0.2.0. Each entry briefly states what the concept is and why
+KrakeNN v0.2.0. Each entry briefly states what the concept is and why
 it matters, links to the theory page that derives it, and points to
 example-tutorials that exercise it. If you are looking for a specific
 topic, this is the fastest route in.
@@ -19,7 +19,7 @@ If you are brand new to LBM, start at
 ### Lattices and equilibrium
 
 LBM evolves discrete populations `f_i(x, t)` on a stencil of velocities.
-In 2D Kraken uses the nine-velocity D2Q9 stencil; in 3D it uses D3Q19.
+In 2D KrakeNN uses the nine-velocity D2Q9 stencil; in 3D it uses D3Q19.
 Equilibrium is a Mach-expanded Maxwell–Boltzmann distribution that
 recovers Navier–Stokes in the hydrodynamic limit.
 
@@ -74,7 +74,7 @@ wall. Periodic BCs connect opposite faces without any reconstruction.
 ### Spatially varying BCs
 
 For non-trivial inlet profiles, temperature patches, or moving walls,
-Kraken lets you attach a function `f(x, y)` or a STL region to a face
+KrakeNN lets you attach a function `f(x, y)` or a STL region to a face
 via the `.krk` DSL.
 
 - Theory: [Spatial BCs](theory/19_spatial_bcs.md)
@@ -87,7 +87,7 @@ via the `.krk` DSL.
 
 Guo et al.'s scheme adds a body force to the LBM step in a way that
 stays consistent with the Chapman–Enskog expansion — no spurious
-second-order error. Kraken uses it for buoyancy in thermal cases and
+second-order error. KrakeNN uses it for buoyancy in thermal cases and
 for driven periodic flows.
 
 - Theory: [Body forces](theory/07_body_forces.md)
@@ -108,7 +108,7 @@ Boussinesq body force on the velocity populations.
 
 ## Axisymmetric LBM
 
-For pipe flow and other rotationally symmetric problems, Kraken
+For pipe flow and other rotationally symmetric problems, KrakeNN
 implements the axisymmetric source-term formulation on a 2D `(r, z)`
 grid, avoiding a full 3D run.
 

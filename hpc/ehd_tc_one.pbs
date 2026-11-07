@@ -11,7 +11,7 @@ cd $PBS_O_WORKDIR
 
 SCRIPT="hpc/ehd_tc_one.jl"
 # Dedicated env (develops ~/kraken_ehd + CUDA/CUDSS + all sibling weakdeps):
-# required for the KrakenCUDSSExt GPU phi solve (Julia 1.12 landmine).
+# required for the KrakeNNCUDSSExt GPU phi solve (Julia 1.12 landmine).
 PROJECT="$HOME/ehd_cudss_env"
 
 export PATH="$HOME/.juliaup/bin:$PATH"

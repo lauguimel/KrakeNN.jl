@@ -73,9 +73,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_cartesian_channel_mass_reference_2d)
+methods(KrakeNN.run_cartesian_channel_mass_reference_2d)
 ```
 """
 function run_cartesian_channel_mass_reference_2d(;

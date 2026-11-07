@@ -13,7 +13,7 @@
 #   julia --project=docs scripts/figures/plot_mesh_comparison_2d.jl
 
 using CairoMakie
-using Kraken
+using KrakeNN
 
 # Schäfer-Turek 2D-1 geometry (Re=20, low-blockage cylinder)
 const Lx     = 2.2

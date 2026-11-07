@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 function _stream_cell_id(topology, level, i, j)
     for (id, cell) in pairs(topology.cells)

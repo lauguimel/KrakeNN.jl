@@ -2,7 +2,7 @@
 
 using CairoMakie
 using Dates
-using Kraken
+using KrakeNN
 using Printf
 
 const DEFAULT_QUICKLOOK_CASE_DIR = joinpath(
@@ -279,10 +279,10 @@ function _ql_state_from_spec_result(result; force_x=0.0, force_y=0.0,
         volume = eltype(F)(cell.metrics.volume)
         rho_c = mass / volume
         fx = level_scaled_force ?
-             Kraken.conservative_tree_leaf_equivalent_force_2d(
+             KrakeNN.conservative_tree_leaf_equivalent_force_2d(
                 force_x, spec, cell.level) : force_x
         fy = level_scaled_force ?
-             Kraken.conservative_tree_leaf_equivalent_force_2d(
+             KrakeNN.conservative_tree_leaf_equivalent_force_2d(
                 force_y, spec, cell.level) : force_y
         ux_c = (mx / volume + fx / 2) / rho_c
         uy_c = (my / volume + fy / 2) / rho_c

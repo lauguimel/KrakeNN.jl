@@ -30,7 +30,7 @@ to machine precision (l2_rel ≈ 5e-14), second-order diffusion convergence
 
 ## Public surface
 
-The brick is registered in `src/Kraken.jl` and its driver exported
+The brick is registered in `src/KrakeNN.jl` and its driver exported
 (`solve_scalar_transport`), mirroring the `inc_ns/simple.jl` and
 `inc_ns/cavity.jl` pattern (include guards keep it standalone-include-able):
 
@@ -67,7 +67,7 @@ Internal (file-private) assembly helper: `_st_assemble_system(nx, ny, dx, dy, uf
   and, for `:linear_upwind`, one correction/RHS vector pair reused across Picard
   passes. The matrix and factorization are not rebuilt during deferred
   correction.
-- No files written, no global registry mutated, no `using Kraken` side effects.
+- No files written, no global registry mutated, no `using KrakeNN` side effects.
 
 ## Backend constraints
 

@@ -11,9 +11,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreePatchSet2D
+KrakeNN.ConservativeTreePatchSet2D
 ```
 """
 struct ConservativeTreePatchSet2D{T}
@@ -119,9 +119,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.active_coarse_mask)
+methods(KrakeNN.active_coarse_mask)
 ```
 """
 function active_coarse_mask(patch_set::ConservativeTreePatchSet2D)
@@ -139,9 +139,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_parent_owner_2d)
+methods(KrakeNN.conservative_tree_parent_owner_2d)
 ```
 """
 @inline function conservative_tree_parent_owner_2d(patch_set::ConservativeTreePatchSet2D,
@@ -161,9 +161,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_leaf_owner_2d)
+methods(KrakeNN.conservative_tree_leaf_owner_2d)
 ```
 """
 @inline function conservative_tree_leaf_owner_2d(patch_set::ConservativeTreePatchSet2D,
@@ -183,9 +183,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_patch_owner_counts_2d)
+methods(KrakeNN.conservative_tree_patch_owner_counts_2d)
 ```
 """
 function conservative_tree_patch_owner_counts_2d(patch_set::ConservativeTreePatchSet2D)

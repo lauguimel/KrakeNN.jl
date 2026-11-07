@@ -57,9 +57,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_species_2d!)
+methods(KrakeNN.collide_species_2d!)
 ```
 """
 function collide_species_2d!(h, ux, uy, ω_D)
@@ -83,9 +83,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_concentration_2d!)
+methods(KrakeNN.compute_concentration_2d!)
 ```
 """
 function compute_concentration_2d!(C, h)
@@ -124,9 +124,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_conc_south_2d!)
+methods(KrakeNN.apply_fixed_conc_south_2d!)
 ```
 """
 function apply_fixed_conc_south_2d!(h, C_wall, Nx)
@@ -142,9 +142,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_conc_north_2d!)
+methods(KrakeNN.apply_fixed_conc_north_2d!)
 ```
 """
 function apply_fixed_conc_north_2d!(h, C_wall, Nx, Ny)

@@ -1,11 +1,11 @@
 using Test
-using Kraken
+using KrakeNN
 using Random
 using LinearAlgebra
 
 const _CAL_ENZYME_OK = try
     @eval Main using Enzyme
-    Base.get_extension(Kraken, :KrakenADExt) !== nothing
+    Base.get_extension(KrakeNN, :KrakeNNADExt) !== nothing
 catch
     false
 end
@@ -15,19 +15,19 @@ end
     @testset "ParameterSpace to_flat / from_flat round-trip (scalar ν)" begin
         ps = ParameterSpace([:ν], [0.01], [0.5])
         p0 = (ν=0.05,)
-        x = Kraken.to_flat(ps, p0)
+        x = KrakeNN.to_flat(ps, p0)
         @test length(x) == 1
         @test x[1] ≈ 0.05
-        p_rt = Kraken.from_flat(ps, x, p0)
+        p_rt = KrakeNN.from_flat(ps, x, p0)
         @test p_rt[:ν] ≈ 0.05
     end
 
     @testset "ParameterSpace log-scale round-trip" begin
         ps = ParameterSpace([:ν], [0.001], [1.0]; log_scale=BitVector([true]))
         p0 = (ν=0.05,)
-        x = Kraken.to_flat(ps, p0)
+        x = KrakeNN.to_flat(ps, p0)
         @test x[1] ≈ log(0.05)
-        p_rt = Kraken.from_flat(ps, x, p0)
+        p_rt = KrakeNN.from_flat(ps, x, p0)
         @test p_rt[:ν] ≈ 0.05 atol=1e-14
     end
 
@@ -35,10 +35,10 @@ end
         ps = ParameterSpace([:ν, :radius], [0.01, 0.1], [0.5, 10.0];
                             fixed=BitVector([false, true]))
         p0 = (ν=0.05, radius=3.0)
-        x = Kraken.to_flat(ps, p0)
+        x = KrakeNN.to_flat(ps, p0)
         @test length(x) == 1
         @test x[1] ≈ 0.05
-        p_rt = Kraken.from_flat(ps, x, p0)
+        p_rt = KrakeNN.from_flat(ps, x, p0)
         @test p_rt[:ν] ≈ 0.05
         @test p_rt[:radius] ≈ 3.0
     end
@@ -46,10 +46,10 @@ end
     @testset "ParameterSpace project! clips bounds" begin
         ps = ParameterSpace([:ν], [0.01], [0.5])
         v = [0.8]
-        Kraken.project!(ps, v)
+        KrakeNN.project!(ps, v)
         @test v[1] ≈ 0.5
         v2 = [0.001]
-        Kraken.project!(ps, v2)
+        KrakeNN.project!(ps, v2)
         @test v2[1] ≈ 0.01
     end
 
@@ -57,11 +57,11 @@ end
         Ny = 8
         names = [Symbol("ν_$i") for i in 1:Ny]
         ps = ParameterSpace(names, fill(0.01, Ny), fill(0.5, Ny))
-        @test Kraken.n_free(ps) == Ny
+        @test KrakeNN.n_free(ps) == Ny
         p0 = NamedTuple{Tuple(names)}(Tuple(fill(0.05, Ny)))
-        x = Kraken.to_flat(ps, p0)
+        x = KrakeNN.to_flat(ps, p0)
         @test length(x) == Ny
-        p_rt = Kraken.from_flat(ps, x, p0)
+        p_rt = KrakeNN.from_flat(ps, x, p0)
         @test all(p_rt[n] ≈ 0.05 for n in names)
     end
 
@@ -91,10 +91,10 @@ end
     end
 
     @testset "ENZYME_FREE_OK: exports present" begin
-        @test isdefined(Kraken, :ParameterSpace)
-        @test isdefined(Kraken, :loss)
-        @test isdefined(Kraken, :fit)
-        @test isdefined(Kraken, :CalibResult)
+        @test isdefined(KrakeNN, :ParameterSpace)
+        @test isdefined(KrakeNN, :loss)
+        @test isdefined(KrakeNN, :fit)
+        @test isdefined(KrakeNN, :CalibResult)
         println("ENZYME_FREE_OK: ParameterSpace/loss/fit/CalibResult all defined")
     end
 end
@@ -128,7 +128,7 @@ if _CAL_ENZYME_OK
             # at ν_true=0.05. σ=5e-4 reduces the noise floor 4× so rel_err≲2.5%.
             σ = 5e-4
 
-            fwd_true = Kraken.ad_forward_solve(; _CAL_GEOM..., nu=ν_true,
+            fwd_true = KrakeNN.ad_forward_solve(; _CAL_GEOM..., nu=ν_true,
                                                 tol=1e-12, max_steps=200_000)
             @test fwd_true.converged
 
@@ -161,35 +161,35 @@ if _CAL_ENZYME_OK
                        u_in=0.05, inlet=:parabolic)
             ν_geom = 0.05
 
-            ssa = Kraken.steady_shape_sensitivity(; qoi=:drag, wrt=:radius,
+            ssa = KrakeNN.steady_shape_sensitivity(; qoi=:drag, wrt=:radius,
                                                     geom_c3..., nu=ν_geom,
                                                     tol=1e-12,
                                                     max_steps=120_000)
             @test ssa.gradient !== nothing
 
-            fwd = Kraken.ad_forward_solve(; geom_c3..., nu=ν_geom,
+            fwd = KrakeNN.ad_forward_solve(; geom_c3..., nu=ν_geom,
                                             tol=1e-12, max_steps=120_000)
             @test fwd.converged
 
-            rhs = Kraken._ad_dJdf(fwd.f_star, fwd.q_wall, fwd.u_ref,
+            rhs = KrakeNN._ad_dJdf(fwd.f_star, fwd.q_wall, fwd.u_ref,
                                   fwd.D, fwd.Nx, fwd.Ny)
-            apply_GtT = v -> Kraken._ad_vjp_GtT(fwd.f_star, v, fwd.q_wall,
+            apply_GtT = v -> KrakeNN._ad_vjp_GtT(fwd.f_star, v, fwd.q_wall,
                                                  fwd.is_solid, fwd.u_profile,
                                                  fwd.rho_out, fwd.s_plus,
                                                  fwd.s_minus, fwd.Nx, fwd.Ny)
-            adj = Kraken.gmres_adjoint(apply_GtT, rhs;
+            adj = KrakeNN.gmres_adjoint(apply_GtT, rhs;
                                        tol=1e-11, restart=240, max_restarts=20)
             @test adj.converged
 
-            dq_dR = Kraken.dq_wall_dR_cylinder(fwd.Nx, fwd.Ny, fwd.cx, fwd.cy,
+            dq_dR = KrakeNN.dq_wall_dR_cylinder(fwd.Nx, fwd.Ny, fwd.cx, fwd.cy,
                                                 fwd.radius; FT=Float64)
-            qwall_terms = Kraken._ad_dqwall_terms(fwd.f_star, adj.lambda,
+            qwall_terms = KrakeNN._ad_dqwall_terms(fwd.f_star, adj.lambda,
                                                    fwd.q_wall, fwd.is_solid,
                                                    fwd.u_profile, fwd.rho_out,
                                                    fwd.s_plus, fwd.s_minus,
                                                    fwd.Nx, fwd.Ny, fwd.u_ref,
                                                    fwd.D, dq_dR)
-            terms = Kraken.ad_assemble_radius_terms(fwd.Cd, fwd.radius, dq_dR,
+            terms = KrakeNN.ad_assemble_radius_terms(fwd.Cd, fwd.radius, dq_dR,
                                                      qwall_terms.explicit,
                                                      qwall_terms.implicit)
             rel_parity = abs(terms.gradient - ssa.gradient) / max(abs(ssa.gradient), 1e-15)
@@ -202,10 +202,10 @@ if _CAL_ENZYME_OK
             names = [Symbol("ν_$i") for i in 1:Ny]
             ps = ParameterSpace(names, fill(0.01, Ny), fill(0.5, Ny))
             p0 = NamedTuple{Tuple(names)}(Tuple(fill(0.05, Ny)))
-            @test Kraken.n_free(ps) == Ny
-            x = Kraken.to_flat(ps, p0)
+            @test KrakeNN.n_free(ps) == Ny
+            x = KrakeNN.to_flat(ps, p0)
             @test length(x) == Ny
-            p_rt = Kraken.from_flat(ps, x, p0)
+            p_rt = KrakeNN.from_flat(ps, x, p0)
             @test all(p_rt[n] ≈ 0.05 for n in names)
             println("4d field-param smoke: ParameterSpace{ν_i} Ny=8 round-trip OK")
         end

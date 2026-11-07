@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Thermal DDF" begin
 
@@ -17,7 +17,7 @@ using Kraken
         ux    = zeros(Float64, Nx, Ny)  # no flow
         uy    = zeros(Float64, Nx, Ny)
 
-        w = Kraken.weights(D2Q9())
+        w = KrakeNN.weights(D2Q9())
         for j in 1:Ny, i in 1:Nx, q in 1:9
             g_in[i, j, q] = w[q] * 0.5
         end
@@ -25,14 +25,14 @@ using Kraken
         is_solid = zeros(Bool, Nx, Ny)
 
         for step in 1:5000
-            Kraken.stream_periodic_x_wall_y_2d!(g_out, g_in, Nx, Ny)
-            Kraken.apply_fixed_temp_south_2d!(g_out, 1.0, Nx)
-            Kraken.apply_fixed_temp_north_2d!(g_out, 0.0, Nx, Ny)
-            Kraken.collide_thermal_2d!(g_out, ux, uy, ω_T)
+            KrakeNN.stream_periodic_x_wall_y_2d!(g_out, g_in, Nx, Ny)
+            KrakeNN.apply_fixed_temp_south_2d!(g_out, 1.0, Nx)
+            KrakeNN.apply_fixed_temp_north_2d!(g_out, 0.0, Nx, Ny)
+            KrakeNN.collide_thermal_2d!(g_out, ux, uy, ω_T)
             g_in, g_out = g_out, g_in
         end
 
-        Kraken.compute_temperature_2d!(Temp, g_in)
+        KrakeNN.compute_temperature_2d!(Temp, g_in)
         T_profile = Temp[2, :]
 
         # Analytical: linear from T_hot at wall (y=0.5) to T_cold at wall (y=Ny+0.5)
@@ -80,11 +80,11 @@ using Kraken
             D = lattice isa D2Q9 ? 2 : 3
             dims = ntuple(d -> d == wall_axis ? N_wall : N_side, D)
             Q = lattice isa D2Q9 ? 9 : 19
-            c = D == 2 ? (Kraken.velocities_x(lattice), Kraken.velocities_y(lattice)) :
-                         (Kraken.velocities_x(lattice), Kraken.velocities_y(lattice),
-                          Kraken.velocities_z(lattice))
-            opp = Kraken.opposite(lattice)
-            w = Kraken.weights(lattice)
+            c = D == 2 ? (KrakeNN.velocities_x(lattice), KrakeNN.velocities_y(lattice)) :
+                         (KrakeNN.velocities_x(lattice), KrakeNN.velocities_y(lattice),
+                          KrakeNN.velocities_z(lattice))
+            opp = KrakeNN.opposite(lattice)
+            w = KrakeNN.weights(lattice)
             g_in = zeros(Float64, dims..., Q)
             for q in 1:Q, I in CartesianIndices(dims)
                 g_in[I, q] = w[q] * 0.5
@@ -97,14 +97,14 @@ using Kraken
                 apply_a!(g_out)
                 apply_b!(g_out)
                 if D == 2
-                    Kraken.collide_thermal_2d!(g_out, u..., ω_T)
+                    KrakeNN.collide_thermal_2d!(g_out, u..., ω_T)
                 else
-                    Kraken.collide_thermal_3d!(g_out, u..., ω_T)
+                    KrakeNN.collide_thermal_3d!(g_out, u..., ω_T)
                 end
                 g_in, g_out = g_out, g_in
             end
-            D == 2 ? Kraken.compute_temperature_2d!(Temp, g_in) :
-                     Kraken.compute_temperature_3d!(Temp, g_in)
+            D == 2 ? KrakeNN.compute_temperature_2d!(Temp, g_in) :
+                     KrakeNN.compute_temperature_3d!(Temp, g_in)
             return Temp
         end
 
@@ -150,10 +150,10 @@ using Kraken
         function _expected_fixed_temp(g0, lattice, temps)
             D = ndims(g0) - 1
             dims = size(g0)[1:D]
-            c = D == 2 ? (Kraken.velocities_x(lattice), Kraken.velocities_y(lattice)) :
-                         (Kraken.velocities_x(lattice), Kraken.velocities_y(lattice),
-                          Kraken.velocities_z(lattice))
-            w = Kraken.weights(lattice)
+            c = D == 2 ? (KrakeNN.velocities_x(lattice), KrakeNN.velocities_y(lattice)) :
+                         (KrakeNN.velocities_x(lattice), KrakeNN.velocities_y(lattice),
+                          KrakeNN.velocities_z(lattice))
+            w = KrakeNN.weights(lattice)
             faces = ((:west, 1, true), (:east, 1, false), (:south, 2, true),
                      (:north, 2, false), (:bottom, 3, true), (:top, 3, false))
             g = copy(g0)
@@ -246,7 +246,7 @@ using Kraken
             # themselves, so the steady field is symmetric about the diagonal
             # and, by the maximum principle, lies between the wall temperatures.
             N = 12
-            w = Kraken.weights(D2Q9())
+            w = KrakeNN.weights(D2Q9())
             g_in = zeros(Float64, N, N, 9)
             for q in 1:9
                 g_in[:, :, q] .= w[q] * 0.5
@@ -277,7 +277,7 @@ using Kraken
             # Each swap of two axes maps the boundary conditions onto
             # themselves; the twelve edges are all shared by two Dirichlet faces.
             N = 6
-            w = Kraken.weights(D3Q19())
+            w = KrakeNN.weights(D3Q19())
             g_in = zeros(Float64, N, N, N, 19)
             for q in 1:19
                 g_in[:, :, :, q] .= w[q] * 0.5
@@ -376,13 +376,13 @@ using Kraken
         end
 
         for step in 1:500
-            Kraken.stream_periodic_x_wall_y_2d!(f_out, f_in, Nx, Ny)
+            KrakeNN.stream_periodic_x_wall_y_2d!(f_out, f_in, Nx, Ny)
             collide_boussinesq_vt_2d!(f_out, Temp, state.is_solid,
                                       ν_ref, T_ref, A_arr, 0.0)
             f_in, f_out = f_out, f_in
         end
 
-        Kraken.compute_macroscopic_2d!(state.ρ, state.ux, state.uy, f_in)
+        KrakeNN.compute_macroscopic_2d!(state.ρ, state.ux, state.uy, f_in)
         @test !any(isnan, Array(state.ρ))
         @test all(isfinite, Array(state.ux))
         @info "ν(T) Arrhenius kernel: stable after 500 steps"

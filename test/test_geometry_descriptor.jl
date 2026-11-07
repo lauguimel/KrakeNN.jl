@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "GeometryDescriptor" begin
     is_solid = Bool[true false; false true]

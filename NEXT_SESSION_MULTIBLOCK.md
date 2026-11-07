@@ -110,7 +110,7 @@ Poiseuille ? Vérifier bit-exactness vs la version TRT standard.
 | `src/kernels/dsl/bricks.jl` | `PullSLBMBiquad`, `CollideRegularizedTRTLocal` bricks |
 | `src/kernels/boundary_rebuild.jl` | `_trt_collide_local` régularisé + moments update |
 | `src/kernels/enzyme_rules.jl` | `dq_wall_dR_cylinder` (dérivée analytique géométrie) |
-| `src/Kraken.jl` | Exports + include enzyme_rules |
+| `src/KrakeNN.jl` | Exports + include enzyme_rules |
 | `docs/src/theory/10_limitations.md` | Section τ > 1/2 détaillée |
 
 ## Scripts diagnostiques utiles

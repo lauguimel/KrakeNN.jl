@@ -8,7 +8,7 @@
 # `setup.mesh`, so it fails with `FieldError: no field mesh` if the `mesh` field
 # is ever dropped from `SimulationSetup`.
 
-using Kraken
+using KrakeNN
 using Test
 
 @testset "Geometry: STL obstacle .krk (Cartesian immersed boundary)" begin
@@ -26,7 +26,7 @@ using Test
         dx = dom.Lx / dom.Nx
         dy = dom.Ly / dom.Ny
         m  = falses(dom.Nx, dom.Ny)
-        Kraken._apply_geometry!(m, setup, dx, dy)
+        KrakeNN._apply_geometry!(m, setup, dx, dy)
         (m, dx, dy)
     end
 
@@ -91,9 +91,9 @@ end
         dx = dom.Lx / dom.Nx
         dy = dom.Ly / dom.Ny
         mask = falses(dom.Nx, dom.Ny)
-        Kraken._apply_geometry!(mask, setup, dx, dy)
+        KrakeNN._apply_geometry!(mask, setup, dx, dy)
 
-        q_wall = Kraken._precompute_stl_libb_q_wall_2d(mask, setup, dx, dy, Float64)
+        q_wall = KrakeNN._precompute_stl_libb_q_wall_2d(mask, setup, dx, dy, Float64)
         @test any(q -> q > 0 && abs(q - 0.5) > 1e-8, q_wall)
 
         res = run_simulation(setup)
@@ -126,7 +126,7 @@ end
     solid_mask = setup -> begin
         dom = setup.domain
         m = falses(dom.Nx, dom.Ny)
-        Kraken._apply_geometry!(m, setup, dom.Lx / dom.Nx, dom.Ly / dom.Ny)
+        KrakeNN._apply_geometry!(m, setup, dom.Lx / dom.Nx, dom.Ly / dom.Ny)
         m
     end
     write_case = (path, stl_path, wall_libb) -> begin

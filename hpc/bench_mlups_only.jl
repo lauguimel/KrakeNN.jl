@@ -6,8 +6,8 @@
 # =============================================================================
 
 using Pkg; Pkg.activate(dirname(@__DIR__))
-using Kraken
-using Kraken: fused_trt_libb_v2_step!, fused_trt_libb_v2_step_3d!, D2Q9, D3Q19,
+using KrakeNN
+using KrakeNN: fused_trt_libb_v2_step!, fused_trt_libb_v2_step_3d!, D2Q9, D3Q19,
               precompute_q_wall_cylinder, precompute_q_wall_sphere_3d,
               apply_bc_rebuild_2d!, apply_bc_rebuild_3d!,
               BCSpec2D, BCSpec3D, ZouHeVelocity, ZouHePressure
@@ -41,7 +41,7 @@ function bench_2d(; Nx, Ny, radius, ν, u_max, warmup, steps, T)
     copyto!(u_prof, u_prof_h)
     f_in_h = zeros(T, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
-        f_in_h[i,j,q] = Kraken.equilibrium(D2Q9(), one(T), u_prof_h[j], zero(T), q)
+        f_in_h[i,j,q] = KrakeNN.equilibrium(D2Q9(), one(T), u_prof_h[j], zero(T), q)
     end
     copyto!(f_in, f_in_h); fill!(f_out, zero(T))
     fill!(ρ, one(T)); fill!(ux, zero(T)); fill!(uy, zero(T))
@@ -90,7 +90,7 @@ function bench_3d(; Nx, Ny, Nz, radius, ν, u_in, warmup, steps, T)
     fill!(u_prof, T(u_in))
     f_in_h = zeros(T, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
-        f_in_h[i,j,k,q] = Kraken.equilibrium(D3Q19(), one(T), T(u_in),
+        f_in_h[i,j,k,q] = KrakeNN.equilibrium(D3Q19(), one(T), T(u_in),
                                               zero(T), zero(T), q)
     end
     copyto!(f_in, f_in_h); fill!(f_out, zero(T))

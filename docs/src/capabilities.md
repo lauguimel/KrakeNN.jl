@@ -1,6 +1,6 @@
 # Capabilities matrix
 
-These are the capabilities of the **mature LBM core** within Kraken's broader
+These are the capabilities of the **mature LBM core** within KrakeNN's broader
 method-agnostic platform. For how LBM fits the platform — and what is shipped
 versus on the roadmap across methods — see the
 [architecture overview](architecture.md).

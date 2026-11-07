@@ -14,7 +14,7 @@ layer (post-pivot 2026-06). It owns:
 - the FVFD co-solver — `src/fvfd/` + `src/methods/inc_ns/` (IncNS, SIMPLE/SIMPLEC,
   Poisson MG in `src/solve/poisson_mg.jl`) + `src/methods/scalar_transport/`;
 - the AD↔platform seam — `src/platform/residual.jl` delegating to `src/ad/`;
-- calibration (`ParameterSpace`/`loss`/`fit`) + `ext/KrakenOptimExt.jl` (Optim weakdep).
+- calibration (`ParameterSpace`/`loss`/`fit`) + `ext/KrakeNNOptimExt.jl` (Optim weakdep).
 
 Integration model: **merge-on-green**. Feature work happens on short-lived
 `feat/platform-*` branches (own worktrees, deleted on merge); `dev/platform`
@@ -27,7 +27,7 @@ The following files are contention hotspots. Edits to them are **serialized**:
 one branch/session at a time, registered in the mandate before touching them.
 
 ```text
-src/Kraken.jl        # module includes + exports
+src/KrakeNN.jl        # module includes + exports
 src/io/krk/          # .krk DSL parser / fixtures semantics
 Project.toml         # deps, weakdeps, compat
 ```

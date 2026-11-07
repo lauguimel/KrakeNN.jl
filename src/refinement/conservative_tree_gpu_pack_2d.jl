@@ -11,9 +11,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeGPURoutePack2D
+KrakeNN.ConservativeTreeGPURoutePack2D
 ```
 """
 struct ConservativeTreeGPURoutePack2D{T}
@@ -107,9 +107,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_gpu_route_weight_sums_2d)
+methods(KrakeNN.conservative_tree_gpu_route_weight_sums_2d)
 ```
 """
 function conservative_tree_gpu_route_weight_sums_2d(
@@ -170,9 +170,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_conservative_tree_gpu_pack_interior_F_2d!)
+methods(KrakeNN.stream_conservative_tree_gpu_pack_interior_F_2d!)
 ```
 """
 function stream_conservative_tree_gpu_pack_interior_F_2d!(

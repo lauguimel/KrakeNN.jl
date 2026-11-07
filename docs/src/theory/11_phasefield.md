@@ -61,10 +61,10 @@ to the surface tension ``\sigma`` and ``W`` via:
 \sigma = \frac{2\sqrt{2}}{3}\,\sqrt{\kappa\,\beta}
 ```
 
-In Kraken.jl, these are computed by [`phasefield_params`](@ref):
+In KrakeNN, these are computed by [`phasefield_params`](@ref):
 
 ```julia
-using Kraken
+using KrakeNN
 
 σ = 0.01   # surface tension
 W = 5.0    # interface width (lattice units)
@@ -85,7 +85,7 @@ This is equivalent to the continuum surface force (CSF) model but is
 derived consistently from the free energy functional.  No explicit
 curvature computation is needed.
 
-In Kraken.jl:
+In KrakeNN:
 ```julia
 compute_chemical_potential_2d!(μ, φ, β, κ)
 compute_phasefield_force_2d!(Fx, Fy, μ, φ)
@@ -139,7 +139,7 @@ where ``R = -(D/W)\,\nabla\cdot\mathbf{A}`` and
 ``\mathbf{A} = (1-\varphi^2)\,\nabla\varphi/|\nabla\varphi|``
 is the antidiffusion flux.
 
-In Kraken.jl:
+In KrakeNN:
 ```julia
 compute_antidiffusion_flux_2d!(Ax, Ay, φ)
 collide_allen_cahn_2d!(g, ux, uy, Ax, Ay; τ_g=0.6, W=5.0)
@@ -179,7 +179,7 @@ The collision uses MRT with per-node viscosity interpolated from
 s_\nu = \frac{1}{3\nu + 1/2}
 ```
 
-In Kraken.jl:
+In KrakeNN:
 ```julia
 collide_pressure_phasefield_mrt_2d!(f, φ, Fx, Fy, is_solid;
     ρ_l=1.0, ρ_g=0.001, ν_l=0.1, ν_g=0.1)

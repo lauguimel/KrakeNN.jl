@@ -77,7 +77,7 @@ Separate modules almost never collide — two people working in `src/kernels/`
 and `test/analytical/` will not meet. Conflicts concentrate in the few files
 everyone must touch:
 
-- `src/Kraken.jl` (the export list)
+- `src/KrakeNN.jl` (the export list)
 - `src/simulation_runner.jl`
 - `src/io/krk/`
 - `test/runtests.jl`
@@ -117,7 +117,7 @@ deliberately closed.
 ## Adding New Physics
 
 1. Create kernel(s) in `src/kernels/`
-2. Export functions in `src/Kraken.jl`
+2. Export functions in `src/KrakeNN.jl`
 3. Add a simulation driver in `src/simulation.jl` (or appropriate `src/drivers/` file)
 4. Write tests in `test/`
 5. Add a theory page in `docs/src/theory/`

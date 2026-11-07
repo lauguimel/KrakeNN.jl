@@ -102,7 +102,7 @@ reversed. At the south wall, for instance,
 normal heat flux through the wall is zero and the flux along it is
 kept, so the linear conduction profile is reproduced to round-off on
 every row, the wall rows included. Bouncing these diagonal populations
-back instead (Kraken before v0.7) reverses the flux along the wall on
+back instead (KrakeNN before v0.7) reverses the flux along the wall on
 the wall rows and bends the profile there
 (``\mathrm{Nu} - 1 = -1.1\times10^{-2}`` at ``N = 16`` with Nu averaged
 over all rows). A population crossing a fixed-temperature wall keeps
@@ -142,7 +142,7 @@ where ``\beta`` is the thermal expansion coefficient, ``g`` the gravitational
 acceleration, and ``T_{\mathrm{ref}}`` a reference temperature. This force
 is injected into the momentum equation using the Guo forcing scheme.
 
-In Kraken.jl, this coupling is handled by `collide_boussinesq_2d!`, which
+In KrakeNN, this coupling is handled by `collide_boussinesq_2d!`, which
 combines BGK collision with the Boussinesq body force in a single kernel
 pass.
 
@@ -158,10 +158,10 @@ kernel with a spatially varying relaxation frequency ``\omega(\mathbf{x})``:
 
 The viscosity field is recomputed from the temperature at each time step.
 
-## Kraken.jl thermal API
+## KrakeNN thermal API
 
 ```julia
-using Kraken
+using KrakeNN
 
 lattice = D2Q9()
 

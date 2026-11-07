@@ -20,8 +20,8 @@ using Test
 using LinearAlgebra
 using Random
 using ForwardDiff
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 
 if !isdefined(@__MODULE__, :_fvc1_sparse_jacobian)
     include(joinpath(@__DIR__, "fv_steady_helpers.jl"))
@@ -46,16 +46,16 @@ end
 
     @testset "state signature reuses norm buffers across partial blocks" begin
         for ncell in (1, 255, 256, 257, 513)
-            nb = Kraken._FVNormBuffers(Array, ncell)
+            nb = KrakeNN._FVNormBuffers(Array, ncell)
             # Exactly representable integer sums cover all three components,
             # including the last cell of a non-full reduction block.
             U = Float64.(mod.(1:3ncell, 17) .- 8)
             ref = (0.125, sum(U), sum(abs2, U))
-            @test Kraken._fv_state_sig(nb, 0.125, U) == ref
-            Kraken._fv_norms(nb, U)
-            @test Kraken._fv_state_sig(nb, 0.125, U) == ref
+            @test KrakeNN._fv_state_sig(nb, 0.125, U) == ref
+            KrakeNN._fv_norms(nb, U)
+            @test KrakeNN._fv_state_sig(nb, 0.125, U) == ref
             U[end] += 1
-            @test Kraken._fv_state_sig(nb, 0.0, U) == (0.0, sum(U), sum(abs2, U))
+            @test KrakeNN._fv_state_sig(nb, 0.0, U) == (0.0, sum(U), sum(abs2, U))
         end
     end
 

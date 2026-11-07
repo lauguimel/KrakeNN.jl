@@ -1,6 +1,6 @@
 # The .krk DSL — overview
 
-Kraken exposes two equivalent entry points to the LBM solver:
+KrakeNN exposes two equivalent entry points to the LBM solver:
 
 1. The **Julia API** (`run_cavity_2d(...)`, `run_simulation("file.krk")`, and friends) —
    documented in the [Julia API reference](../api/drivers.md). Use it when you want full
@@ -42,7 +42,7 @@ Run        10000 steps
 Run it from Julia:
 
 ```julia
-using Kraken
+using KrakeNN
 setup = load_kraken("cavity.krk")
 run_krk(setup)                          # or the file path directly
 ```

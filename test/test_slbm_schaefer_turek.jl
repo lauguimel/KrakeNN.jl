@@ -1,6 +1,6 @@
 using Test
-using Kraken, KernelAbstractions
-using Kraken: LBMSpec, PullSLBM, SolidInert, ApplyLiBBPrePhase,
+using KrakeNN, KernelAbstractions
+using KrakeNN: LBMSpec, PullSLBM, SolidInert, ApplyLiBBPrePhase,
               Moments, CollideTRTDirect, WriteMoments,
               build_lbm_kernel, spec_args
 
@@ -88,7 +88,7 @@ function run_slbm_cylinder_stretched(;
     f_out = similar(f_in)
     ρ = ones(Nξ, Nη); ux = zeros(Nξ, Nη); uy = zeros(Nξ, Nη)
     for j in 1:Nη, i in 1:Nξ, q in 1:9
-        f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+        f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
     end
 
     # --- Time loop ---

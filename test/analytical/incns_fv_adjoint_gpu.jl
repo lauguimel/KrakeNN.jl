@@ -16,8 +16,8 @@
 using Test
 using LinearAlgebra
 using Random
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 
 if !isdefined(@__MODULE__, :_fvc2_ghia_error)
     include(joinpath(@__DIR__, "fv_newton_helpers.jl"))
@@ -143,9 +143,9 @@ _fvc4_host(J) = sparse(transpose(SparseMatrixCSC(size(J)..., Array(J.rowPtr), Ar
             gU = CU.CuArray(fv_steady_gradient(sc, Uc, nothing, obj; params = FVViscosityField()).gU)
             @test _fvc4_gpu_allocated(() -> (lin_solve!(wsf.λ, sg.cache, wsf.g; transpose = true);
                                              CU.synchronize())) == 0
-            @test _fvc4_gpu_allocated(() -> Kraken._fv_param_cotangent!(wsf, FVViscosityField(), sg, Ug, nothing)) == 0
-            @test _fvc4_gpu_allocated(() -> Kraken._fv_param_cotangent!(wss, map, sg, Ug, [1.0])) == 0
-            @test _fvc4_gpu_allocated(() -> Kraken._fv_state_sig(sg.norms, 0.0, Ug)) == 0
+            @test _fvc4_gpu_allocated(() -> KrakeNN._fv_param_cotangent!(wsf, FVViscosityField(), sg, Ug, nothing)) == 0
+            @test _fvc4_gpu_allocated(() -> KrakeNN._fv_param_cotangent!(wss, map, sg, Ug, [1.0])) == 0
+            @test _fvc4_gpu_allocated(() -> KrakeNN._fv_state_sig(sg.norms, 0.0, Ug)) == 0
             @test _fvc4_gpu_allocated(() -> fv_steady_adjoint(sg, Ug, gU; params = FVViscosityField(), ws = wsf)) == 0
             @test _fvc4_gpu_allocated(() -> fv_steady_gradient(sg, Ug, nothing, obj;
                                                                params = FVViscosityField(), ws = wsf)) == 0

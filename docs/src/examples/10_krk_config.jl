@@ -19,7 +19,7 @@
 #
 # ## Overview
 #
-# Kraken.jl can run simulations from plain-text **`.krk`** configuration files,
+# KrakeNN can run simulations from plain-text **`.krk`** configuration files,
 # inspired by the [Gerris Flow Solver](http://gfs.sourceforge.net/).  No Julia
 # code is required: geometry, boundary conditions, physics, and output are all
 # defined in a readable, line-based format.
@@ -92,7 +92,7 @@
 # Output vtk every 10000 [rho, ux, uy]
 # ```
 
-using Kraken
+using KrakeNN
 
 result = run_simulation(joinpath(@__DIR__, "..", "..", "..", "examples", "cavity.krk"))
 nothing #hide
@@ -254,7 +254,7 @@ nothing #hide
 # The `.krk` file is parsed into a `SimulationSetup` struct that can also be
 # built from a string:
 
-using Kraken
+using KrakeNN
 
 setup = parse_kraken("""
     Simulation test D2Q9

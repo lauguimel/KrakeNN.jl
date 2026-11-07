@@ -6,8 +6,8 @@ using Test
 using LinearAlgebra
 using Random
 using ForwardDiff
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 
 include(joinpath(@__DIR__, "incns_fv_immersed_geometry.jl"))
 
@@ -31,8 +31,8 @@ _fvc5_dense_jac(p, U) = ForwardDiff.jacobian(X -> fv_residual(X, p), U)
 @testset "Immersed ghost coefficients reproduce affine and quadratic profiles" begin
     for q in (1//7, 1//2, 4//5, 1//1), ghost in (0x01, 0x02)
         f(x) = 3//2 - 2//3 * x + (ghost == 0x02 ? 5//7 * x^2 : 0)
-        @test Kraken._fv_ghost_value(f(-1), f(0), f(q), q, ghost) == f(1)
-        @test @inferred(Kraken._fv_ghost_value(Float64(f(-1)), Float64(f(0)),
+        @test KrakeNN._fv_ghost_value(f(-1), f(0), f(q), q, ghost) == f(1)
+        @test @inferred(KrakeNN._fv_ghost_value(Float64(f(-1)), Float64(f(0)),
             Float64(f(q)), Float64(q), ghost)) isa Float64
     end
 end
@@ -87,7 +87,7 @@ end
         sx = d in (1, 3) ? 1 : -1
         tx, ty = d <= 2 ? (2nuf * dun, nuf * (dvn + sx * G[2])) :
                           (nuf * (dun + sx * G[3]), 2nuf * dvn)
-        actual = Kraken._fv_wall_stress(p.nu, p.visc, g, i, j, d, G,
+        actual = KrakeNN._fv_wall_stress(p.nu, p.visc, g, i, j, d, G,
                                         dun, dvn, ib.qcut, ib.closure)
         @test actual[1] ≈ tx rtol = 1e-14
         @test actual[2] ≈ ty rtol = 1e-14
@@ -95,7 +95,7 @@ end
         U = randn(MersenneTwister(510 + d), fv_nunknowns(p))
         obj = FVWallForce(d <= 2 ? 1 : 2)
         field = FVViscosityField()
-        face(q) = Kraken._fv_wall_force_face(obj, U, q, i, j, d,
+        face(q) = KrakeNN._fv_wall_force_face(obj, U, q, i, j, d,
             ib.qcut, ib.wvel, ib.closure)
         dense = ForwardDiff.gradient(t -> face(fv_param_problem(field, p, t)), vec(p.nu))
         cp, co = i + (j - 1) * g.Nx, oi + (oj - 1) * g.Nx
@@ -103,7 +103,7 @@ end
         @test dense[cp] ≈ -3dense[co] rtol = 1e-14
         # The optional local P dual must not replace the O value.
         nd = ForwardDiff.Dual(p.nu[i, j], 1.0)
-        local_face = Kraken._fv_wall_force_face(obj, U, p, i, j, d,
+        local_face = KrakeNN._fv_wall_force_face(obj, U, p, i, j, d,
             ib.qcut, ib.wvel, ib.closure, nd)
         @test ForwardDiff.partials(local_face)[1] ≈ dense[cp] rtol = 1e-14
     end
@@ -131,10 +131,10 @@ end
             ex, ey = (d == 1) - (d == 2), (d == 3) - (d == 4)
             x, y = T(i - 0.5 + ex/2), T(j - 0.5 + ey/2)
             ux, uy, vx, vy = gradient(x, y)
-            G = Kraken._fv_cell_grad(U,p.tag,p.bvel,g,i,j,ib.qcut,ib.wvel,ib.closure)
-            F = Kraken._fv_wall_gradient(U,p.tag,p.bvel,g,i,j,d,G,ib.qcut,ib.wvel,ib.closure)
-            wall = Kraken._fv_wall_data(U,p.bvel,g,i,j,d,ib.qcut,ib.wvel,ib.closure)
-            actual = Kraken._fv_wall_stress(p.nu,p.visc,g,i,j,d,F,wall[8],wall[9],ib.qcut,ib.closure)
+            G = KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,i,j,ib.qcut,ib.wvel,ib.closure)
+            F = KrakeNN._fv_wall_gradient(U,p.tag,p.bvel,g,i,j,d,G,ib.qcut,ib.wvel,ib.closure)
+            wall = KrakeNN._fv_wall_data(U,p.bvel,g,i,j,d,ib.qcut,ib.wvel,ib.closure)
+            actual = KrakeNN._fv_wall_stress(p.nu,p.visc,g,i,j,d,F,wall[8],wall[9],ib.qcut,ib.closure)
             nuf = gnf ? effective_viscosity(law, sqrt(2ux^2 + 2vy^2 + (uy+vx)^2 + p.visc.eps^2)) :
                         viscosity(x,y)
             exact = (nuf * (2ux*ex + (uy+vx)*ey), nuf * ((uy+vx)*ex + 2vy*ey))
@@ -142,7 +142,7 @@ end
             tangent = d <= 2 ? (2,4) : (1,3)
             @test maximum(abs(F[k] - (ux,uy,vx,vy)[k]) for k in tangent) <=
                   512eps(T) * max(abs(ux),abs(uy),abs(vx),abs(vy),1)
-            @test Kraken._fv_wall_gradient(U,p.tag,p.bvel,g,i,j,d,G,ib.qcut,ib.wvel,
+            @test KrakeNN._fv_wall_gradient(U,p.tag,p.bvel,g,i,j,d,G,ib.qcut,ib.wvel,
                                             FVImmersedClosure(:c1)) === G
         end
     end
@@ -173,17 +173,17 @@ end
         @test all(isfinite, dense)
         # Every ghost O and its tangential neighbours are in the local state
         # stencil. Check all cut faces explicitly, including corner cuts.
-        faces = Kraken._fv_wall_faces(FVWallForce(1), p)
+        faces = KrakeNN._fv_wall_faces(FVWallForce(1), p)
         @test length(faces) == count(!iszero, p.immersed.qcut)
         @test all(faces) do (i, j, d)
             oi = i - (d == 1) + (d == 2)
             oj = j - (d == 3) + (d == 4)
-            idx = Kraken._fv_wall_state(U, p, i, j).index
+            idx = KrakeNN._fv_wall_state(U, p, i, j).index
             tangents = d <= 2 ? (3,4) : (1,2)
             cells = [(oi,oj)]
             for t in tangents
-                kind, ti, tj = Kraken._fv_face_kind(p.grid,p.tag,oi,oj,t)
-                kind == Kraken._FV_F_INT && push!(cells,(ti,tj))
+                kind, ti, tj = KrakeNN._fv_face_kind(p.grid,p.tag,oi,oj,t)
+                kind == KrakeNN._FV_F_INT && push!(cells,(ti,tj))
             end
             all(fv_index(p.grid, a, b, c) in idx for (a,b) in cells for c in 1:3)
         end
@@ -191,14 +191,14 @@ end
         # including O in the extrapolated given viscosity and all GNF terms.
         for dir in (1, 2), force_pressure in (:cell, :linear)
             obj = FVWallForce(dir; pressure = force_pressure)
-            value, gu = Kraken._fv_objective_grad_u(obj, U, p)
+            value, gu = KrakeNN._fv_objective_grad_u(obj, U, p)
             gd = ForwardDiff.gradient(X -> fv_objective(obj, X, p), U)
             @test all(k in fv_objective_support(obj,p) for k in findall(!iszero,gd))
             @test value ≈ fv_objective(obj, U, p) rtol = 1e-14 atol = 1e-14
             @test norm(gu - gd, Inf) <= 1e-12 * max(norm(gd, Inf), 1)
             for (map, θ) in ((FVViscosityField(), vec(copy(p.nu))),
                              (FVUniformViscosity(), [0.17]))
-                ge = Kraken._fv_objective_grad_theta(obj, map, U, p, θ)
+                ge = KrakeNN._fv_objective_grad_theta(obj, map, U, p, θ)
                 ref = ForwardDiff.gradient(t -> fv_objective(obj, U,
                     fv_param_problem(map, p, t)), θ)
                 @test norm(ge - ref, Inf) <= 1e-12 * max(norm(ref, Inf), 1)
@@ -207,7 +207,7 @@ end
             if law !== nothing
                 θ = fv_gnf_parameters(p)
                 map = FVProblemMap(fv_with_gnf_parameters, length(θ))
-                ge = Kraken._fv_objective_grad_theta(obj, map, U, p, θ)
+                ge = KrakeNN._fv_objective_grad_theta(obj, map, U, p, θ)
                 ref = ForwardDiff.gradient(t -> fv_objective(obj, U,
                     fv_with_gnf_parameters(p, t)), θ)
                 @test norm(ge - ref, Inf) <= 1e-12 * max(norm(ref, Inf), 1)
@@ -220,7 +220,7 @@ end
             λ = randn(rng, length(U))
             ws = fv_adjoint_workspace(s, map)
             copyto!(ws.λ, λ)
-            cot = Kraken._fv_param_cotangent!(ws, map, s, U, θ)
+            cot = KrakeNN._fv_param_cotangent!(ws, map, s, U, θ)
             densecot = ForwardDiff.gradient(t -> -dot(λ, fv_residual(U,
                 fv_param_problem(map, p, t))), θ)
             @test norm(vec(cot) - densecot, Inf) <= 1e-12 * max(norm(densecot, Inf), 1)
@@ -293,18 +293,18 @@ struct _FVC5PayloadTag end
     @test isbitstype(D)
     d, i, j = Tuple(first(findall(>(0), g.qcut)))
     Ud = duals(U)
-    @test @inferred(Kraken._fv_wall_data(Ud, p.bvel, p.grid, i, j, d,
+    @test @inferred(KrakeNN._fv_wall_data(Ud, p.bvel, p.grid, i, j, d,
         g.qcut, g.wvel, g.closure)) isa NTuple{9,D}
-    @test @inferred(Kraken._fv_cell_grad(Ud, p.tag, p.bvel, p.grid, i, j,
+    @test @inferred(KrakeNN._fv_cell_grad(Ud, p.tag, p.bvel, p.grid, i, j,
         g.qcut, g.wvel, g.closure)) isa NTuple{6,D}
     @test @inferred(fv_cell_residual(Ud, p.tag, p.nu, p.bvel, p.src, p.grid,
         i, j, p.visc, g.qcut, g.wvel, g.closure)) isa NTuple{3,D}
     for gd in (_fvc5_geom_copy(g; qcut = duals(g.qcut)),
                _fvc5_geom_copy(g; wvel = duals(g.wvel)))
         pd = _fvc5_with_geom(p, gd)
-        @test @inferred(Kraken._fv_wall_data(U, p.bvel, p.grid, i, j, d,
+        @test @inferred(KrakeNN._fv_wall_data(U, p.bvel, p.grid, i, j, d,
             gd.qcut, gd.wvel, gd.closure)) isa NTuple{9,D}
-        @test @inferred(Kraken._fv_cell_grad(U, p.tag, p.bvel, p.grid, i, j,
+        @test @inferred(KrakeNN._fv_cell_grad(U, p.tag, p.bvel, p.grid, i, j,
             gd.qcut, gd.wvel, gd.closure)) isa NTuple{6,D}
         @test @inferred(fv_cell_residual(U, p.tag, p.nu, p.bvel, p.src, p.grid,
             i, j, p.visc, gd.qcut, gd.wvel, gd.closure)) isa NTuple{3,D}
@@ -348,11 +348,11 @@ function _fvc5_gnf_wall_force(U, p, dir)
     acc = zero(eltype(U)) + zero(eltype(fv_gnf_parameters(p)))
     for j in 1:g.Ny, i in 1:g.Nx, d in 1:4
         ib.qcut[d, i, j] > 0 || continue
-        _, _, _, _, pf, _, _, dun, dvn = Kraken._fv_wall_data(U, p.bvel, g,
+        _, _, _, _, pf, _, _, dun, dvn = KrakeNN._fv_wall_data(U, p.bvel, g,
             i, j, d, ib.qcut, ib.wvel, ib.closure)
-        G = Kraken._fv_cell_grad(U, p.tag, p.bvel, g, i, j, ib.qcut, ib.wvel, ib.closure)
+        G = KrakeNN._fv_cell_grad(U, p.tag, p.bvel, g, i, j, ib.qcut, ib.wvel, ib.closure)
         oi, oj = i - (d == 1) + (d == 2), j - (d == 3) + (d == 4)
-        O = Kraken._fv_cell_grad(U, p.tag, p.bvel, g, oi, oj, ib.qcut, ib.wvel, ib.closure)
+        O = KrakeNN._fv_cell_grad(U, p.tag, p.bvel, g, oi, oj, ib.qcut, ib.wvel, ib.closure)
         # Independent linear extrapolation of the cell gradients to the
         # nominal face; normal entries are overwritten by the ghost slope.
         G = ntuple(k -> 1.5G[k] - 0.5O[k], 6)

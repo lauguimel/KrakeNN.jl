@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 function center_stagnation_mean(A)
@@ -74,7 +74,7 @@ end
     max_steps_coupled = 1_500
 
     @testset "E1 NaN-free imposed-velocity run" begin
-        res = Kraken.run_viscoelastic_fvfd_extensional_3d(;
+        res = KrakeNN.run_viscoelastic_fvfd_extensional_3d(;
             Nx, Ny, Nz,
             epsilon_dot,
             ν_s=nu_s,
@@ -115,7 +115,7 @@ end
     end
 
     @testset "E2 coupled all-face Zou-He planar-extension fixed point" begin
-        res = Kraken.run_viscoelastic_fvfd_extensional_3d(;
+        res = KrakeNN.run_viscoelastic_fvfd_extensional_3d(;
             Nx, Ny, Nz,
             epsilon_dot,
             ν_s=nu_s,

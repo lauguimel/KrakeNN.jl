@@ -1,6 +1,6 @@
 # Non-Newtonian rheology convergence study
 # Power-law Poiseuille flow for different power-law indices
-using Kraken
+using KrakeNN
 using Printf
 
 function run_rheology_convergence()

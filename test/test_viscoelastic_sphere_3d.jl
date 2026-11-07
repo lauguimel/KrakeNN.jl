@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ==========================================================================
@@ -11,7 +11,7 @@ using KernelAbstractions
 #      At β = 1 the polymer modulus G = ν_p/λ → 0, so the Oldroyd-B
 #      stress τ_p = G·(C − I) ≡ 0 and the Oldroyd-B equations reduce
 #      EXACTLY to Newtonian. The VE sphere driver at ν_p = 0 must then
-#      reproduce Kraken's own Newtonian confined-sphere driver
+#      reproduce KrakeNN's own Newtonian confined-sphere driver
 #      (`run_sphere_libb_3d`) on the SAME geometry / Re / grid: both
 #      paths share the identical solvent operators
 #      (`fused_trt_libb_v2_step_3d!` + `apply_bc_rebuild_3d!`) and the

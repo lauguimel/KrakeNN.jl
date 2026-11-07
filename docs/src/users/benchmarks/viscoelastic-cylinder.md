@@ -2,11 +2,11 @@
 
 Viscoelastic flow past a confined cylinder — the standard High-Weissenberg-Number-Problem
 (HWNP) testbed of **Alves, Oliveira & Pinho (2001)**. At the production resolution
-`R = 50`, Kraken's TRT-LBM cut-link drag matches **RheoTool** (rheoFoam, OpenFOAM-9,
+`R = 50`, KrakeNN's TRT-LBM cut-link drag matches **RheoTool** (rheoFoam, OpenFOAM-9,
 log-conformation) to **better than 1 %** on the integrated drag coefficient `Cd` across
 the validated range `Wi ≤ 1` at `β = 0.59` — `−0.75 %` at the most elastic point `Wi = 1`.
 
-Kraken (filled markers + line), RheoTool (dashed + open squares); the elastic minimum
+KrakeNN (filled markers + line), RheoTool (dashed + open squares); the elastic minimum
 near `Wi ≈ 0.5` and the upturn toward `Wi = 1` are visible in both codes. The figure plots the
 post-fix values (see the note below).
 
@@ -16,7 +16,7 @@ post-fix values (see the note below).
 
 The strict **< 1 % on `Cd`** gate is met across `Wi ≤ 1` (R = 50, β = 0.59, Re = 1):
 
-| Wi  | Kraken Cd | RheoTool Cd | rel. error  |
+| Wi  | KrakeNN Cd | RheoTool Cd | rel. error  |
 |-----|-----------|-------------|-------------|
 | 0.1 | 129.95    | 130.43      | **−0.37 %** |
 | 0.5 | 118.92    | 119.71      | **−0.66 %** |
@@ -36,7 +36,7 @@ The strict **< 1 % on `Cd`** gate is met across `Wi ≤ 1` (R = 50, β = 0.59, R
     `Cd = 119.2410` at `Wi = 1`, `R = 50`, the published value. At `β = 0.59` the fix
     moves `Cd` by +0.03 % to +0.23 % (`Wi = 0.1` to `1`, `R = 10` to `50`).
 
-Kraken reproduces the **characteristic elastic signature** reported across the cylinder
+KrakeNN reproduces the **characteristic elastic signature** reported across the cylinder
 literature (Alves–Oliveira–Pinho 2001; Hulsen et al. 2005; Claus & Phillips 2013): a
 shallow minimum near `Wi ≈ 0.5` followed by an elastic upturn — not just a single
 matched value. The agreement improves monotonically as the cylinder is resolved
@@ -52,7 +52,7 @@ pre-fix forcing; the values above differ from them by +0.03 % to +0.23 %. Full d
 
 ## Methodology
 
-**Kraken (TRT-LBM + log-conformation finite-volume polymer transport).** A D2Q9 TRT
+**KrakeNN (TRT-LBM + log-conformation finite-volume polymer transport).** A D2Q9 TRT
 collision for the flow; a separate finite-volume solver advects the matrix-logarithm of
 the polymer conformation tensor (Fattal–Kupferman 2004) with MUSCL–superbee advection
 and couples the extra-stress `τ_p = (ν_p/λ)(C − I)` back as a body force. Cylinder on
@@ -112,11 +112,11 @@ benchmark (cross-checked against Hulsen et al. 2005 and Claus & Phillips 2013).
   at an open end, which removes the growth and leaves the β = 0.59 results unchanged
   to within numerical noise. Runs at β ≤ 0.1 now complete without NaN, but no grid study has
   been done for them, so their `Cd` values are not validated.
-- **β = 0.30 is outside the 1 % band.** At `R = 50` Kraken's `Cd` is 108.46 at
+- **β = 0.30 is outside the 1 % band.** At `R = 50` KrakeNN's `Cd` is 108.46 at
   `Wi = 0.5` (RheoTool 109.92, −1.33 %) and 108.61 at `Wi = 1` (RheoTool 107.28,
   +1.24 %). The RheoTool `β = 0.3`, `Wi = 1` run is not steady at `t = 20` (`Cd`
   109.7 → 106.8 → 107.3 over `t = 15–20`), so that cell is not a validation point.
-- **High-Wi stability ≠ accuracy.** Kraken's default cylinder wall (interpolated bounce-back, `wall_bc = :halfwayBB`) is NaN-free up
+- **High-Wi stability ≠ accuracy.** KrakeNN's default cylinder wall (interpolated bounce-back, `wall_bc = :halfwayBB`) is NaN-free up
   to `Wi = 10` (R = 30 and R = 50) — at or beyond the state of the art for LBM-based
   viscoelastic solvers (which typically ceiling near `Wi ≈ 1`). But these values are
   stable, not converged: the two resolutions diverge with `Wi` (131.6 vs 118.4 at
@@ -130,7 +130,7 @@ benchmark (cross-checked against Hulsen et al. 2005 and Claus & Phillips 2013).
 ## Reproduce
 
 ```julia
-using Kraken
+using KrakeNN
 result = run_simulation("benchmarks/results/rheotool_compare/viscoelastic/cylinder_oldroyd_b.krk")
 @show result.Cd   # coarse smoke (240×32, 20 steps) — NOT the R=50 table value
 ```
@@ -146,7 +146,7 @@ conda run -n kraken-v0-3-figures python \
   benchmarks/results/rheotool_compare/viscoelastic/plot.py
 ```
 
-Data and the reproducibility bundle (Kraken/RheoTool CSVs, error norms, the M8
+Data and the reproducibility bundle (KrakeNN/RheoTool CSVs, error norms, the M8
 reference data, the `.krk`, and `plot.py`):
 `benchmarks/results/rheotool_compare/viscoelastic/`.
 

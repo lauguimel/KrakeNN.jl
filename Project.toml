@@ -1,4 +1,4 @@
-name = "Kraken"
+name = "KrakeNN"
 uuid = "b9c8ae56-6711-4442-a2ee-93cdf3c40864"
 version = "0.6.0"
 authors = ["Guillaume Maitrejean", "Jiachen Zhao", "Emilie Sauret"]
@@ -27,11 +27,11 @@ LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 
 [extensions]
-KrakenADExt = "Enzyme"
-KrakenCUDSSExt = "CUDSS"
-KrakenLinearSolveExt = "LinearSolve"
-KrakenMakieExt = "CairoMakie"
-KrakenOptimExt = "Optim"
+KrakeNNADExt = "Enzyme"
+KrakeNNCUDSSExt = "CUDSS"
+KrakeNNLinearSolveExt = "LinearSolve"
+KrakeNNMakieExt = "CairoMakie"
+KrakeNNOptimExt = "Optim"
 
 [compat]
 Atomix = "1.1.3"

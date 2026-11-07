@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 
 using Dates
-using Kraken
+using KrakeNN
 using Printf
 
 function _parse_symbols_env(name::AbstractString, default::AbstractString)

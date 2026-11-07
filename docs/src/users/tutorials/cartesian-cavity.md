@@ -81,7 +81,7 @@ steps each needs to reach the steady-state residual (`25 500`, `120 000`,
 ## Running it
 
 ```julia
-using Kraken
+using KrakeNN
 run_simulation("examples/cavity.krk")
 ```
 
@@ -98,7 +98,7 @@ centre as `Re` grows, with secondary corner vortices appearing at `Re = 1000`.
 
 Quantitatively, the standard check is the **u-velocity along the vertical
 centreline (x = 0.5)** and the **v-velocity along the horizontal centreline
-(y = 0.5)**, compared to Ghia 1982. As reported on the benchmark page, Kraken (BGK)
+(y = 0.5)**, compared to Ghia 1982. As reported on the benchmark page, KrakeNN (BGK)
 lands at a relative-L2 error on the u-centreline of **0.47 % / 0.41 % / 1.05 %** at
 `Re = 100 / 400 / 1000`, clearing the strict < 1 % gate at `Re = 100` and `400`
 and effectively at `Re = 1000`. OpenFOAM `icoFoam` independently validates the same

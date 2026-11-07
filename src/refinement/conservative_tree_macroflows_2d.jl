@@ -48,9 +48,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_poiseuille_macroflow_2d)
+methods(KrakeNN.run_conservative_tree_poiseuille_macroflow_2d)
 ```
 """
 function run_conservative_tree_poiseuille_macroflow_2d(;
@@ -202,9 +202,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_square_obstacle_macroflow_2d)
+methods(KrakeNN.run_conservative_tree_square_obstacle_macroflow_2d)
 ```
 """
 function run_conservative_tree_square_obstacle_macroflow_2d(;
@@ -235,9 +235,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_bfs_macroflow_2d)
+methods(KrakeNN.run_conservative_tree_bfs_macroflow_2d)
 ```
 """
 function run_conservative_tree_bfs_macroflow_2d(;
@@ -268,9 +268,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_cylinder_macroflow_2d)
+methods(KrakeNN.run_conservative_tree_cylinder_macroflow_2d)
 ```
 """
 function run_conservative_tree_cylinder_macroflow_2d(;
@@ -350,9 +350,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_cylinder_channel_macroflow_2d)
+methods(KrakeNN.run_conservative_tree_cylinder_channel_macroflow_2d)
 ```
 """
 function run_conservative_tree_cylinder_channel_macroflow_2d(;

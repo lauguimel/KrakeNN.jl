@@ -3,7 +3,7 @@
 This page documents the legacy viscoelastic and rheology API present on this branch: constitutive model types, viscosity and strain-rate helpers, legacy polymer-stress kernels, and the cylinder driver. The log-conformation finite-volume solver lives on a separate branch and is merge-pending.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "rheology/models.jl",
     "rheology/viscosity.jl",

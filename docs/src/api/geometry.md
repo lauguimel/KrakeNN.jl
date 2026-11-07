@@ -3,7 +3,7 @@
 Geometry APIs cover structured curvilinear meshes, SLBM geometry transfer, multi-block topology and ghost exchange, Gmsh import, and STL-based obstacle preprocessing used by the LBM drivers.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "curvilinear/mesh.jl",
     "curvilinear/generators.jl",

@@ -1,6 +1,6 @@
 # bc_schematic.jl — reusable boundary-condition / geometry schematic primitives
 # =============================================================================
-# A pure-CairoMakie drawing toolkit for the Kraken docs. NO Kraken dependency —
+# A pure-CairoMakie drawing toolkit for the KrakeNN docs. NO KrakeNN dependency —
 # just `include("bc_schematic.jl")` and assemble any of the example/tutorial
 # geometry schematics from composable primitives.
 #

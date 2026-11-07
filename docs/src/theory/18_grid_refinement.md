@@ -9,7 +9,7 @@ EditURL = "18_grid_refinement.jl"
 
 Uniform LBM grids are wasteful when the flow contains localized features
 (boundary layers, interfaces, wakes) that require high resolution.
-Kraken implements **patch-based static grid refinement** where
+KrakeNN implements **patch-based static grid refinement** where
 rectangular sub-domains at higher resolution are nested within a coarser
 base grid.  Each patch is a self-contained uniform LBM grid that reuses
 existing stream/collide/BC kernels unchanged.
@@ -149,7 +149,7 @@ advance_twophase_refined_step!(domain, f_in, f_out, rho, ux, uy,
 ## Practical considerations
 
 !!! note "Static patches"
-    Kraken V1 uses **static** refinement: patches are defined before
+    KrakeNN V1 uses **static** refinement: patches are defined before
     the simulation and do not move.  Adaptive mesh refinement (AMR)
     with dynamic patch creation is planned for V2.
 

@@ -2,7 +2,7 @@
 # E1 certification benchmark — single-phase BGK D2Q9 throughput (Taylor-Green)
 # =============================================================================
 #
-# Measures sustained MLUPS (Mega Lattice Updates Per Second) of the Kraken
+# Measures sustained MLUPS (Mega Lattice Updates Per Second) of the KrakeNN
 # Newtonian BGK D2Q9 solver, driving the canonical periodic Taylor-Green vortex
 # (`run_taylor_green_2d`, src/drivers/basic.jl:281).
 #
@@ -27,7 +27,7 @@
 # unchanged on CPU locally and on CUDA/Metal GPUs (Aqua H100/A100).
 # =============================================================================
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # --- backend resolution ------------------------------------------------------

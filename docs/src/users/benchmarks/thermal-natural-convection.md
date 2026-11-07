@@ -1,11 +1,11 @@
 # Thermal Natural Convection
 
 Steady 2D natural convection in a differentially-heated square cavity at
-Ra = 10³, 10⁴, 10⁵ (Pr = 0.71). Kraken's double-distribution thermal LBM matches the
+Ra = 10³, 10⁴, 10⁵ (Pr = 0.71). KrakeNN's double-distribution thermal LBM matches the
 canonical **de Vahl Davis (1983)** benchmark to **Nu err < 1 %** at every Ra (velocity
 extrema < 1 %), cross-checked against OpenFOAM `buoyantBoussinesqSimpleFoam`.
 
-de Vahl Davis 1983 (black markers), Kraken LBM (blue squares), OpenFOAM (orange
+de Vahl Davis 1983 (black markers), KrakeNN LBM (blue squares), OpenFOAM (orange
 triangles); the OF Ra = 10⁴ point is omitted as under-converged.
 
 ![Nu vs Ra](thermal-natural-convection-nu.png)
@@ -17,7 +17,7 @@ and the crossing of the 1 % gate at N ≈ 384.
 
 ## Result
 
-| Ra   | Backend   | Mesh | Nu (Kraken) | Nu (dVD) | Nu err      |
+| Ra   | Backend   | Mesh | Nu (KrakeNN) | Nu (dVD) | Nu err      |
 |------|-----------|------|-------------|----------|-------------|
 | 10³  | CPU F64   | 192² | 1.126       | 1.117    | **+0.79 %** |
 | 10⁴  | Metal F32 | 320² | 2.259       | 2.238    | **+0.93 %** |
@@ -95,7 +95,7 @@ adiabatic walls bent the profile near the top and bottom walls (row 1 off by
 
 ## Methodology
 
-**Kraken (thermal LBM, double-distribution D2Q9).** D2Q9 BGK flow + a second D2Q9
+**KrakeNN (thermal LBM, double-distribution D2Q9).** D2Q9 BGK flow + a second D2Q9
 distribution advecting temperature, with Boussinesq buoyancy `F = β g (T − T₀)` (the code applies no density factor)
 coupled back into the flow. Hot left wall (`T = 1`), cold right wall (`T = 0`),
 adiabatic top/bottom (specular reflection of the thermal populations), all walls
@@ -109,7 +109,7 @@ steady SIMPLE, laminar; Ra set by fixing `ν = 10⁻³`, `α = ν/Pr`, `β ΔT =
 
 **Reference.** de Vahl Davis, G. (1983), *Natural convection of air in a square cavity:
 a bench mark numerical solution*, Int. J. Numer. Methods Fluids 3, 249–264 — Pr = 0.71,
-hot-wall Nu₀ = 1.117 / 2.238 / 4.509 at Ra = 10³ / 10⁴ / 10⁵ (Table V; his cavity average Nu̅ is 1.118 / 2.243 / 4.519). Kraken computes a hot-wall mean, so this page compares with Nu₀.
+hot-wall Nu₀ = 1.117 / 2.238 / 4.509 at Ra = 10³ / 10⁴ / 10⁵ (Table V; his cavity average Nu̅ is 1.118 / 2.243 / 4.519). KrakeNN computes a hot-wall mean, so this page compares with Nu₀.
 
 ## 3D — cubic cavity
 
@@ -137,7 +137,7 @@ J.M., Kuwahara, K. & Farouk, B. (1991), Int. J. Heat Mass Transfer 34, 1543–15
 - **OpenFOAM Ra = 10⁴ is not converged** in the iteration budget (Nu ≈ 1.55 at 6000
   iterations, still drifting; true steady state needs ~15–20 k). It is flagged
   `_UNCONVERGED` in the CSV and omitted from the plot — a slow-SIMPLE artifact of the
-  reference, not a Kraken issue; Kraken's Ra = 10⁴ stands on its independent dVD
+  reference, not a KrakeNN issue; KrakeNN's Ra = 10⁴ stands on its independent dVD
   validation (+0.93 %).
 - **Low-Ra precision floor.** Ra = 10³ requires Float64 (the `β g ∝ 1/N³` body force
   underflows F32 for `N ≥ 320`). Use CPU F64 at low Ra; reserve Metal F32 for Ra ≥ 10⁴.
@@ -148,7 +148,7 @@ J.M., Kuwahara, K. & Farouk, B. (1991), Int. J. Heat Mass Transfer 34, 1543–15
 ## Reproduce
 
 ```julia
-using Kraken
+using KrakeNN
 run_simulation("examples/natural_convection.krk")      # differentially-heated cavity
 run_simulation("examples/rayleigh_benard.krk")          # qualitative Rayleigh–Bénard
 run_simulation("examples/natural_convection_3d.krk")    # cubic 3D cavity

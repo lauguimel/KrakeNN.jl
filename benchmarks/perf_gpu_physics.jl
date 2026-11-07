@@ -1,6 +1,6 @@
 # GPU performance benchmark for different physics modules
 # Measures MLUPS for BGK, Guo, thermal, rheology, and VOF multiphase
-using Kraken
+using KrakeNN
 using Printf
 using KernelAbstractions
 
@@ -90,7 +90,7 @@ function bench_thermal(; N=256, steps=200, backend=KernelAbstractions.CPU(), FT=
     g_out = KernelAbstractions.zeros(backend, FT, N, N, 9)
     Temp  = KernelAbstractions.zeros(backend, FT, N, N)
 
-    w = Kraken.weights(D2Q9())
+    w = KrakeNN.weights(D2Q9())
     g_cpu = zeros(FT, N, N, 9)
     for j in 1:N, i in 1:N, q in 1:9
         g_cpu[i, j, q] = FT(w[q]) * FT(0.5)
@@ -177,7 +177,7 @@ function bench_vof(; N=256, steps=200, backend=KernelAbstractions.CPU(), FT=Floa
     R = N ÷ 5
     cx, cy = N ÷ 2, N ÷ 2
     C_cpu = zeros(FT, N, N)
-    w = Kraken.weights(D2Q9())
+    w = KrakeNN.weights(D2Q9())
     f_cpu = zeros(FT, N, N, 9)
     for j in 1:N, i in 1:N
         r = sqrt(FT((i - cx)^2 + (j - cy)^2))

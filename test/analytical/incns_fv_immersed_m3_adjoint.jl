@@ -21,7 +21,7 @@ let evidence = NamedTuple[]
             obj = objective == :torque ? FVWallTorque((6.13,5.87);kind) :
                                         FVWallForce(objective == :force_x ? 1 : 2;kind)
             arbitrary = 0.3randn(MersenneTwister(834),fv_nunknowns(p))
-            _,local_grad = Kraken._fv_objective_grad_u(obj,arbitrary,p)
+            _,local_grad = KrakeNN._fv_objective_grad_u(obj,arbitrary,p)
             dense_grad = ForwardDiff.gradient(x->fv_objective(obj,x,p),arbitrary)
             @test norm(local_grad-dense_grad,Inf) <= 1e-11
             lambda_derivative = dense_grad[end]

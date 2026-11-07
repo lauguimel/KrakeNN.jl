@@ -13,7 +13,7 @@
 #
 #   KRAKEN_REQUIRE_GPU=1 julia --project=<env> benchmarks/fv_c3/c3_gpu.jl
 #
-# <env>: Kraken (dev'd by path), CUDA 6, CUDSS 1, ForwardDiff,
+# <env>: KrakeNN (dev'd by path), CUDA 6, CUDSS 1, ForwardDiff,
 # KernelAbstractions, Test (benchmarks/fv_c3/setup_c3.sh).
 # Local smoke run without a GPU (CPU backend, small sizes, CUDA-only parts
 # skipped): C3_CPU_SMOKE=1 julia --project=<env> benchmarks/fv_c3/c3_gpu.jl
@@ -24,10 +24,10 @@ const SMOKE = get(ENV, "C3_CPU_SMOKE", "0") == "1"
 GPU || SMOKE || error("CUDA not functional (set C3_CPU_SMOKE=1 for the CPU smoke run)")
 using CUDSS
 using Test, LinearAlgebra, Random, Printf, Statistics
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 println(GPU ? "GPU: $(CUDA.name(CUDA.device()))" : "CPU smoke run", "  CUDA.jl ", pkgversion(CUDA),
-        "  CUDSS.jl ", pkgversion(CUDSS), "  Kraken ", pkgversion(Kraken), "  threads ", Threads.nthreads())
+        "  CUDSS.jl ", pkgversion(CUDSS), "  KrakeNN ", pkgversion(KrakeNN), "  threads ", Threads.nthreads())
 const TA = joinpath(@__DIR__, "..", "..", "test", "analytical")
 include(joinpath(TA, "fv_newton_helpers.jl"))
 
@@ -132,7 +132,7 @@ function bench(name, p; parity = false)
         a1 = allocated(() -> fv_jacobian!(s, U))
         a2 = allocated(() -> lin_refactorize!(s.cache))
         a3 = allocated(() -> (lin_solve!(dU, s.cache, R); GPU && CUDA.synchronize()))
-        a4 = allocated(() -> (fv_residual!(R, U, s.prob); Kraken._fv_norms(s.norms, R)))
+        a4 = allocated(() -> (fv_residual!(R, U, s.prob); KrakeNN._fv_norms(s.norms, R)))
         push!(frees, free_mem())
         @printf("    %2d | %d | %d | %d | %d | %.3f\n", it, a1, a2, a3, a4, gib(frees[end]))
     end

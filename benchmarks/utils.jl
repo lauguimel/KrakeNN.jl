@@ -1,4 +1,4 @@
-# Shared utilities for the Kraken.jl benchmark suite.
+# Shared utilities for the KrakeNN benchmark suite.
 #
 # Every benchmark script produces a Vector{NamedTuple} with a stable
 # schema and writes it to a timestamped CSV file in benchmarks/results/.

@@ -8,7 +8,7 @@
 # coupled fields are f (D2Q9 distributions) and psi (log-conformation tensor),
 # stacked into one flat state w = (f, psi). Plain-Julia, Enzyme-tapeable: NO
 # @kernel, NO GPU, NO `using Enzyme` (Enzyme stays a weakdep; the reverse seams
-# live in ext/KrakenADExt.jl).
+# live in ext/KrakeNNADExt.jl).
 #
 # The operator applies the THREE fixes the forensic mission isolated to match
 # production exactly:
@@ -31,7 +31,7 @@
 #
 # The D2Q9 LBM helpers, the log-conformation constitutive math, the cut-cell
 # circle geometry (`ADVEEmbeddedGeom` + builders) and the embedded FVFD operators
-# this step uses live in the companion `ad_ve_ops.jl` (included first in Kraken.jl).
+# this step uses live in the companion `ad_ve_ops.jl` (included first in KrakeNN.jl).
 
 # ----------------------------------------------------------------------------
 # Stacked-state coupled params (scratch VECoupledParams). Flat layout:

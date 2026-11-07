@@ -50,7 +50,7 @@ function _check_image_backend(png_out, gif_out)
     need = png_out !== nothing || gif_out !== nothing
     if need && _png_saver[] === nothing
         @warn "Output png/gif requested but CairoMakie is not loaded. " *
-              "Add `using CairoMakie` before `using Kraken` to enable PNG/GIF output."
+              "Add `using CairoMakie` before `using KrakeNN` to enable PNG/GIF output."
     end
 end
 

@@ -1,7 +1,7 @@
 using Test
-using Kraken
+using KrakeNN
 
-const U = Kraken.Units
+const U = KrakeNN.Units
 
 _geom_ss(; type=:cylinder_2d, blockage=0.5, L_up=15.0, L_down=15.0,
          q_wall_dist=nothing) =

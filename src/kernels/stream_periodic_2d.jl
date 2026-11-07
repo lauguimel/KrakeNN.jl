@@ -63,9 +63,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_periodic_x_wall_y_2d!)
+methods(KrakeNN.stream_periodic_x_wall_y_2d!)
 ```
 """
 function stream_periodic_x_wall_y_2d!(f_out, f_in, Nx, Ny)
@@ -104,9 +104,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_fully_periodic_2d!)
+methods(KrakeNN.stream_fully_periodic_2d!)
 ```
 """
 function stream_fully_periodic_2d!(f_out, f_in, Nx, Ny)
@@ -165,9 +165,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_periodic_x_axisym_2d!)
+methods(KrakeNN.stream_periodic_x_axisym_2d!)
 ```
 """
 function stream_periodic_x_axisym_2d!(f_out, f_in, Nx, Ny)
@@ -226,9 +226,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_axisym_inlet_2d!)
+methods(KrakeNN.stream_axisym_inlet_2d!)
 ```
 """
 function stream_axisym_inlet_2d!(f_out, f_in, Nx, Ny)

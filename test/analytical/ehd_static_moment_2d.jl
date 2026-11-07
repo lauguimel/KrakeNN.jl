@@ -1,4 +1,4 @@
-using Test, Kraken, KernelAbstractions, LinearAlgebra
+using Test, KrakeNN, KernelAbstractions, LinearAlgebra
 
 # Issue #73 PR 1: prospective Float64 gates. Algebra tolerance 2e-14;
 # manufactured residual 1e-11 and order >1.8 are frozen from the independent
@@ -10,13 +10,13 @@ using Test, Kraken, KernelAbstractions, LinearAlgebra
     for v in (0.0, 0.0005, 0.01/sqrt(3), 0.009), qb in (0.01, 1.0, 2.0)
         original = [0.03*sin(k) for k in 1:9]
         outgoing = sum(original[k] for k in (5,8,9))
-        f = [Kraken._ehd_static_injector_population(Val(k), qb, v, outgoing) for k in 1:9]
+        f = [KrakeNN._ehd_static_injector_population(Val(k), qb, v, outgoing) for k in 1:9]
         @test abs(sum(f)-qb) <= 2e-14
         @test abs(sum(f[k] for k in (5,8,9))-outgoing) <= 2e-14
         @test abs(sum(f .* cx)) <= 2e-14
         eq = [qb*w[k]*(1+3cy[k]*v+4.5*(cy[k]*v)^2-1.5v^2) for k in 1:9]
         geq = sum(eq[k] for k in (5,8,9))
-        @test maximum(abs(Kraken._ehd_static_injector_population(Val(k),qb,v,geq)-eq[k]) for k in 1:9) <= 2e-14
+        @test maximum(abs(KrakeNN._ehd_static_injector_population(Val(k),qb,v,geq)-eq[k]) for k in 1:9) <= 2e-14
     end
 
     @testset "Collector/interior unchanged and injector kernel identities" begin
@@ -25,8 +25,8 @@ using Test, Kraken, KernelAbstractions, LinearAlgebra
         before = copy(f); legacy = copy(f)
         q = dropdims(sum(f; dims=3); dims=3)
         ex = zeros(nx,ny); ey = fill(0.003,nx,ny)
-        Kraken.apply_charge_nee_walls_2d!(legacy,q,ex,ey,0.2,0.0,1.0,nx,ny)
-        Kraken._apply_charge_static_moment_walls!(f,q,ex,ey,0.2,1.0,nx,ny)
+        KrakeNN.apply_charge_nee_walls_2d!(legacy,q,ex,ey,0.2,0.0,1.0,nx,ny)
+        KrakeNN._apply_charge_static_moment_walls!(f,q,ex,ey,0.2,1.0,nx,ny)
         KernelAbstractions.synchronize(CPU())
         @test f[:,2:ny-1,:] == before[:,2:ny-1,:]
         @test f[:,ny,:] == legacy[:,ny,:]
@@ -38,15 +38,15 @@ using Test, Kraken, KernelAbstractions, LinearAlgebra
         base = (charge_scheme=:regularized,phi_scheme=:direct,injector_closure=:static_moment)
         for change in ((charge_scheme=:srt,), (phi_scheme=:lbm,), (FT=Float32,),
                        (delta_U=2.0,), (injector_closure=:unknown,), (alpha=NaN,))
-            @test_throws ArgumentError Kraken.run_ehd_hydrostatic_2d(;merge(base,change)...)
+            @test_throws ArgumentError KrakeNN.run_ehd_hydrostatic_2d(;merge(base,change)...)
         end
-        @test_throws ArgumentError Kraken.init_state(Kraken.ECState; base...)
-        @test_throws ArgumentError Kraken.run_electroconvection_2d(; base...)
+        @test_throws ArgumentError KrakeNN.init_state(KrakeNN.ECState; base...)
+        @test_throws ArgumentError KrakeNN.run_electroconvection_2d(; base...)
         fixture = joinpath(@__DIR__,"..","..","benchmarks","krk","ehd","hydrostatic_fast.krk")
-        setup = Kraken.load_kraken(fixture)
+        setup = KrakeNN.load_kraken(fixture)
         setup.physics.params[:injector_closure] = :static_moment
         setup.physics.params[:charge_scheme] = :srt
-        @test_throws ArgumentError Kraken.run_simulation(setup; T=Float64)
+        @test_throws ArgumentError KrakeNN.run_simulation(setup; T=Float64)
     end
 
     @testset "Ny96 public-driver canary and explicit legacy parity" begin
@@ -54,9 +54,9 @@ using Test, Kraken, KernelAbstractions, LinearAlgebra
         # Converged H256/512/1024 cases run separately on Aqua with this source.
         args = (Nx=4,Ny=96,charge_scheme=:regularized,phi_scheme=:direct,
                 charge_tol=Inf,max_steps=1,backend=CPU(),FT=Float64)
-        default = Kraken.run_ehd_hydrostatic_2d(;args...)
-        legacy = Kraken.run_ehd_hydrostatic_2d(;args...,injector_closure=:nee)
-        candidate = Kraken.run_ehd_hydrostatic_2d(;args...,injector_closure=:static_moment)
+        default = KrakeNN.run_ehd_hydrostatic_2d(;args...)
+        legacy = KrakeNN.run_ehd_hydrostatic_2d(;args...,injector_closure=:nee)
+        candidate = KrakeNN.run_ehd_hydrostatic_2d(;args...,injector_closure=:static_moment)
         @test isequal(default,legacy)
         @test candidate.steps == 1
         @test all(isfinite,candidate.q) && minimum(candidate.q) > 0
@@ -72,7 +72,7 @@ using Test, Kraken, KernelAbstractions, LinearAlgebra
         # measurement at Nx=4, Ny=96 is 0.52% for :static_moment versus 26.6%
         # for :nee. Freeze a 1% regression ceiling BEFORE the follow-up run.
         # This guards the integrated call order, not a new profile-accuracy claim.
-        result = Kraken.run_ehd_hydrostatic_2d(; Nx=4, Ny=96,
+        result = KrakeNN.run_ehd_hydrostatic_2d(; Nx=4, Ny=96,
             C=10.0, M=10.0, Ma_E=0.01, alpha=1e-4, delta_U=1.0,
             charge_scheme=:regularized, phi_scheme=:direct,
             injector_closure=:static_moment, charge_tol=1e-10,
@@ -130,13 +130,13 @@ using Test, Kraken, KernelAbstractions, LinearAlgebra
             f=[q[j]*w[k]*(1+3cy[k]*v[j]+4.5*(cy[k]*v[j])^2-1.5v[j]^2)+3w[k]*cy[k]*jne[j]
                for i in 1:nx,j in 1:ny,k in 1:9]
             before=copy(f); out=similar(f); ex=zeros(nx,ny); ey=repeat(reshape(v,1,ny),nx,1)
-            Kraken.collide_electric_charge_regularized_2d!(f,ex,ey,tau,1.0)
+            KrakeNN.collide_electric_charge_regularized_2d!(f,ex,ey,tau,1.0)
             KernelAbstractions.synchronize(CPU())
             links=[sum(f[1,j,k] for k in (3,6,7))-sum(f[1,j+1,k] for k in (5,8,9)) for j in 1:h]
             @test maximum(abs.(links.-flux)) <= 1e-11
-            Kraken.stream_periodic_x_wall_y_2d!(out,f,nx,ny)
-            qfield=zeros(nx,ny); Kraken.compute_ehd_scalar_2d!(qfield,out)
-            Kraken._apply_charge_static_moment_walls!(out,qfield,ex,ey,1.0,1.0,nx,ny)
+            KrakeNN.stream_periodic_x_wall_y_2d!(out,f,nx,ny)
+            qfield=zeros(nx,ny); KrakeNN.compute_ehd_scalar_2d!(qfield,out)
+            KrakeNN._apply_charge_static_moment_walls!(out,qfield,ex,ey,1.0,1.0,nx,ny)
             KernelAbstractions.synchronize(CPU())
             # Isolation reference prescribes top q=.8; exclude the legacy
             # Neumann collector row from this manufactured fixed-point check.

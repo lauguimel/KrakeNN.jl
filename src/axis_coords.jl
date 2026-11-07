@@ -13,7 +13,7 @@
 # MIXED domain — e.g. the lid-driven cavity with a Zou-He moving lid (on-node)
 # and halfway-BB side/bottom walls — that mislocates the Zou-He wall by half a
 # cell, injecting an O(1/N) (first-order) error into every reference comparison
-# (Ghia, analytic, RheoTool). Use this helper everywhere a Kraken field is
+# (Ghia, analytic, RheoTool). Use this helper everywhere a KrakeNN field is
 # mapped to physical coordinates for comparison or output.
 #
 # Convention: the lo-end wall is placed at 0, the hi-end wall at 1.

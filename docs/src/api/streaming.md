@@ -1,7 +1,7 @@
 # Streaming
 
 Streaming propagates post-collision distributions to their
-neighbours along the discrete velocities. Kraken provides standard
+neighbours along the discrete velocities. KrakeNN provides standard
 streaming for 2D/3D, as well as periodic and axisymmetric variants
 used by channel, Taylor-Green, and pipe drivers. GPU-safe index
 clamping is handled inside the kernels (see the LBM patterns memo

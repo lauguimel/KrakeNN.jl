@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Grid Refinement" begin
 
@@ -397,7 +397,7 @@ using Kraken
             Refine near_wall { region = [0.0, 0.0, 0.3, 1.0], ratio = 4 }
             Run 100 steps
         """)
-        issues = Kraken.sanity_check(setup; verbose=false)
+        issues = KrakeNN.sanity_check(setup; verbose=false)
         # ratio=4 with nu=0.01 → tau_base = 0.53, tau_fine = 4*(0.03)+0.5 = 0.62
         # thermal: alpha = 0.01/0.71 ≈ 0.0141, tau_T = 3*0.0141+0.5 = 0.5423
         # tau_T_fine = 4*(0.0423)+0.5 = 0.669 — both should be fine

@@ -76,8 +76,8 @@ Deja disponible:
 Commandes actuelles:
 
 ```bash
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_topology_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_topology_2d.jl")'
 julia --project=. scripts/figures/plot_voie_d_phase_p.jl
 ```
 
@@ -95,7 +95,7 @@ Fichiers probables:
 ```text
 src/refinement/conservative_tree_streaming_2d.jl
 test/test_conservative_tree_streaming_2d.jl
-src/Kraken.jl
+src/KrakeNN.jl
 test/runtests.jl
 ```
 

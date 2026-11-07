@@ -1,6 +1,6 @@
 # Prepared C5 M3 CUDA/cuDSS contract. Execution requires explicit GPU opt-in.
 # Float64; frozen 1e-12 relative parity, zero hot device allocation.
-using Test, LinearAlgebra, Kraken
+using Test, LinearAlgebra, KrakeNN
 
 if !isdefined(@__MODULE__, :_c5gpu_problem)
     include(joinpath(@__DIR__, "incns_fv_immersed_gpu_helpers.jl"))

@@ -157,7 +157,7 @@
 #
 # ## Code
 
-using Kraken
+using KrakeNN
 
 Ny     = 32
 ν      = 0.1
@@ -179,7 +179,7 @@ y_phys  = [j - 1 for j in j_fluid]              # on-node (Zou-He)
 u_ana   = [u_wall * (1 - y / H) for y in y_phys]
 u_num   = [ux[2, j] for j in j_fluid]
 
-# ![Couette flow velocity profile at Ny = 32.  Blue line: analytical linear profile ux(y) = u_wall (1 - y/H).  Orange dots: Kraken simulation.  The numerical solution is indistinguishable from the analytical line because the D2Q9 equilibrium exactly reproduces linear velocity profiles.  The velocity equals u_wall = 0.05 at the bottom and zero at the top.](couette_profile.svg)
+# ![Couette flow velocity profile at Ny = 32.  Blue line: analytical linear profile ux(y) = u_wall (1 - y/H).  Orange dots: KrakeNN simulation.  The numerical solution is indistinguishable from the analytical line because the D2Q9 equilibrium exactly reproduces linear velocity profiles.  The velocity equals u_wall = 0.05 at the bottom and zero at the top.](couette_profile.svg)
 #
 # The numerical solution is **indistinguishable** from the analytical profile.
 # This is not just "good agreement" --- it is exact agreement to machine
@@ -218,7 +218,7 @@ for Ny_i in Ny_list
     push!(errors, L2)
 end
 
-# ![Convergence of the Couette flow simulation.  Log-log plot of relative L2 error vs grid resolution Ny.  Blue dots: Kraken results hovering between 1e-14 and 1e-12 at all resolutions.  Grey dashed line: Float64 machine epsilon for reference.  Unlike Poiseuille flow, there is no convergence trend because the error is pure floating-point roundoff, not truncation error.](couette_convergence.svg)
+# ![Convergence of the Couette flow simulation.  Log-log plot of relative L2 error vs grid resolution Ny.  Blue dots: KrakeNN results hovering between 1e-14 and 1e-12 at all resolutions.  Grey dashed line: Float64 machine epsilon for reference.  Unlike Poiseuille flow, there is no convergence trend because the error is pure floating-point roundoff, not truncation error.](couette_convergence.svg)
 #
 # The "convergence" plot confirms that the error is at the floating-point floor
 # (``\sim 10^{-14}``--``10^{-12}``) for all resolutions.  A flat machine-epsilon

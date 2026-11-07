@@ -69,7 +69,7 @@ Derniers commits importants:
 - Toujours commencer par `git status --short`.
 - Le worktree peut etre sale hors AMR. Ne jamais revert ce qui n'a pas ete
   touche par cette session.
-- `src/Kraken.jl` peut contenir des changements hors perimetre: ne pas le stage
+- `src/KrakeNN.jl` peut contenir des changements hors perimetre: ne pas le stage
   sans inspection explicite.
 - Commits petits, en anglais, conventional si possible:
   `feat:`, `fix:`, `test:`, `docs:`, `refactor:`.
@@ -83,13 +83,13 @@ Derniers commits importants:
 Validation de base voie D avant gros changement:
 
 ```bash
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_topology_2d.jl"); include("test/test_conservative_tree_streaming_2d.jl"); include("test/test_conservative_tree_open_boundary_2d.jl"); include("test/test_conservative_tree_obstacle_interface_2d.jl"); include("test/test_conservative_tree_subcycling_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_topology_2d.jl"); include("test/test_conservative_tree_streaming_2d.jl"); include("test/test_conservative_tree_open_boundary_2d.jl"); include("test/test_conservative_tree_obstacle_interface_2d.jl"); include("test/test_conservative_tree_subcycling_2d.jl")'
 ```
 
 Validation partagee avant commit structurel:
 
 ```bash
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_gpu_pack_2d.jl"); include("test/test_conservative_tree_adaptation_2d.jl"); include("test/test_conservative_tree_multipatch_2d.jl"); include("test/test_conservative_tree_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_gpu_pack_2d.jl"); include("test/test_conservative_tree_adaptation_2d.jl"); include("test/test_conservative_tree_multipatch_2d.jl"); include("test/test_conservative_tree_2d.jl")'
 ```
 
 ## Decision d'architecture
@@ -263,7 +263,7 @@ test/v04_test_ad_frozen_tree_2d.jl
 test/v04_test_gpu_pack_2d.jl
 ```
 
-Ne pas exporter largement depuis `src/Kraken.jl` au debut si ce fichier est
+Ne pas exporter largement depuis `src/KrakeNN.jl` au debut si ce fichier est
 dirty hors perimetre. Les tests peuvent inclure le module v04 directement ou
 utiliser un export minimal dans un commit dedie apres inspection.
 

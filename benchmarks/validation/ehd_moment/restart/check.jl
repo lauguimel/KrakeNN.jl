@@ -11,7 +11,7 @@ function check(name, passed; details="")
     return passed
 end
 function disk_exact(s,r,tag)
-    a,b = Kraken.export_state(s),Kraken.export_state(r)
+    a,b = KrakeNN.export_state(s),KrakeNN.export_state(r)
     for k in keys(a.fields)
         check("$tag/disk/$k",isequal(a.fields[k],b.fields[k]))
     end
@@ -43,9 +43,9 @@ for closure in (:nee,:moment), gpu in (false,true)
         s = fresh(closure,backend)
         prefix = trajectory(s,7)
         path = "raw/restart_$tag.h5"
-        Kraken.save_checkpoint(path,s)
-        r = Kraken.load_checkpoint(Kraken.ECState,path;backend,injector_closure=closure)
-        gpu && check("$tag/restored_backend",r.poisson_setup isa Kraken.EhdPoissonSetupGPU)
+        KrakeNN.save_checkpoint(path,s)
+        r = KrakeNN.load_checkpoint(KrakeNN.ECState,path;backend,injector_closure=closure)
+        gpu && check("$tag/restored_backend",r.poisson_setup isa KrakeNN.EhdPoissonSetupGPU)
         disk_exact(s,r,tag)
         tail = trajectory(s,13); restarted = trajectory(r,13)
         save_bin("raw/continuous_$tag.bin",vcat(prefix,tail[2:end]))
@@ -66,20 +66,20 @@ for closure in (:nee,:moment), gpu in (false,true)
 end
 # Diagnostic clones only: production prefix calls, never resumed after the prefix.
 for closure in (:nee,:moment), trial in 1:3
-    s = fresh(closure); Kraken.advance!(s,7)
+    s = fresh(closure); KrakeNN.advance!(s,7)
     tag = "$(closure)_$(trial)"
-    path = "raw/diagnostic_$tag.h5"; Kraken.save_checkpoint(path,s)
-    r = Kraken.load_checkpoint(Kraken.ECState,path;backend=CUDA.CUDABackend(),injector_closure=closure)
+    path = "raw/diagnostic_$tag.h5"; KrakeNN.save_checkpoint(path,s)
+    r = KrakeNN.load_checkpoint(KrakeNN.ECState,path;backend=CUDA.CUDABackend(),injector_closure=closure)
     disk_exact(s,r,"diagnostic/$tag")
     before_a,before_b = stage_sample(s),stage_sample(r)
     # Ex/Ey are recomputed on restore and are not Poisson inputs.
     pre = stage_diff(before_a,before_b)
-    Kraken.ehd_poisson_solve!(s.phi,s.poisson_setup,s.qfield)
-    Kraken.ehd_poisson_solve!(r.phi,r.poisson_setup,r.qfield)
+    KrakeNN.ehd_poisson_solve!(s.phi,s.poisson_setup,s.qfield)
+    KrakeNN.ehd_poisson_solve!(r.phi,r.poisson_setup,r.qfield)
     after_a,after_b = stage_sample(s),stage_sample(r)
     post = stage_diff(after_a,after_b)
     for state in (s,r)
-        Kraken.compute_electric_field_fd_2d!(state.Ex,state.Ey,state.phi,:neumann,10,16)
+        KrakeNN.compute_electric_field_fd_2d!(state.Ex,state.Ey,state.phi,:neumann,10,16)
     end
     field_a,field_b = stage_sample(s),stage_sample(r)
     fd = stage_diff(field_a,field_b)
@@ -94,7 +94,7 @@ for closure in (:nee,:moment), trial in 1:3
     println("STAGE ",tag," ",first); flush(stdout)
     GC.gc(); CUDA.reclaim()
 end
-check("no_cudss_fallback",!Kraken._EHD_CUDSS_FALLBACK_WARNED[])
+check("no_cudss_fallback",!KrakeNN._EHD_CUDSS_FALLBACK_WARNED[])
 check("frozen_tolerances_unchanged",bytes2hex(sha256(read("raw/tolerances.toml")))==sealed)
 passed = count(x->x["pass"],checks); failed=length(checks)-passed
 save_toml("raw/status.toml",Dict("status"=>failed==0 ? "PASS_SCOPED_RESTART" : "FAIL",

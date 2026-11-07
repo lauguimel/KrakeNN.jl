@@ -3,7 +3,7 @@
 # Usage:
 #   julia --project benchmarks/perf_quick_wins.jl           # CPU
 #   julia --project benchmarks/perf_quick_wins.jl --gpu     # GPU
-using Kraken
+using KrakeNN
 using Printf
 using KernelAbstractions
 

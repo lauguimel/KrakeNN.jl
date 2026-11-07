@@ -1,6 +1,6 @@
 using Test
 
-# Use Kraken if available, otherwise include directly for standalone testing
+# Use KrakeNN if available, otherwise include directly for standalone testing
 if !isdefined(@__MODULE__, :KrakenExpr)
     include(joinpath(@__DIR__, "..", "src", "io", "expression.jl"))
     include(joinpath(@__DIR__, "..", "src", "io", "kraken_parser.jl"))
@@ -8,7 +8,7 @@ end
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 
-@testset "Kraken Parser" begin
+@testset "KrakeNN Parser" begin
 
     @testset "Cavity example" begin
         setup = load_kraken(joinpath(EXAMPLES_DIR, "cavity.krk"))

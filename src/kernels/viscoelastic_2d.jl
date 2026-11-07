@@ -45,9 +45,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_polymeric_force_2d!)
+methods(KrakeNN.compute_polymeric_force_2d!)
 ```
 """
 function compute_polymeric_force_2d!(Fx_p, Fy_p, tau_xx, tau_xy, tau_yy)
@@ -154,9 +154,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.evolve_stress_2d!)
+methods(KrakeNN.evolve_stress_2d!)
 ```
 """
 function evolve_stress_2d!(tau_xx_new, tau_xy_new, tau_yy_new,
@@ -285,9 +285,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.evolve_logconf_2d!)
+methods(KrakeNN.evolve_logconf_2d!)
 ```
 """
 function evolve_logconf_2d!(Theta_xx_new, Theta_xy_new, Theta_yy_new,
@@ -338,9 +338,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_stress_from_conf_2d!)
+methods(KrakeNN.compute_stress_from_conf_2d!)
 ```
 """
 function compute_stress_from_conf_2d!(tau_xx, tau_xy, tau_yy, Cxx, Cxy, Cyy;
@@ -383,9 +383,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_stress_from_logconf_2d!)
+methods(KrakeNN.compute_stress_from_logconf_2d!)
 ```
 """
 function compute_stress_from_logconf_2d!(tau_xx, tau_xy, tau_yy,

@@ -2,7 +2,7 @@
 # Validates the south-north exchange path and north-south BC paths, which
 # are orthogonal to L1 (W|E split). Must match L0 single-block bit-exact.
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const Lx = 1.0
 const Ly = 0.25
@@ -33,7 +33,7 @@ function init_parabolic!(state, u_prof_offset_j, T)
         # j is LOCAL to this block; convert to global via offset
         j_global = u_prof_offset_j + j
         u = u_analytical((j_global - 1) * dx)
-        feq = Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q)
+        feq = KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q)
         state.f[i + ng, j + ng, q] = T(feq)
     end
 end

@@ -1,8 +1,8 @@
 #!/usr/bin/env julia
 # =====================================================================
-# make_csv.jl — analytical comparison of the 4 Kraken viscoelastic
+# make_csv.jl — analytical comparison of the 4 KrakeNN viscoelastic
 # constitutive models (Oldroyd-B, FENE-P, Giesekus, PTT) in two
-# homogeneous flows, using the REAL Kraken log-conformation constitutive
+# homogeneous flows, using the REAL KrakeNN log-conformation constitutive
 # solver (no hardcoded model formulas).
 #
 #   Page : docs/src/users/benchmarks/ve-constitutive-models.md
@@ -15,7 +15,7 @@
 # steady fixed point, then reconstruct C = exp(Ψ) via `mat_exp_sym3x3`.
 # This is exactly the single-cell pattern of the constitutive canaries
 # test/test_fvfd_{logconf,fenep,giesekus,ptt}_3d.jl — so the figure shows
-# what Kraken actually computes, not a closed form.
+# what KrakeNN actually computes, not a closed form.
 #
 #   Simple shear     : gradU = γ̇·(e_x ⊗ e_y),  Wi = λγ̇  ∈ sweep
 #       → N1 = G(C_xx − C_yy),  η_p,app = G·C_xy/γ̇  (here G=1, λ=1)
@@ -25,7 +25,7 @@
 # Run (from repo root):
 #   julia --project=. benchmarks/results/repro/ve-constitutive-models/make_csv.jl
 # =====================================================================
-using Kraken
+using KrakeNN
 using Printf
 
 const HERE = @__DIR__
@@ -44,7 +44,7 @@ velocity_gradient(; duxdx=0.0, duxdy=0.0, duxdz=0.0,
      field3(duzdx), field3(duzdy), field3(duzdz))
 
 psi_values(psi) = ntuple(c -> psi[c][1, 1, 1], 6)
-conformation_from_psi(psi) = Kraken.mat_exp_sym3x3(psi_values(psi)...)
+conformation_from_psi(psi) = KrakeNN.mat_exp_sym3x3(psi_values(psi)...)
 
 # --- one constitutive step per model (dispatch on the model spec) -----
 # Each writes Ψ_out in place; returns max-abs Ψ increment for convergence.
@@ -52,16 +52,16 @@ function step!(psi, grad, lambda, dt, n_sub, model)
     before = psi_values(psi)
     out = ntuple(c -> similar(psi[c]), 6)
     if model isa LogConfOldroydB
-        Kraken.logfv_constitutive_step_log_3d!(
+        KrakeNN.logfv_constitutive_step_log_3d!(
             out..., psi..., grad..., lambda, dt, n_sub; sync=true)
     elseif model isa LogConfFENEP
-        Kraken.logfv_constitutive_step_log_fenep_3d!(
+        KrakeNN.logfv_constitutive_step_log_fenep_3d!(
             out..., psi..., grad..., lambda, dt, model.L², n_sub; sync=true)
     elseif model isa LogConfGiesekus
-        Kraken.logfv_constitutive_step_log_giesekus_3d!(
+        KrakeNN.logfv_constitutive_step_log_giesekus_3d!(
             out..., psi..., grad..., lambda, dt, model.α, n_sub; sync=true)
     elseif model isa LogConfPTT
-        Kraken.logfv_constitutive_step_log_ptt_3d!(
+        KrakeNN.logfv_constitutive_step_log_ptt_3d!(
             out..., psi..., grad..., lambda, dt, model.ε, n_sub;
             variant=model.variant, sync=true)
     else
@@ -77,8 +77,8 @@ end
 # --- integrate a homogeneous flow to its constitutive fixed point -----
 function run_to_steady(model, grad; lambda=1.0, dt=0.02)
     psi = psi_state()
-    max_grad_norm = Kraken.logfv_max_grad_norm_3d(grad...)
-    n_sub = 8 * Kraken.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
+    max_grad_norm = KrakeNN.logfv_max_grad_norm_3d(grad...)
+    n_sub = 8 * KrakeNN.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
     max_steps = ceil(Int, 400lambda / dt)
     delta = Inf
     steps = 0
@@ -147,7 +147,7 @@ end
 # --- write CSV --------------------------------------------------------
 out = joinpath(HERE, "ve_constitutive_models.csv")
 open(out, "w") do io
-    println(io, "# Kraken viscoelastic constitutive-model comparison (single-cell, real solver)")
+    println(io, "# KrakeNN viscoelastic constitutive-model comparison (single-cell, real solver)")
     println(io, "# G=1, lambda=1; shear control=Wi=lambda*gammadot; extension control=lambda*edot")
     println(io, "# models: oldroydb, fenep(L2=50), giesekus(alpha=0.2), ptt(eps=0.25,linear)")
     println(io, "flow,model,control,Cxx,Cxy,Cyy,Czz,trC,N1,eta_p,steps")

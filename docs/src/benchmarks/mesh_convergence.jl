@@ -13,7 +13,7 @@
 
 # ## Setup
 
-using Kraken
+using KrakeNN
 using CairoMakie
 using Printf
 

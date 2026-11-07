@@ -1,5 +1,5 @@
 # C5-S3 local diagnostic fixture, not a production halfplane constructor.
-using Test, LinearAlgebra, Kraken
+using Test, LinearAlgebra, KrakeNN
 
 const _C5M_NS = (16, 32, 64, 128)
 const _C5M_ANGLES = (0, 15, 30, 45, 60, 75)
@@ -111,19 +111,19 @@ function _c5m_reconstruction_metrics(f,U)
         ex,ey = (d==1)-(d==2),(d==3)-(d==4)
         q = ib.qcut[d,i,j]
         xw,yw = x+q*g.h*ex,y+q*g.h*ey
-        w = Kraken._fv_wall_data(U,p.bvel,g,i,j,d,ib.qcut,ib.wvel,ib.closure)
+        w = KrakeNN._fv_wall_data(U,p.bvel,g,i,j,d,ib.qcut,ib.wvel,ib.closure)
         eg = _c5m_fields(x+g.h*ex,y+g.h*ey,f.degree,f.pressure_quadratic)
         ef = _c5m_fields(x+g.h*ex/2,y+g.h*ey/2,f.degree,f.pressure_quadratic)
         ghost = max(ghost,abs(w[3]-eg[1]),abs(w[4]-eg[2]))
         face = max(face,abs(w[6]-ef[1]),abs(w[7]-ef[2]))
         nominal_pressure = max(nominal_pressure,abs(w[5]-ef[3]))
-        cg = Kraken._fv_cell_grad(U,p.tag,p.bvel,g,i,j,ib.qcut,ib.wvel,ib.closure)
+        cg = KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,i,j,ib.qcut,ib.wvel,ib.closure)
         cell_gradient = max(cell_gradient,_c5m_maxabs(cg[1:4] .- _c5m_gradient(x,y,f.degree)))
         G = _c5m_gradient(xw,yw,f.degree)
         nx,ny = f.normal
         dt = (-ny*G[1]+nx*G[2],-ny*G[3]+nx*G[4])
         nuw = _c5m_nu(xw,yw)
-        s = Kraken._fv_surface_reconstruction(U,p,i,j,d,f.normal,dt,nuw)
+        s = KrakeNN._fv_surface_reconstruction(U,p,i,j,d,f.normal,dt,nuw)
         surface_gradient = max(surface_gradient,_c5m_maxabs(s.gradient .- G))
         pw = _c5m_fields(xw,yw,f.degree,f.pressure_quadratic)[3]
         surface_pressure = max(surface_pressure,abs(s.pressure-pw))

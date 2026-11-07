@@ -255,7 +255,7 @@ parity, allocation and timings remain unmeasured. No commit or push was made.
 
 Files changed or created in this session:
 
-- Source: `src/Kraken.jl`; `src/methods/inc_ns/fv_adjoint.jl`,
+- Source: `src/KrakeNN.jl`; `src/methods/inc_ns/fv_adjoint.jl`,
   `fv_steady_residual.jl`, `fv_immersed.jl`, `fv_immersed_surface.jl`, and new
   `fv_immersed_objectives.jl`.
 - Tests: `test/runtests.jl`; `test/analytical/incns_fv_immersed.jl`,

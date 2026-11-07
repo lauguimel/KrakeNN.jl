@@ -37,7 +37,7 @@ Arranged on the lattice (ASCII art, North = up):
 ```
 
 !!! tip "Julia indexing"
-    In Kraken.jl, ``q`` ranges from **1 to 9** (1-indexed). The rest
+    In KrakeNN, ``q`` ranges from **1 to 9** (1-indexed). The rest
     population is ``q = 1``, not ``q = 0`` as in some C/Fortran codes.
 
 ## Speed of sound
@@ -81,12 +81,12 @@ f_q^{\mathrm{eq}} = w_q \, \rho \Big[
     ``\mathrm{Ma} = u / c_s``. Higher-order terms are truncated, which
     limits LBM accuracy to ``O(\mathrm{Ma}^2)``.
 
-## Kraken.jl API
+## KrakeNN API
 
 Let us inspect the D2Q9 lattice and compute equilibrium values.
 
 ```julia
-using Kraken
+using KrakeNN
 
 lattice = D2Q9()
 

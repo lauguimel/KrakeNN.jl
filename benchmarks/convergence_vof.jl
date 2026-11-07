@@ -1,7 +1,7 @@
 # VOF multiphase convergence study
 # Laplace law validation: static droplet at different radii
 # Measures pressure jump error and spurious currents
-using Kraken
+using KrakeNN
 using Printf
 
 function run_vof_convergence()

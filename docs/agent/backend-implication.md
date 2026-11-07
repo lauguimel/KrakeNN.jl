@@ -16,7 +16,7 @@ implemented entirely through [KernelAbstractions.jl](https://github.com/JuliaGPU
 `src/curvilinear/`, `src/multiblock/`, and `src/refinement/`. The contract this
 map documents is the **device-agnostic launch idiom + the GPU-safety rules every
 `@kernel` must obey** so that the same source runs on `CPU()`, `CUDABackend()`,
-and `MetalBackend()` unchanged. The main module docstring (`src/Kraken.jl`)
+and `MetalBackend()` unchanged. The main module docstring (`src/KrakeNN.jl`)
 advertises "automatic GPU acceleration via KernelAbstractions.jl" — this file is
 the operational backing of that claim. There is no Kraken-owned `select_backend`
 abstraction: the backend is **passed in by the caller** and **recovered from the

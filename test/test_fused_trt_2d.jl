@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Fused TRT 2D" begin
 
@@ -36,7 +36,7 @@ using Kraken
         for j in 1:N, i in 1:N
             u_init = 0.01 * sin(2π * (i - 1) / N)
             for q in 1:9
-                f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, u_init, 0.0, q)
+                f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, u_init, 0.0, q)
             end
         end
 
@@ -62,7 +62,7 @@ using Kraken
         ν = 0.02
         f_in = zeros(Float64, N, N, 9)
         for j in 1:N, i in 1:N, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
         end
         f_out = similar(f_in)
         ρ = ones(N, N); ux = zeros(N, N); uy = zeros(N, N)
@@ -94,7 +94,7 @@ using Kraken
             v_ij =  u0 * sin(k*(i-1)) * cos(k*(j-1))
             ux[i, j] = u_ij; uy[i, j] = v_ij
             for q in 1:9
-                f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, u_ij, v_ij, q)
+                f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, u_ij, v_ij, q)
             end
         end
         f_out = similar(f_in)

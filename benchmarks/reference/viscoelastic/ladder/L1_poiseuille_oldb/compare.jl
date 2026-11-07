@@ -42,7 +42,7 @@ end
 """
     hwbb_aware_wall_gamma_dot(u_profile)
 
-Recompute the analytic shear rate `gamma_dot` on a Kraken-faithful 3-point
+Recompute the analytic shear rate `gamma_dot` on a KrakeNN-faithful 3-point
 one-sided stencil at the wall-adjacent cells `j=1` and `j=Ny`, then a
 standard central difference everywhere else. This matches the BC-aware
 stencil applied inside `src/fvfd/operators_2d.jl::_fvfd_solid_bc_derivative_y_2d`
@@ -54,17 +54,17 @@ ghost u(j=0)=0, giving `u[2]/2` at j=1. That ghost lives at the wall
 location (j=0.5) only in a half-cell sense; the resulting CD then samples
 the gradient at the *midpoint* j=0.5+1 = 1.5 (NOT at the cell center j=1),
 so it undershoots the true cell-center gradient by ~26 % for a parabolic
-profile. Kraken's stencil samples the cell-center gradient at j=1
+profile. KrakeNN's stencil samples the cell-center gradient at j=1
 correctly, producing the apparent mismatch flagged in M39 RESULTS_20260523.md.
 """
 function hwbb_aware_wall_gamma_dot(u_profile)
     Ny = length(u_profile)
     gamma_dot = zeros(Float64, Ny)
-    # interior: standard central difference (matches Kraken interior stencil)
+    # interior: standard central difference (matches KrakeNN interior stencil)
     for j in 2:(Ny - 1)
         gamma_dot[j] = (u_profile[j + 1] - u_profile[j - 1]) / 2.0
     end
-    # wall cells: 3-point quadratic one-sided (Kraken-faithful)
+    # wall cells: 3-point quadratic one-sided (KrakeNN-faithful)
     gamma_dot[1] = (-3.0 * u_profile[1] + 4.0 * u_profile[2] - u_profile[3]) / 2.0
     gamma_dot[Ny] = (3.0 * u_profile[Ny] - 4.0 * u_profile[Ny - 1] + u_profile[Ny - 2]) / 2.0
     return gamma_dot
@@ -157,7 +157,7 @@ function main()
     diag = payload.diagnostics
     tol = refj.tolerance_pass_fail
 
-    # M40 Phase A: recompute wall metrics with HWBB-aware (Kraken-faithful)
+    # M40 Phase A: recompute wall metrics with HWBB-aware (KrakeNN-faithful)
     # one-sided gamma_dot stencil at j=1, j=Ny. See compare.jl docstring on
     # `hwbb_aware_wall_gamma_dot`. The dumped wall metrics in `diag` used
     # the old central-difference stencil and undershoot by ~26 % (tau_xy)

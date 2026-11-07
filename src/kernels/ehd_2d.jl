@@ -1,6 +1,6 @@
 using KernelAbstractions
 
-# D2Q9 EHD scalar kernels. Direction order matches Kraken.D2Q9 and Jiachen's
+# D2Q9 EHD scalar kernels. Direction order matches KrakeNN.D2Q9 and Jiachen's
 # MATLAB Lattice.m: rest, E, N, W, S, NE, NW, SW, SE.
 
 @inline ehd_w(::Val{1}, T) = T(4) / T(9)

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # ==========================================================================
 # Planar Couette — LI-BB + TRT canary
@@ -96,7 +96,7 @@ function run_planar_couette_libb(; Nx::Int=8, Ny::Int=33,
     is_solid, qw, uw_x, uw_y = planar_couette_libb_setup(Nx, Ny, u_top; q_w=q_w)
     f_in = zeros(Float64, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
-        f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+        f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
     end
     wrap_periodic_x!(f_in)
     f_out = similar(f_in)

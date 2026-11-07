@@ -1,11 +1,11 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 isdefined(@__MODULE__, :_gnf3d_reference) || include("gnf3d_reference.jl")
 
 function _gnf3d_constant_viscosity_pair(rheology; steps=256)
-    state = Kraken._setup_gnf_channel_3d(;
+    state = KrakeNN._setup_gnf_channel_3d(;
         rheology, N=16, q_w=0.3, F=1e-5, nu_init=0.1,
         backend=KernelAbstractions.CPU(), FT=Float64)
     Nx, Ny, Nz = state.dims
@@ -15,25 +15,25 @@ function _gnf3d_constant_viscosity_pair(rheology; steps=256)
         u = (0.008 * sinpi(z) + 1e-4 * cospi(i - 2),
              0.001 * sinpi(z), 0.001 * sinpi(z))
         for q in 1:19
-            state.f_in[i,j,k,q] = Kraken.equilibrium(D3Q19(), rho, u..., q)
+            state.f_in[i,j,k,q] = KrakeNN.equilibrium(D3Q19(), rho, u..., q)
         end
     end
-    Kraken._wrap_gnf_periodic_3d!(state.f_in, state.periodic_axes)
+    KrakeNN._wrap_gnf_periodic_3d!(state.f_in, state.periodic_axes)
     f_gnf, out_gnf = copy(state.f_in), similar(state.f_in)
     f_ref, out_ref = copy(state.f_in), similar(state.f_in)
     rho_ref, ux_ref, uy_ref, uz_ref = (copy(state.rho), copy(state.ux),
                                      copy(state.uy), copy(state.uz))
     for _ in 1:steps
-        Kraken.fused_trt_gnf_libb_guo_field_step_3d!(
+        KrakeNN.fused_trt_gnf_libb_guo_field_step_3d!(
             out_gnf, f_gnf, state.rho, state.ux, state.uy, state.uz, state.is_solid,
             state.q_wall, state.uw_x, state.uw_y, state.uw_z,
             state.Fx, state.Fy, state.Fz, state.sp, state.sm, Nx, Ny, Nz, rheology)
-        Kraken.fused_trt_libb_v2_guo_field_step_3d!(
+        KrakeNN.fused_trt_libb_v2_guo_field_step_3d!(
             out_ref, f_ref, rho_ref, ux_ref, uy_ref, uz_ref, state.is_solid,
             state.q_wall, state.uw_x, state.uw_y, state.uw_z,
             state.Fx, state.Fy, state.Fz, Nx, Ny, Nz, 0.1)
         for array in (out_gnf, out_ref, state.sp, state.sm)
-            Kraken._wrap_gnf_periodic_3d!(array, state.periodic_axes)
+            KrakeNN._wrap_gnf_periodic_3d!(array, state.periodic_axes)
         end
         f_gnf, out_gnf = out_gnf, f_gnf
         f_ref, out_ref = out_ref, f_ref
@@ -45,8 +45,8 @@ end
     expected_args = [:f_out, :ρ_out, :ux_out, :uy_out, :uz_out, :f_in,
         :is_solid, :q_wall, :uw_link_x, :uw_link_y, :uw_link_z, :Nx, :Ny, :Nz,
         :Fx_field, :Fy_field, :Fz_field, :rheology, :sp_field, :sm_field, :trt_lambda]
-    @test Kraken.spec_args(Kraken._TRT_GNF_LIBB_GUO_FIELD_SPEC_3D) == expected_args
-    @test Kraken.spec_args(Kraken._TRT_GNF_LIBB_GUO_FIELD_SPEC_Z_PERIODIC_3D) == expected_args
+    @test KrakeNN.spec_args(KrakeNN._TRT_GNF_LIBB_GUO_FIELD_SPEC_3D) == expected_args
+    @test KrakeNN.spec_args(KrakeNN._TRT_GNF_LIBB_GUO_FIELD_SPEC_Z_PERIODIC_3D) == expected_args
 
     @testset "Constant-viscosity population parity" begin
         for rheology in (Newtonian(0.1), PowerLaw(0.1, 1.0))
@@ -59,7 +59,7 @@ end
 
     @testset "Rotation of flow and wall axes" begin
         ref = _gnf3d_reference(:carreau, 16, 0.3)
-        outputs = [Kraken.run_gnf_channel_3d(;
+        outputs = [KrakeNN.run_gnf_channel_3d(;
             rheology=ref.rheology, N=ref.N, q_w=ref.q_w, F=ref.F,
             nu_init=ref.nu, u_init=ref.u, flow_axis, wall_axis,
             max_steps=400, tol_ss=0.0, check_every=400,
@@ -78,7 +78,7 @@ end
 
     @testset "Zou-He channel with local TRT rates" begin
         ref = _gnf3d_reference(:carreau, 16, 0.5)
-        out = Kraken.run_gnf_channel_3d(;
+        out = KrakeNN.run_gnf_channel_3d(;
             rheology=ref.rheology, N=ref.N, q_w=ref.q_w, drive=:zou_he,
             flow_axis=:x, wall_axis=:z, Nx_open=32, F=0.0,
             nu_init=ref.nu, u_init=ref.u, u_inlet=ref.u,
@@ -121,7 +121,7 @@ end
     # indexing. The copy must expand it to a dense Bool array first.
     mask = falses(3, 4, 5)
     mask[2, 2, 2] = true
-    copied = Kraken._gnf_backend_copy_3d(KernelAbstractions.CPU(), mask)
+    copied = KrakeNN._gnf_backend_copy_3d(KernelAbstractions.CPU(), mask)
     @test copied isa Array{Bool,3}
     @test copied == mask
     @test count(copied) == 1

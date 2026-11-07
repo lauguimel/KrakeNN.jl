@@ -2,7 +2,7 @@
 #
 # Many engineering applications require tracking the transport of a
 # dissolved species — temperature, concentration, chemical tracer — that
-# does not feed back on the flow.  Kraken implements this as a **passive
+# does not feed back on the flow.  KrakeNN implements this as a **passive
 # scalar** using a separate set of distribution functions (Double
 # Distribution Function, DDF) that share the velocity field from the
 # hydrodynamic solver but have their own relaxation rate.
@@ -122,7 +122,7 @@
 # This is implemented automatically when the same `is_solid` mask is
 # applied to both hydrodynamic and species populations.
 #
-# ## Implementation in Kraken
+# ## Implementation in KrakeNN
 #
 # The species module operates on a separate 3D array `h[Nx, Ny, Q]`
 # using the same D2Q9 streaming kernel as the hydrodynamic populations.

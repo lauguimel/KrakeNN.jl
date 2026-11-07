@@ -12,7 +12,7 @@ depends_on:
 
 # units — module implication map
 
-The `Kraken.Units` submodule is the **single owner** of every conversion between
+The `KrakeNN.Units` submodule is the **single owner** of every conversion between
 real units ⇄ non-dimensional numbers (Re, Wi, β, Pr, Ra, Ma) ⇄ lattice units
 (τ, ν, u, λ, R_LU). It is compile-time-only and exists to terminate the chronic
 hand-coded-LU rabbit-holes (M48 / M59–M61). Full design contract:
@@ -22,7 +22,7 @@ the `docs/spec/llm-implication-map-v1.md` format.
 ## Public surface
 
 The module exports nothing into `Base`; the bare names are reserved, so callers
-use `Kraken.Units.<name>` (or `using Kraken.Units: compile`). `Kraken.jl`
+use `KrakeNN.Units.<name>` (or `using KrakeNN.Units: compile`). `Kraken.jl`
 re-exports only the `Units` submodule name itself.
 
 - `Units.compile(; physics::Symbol, geometry, bc, refinement=nothing, backend=CPU(), T=Float64, strict=true, kwargs...) -> SimulationPlan{T}` — FORWARD path: non-dim numbers → validated plan. Strict by default (fatal/error issues raise).

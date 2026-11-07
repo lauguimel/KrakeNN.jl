@@ -42,7 +42,7 @@
 # ### Log-conformation method
 #
 # Direct evolution of ``\mathbf{C}`` is numerically unstable at high
-# Weissenberg numbers.  Kraken.jl uses the **log-conformation** approach
+# Weissenberg numbers.  KrakeNN uses the **log-conformation** approach
 # of [Fattal & Kupferman (2004)](@cite fattal2004constitutive): the
 # evolution equation is reformulated for ``\boldsymbol{\Theta} = \log\mathbf{C}``,
 # which is unconditionally symmetric positive-definite.
@@ -84,7 +84,7 @@
 #
 # ## Code
 
-using Kraken
+using KrakeNN
 
 Nx, Ny = 4, 32
 ν_s = 0.08
@@ -106,7 +106,7 @@ uy = zeros(Float64, Nx, Ny)
 ρ  = ones(Float64, Nx, Ny)
 
 for j in 1:Ny, i in 1:Nx, q in 1:9
-    f_in[i,j,q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+    f_in[i,j,q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
 end
 copy!(f_out, f_in)
 

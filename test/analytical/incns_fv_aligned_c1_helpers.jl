@@ -82,7 +82,7 @@ function _c5a_trace(f)
     end
     @test a.east_reads[] > 0
     for (i,j) in f.cells
-        localR = Kraken.fv_cell_residual(f.U,p.tag,p.nu,p.bvel,p.src,p.grid,i,j,p.visc)
+        localR = KrakeNN.fv_cell_residual(f.U,p.tag,p.nu,p.bvel,p.src,p.grid,i,j,p.visc)
         @test collect(localR) == reference[[fv_index(p.grid,i,j,c) for c in 1:3]]
     end
     return a.east_reads[]

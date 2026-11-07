@@ -21,7 +21,7 @@ near the hot wall expands, rises, crosses the top, cools at the cold wall, and
 sinks — a single convection cell. The dimensionless driver is the Rayleigh number
 `Ra` (with Prandtl number `Pr = 0.71` for air); we run `Ra = 10³, 10⁴, 10⁵`.
 
-Kraken solves this with a **double-distribution thermal LBM**: the usual D2Q9 BGK
+KrakeNN solves this with a **double-distribution thermal LBM**: the usual D2Q9 BGK
 distribution carries momentum, a second D2Q9 distribution advects temperature, and
 buoyancy is fed back into the flow through a Boussinesq body force
 `F = β g (T − T₀)` (the code applies no density factor). The driver is `run_natural_convection_2d`, selected
@@ -90,7 +90,7 @@ reproduce.
 ## Running it
 
 ```julia
-using Kraken
+using KrakeNN
 run_simulation("natural_convection.krk")
 ```
 
@@ -107,7 +107,7 @@ the thermal plume and the convection cell.
 ## A qualitative variant: Rayleigh–Bénard
 
 For a hot-**bottom** / cold-**top** cell with periodic sides — Rayleigh–Bénard
-convection — Kraken ships a ready preset and example, `examples/rayleigh_benard.krk`:
+convection — KrakeNN ships a ready preset and example, `examples/rayleigh_benard.krk`:
 
 ```
 Preset rayleigh_benard_2d
@@ -129,7 +129,7 @@ At steady state the differentially-heated cavity shows a single clockwise (hot-l
 convection cell, with thin thermal boundary layers hugging the hot and cold walls
 that sharpen as `Ra` increases. The headline metric is the average **Nusselt
 number** `Nu` on the hot wall (the dimensionless wall heat flux). As reported on the
-[benchmark page](../benchmarks/thermal-natural-convection.md), Kraken lands at a
+[benchmark page](../benchmarks/thermal-natural-convection.md), KrakeNN lands at a
 Nu error of **+0.79 % / +0.93 % / +0.79 %** at `Ra = 10³ / 10⁴ / 10⁵` (measured
 with the former on-node thermal walls; with the current half-way walls and
 the v0.7 adiabatic walls, `N = 64` gives +0.05 % and +0.23 % at `Ra = 10³` and

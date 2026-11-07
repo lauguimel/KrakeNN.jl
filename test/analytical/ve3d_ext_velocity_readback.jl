@@ -63,7 +63,7 @@
 # add no information.
 
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Extensional 3D driver returns the collision velocity" begin
     Nx, Ny, Nz = 12, 12, 4
@@ -71,13 +71,13 @@ using Kraken
     gate = 1e-12
     fmin = 1e-9
 
-    run_n(n) = Kraken.run_viscoelastic_fvfd_extensional_3d(; Nx, Ny, Nz,
+    run_n(n) = KrakeNN.run_viscoelastic_fvfd_extensional_3d(; Nx, Ny, Nz,
         epsilon_dot=eps_dot, ν_s=nu_s, ν_p=nu_p, lambda=lam, max_steps=n,
         velocity_mode=:coupled)
 
     function force_from(res)
         Fx = zeros(Nx, Ny, Nz); Fy = zeros(Nx, Ny, Nz); Fz = zeros(Nx, Ny, Nz)
-        Kraken.compute_polymeric_force_3d!(Fx, Fy, Fz,
+        KrakeNN.compute_polymeric_force_3d!(Fx, Fy, Fz,
             res.tau_p_xx, res.tau_p_xy, res.tau_p_xz,
             res.tau_p_yy, res.tau_p_yz, res.tau_p_zz;
             periodic_x=false, periodic_z=true)
@@ -90,7 +90,7 @@ using Kraken
         f_out = zeros(Nx, Ny, Nz, 19)
         rho = ones(Nx, Ny, Nz); ux = zeros(Nx, Ny, Nz)
         uy = zeros(Nx, Ny, Nz); uz = zeros(Nx, Ny, Nz)
-        Kraken.fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz,
+        KrakeNN.fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz,
             is_solid, q_wall, uw, uw, uw, F[1], F[2], F[3], Nx, Ny, Nz, nu_s;
             periodic_z=true)
         return f_out, rho, ux, uy, uz
@@ -99,17 +99,17 @@ using Kraken
     # Same operator and arguments as the driver's gradient call (driver :204).
     function grad_xx_yy(ux, uy, uz)
         g = [zeros(Nx, Ny, Nz) for _ in 1:9]
-        Kraken.fvfd_velocity_gradient_3d!(g..., ux, uy, uz, is_solid;
+        KrakeNN.fvfd_velocity_gradient_3d!(g..., ux, uy, uz, is_solid;
             dx=1.0, dy=1.0, dz=1.0, x_bc=:open, y_bc=:open, z_bc=:periodic,
             sync=true)
         return g[1], g[5]   # duxdx, duydy
     end
 
     # Driver initial state, as in viscoelastic_fvfd_extensional_3d.jl:85-98.
-    vel = Kraken.fvfd_planar_extensional_velocity_field_host_3d(Nx, Ny, Nz, eps_dot)
+    vel = KrakeNN.fvfd_planar_extensional_velocity_field_host_3d(Nx, Ny, Nz, eps_dot)
     f0 = zeros(Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
-        f0[i, j, k, q] = Kraken.equilibrium(D3Q19(), 1.0,
+        f0[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), 1.0,
             vel.ux[i, j, k], vel.uy[i, j, k], 0.0, q)
     end
 

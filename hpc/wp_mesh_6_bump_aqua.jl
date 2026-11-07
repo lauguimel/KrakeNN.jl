@@ -20,7 +20,7 @@
 # Per run we record Cd_mean, Cl_RMS, Strouhal St over the second half
 # of the trajectory.
 
-using Kraken, CUDA, KernelAbstractions, Gmsh
+using KrakeNN, CUDA, KernelAbstractions, Gmsh
 using FFTW: rfft, rfftfreq
 
 const Lx, Ly         = 1.0, 0.5
@@ -60,7 +60,7 @@ function _init_f(Nx, Ny, u_prof_h, is_solid_h)
     f_h = zeros(T, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
         u = is_solid_h[i, j] ? 0.0 : Float64(u_prof_h[j])
-        f_h[i, j, q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+        f_h[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
     end
     return f_h
 end
@@ -128,7 +128,7 @@ run_A(D_lu, steps, sw, se) = begin
         (i-1.0-s.cx_lu)^2 + (j-1.0-s.cy_lu)^2 ≤ s.R_lu^2 && (is_solid_h[i,j] = true)
     end
     q_wall_h = zeros(T, s.Nx, s.Ny, 9)
-    cxs = Kraken.velocities_x(D2Q9()); cys = Kraken.velocities_y(D2Q9())
+    cxs = KrakeNN.velocities_x(D2Q9()); cys = KrakeNN.velocities_y(D2Q9())
     for j in 1:s.Ny, i in 1:s.Nx
         is_solid_h[i,j] && continue
         for q in 2:9

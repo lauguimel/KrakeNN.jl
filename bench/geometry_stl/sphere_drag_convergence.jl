@@ -13,7 +13,7 @@
 # Memory (F64): the LI-BB driver holds ~6 arrays of N×19 ⇒ ~912 B/cell, so
 # ~80 GB H100 caps near ~80M cells; the sweep tops out at ~61M (blk 8%).
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 

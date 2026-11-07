@@ -76,7 +76,7 @@ The fluid is otherwise treated as incompressible.  This is an excellent
 approximation when ``\beta \, \Delta T \ll 1``, which is the standard regime
 for Rayleigh--Bénard convection.
 
-In Kraken's LBM implementation, the Boussinesq force is incorporated via the
+In KrakeNN's LBM implementation, the Boussinesq force is incorporated via the
 [Guo forcing scheme](@cite guo2002boussinesq), which ensures second-order
 accuracy.  The DDF thermal solver (see [heat conduction](07_heat_conduction.md)) provides the
 temperature field at each time step.
@@ -118,7 +118,7 @@ thermal populations.
 ## Simulation
 
 ```julia
-using Kraken
+using KrakeNN
 
 Ra     = 10_000.0
 Pr     = 0.71
@@ -192,7 +192,7 @@ thermal boundary layers; in the bulk, the profile is nearly flat.
 | Correct roll structure at supercritical Ra | yes |
 | ``\mathrm{Pr} \neq 1`` handling | yes |
 
-This example confirms that Kraken correctly couples the thermal and flow
+This example confirms that KrakeNN correctly couples the thermal and flow
 solvers.  The next step in complexity is
 [Hagen--Poiseuille flow](09_hagen_poiseuille.md), which introduces axisymmetric geometry.
 

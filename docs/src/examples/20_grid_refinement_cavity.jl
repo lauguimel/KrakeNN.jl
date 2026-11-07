@@ -41,9 +41,9 @@
 # resolves the vortex core with the same effective resolution as the uniform
 # grid but at lower computational cost (fewer total nodes).
 #
-# ### Patch-based refinement in Kraken.jl
+# ### Patch-based refinement in KrakeNN
 #
-# Kraken uses **patch-based static refinement** with Filippova--Hanel
+# KrakeNN uses **patch-based static refinement** with Filippova--Hanel
 # non-equilibrium rescaling at the coarse--fine interface.  A
 # [`RefinementPatch`](@ref) is a self-contained D2Q9 grid that reuses all
 # existing stream/collide kernels without modification.  Ghost layers are
@@ -90,7 +90,7 @@
 #
 # ## Code
 
-using Kraken
+using KrakeNN
 
 ## --- Uniform reference run ---
 config_ref = LBMConfig(D2Q9(); Nx=64, Ny=64, ν=0.1, u_lid=0.1, max_steps=20000)

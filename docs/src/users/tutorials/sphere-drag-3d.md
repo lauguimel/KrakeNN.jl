@@ -3,7 +3,7 @@
 This tutorial is the hands-on companion to the
 [3D STL sphere-drag benchmark page](../benchmarks/sphere-drag-3d.md). It walks
 through the **3D STL-obstacle workflow**: how to put an arbitrary triangulated
-surface into a Kraken simulation, set up an external flow around it, and measure
+surface into a KrakeNN simulation, set up an external flow around it, and measure
 the drag — using flow past a sphere at `Re = 20` as the worked example.
 
 ```@contents
@@ -88,7 +88,7 @@ the LU viscosity (injected as `Physics nu`) and inflow speed (the variable
 ## Running it
 
 ```julia
-using Kraken
+using KrakeNN
 run_simulation("examples/geometry_stl/sphere_stl_3d_drag.krk")
 ```
 

@@ -29,7 +29,7 @@ their dates and then-current statements; they are not new claims about PR status
 Unchanged original files: restart `common.jl`, `calibrate.jl`, `check.jl`, protocol;
 scalar `verify.jl`, `reference_kernels.jl`, both protocols and six CSV tables.
 The reference module supplies equilibrium/reference algebra; `verify.jl` calls
-the actual `Kraken._apply_charge_moment_box_2d!` for every boundary application.
+the actual `KrakeNN._apply_charge_moment_box_2d!` for every boundary application.
 It does not replace the production seam with the reference module's wall kernels.
 
 Packaging changes only: replace site-specific donor-copy/PBS wrappers with the
@@ -76,7 +76,7 @@ or calibration/verification restart processes separately. Default depot selectio
 is Julia's normal behavior; if using `JULIA_DEPOT_PATH`, also export it to PBS.
 No package resolution/installation occurs inside the sealed numerical run.
 Preparation records `SOURCE_SHA` and `HARNESS_SHA`; pre/post source/input hashes
-and runtime `pathof(Kraken)` checks prevent silently using another checkout.
+and runtime `pathof(KrakeNN)` checks prevent silently using another checkout.
 Omit the optional solver SHA only when deliberately testing the current committed
 source; that produces a new run, not historical evidence for41f5209.
 

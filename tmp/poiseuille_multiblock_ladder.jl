@@ -15,7 +15,7 @@
 # etc.). If Level 0/1 diverge, the bug is in exchange_ghost_2d! or
 # fill_physical_wall_ghost_2d!.
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const Lx = 1.0
 const Ly = 0.25
@@ -54,7 +54,7 @@ function init_parabolic!(state::BlockState2D, u_prof_h, T)
     fill!(state.f, zero(T))
     @inbounds for j in 1:Nηp, i in 1:Nξp, q in 1:9
         u = u_prof_h[j]
-        feq = Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q)
+        feq = KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q)
         state.f[i + ng, j + ng, q] = T(feq)
     end
 end

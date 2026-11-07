@@ -1,6 +1,6 @@
 using Test
 using LinearAlgebra
-using Kraken
+using KrakeNN
 
 const CX = (0.0, 1.0, 0.0, -1.0, 0.0, 1.0, -1.0, -1.0, 1.0)
 const CY = (0.0, 0.0, 1.0, 0.0, -1.0, 1.0, 1.0, -1.0, -1.0)
@@ -56,7 +56,7 @@ function matlab_mrt_force(a_M, tau)
 end
 
 function kraken_bgk_force(a_M, tau)
-    # Kraken src/kernels/collide_guo_2d.jl:107-140:
+    # KrakeNN src/kernels/collide_guo_2d.jl:107-140:
     # force-corrected u=(sum(fc)+F/2)/rho, then textbook Guo source with prefactor.
     omega = 1 / tau
     fx = 0.0
@@ -71,7 +71,7 @@ function kraken_bgk_force(a_M, tau)
 end
 
 function kraken_mrt_force(a_M, tau)
-    # Kraken src/kernels/ehd_mrt_2d.jl:48-79 forms textbook Guo g_i, transforms
+    # KrakeNN src/kernels/ehd_mrt_2d.jl:48-79 forms textbook Guo g_i, transforms
     # to moments, applies (1-s_k/2), then inverse-transforms using lines 85-93.
     fx = 0.0
     fy = a_M
@@ -115,7 +115,7 @@ end
     tau_q = 3 * D + 0.5
     Ma_electric = K * delta_U / (H * cs)
 
-    p = Kraken._ehd_ec_lattice_params(Ny, C, M, T_ehd, Ma_E, alpha, delta_U, gamma; FT=Float64)
+    p = KrakeNN._ehd_ec_lattice_params(Ny, C, M, T_ehd, Ma_E, alpha, delta_U, gamma; FT=Float64)
     @test p.tau > 0.5
     @test p.tau_q > 0.5
 
@@ -131,7 +131,7 @@ end
     end
     @test isapprox(p.K * delta_U / (p.H * p.cs), Ma_electric; rtol=1e-12)
 
-    # MATLAB run_standard_LBM_electroconvection.m:157-175 vs Kraken src/drivers/ehd_ec.jl:86-88, 115-127.
+    # MATLAB run_standard_LBM_electroconvection.m:157-175 vs KrakeNN src/drivers/ehd_ec.jl:86-88, 115-127.
     b = hydro_b_bisect(C)
     hydro_a = 2C * sqrt(b)
     ystar = 0.5
@@ -139,7 +139,7 @@ end
     hydro_E_star = hydro_a * sqrt(ystar + b)
     q_phys = q_inj * hydro_q_star
     E_lat = hydro_E_star / H
-    analytic = Kraken.ehd_hydrostatic_profiles(C, Ny; FT=Float64)
+    analytic = KrakeNN.ehd_hydrostatic_profiles(C, Ny; FT=Float64)
     @test isapprox(analytic.b, b; rtol=1e-12)
     @test isapprox(analytic.a, hydro_a; rtol=1e-12)
 
@@ -149,7 +149,7 @@ end
     @test isapprox(q_init_K, q_phys; rtol=1e-12)
     @test isapprox(Ey_init_K, E_lat; rtol=1e-12)
 
-    # MATLAB Lattice.m:1238-1283 divides by rho; Kraken src/kernels/ehd_bc_2d.jl:182-199 stores q*E.
+    # MATLAB Lattice.m:1238-1283 divides by rho; KrakeNN src/kernels/ehd_bc_2d.jl:182-199 stores q*E.
     a_M = q_phys * E_lat / rho_0
     force_density_K = q_init_K * Ey_init_K
     force_accel_K = force_density_K / rho_0
@@ -162,7 +162,7 @@ end
     peak_force_K = maximum(abs.(p.q_inj .* analytic.q_star .* (delta_U .* analytic.E_star ./ p.H) ./ rho_0))
     @test isapprox(peak_force_K, peak_force_M; rtol=1e-12)
 
-    # MATLAB Lattice.m:291-318; Kraken src/kernels/collide_guo_2d.jl:107-140.
+    # MATLAB Lattice.m:291-318; KrakeNN src/kernels/collide_guo_2d.jl:107-140.
     S_srt_M = (1 / cs^2) * (1 - 1 / (2tau)) .* feq_ns(1.0, 0.0, 0.0) .* (a_M .* collect(CY))
     S_mrt_M = matlab_mrt_force(a_M, tau)
     S_bgk_K = kraken_bgk_force(a_M, tau)

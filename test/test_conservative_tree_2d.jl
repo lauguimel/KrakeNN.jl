@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # Conservation is checked on sums over the whole grid, so the achievable
 # agreement scales with the sum's magnitude: a pure absolute tolerance asks for
@@ -373,9 +373,9 @@ end
         coalesce_F_2d!(Fp, Fc)
 
         child_mass = sum(Fc)
-        child_mx = sum(Kraken.d2q9_cx(q) * Fc[ix, iy, q]
+        child_mx = sum(KrakeNN.d2q9_cx(q) * Fc[ix, iy, q]
                        for ix in 1:2, iy in 1:2, q in 1:9)
-        child_my = sum(Kraken.d2q9_cy(q) * Fc[ix, iy, q]
+        child_my = sum(KrakeNN.d2q9_cy(q) * Fc[ix, iy, q]
                        for ix in 1:2, iy in 1:2, q in 1:9)
 
         m, mx, my = moments_F(Fp)

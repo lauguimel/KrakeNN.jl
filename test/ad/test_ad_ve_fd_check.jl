@@ -41,12 +41,12 @@
 # plus the C0 transpose-identity residual of the existing suite and the
 # environment (Julia, arch, check-bounds mode, Enzyme version).
 
-using Test, Kraken, Enzyme, LinearAlgebra, Printf
+using Test, KrakeNN, Enzyme, LinearAlgebra, Printf
 
 module VEFDCheck
 
-using Test, Kraken, Enzyme, LinearAlgebra, Printf
-const K = Kraken
+using Test, KrakeNN, Enzyme, LinearAlgebra, Printf
+const K = KrakeNN
 
 _relerr(a, b) = abs(a - b) / max(abs(b), eps(Float64))
 
@@ -308,7 +308,7 @@ const GATE_REL_R = 5e-3
 const GATE_REL_PARAM = 1e-4
 
 @testset "VE polymer-drag adjoint vs central FD (#41)" begin
-    @test Base.get_extension(Kraken, :KrakenADExt) !== nothing
+    @test Base.get_extension(KrakeNN, :KrakeNNADExt) !== nothing
     r = VEFDCheck.run()
     @test r.trel < 1e-10
     @test r.adj.converged

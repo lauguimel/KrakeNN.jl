@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ---------------------------------------------------------------------
@@ -55,7 +55,7 @@ using KernelAbstractions
         return sum(@view A[i1:i2, j1:j2, :]) / ((i2 - i1 + 1) * (j2 - j1 + 1) * nz)
     end
 
-    run_ext = model -> Kraken.run_viscoelastic_fvfd_extensional_3d(;
+    run_ext = model -> KrakeNN.run_viscoelastic_fvfd_extensional_3d(;
         Nx=Nx, Ny=Ny, Nz=Nz, epsilon_dot=ε̇,
         ν_s=ν_s, ν_p=nothing, lambda=λ,
         polymer_model=model, max_steps=max_steps, backend=backend, FT=FT,

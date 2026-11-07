@@ -1,4 +1,4 @@
-# GPU direct-solve test for ext/KrakenCUDSSExt (cuDSS seam backend).
+# GPU direct-solve test for ext/KrakeNNCUDSSExt (cuDSS seam backend).
 # Self-gated: requires CUDA + CUDSS loadable AND CUDA.functional() — skipped
 # cleanly on CPU-only boxes (the guard wraps the LOAD, so real ext failures
 # still surface on a GPU box).
@@ -18,12 +18,12 @@ cudss_neumann_rhs(x, y)     = 2.0 * pi^2 * cos(pi * x) * cos(pi * y)
 
 @testset "Poisson cuDSS direct GPU (ext)" begin
     if !_CUDSS_GPU_OK
-        @info "Skipping cuDSS GPU Poisson test and KrakenCUDSSExt activation check (CUDA+CUDSS not loadable or CUDA not functional here)"
+        @info "Skipping cuDSS GPU Poisson test and KrakeNNCUDSSExt activation check (CUDA+CUDSS not loadable or CUDA not functional here)"
         @test_skip "cuDSS GPU direct path requires CUDA.functional() + CUDSS"
     else
         # #61: with CUDA + CUDSS loaded the package extension must be active.
         # (A wrong weakdep UUID in Project.toml leaves it silently inactive.)
-        @test Base.get_extension(Kraken, :KrakenCUDSSExt) !== nothing
+        @test Base.get_extension(KrakeNN, :KrakeNNCUDSSExt) !== nothing
 
         N = 64
 
@@ -33,7 +33,7 @@ cudss_neumann_rhs(x, y)     = 2.0 * pi^2 * cos(pi * x) * cos(pi * y)
         u_cpu = solve_poisson_dirichlet(N, cudss_dirichlet_rhs)
         linf = maximum(abs.(u_gpu .- u_cpu))
         @test linf <= 1e-8
-        @test Kraken.l2_error(u_gpu, cudss_dirichlet_exact, N) <= 2e-3
+        @test KrakeNN.l2_error(u_gpu, cudss_dirichlet_exact, N) <= 2e-3
 
         # Neumann + pin: gauge-fixed parity vs the CPU pinned path (both pin
         # DOF 1 to zero through the same seam contract).

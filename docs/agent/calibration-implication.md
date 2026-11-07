@@ -24,7 +24,7 @@ Defined in `src/platform/calibration.jl`, re-exported by `Kraken`:
   `Prediction`s and observations.
 - `fit(problem, ::LBM, data, p0, pspace; observables, reg_weight=0.0, method=:pgd, kwargs...)`
   — projected BB+Armijo gradient descent (`:pgd`, default, dep-free) or
-  `method=:lbfgs` via `ext/KrakenOptimExt.jl` (`Optim.Fminbox(LBFGS())`).
+  `method=:lbfgs` via `ext/KrakeNNOptimExt.jl` (`Optim.Fminbox(LBFGS())`).
 - `CalibResult` — `p_opt`, `loss_final`, `loss_trace`, `grad_trace`, `n_iter`,
   `converged`, `message`.
 
@@ -80,10 +80,10 @@ names match `ν_\d+`). Used to route `forward_at`, `compute_gradient_flat`, and
 
 `fit(...; reg_weight=0.0, method=:pgd)` — two new kwargs (backward-compatible
 defaults). `method=:pgd` (default) is the existing BB+Armijo loop. `method=:lbfgs`
-delegates to `_fit_lbfgs` in `ext/KrakenOptimExt.jl`; raises a documented error if
+delegates to `_fit_lbfgs` in `ext/KrakeNNOptimExt.jl`; raises a documented error if
 Optim is not loaded.
 
-`ext/KrakenOptimExt.jl` — `_fit_lbfgs` uses `Optim.Fminbox(Optim.LBFGS())` with
+`ext/KrakeNNOptimExt.jl` — `_fit_lbfgs` uses `Optim.Fminbox(Optim.LBFGS())` with
 box bounds in the optimizer's native (log-scale or natural) space. Cache-last-forward:
 `compute_fg!` is called once per point; f and g are always consistent.
 
@@ -124,7 +124,7 @@ GPU arrays are never accepted — bundles are rebuilt host-side each iteration.
 
 1. `src/platform/calibration.jl` — `ParameterSpace`/`loss`/`fit`/`CalibResult`,
    `_reg_loss`/`_reg_grad`, ν-field routing helpers.
-2. `ext/KrakenOptimExt.jl` — `_fit_lbfgs` (only when the optimizer path changes).
-3. `src/Kraken.jl` — export block (choke file; edits serialized on `dev/platform`).
+2. `ext/KrakeNNOptimExt.jl` — `_fit_lbfgs` (only when the optimizer path changes).
+3. `src/KrakeNN.jl` — export block (choke file; edits serialized on `dev/platform`).
 4. `test/platform/calibration_test.jl` — twin experiments (scalar ν, sine ν(y) field)
    and Gate 4c geometry parity pin.

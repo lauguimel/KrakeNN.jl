@@ -11,9 +11,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeAdaptationPolicy2D
+KrakeNN.ConservativeTreeAdaptationPolicy2D
 ```
 """
 struct ConservativeTreeAdaptationPolicy2D
@@ -50,9 +50,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreePatchProposal2D
+KrakeNN.ConservativeTreePatchProposal2D
 ```
 """
 struct ConservativeTreePatchProposal2D
@@ -78,9 +78,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeAdaptationPlan2D
+KrakeNN.ConservativeTreeAdaptationPlan2D
 ```
 """
 struct ConservativeTreeAdaptationPlan2D
@@ -203,9 +203,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_adaptation_plan_from_proposal_2d)
+methods(KrakeNN.conservative_tree_adaptation_plan_from_proposal_2d)
 ```
 """
 function conservative_tree_adaptation_plan_from_proposal_2d(
@@ -273,9 +273,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_adaptation_policy_from_krk_refine_2d)
+methods(KrakeNN.conservative_tree_adaptation_policy_from_krk_refine_2d)
 ```
 """
 function conservative_tree_adaptation_policy_from_krk_refine_2d(refine)
@@ -294,9 +294,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_indicator_adaptation_plan_from_krk_2d)
+methods(KrakeNN.conservative_tree_indicator_adaptation_plan_from_krk_2d)
 ```
 """
 function conservative_tree_indicator_adaptation_plan_from_krk_2d(
@@ -323,9 +323,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.adapt_conservative_tree_patch_with_plan_2d)
+methods(KrakeNN.adapt_conservative_tree_patch_with_plan_2d)
 ```
 """
 function adapt_conservative_tree_patch_with_plan_2d(

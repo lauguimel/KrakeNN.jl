@@ -145,11 +145,11 @@ Run 10000 steps
 Output vtk every 2000 [rho, ux, uy]
 ```
 
-The `.krk` file is a human-readable configuration for Kraken.jl.  The key
+The `.krk` file is a human-readable configuration for KrakeNN.  The key
 directives are:
 
 - **`Physics nu = 0.1 Fx = 1e-5`**: sets the viscosity and the body force.
-  Kraken internally converts ``F_x`` to the Guo forcing term.
+  KrakeNN internally converts ``F_x`` to the Guo forcing term.
 - **`Boundary south wall` / `Boundary north wall`**: applies half-way
   bounce-back at the bottom and top boundaries.
 - **`Boundary x periodic`**: wraps the domain in the streamwise direction,
@@ -160,7 +160,7 @@ directives are:
 ## Code
 
 ```julia
-using Kraken
+using KrakeNN
 
 Ny = 32
 ν  = 0.1
@@ -186,7 +186,7 @@ u_ana   = [Fx / (2ν) * y * (H - y) for y in y_phys]
 u_num   = [ux[2, j] for j in j_fluid]       # numerical profile at x=2
 ```
 
-![Poiseuille flow velocity profile at Ny = 32.  Blue line: analytical parabola ux(y) = Fx/(2 nu) y (H - y) with H = Ny = 32.  Orange dots: Kraken simulation.  The numerical solution overlaps the analytical curve at every fluid node.  The profile extrapolates to zero at the half-cell walls (y = 0.5 and y = 32.5) and reaches its maximum at the channel centreline y = H/2 = 16.](poiseuille_profile.svg)
+![Poiseuille flow velocity profile at Ny = 32.  Blue line: analytical parabola ux(y) = Fx/(2 nu) y (H - y) with H = Ny = 32.  Orange dots: KrakeNN simulation.  The numerical solution overlaps the analytical curve at every fluid node.  The profile extrapolates to zero at the half-cell walls (y = 0.5 and y = 32.5) and reaches its maximum at the channel centreline y = H/2 = 16.](poiseuille_profile.svg)
 
 The LBM solution matches the analytical parabola to high accuracy.  At this
 resolution (``N_y = 32``), the relative ``L_2`` error is of order
@@ -230,7 +230,7 @@ for Ny_i in Ny_list
 end
 ```
 
-![Convergence of the Poiseuille flow simulation.  Log-log plot of relative L2 error vs grid resolution Ny.  Blue dots with solid line: Kraken results.  Grey dashed line: reference slope of 2.  The Kraken errors follow the slope-2 line closely (observed order 1.9999 across all refinements once each grid is run to steady state), confirming second-order spatial convergence as predicted by the Chapman-Enskog analysis.](poiseuille_convergence.svg)
+![Convergence of the Poiseuille flow simulation.  Log-log plot of relative L2 error vs grid resolution Ny.  Blue dots with solid line: KrakeNN results.  Grey dashed line: reference slope of 2.  The KrakeNN errors follow the slope-2 line closely (observed order 1.9999 across all refinements once each grid is run to steady state), confirming second-order spatial convergence as predicted by the Chapman-Enskog analysis.](poiseuille_convergence.svg)
 
 The convergence plot confirms clean second-order behaviour: each doubling of
 ``N_y`` reduces the error by approximately a factor of 4.  This is a direct

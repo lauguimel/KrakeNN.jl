@@ -85,7 +85,7 @@ case "$CMD" in
         fi
 
         # Build Julia command
-        JULIA_CMD="using Kraken; result = run_simulation(\"${KRK_FILE}\"; backend=${BACKEND_EXPR}"
+        JULIA_CMD="using KrakeNN; result = run_simulation(\"${KRK_FILE}\"; backend=${BACKEND_EXPR}"
         if [[ -n "$KWARGS" ]]; then
             JULIA_CMD="${JULIA_CMD}, ${KWARGS}"
         fi
@@ -101,10 +101,10 @@ case "$CMD" in
         fi
         KRK_FILE="$1"
         exec julia --project="$PROJECT_DIR" -e "
-            using Kraken
-            setups = Kraken.parse_krk(\"${KRK_FILE}\")
+            using KrakeNN
+            setups = KrakeNN.parse_krk(\"${KRK_FILE}\")
             for s in setups
-                Kraken.sanity_check(s; verbose=true)
+                KrakeNN.sanity_check(s; verbose=true)
             end
         "
         ;;

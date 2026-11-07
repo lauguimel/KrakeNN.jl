@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 # Steady GNF forward:
 #   T1  per-cell split/fused paths == collide_rheology_guo_2d_kernel! bit for bit
@@ -169,7 +169,7 @@ end
     @testset "T1f Float32: split and fused paths identical" begin
         case = _gnf_t1_case()
         # Kernel level, closure converted to Float32.
-        cl32 = Kraken.gnf_convert_closure(Float32, case.closure)
+        cl32 = KrakeNN.gnf_convert_closure(Float32, case.closure)
         fS, tS, iS, nS = _gnf_t1_run(case, CPU(), :split; T = Float32, closure = cl32)
         fF, tF, iF, nF = _gnf_t1_run(case, CPU(), :fused; T = Float32, closure = cl32)
         # Control (not a test): the same run with the Float64 closure.
@@ -200,9 +200,9 @@ end
         Fx, Fy = 1e-4, -3e-5
         fe = gnf_feq_cell(1.0, 0.03, -0.01)
         x0 = [collect(fe) .+ 1e-3 .* sin.(1:9); 0.9]
-        g(x) = (r = gnf_cell_update(Kraken.SVector{9}(ntuple(k -> x[k], 9)), x[10], Fx, Fy, cl);
+        g(x) = (r = gnf_cell_update(KrakeNN.SVector{9}(ntuple(k -> x[k], 9)), x[10], Fx, Fy, cl);
                 vcat(collect(r[1]), r[2]))
-        J = Kraken.ForwardDiff.jacobian(g, x0)
+        J = KrakeNN.ForwardDiff.jacobian(g, x0)
         h = 1e-6
         JFD = similar(J)
         for k in 1:10
@@ -223,7 +223,7 @@ end
         # so Π^neq = 0 and I1 = 0 exactly (f1 does not enter Π^neq). f1 is moved
         # by a few ulps, if needed, until Σ f = 1 exactly in floating point.
         fe = gnf_feq_cell(1.0, 0.0, 0.0)
-        cell(a) = Kraken.SVector{9}(a, fe[2], fe[3], fe[4], fe[5], fe[6], fe[7], fe[8], fe[9])
+        cell(a) = KrakeNN.SVector{9}(a, fe[2], fe[3], fe[4], fe[5], fe[6], fe[7], fe[8], fe[9])
         f1 = fe[1]; found = false
         for k in 0:64
             c = fe[1] + (iseven(k) ? 1 : -1) * (k ÷ 2) * eps(fe[1])
@@ -234,9 +234,9 @@ end
         end
         @test found
         x0 = [collect(cell(f1)); τp]
-        g(x) = (r = gnf_cell_update(Kraken.SVector{9}(ntuple(k -> x[k], 9)), x[10], 0.0, 0.0, cl);
+        g(x) = (r = gnf_cell_update(KrakeNN.SVector{9}(ntuple(k -> x[k], 9)), x[10], 0.0, 0.0, cl);
                 vcat(collect(r[1]), r[2], r[3], r[4]))     # fo, τ_new, I1, ν
-        J = Kraken.ForwardDiff.jacobian(g, x0)
+        J = KrakeNN.ForwardDiff.jacobian(g, x0)
         # h = 1e-8, not 1e-6 as in T1b: around S = 0, ν − ν(0) ≈ κ I1 with
         # κ = (η0 − η∞)(n − 1)λ² ≈ −3e5 here, so the O(h²) truncation term of
         # the central difference is ≈ 3e7 h² (measured 2026-10-19: 3.3e-5 at
@@ -250,13 +250,13 @@ end
         err = maximum(abs.(J .- JFD)) / maximum(abs.(J))
         # Control (not a test): the closure applied to γ̇ = √(2 I1) instead of I1.
         function gold(x)
-            fp = Kraken.SVector{9}(ntuple(k -> x[k], 9))
+            fp = KrakeNN.SVector{9}(ntuple(k -> x[k], 9))
             ρ, ux, uy = gnf_moments_cell(fp, 0.0, 0.0)
             ν = effective_viscosity(cl, gnf_strain_rate_cell(fp, ρ, ux, uy, x[10]))
             r = gnf_collide_cell(fp, 0.0, 0.0, ν)
             return vcat(collect(r[1]), r[2])
         end
-        @info "T1z S = 0 block" I1 = g(x0)[11] err nan_with_closure_in_gamma_dot = count(isnan, Kraken.ForwardDiff.jacobian(gold, x0))
+        @info "T1z S = 0 block" I1 = g(x0)[11] err nan_with_closure_in_gamma_dot = count(isnan, KrakeNN.ForwardDiff.jacobian(gold, x0))
         @test size(J) == (12, 10)
         @test all(isfinite, J)
         # At S = 0, ∂I1 = 2 S:∂S = 0, so I1, ν and τ_new have zero derivatives.
@@ -305,7 +305,7 @@ end
         gnf_strain_rate_2d!(gk, fa, solid, res.tau, Fxa, Fya)
         g0 = zeros(Nx, Ny); gc = zeros(Nx, Ny)
         for j in 1:Ny, i in 1:Nx
-            fp = Kraken.SVector{9}(ntuple(q -> fa[i, j, q], 9))
+            fp = KrakeNN.SVector{9}(ntuple(q -> fa[i, j, q], 9))
             g0[i, j] = _gnf_shear_rate_local(fp, c2.G, 0.0, res.tau[i, j]; corrected = false)
             gc[i, j] = _gnf_shear_rate_local(fp, c2.G, 0.0, res.tau[i, j]; corrected = true)
         end

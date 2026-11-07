@@ -146,7 +146,7 @@ the image-point fallback. No Aqua job or submission command was prepared.
 From the repository root, in the already prepared offline test environment:
 
 ```bash
-env JULIA_DEPOT_PATH="$PWD/tmp/c5_depot:$HOME/.julia" JULIA_PKG_OFFLINE=true JULIA_PKG_PRECOMPILE_AUTO=0 KRAKEN_C5_MMS_OUTPUT=benchmarks/fv_c5 "$HOME/.julia/juliaup/julia-1.12.5+0.aarch64.apple.darwin14/Julia-1.12.app/Contents/Resources/julia/bin/julia" --startup-file=no --project=tmp/c5_env -e 'using Kraken, Test; include("test/analytical/incns_fv_immersed_mms.jl"); include("test/analytical/incns_fv_immersed.jl")'
+env JULIA_DEPOT_PATH="$PWD/tmp/c5_depot:$HOME/.julia" JULIA_PKG_OFFLINE=true JULIA_PKG_PRECOMPILE_AUTO=0 KRAKEN_C5_MMS_OUTPUT=benchmarks/fv_c5 "$HOME/.julia/juliaup/julia-1.12.5+0.aarch64.apple.darwin14/Julia-1.12.app/Contents/Resources/julia/bin/julia" --startup-file=no --project=tmp/c5_env -e 'using KrakeNN, Test; include("test/analytical/incns_fv_immersed_mms.jl"); include("test/analytical/incns_fv_immersed.jl")'
 git diff --check
 ```
 

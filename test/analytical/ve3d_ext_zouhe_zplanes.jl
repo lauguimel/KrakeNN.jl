@@ -40,12 +40,12 @@
 # information.
 
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Extensional 3D driver keeps a z-invariant flow z-invariant" begin
     Nx, Ny, Nz = 12, 12, 4
     gate = 1e-12
-    res = Kraken.run_viscoelastic_fvfd_extensional_3d(; Nx, Ny, Nz,
+    res = KrakeNN.run_viscoelastic_fvfd_extensional_3d(; Nx, Ny, Nz,
         epsilon_dot=0.005, ν_s=0.05, ν_p=0.05, lambda=50.0, max_steps=20,
         velocity_mode=:coupled)
     spread_x = maximum(abs, res.ux .- res.ux[:, :, 2:2])

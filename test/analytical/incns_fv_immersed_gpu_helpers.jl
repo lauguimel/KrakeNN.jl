@@ -1,5 +1,5 @@
 # Shared small CPU/GPU fixture and GPU-only timing case. No test execution here.
-using Kraken
+using KrakeNN
 
 function _c5gpu_problem(N; nu=0.1, mass=:M3)
     ib = fv_immersed_circle(N, N, 0.513, 0.487, 0.16; h=1 / N,

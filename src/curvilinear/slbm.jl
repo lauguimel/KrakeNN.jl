@@ -346,7 +346,7 @@ end
 # (Lallemand & Luo 2000; Budinski 2014 for curvilinear applications).
 #
 # Conserved moments (ρ, jx, jy) pass through untouched. Kinematic
-# viscosity sets s_ν = 1/(3ν + 0.5). Other rates follow Kraken's
+# viscosity sets s_ν = 1/(3ν + 0.5). Other rates follow KrakeNN's
 # existing collide_mrt_2d! defaults (s_e = s_ε = 1.4, s_q = 1.2).
 # ---------------------------------------------------------------------------
 
@@ -1015,9 +1015,9 @@ Public function in the curvilinear mesh and SLBM API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.slbm_trt_libb_step_local_biquad_2d!)
+methods(KrakeNN.slbm_trt_libb_step_local_biquad_2d!)
 ```
 """
 function slbm_trt_libb_step_local_biquad_2d!(f_out, f_in, ρ, ux, uy, is_solid,

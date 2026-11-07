@@ -148,7 +148,7 @@ end
             # 3. LI-BB overwrite on cut links.  For each direction q that
             # is FLAGGED by q_wall[i,j,q] > 0, the incoming population
             # f_{opposite(q)} at this fluid node must be replaced by the
-            # Bouzidi-interpolated value. q in Kraken's convention:
+            # Bouzidi-interpolated value. q in KrakeNN's convention:
             #   (2,4) east-west, (3,5) north-south, (6,8) NE-SW, (7,9) NW-SE.
             # Lattice weights: w_2=w_3=w_4=w_5=1/9, w_6..9=1/36. c_s²=1/3.
             # Moving-wall correction δ_q = 2 w_q ρ (c_q · u_w) / c_s²

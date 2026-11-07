@@ -53,7 +53,7 @@ factors for `Jᵀ λ = g`.
 - `lin_factorize`, `lin_refactorize!`, `lin_solve!` (`src/solve/linear*`,
   CUDSS extension). Device CSR matrix through the hook
   `_fv_device_csr(tag, rowptr, colval, n)`, implemented in
-  `ext/KrakenCUDSSExt.jl` for `CUDABackendTag`.
+  `ext/KrakeNNCUDSSExt.jl` for `CUDABackendTag`.
 - ForwardDiff (duals), SparseMatrixColorings (colouring), KernelAbstractions.
 
 ## Writes to
@@ -102,7 +102,7 @@ No globals.
 
 1. `src/methods/inc_ns/fv_newton.jl` — pattern rule (must follow any C1 stencil
    change), assembler, Newton.
-2. `ext/KrakenCUDSSExt.jl` — `_fv_device_csr`.
+2. `ext/KrakeNNCUDSSExt.jl` — `_fv_device_csr`.
 3. `src/methods/inc_ns/method.jl` — `:fv_newton` driver, capabilities.
 4. `test/analytical/incns_fv_newton.jl` (+ `fv_newton_helpers.jl`) — pattern
    superset/tightness, dense / C1-helper parity, quadratic convergence,

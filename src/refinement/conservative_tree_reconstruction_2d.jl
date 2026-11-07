@@ -11,9 +11,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.macrostate_integrated_D2Q9)
+methods(KrakeNN.macrostate_integrated_D2Q9)
 ```
 """
 function macrostate_integrated_D2Q9(Fcell::AbstractVector, volume)
@@ -46,9 +46,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.reconstruct_integrated_D2Q9_eq_neq!)
+methods(KrakeNN.reconstruct_integrated_D2Q9_eq_neq!)
 ```
 """
 function reconstruct_integrated_D2Q9_eq_neq!(
@@ -83,9 +83,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.reconstructed_integrated_D2Q9_packet)
+methods(KrakeNN.reconstructed_integrated_D2Q9_packet)
 ```
 """
 function reconstructed_integrated_D2Q9_packet(

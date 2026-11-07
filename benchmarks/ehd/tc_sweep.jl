@@ -2,7 +2,7 @@
 
 using Dates
 using KernelAbstractions
-using Kraken
+using KrakeNN
 using Printf
 
 function _arg_value(argv, name, default)
@@ -175,7 +175,7 @@ function main(argv=ARGS)
     used_history_names = Set{String}()
 
     for (case_index, T_ehd) in pairs(T_values)
-        result = Kraken.run_electroconvection_2d(;
+        result = KrakeNN.run_electroconvection_2d(;
             Nx=Nx, Ny=Ny, T=T_ehd, max_cycles=cycles,
             ns_scheme=ns_scheme, charge_scheme=charge_scheme,
             phi_scheme=phi_scheme, phi_substeps=phi_substeps,

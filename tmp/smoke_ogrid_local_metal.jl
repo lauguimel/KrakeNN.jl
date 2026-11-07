@@ -14,7 +14,7 @@
 # NaN within the first ~100 steps is expected on Metal FP32 — we only
 # check that the DATA FLOW is wired correctly.
 
-using Kraken, KernelAbstractions, Metal, Gmsh
+using KrakeNN, KernelAbstractions, Metal, Gmsh
 
 include(joinpath(@__DIR__, "gen_ogrid_rect_8block.jl"))
 
@@ -99,7 +99,7 @@ mktempdir() do dir
             x = blk.mesh.X[i, j]; y = blk.mesh.Y[i, j]
             inside = (x - cx_p)^2 + (y - cy_p)^2 ≤ R_p^2
             u = inside ? T(0) : T(u_max)
-            f_int[i, j, q] = T(Kraken.equilibrium(D2Q9(), one(T), u, zero(T), q))
+            f_int[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), one(T), u, zero(T), q))
         end
         int_view = interior_f(states[k])
         copyto!(int_view, DeviceArray(f_int))

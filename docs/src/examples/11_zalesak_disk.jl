@@ -29,7 +29,7 @@
 # \frac{\partial C}{\partial t} + \nabla \cdot (C\,\mathbf{u}) = 0
 # ```
 #
-# In Kraken.jl, this equation is solved using **directional splitting** with a
+# In KrakeNN, this equation is solved using **directional splitting** with a
 # first-order upwind scheme: the ``x``- and ``y``-fluxes are computed
 # separately, alternating the sweep direction each step to reduce directional
 # bias.  Because the scheme is written in conservative (flux) form, **total
@@ -93,7 +93,7 @@
 # Run 314 steps
 # ```
 #
-# The key directive is **`Module advection_only`**: it tells Kraken to skip the
+# The key directive is **`Module advection_only`**: it tells KrakeNN to skip the
 # LBM flow solver entirely and only advect the VOF field using the prescribed
 # `Velocity` block.  This is the LBM analogue of the Gerris/Basilisk
 # `advection` test.
@@ -102,7 +102,7 @@
 #
 # ## Code
 
-using Kraken
+using KrakeNN
 
 N  = 100
 R  = 15.0
@@ -197,7 +197,7 @@ end
 # error halves when the resolution doubles.  This is expected from the
 # directional-split upwind discretisation.  Higher-order flux limiters (MUSCL,
 # THINC) or unsplit geometric advection would improve this to second order, but
-# are not yet implemented in Kraken.jl.
+# are not yet implemented in KrakeNN.
 #
 # ### Mass Conservation
 #

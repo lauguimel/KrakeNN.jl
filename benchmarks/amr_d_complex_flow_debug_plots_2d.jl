@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 
 using CairoMakie
-using Kraken
+using KrakeNN
 using Printf
 
 const OUTDIR = get(ENV, "KRK_AMR_D_DEBUG_OUTDIR",

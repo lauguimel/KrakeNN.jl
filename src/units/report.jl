@@ -5,7 +5,7 @@ end
 
 function _markdown_report(plan::SimulationPlan)
     io = IOBuffer()
-    println(io, "# Kraken.Units plan")
+    println(io, "# KrakeNN.Units plan")
     println(io)
     println(io, "- source: `", plan.audit_source, "`")
     println(io, "- physics: `", typeof(plan.physics_spec), "`")

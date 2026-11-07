@@ -67,9 +67,9 @@ the characteristic shear rate ``\alpha/L^2`` (their Eq. 5),
 With `cavity_powerlaw`, ``\nu_0`` is exactly their ``\nu_\text{nom}``: inserting
 ``\nu_0 = K(\alpha/H^2)^{n-1}`` in the two definitions above gives these
 expressions with ``L = H``. Their shear-rate invariant
-``\sqrt{e_{kl}e_{kl}/2}`` (with ``e_{ij} = 2S_{ij}``) is the one used by Kraken.
+``\sqrt{e_{kl}e_{kl}/2}`` (with ``e_{ij} = 2S_{ij}``) is the one used by KrakeNN.
 
-| Turan et al. (2011) | Kraken keyword or quantity |
+| Turan et al. (2011) | KrakeNN keyword or quantity |
 |---|---|
 | ``L`` | `H = N` (lattice units) |
 | ``K/\rho`` | `K` of the `PowerLaw` built by `cavity_powerlaw` |
@@ -91,7 +91,7 @@ What differs from the paper, apart from the method (they solve the steady
 equations with a finite-volume code on a 100 × 100 non-uniform mesh):
 
 - the mirror image (hot wall on the other side), which leaves the mean Nu unchanged;
-- the buoyancy reference temperature: Kraken uses ``(T_\text{hot}+T_\text{cold})/2``,
+- the buoyancy reference temperature: KrakeNN uses ``(T_\text{hot}+T_\text{cold})/2``,
   the paper ``T_C``. The difference is a uniform body force, balanced by pressure;
 - `PowerLaw` clips the viscosity to `[nu_min, nu_max]`, the paper does not. The
   result reports `clamped_fraction`; it was 0 in the CPU runs below, but not in every GPU run:
@@ -113,7 +113,7 @@ This runs in about two seconds per index on a laptop CPU (N = 32, Ra = 10⁴,
 Pr = 0.71):
 
 ```julia
-using Kraken
+using KrakeNN
 
 Pr, nu0, N = 0.71, 0.05, 32
 scales = gnf_reference_scales(; Ra=1e4, Pr, nu0, H=Float64(N), T_hot=1.0, T_cold=0.0)
@@ -175,14 +175,14 @@ yourself.
 ## Comparison with Turan et al. (2011), CPU
 
 Pr = 10. Paper values are read from their figures (no table gives them), with the
-reading uncertainty in brackets; page numbers are journal pages. Kraken: CPU,
+reading uncertainty in brackets; page numbers are journal pages. KrakeNN: CPU,
 Float64, `nu_min = 1e-3`, `nu_max = 2.0`, stopping after three successive
 1000-step relative Nu changes below 1e-6 (1e-5 for N = 32 and 48 at Ra = 10⁴,
 the settings of the unit test). Every run listed converged and had no node at a
 viscosity cutoff, unless stated (the CSV above lists the GPU runs where some nodes sit at
 a cutoff).
 
-| Ra | ``n`` | Paper Nu (source) | N | `nu0` | Kraken Nu | Kraken − paper |
+| Ra | ``n`` | Paper Nu (source) | N | `nu0` | KrakeNN Nu | KrakeNN − paper |
 |---|---|---|---|---|---|---|
 | 10³ | 0.6 | 2.07 (± 0.07, Fig. 9a, p. 1059) | 48 | 0.3 | 1.9933 | −3.7 % |
 | | | | 64 | 0.3 | 1.9931 | −3.7 % |
@@ -209,18 +209,18 @@ of successive differences (N = 32, 48, 64) is 2.90, against 2.86 for an exact
 
 Reading of the table:
 
-- At Ra = 10⁴, for ``n`` = 0.6 to 1.4 (``n`` = 1.4 with `nu0` = 0.1), Kraken
+- At Ra = 10⁴, for ``n`` = 0.6 to 1.4 (``n`` = 1.4 with `nu0` = 0.1), KrakeNN
   agrees with the paper within 0.7 % on a 64² grid, and within 0.2 % after
   extrapolation for ``n`` = 0.6. The same
   mapping of Ra and Pr is used at every point, so this rules out a mismatch of
-  definitions between Kraken and the paper.
-- At Ra = 10³, ``n`` = 0.6, Kraken is 3.7 % below the paper value, just outside
+  definitions between KrakeNN and the paper.
+- At Ra = 10³, ``n`` = 0.6, KrakeNN is 3.7 % below the paper value, just outside
   its reading uncertainty. This gap is not a grid error: Nu changes by 0.05 %
   from N = 48 to N = 96 and by 0.08 % when `nu0` is divided by 3. Its origin is
   not measured. What is known: Fig. 9a has a 0 to 40 axis, so its reading is
   coarse; the same figure gives 5.44 at Ra = 10⁴ where Fig. 10 gives 5.40; and
-  for ``n`` = 1 it gives 1.14, 2 % above the Newtonian value of Kraken at Pr = 10
-  (1.120), whereas changing Pr from 0.71 to 10 moves Kraken's Nu by only 0.14 %
+  for ``n`` = 1 it gives 1.14, 2 % above the Newtonian value of KrakeNN at Pr = 10
+  (1.120), whereas changing Pr from 0.71 to 10 moves KrakeNN's Nu by only 0.14 %
   and De Vahl Davis gives 1.117 at Pr = 0.71. The gap is therefore likely a
   reading or plotting offset of Fig. 9 at Ra = 10³ (inferred, not proved). A real
   difference between the two solutions at Ra = 10³ cannot be excluded without
@@ -241,7 +241,7 @@ Reading of the table:
 Same cases and paper values as above, run on one A100 (CUDA, Float64, Julia
 1.12.5) at N = 64, 128 and 256 from commit 1c70037 (tag `archive/gnf-thermal-turan-gpu`); the 20-minute job is archived
 in `benchmarks/validation/natconv_gnf/results/`. `nu0` is 0.3, except 0.05 for
-``n`` = 1.8. Each cell is Kraken Nu and its signed gap to the paper value; the
+``n`` = 1.8. Each cell is KrakeNN Nu and its signed gap to the paper value; the
 paper values are figure readings with the uncertainty given in the CPU table.
 
 | Ra | ``n`` | Paper Nu | N = 64 | N = 128 | N = 256 | Converged |
@@ -287,7 +287,7 @@ with v0.7; all 52 assertions passed (83 s).
 | Nu against De Vahl Davis (1983), hot-wall Nu₀ = 1.117 (cavity average 1.118; the test gate uses 1.118), same case | +0.05 % against 1.117 (−0.04 % against 1.118) | < 0.5 % (same frozen gate as `test_thermal.jl`) |
 | Nu against the power-law index, N = 32, Ra = 10⁴, Pr = 0.71 ("QUALITATIVE literature trend") | Nu = 3.013 / 2.239 / 1.689 for ``n`` = 0.8 / 1.0 / 1.2 | Nu(0.8) > Nu(1.0) > Nu(1.2); Nu drift < 1e-5 over three successive 1000-step checks; clamped fraction < 1 % (measured 0.0) |
 | Turan et al. (2011), Ra = 10⁴, Pr = 10, ``n`` = 0.6, N = 32 and 48 extrapolated in 1/N² ("Turan et al. (2011) power-law points, CPU") | Nu = 5.3765, −0.44 % against 5.40 | < 1 %: the reference's own uncertainty (figure reading ± 0.02, i.e. 0.37 %, plus their mesh uncertainty ≤ 0.35 %), rounded up; converged; clamped fraction 0 |
-| Same testset, Ra = 10³, ``n`` = 0.6, N = 48 | Nu = 1.9843 (−4.1 % against 2.07) | within 0.1 % of Kraken's own converged value 1.98434 (regression gate); the gap to the paper is documented above, not gated |
+| Same testset, Ra = 10³, ``n`` = 0.6, N = 48 | Nu = 1.9843 (−4.1 % against 2.07) | within 0.1 % of KrakeNN's own converged value 1.98434 (regression gate); the gap to the paper is documented above, not gated |
 | Carreau-Yasuda, N = 8, 5 steps ("Carreau-Yasuda cavity API") | finite fields, viscosity between ``\eta_\infty`` and ``\eta_0`` | smoke test only |
 | `.krk` case reaches the driver ("Parsed thermal rheology reaches run_simulation") | `power_law` block routed, 5 steps, finite fields | smoke test only |
 
@@ -302,11 +302,11 @@ Reading of the table:
   shear-thickening lowers it, as expected physically; Pr = 0.71 has no published
   power-law counterpart.
 - The two Turan rows split the comparison on purpose. At Ra = 10⁴ the figure
-  is read to 0.4 % and Kraken agrees with it within 0.5 %, so the test gates
-  Kraken against the paper with a 1 % gate set by the paper's precision. At
+  is read to 0.4 % and KrakeNN agrees with it within 0.5 %, so the test gates
+  KrakeNN against the paper with a 1 % gate set by the paper's precision. At
   Ra = 10³ a gate against 2.07 would have to be at least 5 %, which would mostly
-  test the reading of a figure and would let a 4 % change of Kraken's solution
-  pass unseen; the test therefore freezes Kraken's own converged value, so that
+  test the reading of a figure and would let a 4 % change of KrakeNN's solution
+  pass unseen; the test therefore freezes KrakeNN's own converged value, so that
   any change of the discrete solution fails, and the 4.1 % gap stays
   documented.
 

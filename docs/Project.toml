@@ -6,7 +6,7 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
 DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
 JuliaSyntax = "70703baa-626e-46a2-a12c-08ffd08c73b4"
-Kraken = "b9c8ae56-6711-4442-a2ee-93cdf3c40864"
+KrakeNN = "b9c8ae56-6711-4442-a2ee-93cdf3c40864"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 NodeJS_20_jll = "c7aee132-11e1-519c-8219-0a43005e73c2"
 Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
@@ -15,7 +15,7 @@ PlutoStaticHTML = "359b1769-a58e-495b-9770-312e911026ad"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [sources]
-Kraken = {path = ".."}
+KrakeNN = {path = ".."}
 
 [compat]
 CairoMakie = "0.12, 0.13, 0.14, 0.15"

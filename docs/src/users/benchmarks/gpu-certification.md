@@ -1,9 +1,9 @@
 # GPU efficiency certification — BGK D2Q9 CUDA F64
 
 Single-GPU throughput of the Newtonian BGK D2Q9 solver in **CUDA Float64** (Taylor–Green
-driver, `run_taylor_green_2d`). Kraken sustains **3461 MLUPS** at `N = 2048` on an
+driver, `run_taylor_green_2d`). KrakeNN sustains **3461 MLUPS** at `N = 2048` on an
 **A100-40GB**. A D2Q9 Float64 update moves at least 144 bytes, so the bandwidth ceiling of
-that GPU is 10 799 MLUPS and Kraken reaches **0.32** of it. That is **below** the
+that GPU is 10 799 MLUPS and KrakeNN reaches **0.32** of it. That is **below** the
 **≥ 0.5 of roofline** gate this page was written against.
 
 A previous version of this page reported 0.68 and a PASS. It divided the bandwidth by
@@ -16,7 +16,7 @@ A previous version of this page reported 0.68 and a PASS. It divided the bandwid
 
 Ceiling = peak bandwidth / 144 bytes. Ratio = 3461 / ceiling.
 
-| Reference                          | MLUPS  | Kraken / ref | Type |
+| Reference                          | MLUPS  | KrakeNN / ref | Type |
 |------------------------------------|-------:|-------------:|------|
 | A100-40GB roofline (1.555 TB/s)    | 10 799 | **0.32**     | bandwidth ceiling |
 | A100-80GB roofline (2.039 TB/s)    | 14 160 | **0.24**     | bandwidth ceiling |

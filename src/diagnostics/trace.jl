@@ -74,7 +74,7 @@ macro trace_enter(kernel_id)
     id isa Symbol || error("@trace_enter expects a literal Symbol, e.g. @trace_enter :kernel_id")
     TRACE_ENABLED || return :(nothing)
     return esc(quote
-        Kraken.Diagnostics.trace_enter_impl($(QuoteNode(id)), Base.@locals)
+        KrakeNN.Diagnostics.trace_enter_impl($(QuoteNode(id)), Base.@locals)
         nothing
     end)
 end

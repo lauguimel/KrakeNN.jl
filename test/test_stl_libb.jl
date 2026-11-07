@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # ==========================================================================
 # STL → LI-BB cut-fraction precomputation.
@@ -207,7 +207,7 @@ end
         uw_y = zeros(Float64, Nx, Ny, 9)
         f_in = zeros(Float64, Nx, Ny, 9)
         for j in 1:Ny, i in 1:Nx, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.01, 0.0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.01, 0.0, q)
         end
         f_out = similar(f_in)
         ρ = ones(Nx, Ny); ux = zeros(Nx, Ny); uy = zeros(Nx, Ny)
@@ -217,7 +217,7 @@ end
                                      qw, uw_x, uw_y, Nx, Ny, 0.05)
             # Equilibrium inlet
             for j in 1:Ny, q in 1:9
-                f_out[1, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.01, 0.0, q)
+                f_out[1, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.01, 0.0, q)
             end
             # Neumann outlet
             for j in 1:Ny, q in 1:9

@@ -38,9 +38,9 @@ strengthening Decision 2 (assembled-sparse) for unsteady, not just steady.
 
 We deliberately build #8 on a **general assembled-sparse linear solver** from the
 start, using the best available performant backend per platform. The
-`[weakdeps]` extension mechanism (precedent: `ext/KrakenADExt.jl` ↔ Enzyme)
+`[weakdeps]` extension mechanism (precedent: `ext/KrakeNNADExt.jl` ↔ Enzyme)
 makes high-performance dependencies **free for base users**: they load only on
-CUDA, `using Kraken` stays light. Consequences:
+CUDA, `using KrakeNN` stays light. Consequences:
 - there is **no solver-imposed restriction** forcing a segregated scheme — a
   general sparse solver can handle a saddle-point or Newton-Jacobian system too
   (assemble → hand to the solver). The coupling scheme is therefore chosen on
@@ -101,7 +101,7 @@ the viscous/stress term supplied by the branchable constitutive closure.
 
 **Plan:** `LinearSolve.jl` is the abstraction (core or thin weakdep — confirm in
 Phase A); **cuDSS** (CUDA, F64) and **CHOLMOD/UMFPACK** (CPU) are the primary
-backends, cuDSS behind `[weakdeps]` mirroring `ext/KrakenADExt.jl`. **AMGX** is a
+backends, cuDSS behind `[weakdeps]` mirroring `ext/KrakeNNADExt.jl`. **AMGX** is a
 later option for very large 3D where direct factorization runs out of memory.
 A **matrix-free geometric multigrid** is demoted to a later fully-portable
 fallback (non-CUDA GPUs / no-cuDSS environments), **not** a v1 deliverable.
@@ -144,7 +144,7 @@ The adjoint of a linear solve `A x = b` is the **transpose solve**
 `Aᵀ λ = ∂J/∂x` — one does **not** differentiate through the solver. cuDSS solves
 transpose systems directly. What must be differentiable is the **assembly** (how
 `A`, `b` depend on geometry/parameters), reachable by Enzyme over the assembly
-kernels (consistent with `KrakenADExt`). **Matrix-free is therefore NOT required
+kernels (consistent with `KrakeNNADExt`). **Matrix-free is therefore NOT required
 for `SteadyAdjoint`.** Define the canonical converged object as
 `R(u,p) = [momentum; continuity] = 0`; `SteadyAdjoint` later solves
 `Rᵤᵀ λ = ∂J/∂u` via the same assembled + cuDSS service on the transpose.

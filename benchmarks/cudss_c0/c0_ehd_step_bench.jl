@@ -9,14 +9,14 @@
 #   julia --project=<env> benchmarks/cudss_c0/c0_ehd_step_bench.jl
 # Env: C0_EHD_STEPS (timed steps, default 2000), C0_EHD_WARM (default 200).
 using CUDA, CUDSS
-using Kraken
+using KrakeNN
 using Printf
 
 CUDA.functional() || error("CUDA not functional")
 const NSTEP = parse(Int, get(ENV, "C0_EHD_STEPS", "2000"))
 const NWARM = parse(Int, get(ENV, "C0_EHD_WARM", "200"))
 println("GPU: ", CUDA.name(CUDA.device()), "  CUDA.jl ", pkgversion(CUDA),
-        "  CUDSS.jl ", pkgversion(CUDSS), "  Kraken ", pkgversion(Kraken))
+        "  CUDSS.jl ", pkgversion(CUDSS), "  KrakeNN ", pkgversion(KrakeNN))
 
 cfg = (; Nx = 197, Ny = 321, C = 10.0, M = 10.0, T = 166.0, ns_scheme = :mrt,
        charge_scheme = :regularized, phi_scheme = :direct, force_projection = :xy,

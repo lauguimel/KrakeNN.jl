@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # ===========================================================================
 # Curvilinear mesh + metric computation tests (Week 1, v0.2 SLBM path).
@@ -12,7 +12,7 @@ using Kraken
 
     @testset "build_mesh — identity mapping (Cartesian sanity)" begin
         # Identity: X = ξ, Y = η. Metric should be the identity, J = 1.
-        mesh = Kraken.build_mesh((ξ, η) -> (ξ, η);
+        mesh = KrakeNN.build_mesh((ξ, η) -> (ξ, η);
                                   Nξ=8, Nη=6,
                                   type=:custom, FT=Float64)
         @test mesh.Nξ == 8
@@ -26,7 +26,7 @@ using Kraken
 
     @testset "build_mesh — affine scaling (analytical match)" begin
         # X = 3ξ + 1, Y = 5η + 2. Expected: dXdξ=3, dYdη=5, J=15.
-        mesh = Kraken.build_mesh((ξ, η) -> (3ξ + 1, 5η + 2);
+        mesh = KrakeNN.build_mesh((ξ, η) -> (3ξ + 1, 5η + 2);
                                   Nξ=4, Nη=4, FT=Float64)
         @test all(mesh.dXdξ .≈ 3.0)
         @test all(mesh.dYdη .≈ 5.0)
@@ -38,7 +38,7 @@ using Kraken
 
     @testset "build_mesh — non-orthogonal mapping (analytical match)" begin
         # X = ξ + 0.3η, Y = 0.2ξ + η. Cross-derivatives non-zero.
-        mesh = Kraken.build_mesh((ξ, η) -> (ξ + 0.3η, 0.2ξ + η);
+        mesh = KrakeNN.build_mesh((ξ, η) -> (ξ + 0.3η, 0.2ξ + η);
                                   Nξ=5, Nη=5, FT=Float64)
         @test all(mesh.dXdξ .≈ 1.0)
         @test all(mesh.dXdη .≈ 0.3)
@@ -166,7 +166,7 @@ using Kraken
 
     @testset "validate_mesh — rejects folded mapping" begin
         # Fold: X = ξ², Y = η. dX/dξ = 0 at ξ=0 → J = 0 there.
-        @test_throws ErrorException Kraken.build_mesh((ξ, η) -> (ξ^2, η);
+        @test_throws ErrorException KrakeNN.build_mesh((ξ, η) -> (ξ^2, η);
                                                       Nξ=4, Nη=4, FT=Float64)
     end
 

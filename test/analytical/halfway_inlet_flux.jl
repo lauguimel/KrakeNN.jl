@@ -12,7 +12,7 @@
 
 using Test
 using Random
-using Kraken
+using KrakeNN
 
 @testset "Inlet flow rate (half-way walls)" begin
     rel(a, b) = abs(a - b) / abs(b)
@@ -27,7 +27,7 @@ using Kraken
 
     @testset "half-way Poiseuille profile: flux and wall zeros" begin
         for H in (2, 3, 5, 8, 20, 33, 80, 101, 200, 401), u_mean in (1e-3, 0.02, 1.0)
-            u = Kraken._halfway_poiseuille_profile(Float64, H, u_mean)
+            u = KrakeNN._halfway_poiseuille_profile(Float64, H, u_mean)
             @test length(u) == H
             # Discrete flow rate equals H * u_mean (gate 1e-12, round-off).
             @test rel(sum(u), H * u_mean) <= 1e-12
@@ -41,25 +41,25 @@ using Kraken
             end
         end
         # Float32 output: same values rounded once.
-        u32 = Kraken._halfway_poiseuille_profile(Float32, 40, 0.02)
-        u64 = Kraken._halfway_poiseuille_profile(Float64, 40, 0.02)
+        u32 = KrakeNN._halfway_poiseuille_profile(Float32, 40, 0.02)
+        u64 = KrakeNN._halfway_poiseuille_profile(Float64, 40, 0.02)
         @test eltype(u32) === Float32
         @test u32 == Float32.(u64)
         @test rel(Float64(sum(u32)), 40 * 0.02) <= 1e-6
-        @test_throws ArgumentError Kraken._halfway_poiseuille_profile(Float64, 0, 1.0)
+        @test_throws ArgumentError KrakeNN._halfway_poiseuille_profile(Float64, 0, 1.0)
     end
 
     @testset "cylinder LI-BB inlet (ad_inlet_profile, same helper as run_cylinder_libb_2d)" begin
         u_in = 0.04
         for Ny in (16, 41, 80, 161)
-            u = Kraken.ad_inlet_profile(Ny, u_in, :parabolic)
+            u = KrakeNN.ad_inlet_profile(Ny, u_in, :parabolic)
             # u_ref = (2/3) u_in is the mean used in Cd = 2 Fx / (u_ref^2 D).
             @test rel(sum(u), Ny * (2 / 3) * u_in) <= 1e-12
-            @test u == Kraken._halfway_poiseuille_profile(Float64, Ny, (2 / 3) * u_in)
+            @test u == KrakeNN._halfway_poiseuille_profile(Float64, Ny, (2 / 3) * u_in)
             @test abs(quad_at(u, 1, 0.5)) <= 1e-12 * u_in
             @test abs(quad_at(u, Ny - 2, Ny + 0.5)) <= 1e-12 * u_in
         end
-        @test Kraken.ad_inlet_profile(10, u_in, :uniform) == fill(u_in, 10)
+        @test KrakeNN.ad_inlet_profile(10, u_in, :uniform) == fill(u_in, 10)
     end
 
     @testset "parabolic_face_profile_2d on step and obstacle channels" begin
@@ -70,7 +70,7 @@ using Kraken
             contraction_step_geometry_2d(; H_out=6, β_c=4, L_up=2, L_down=3),
             contraction_step_geometry_2d(; H_out=10, β_c=2, L_up=2, L_down=3),
             square_obstacle_channel_geometry_2d(; H=24, side=6, L_up=2, L_down=3),
-            Kraken._logfv_cylinder_channel_geometry_2d(; radius=6),
+            KrakeNN._logfv_cylinder_channel_geometry_2d(; radius=6),
         )
         for geom in geoms, face in (:west, :east)
             open = face === :west ? geom.inlet_open : geom.outlet_open
@@ -102,7 +102,7 @@ using Kraken
 
     @testset "AD viscoelastic channel profile" begin
         for Ny in (24, 31, 80)
-            u = Kraken.ad_ve_poiseuille_profile(Ny, 2e-4)
+            u = KrakeNN.ad_ve_poiseuille_profile(Ny, 2e-4)
             @test rel(sum(u), Ny * 2e-4) <= 1e-12
             g = square_obstacle_channel_geometry_2d(; H=Ny, side=iseven(Ny) ? 6 : 5,
                                                     L_up=2, L_down=3)
@@ -125,8 +125,8 @@ using Kraken
                          f[i, j, 8] + f[i, j, 9]) / dens(f, i, j)
         vely(f, i, j) = (f[i, j, 3] - f[i, j, 5] + f[i, j, 6] + f[i, j, 7] -
                          f[i, j, 8] - f[i, j, 9]) / dens(f, i, j)
-        for prof in (Kraken._halfway_poiseuille_profile(Float64, Ny, 0.03), fill(0.03, Ny))
-            f_in = [Kraken.equilibrium(D2Q9(), 1.0, prof[j], 0.0, q)
+        for prof in (KrakeNN._halfway_poiseuille_profile(Float64, Ny, 0.03), fill(0.03, Ny))
+            f_in = [KrakeNN.equilibrium(D2Q9(), 1.0, prof[j], 0.0, q)
                     for i in 1:Nx, j in 1:Ny, q in 1:9]
             # (spec, face column, :u imposes prof / :rho imposes 1) for each x-face
             # kernel: velocity and pressure, west and east, and the east kernels
@@ -206,9 +206,9 @@ using Kraken
     @testset "3D Zou-He x-face rebuild with halfway_walls" begin
         Nx, Ny, Nz, nu = 5, 6, 7, 0.1
         s_p, s_m = trt_rates(nu; Λ=3 / 16)
-        cx = Kraken.velocities_x(D3Q19())
-        cy = Kraken.velocities_y(D3Q19())
-        cz = Kraken.velocities_z(D3Q19())
+        cx = KrakeNN.velocities_x(D3Q19())
+        cy = KrakeNN.velocities_y(D3Q19())
+        cz = KrakeNN.velocities_z(D3Q19())
         opp = [findfirst(p -> (cx[p], cy[p], cz[p]) == (-cx[q], -cy[q], -cz[q]), 1:19)
                for q in 1:19]
         all4 = (:south, :north, :bottom, :top)
@@ -226,13 +226,13 @@ using Kraken
         # and x-momentum exactly and the TRT collision conserves both, so every
         # west node, edges and corners included, carries u_x = profile and
         # every east node rho = 1.
-        sy = Kraken._halfway_poiseuille_profile(Float64, Ny, 2 / 3)
-        sz = Kraken._halfway_poiseuille_profile(Float64, Nz, 2 / 3)
-        py = Kraken._halfway_poiseuille_profile(Float64, Ny, (2 / 3) * 0.04)
+        sy = KrakeNN._halfway_poiseuille_profile(Float64, Ny, 2 / 3)
+        sz = KrakeNN._halfway_poiseuille_profile(Float64, Nz, 2 / 3)
+        py = KrakeNN._halfway_poiseuille_profile(Float64, Ny, (2 / 3) * 0.04)
         for prof in ([0.04 * sy[j] * sz[k] for j in 1:Ny, k in 1:Nz],   # :parabolic
                      [py[j] for j in 1:Ny, k in 1:Nz]),                 # :parabolic_y
             rates in (:uniform, :field)
-            f_in = [Kraken.equilibrium(D3Q19(), 1.0, prof[j, k], 0.0, 0.0, q)
+            f_in = [KrakeNN.equilibrium(D3Q19(), 1.0, prof[j, k], 0.0, 0.0, q)
                     for i in 1:Nx, j in 1:Ny, k in 1:Nz, q in 1:19]
             f_out = fill(NaN, Nx, Ny, Nz, 19)
             spec = BCSpec3D(; west=ZouHeVelocity(prof), east=ZouHePressure(1.0))

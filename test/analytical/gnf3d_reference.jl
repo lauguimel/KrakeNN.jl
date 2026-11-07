@@ -1,6 +1,6 @@
 # Independent planar GNF references: momentum balance gives |tau| = F*s.
 # Velocity is the integral of the inverse stress law, with no quadrature
-# and no calls to Kraken's production viscosity/strain-rate implementation.
+# and no calls to KrakeNN's production viscosity/strain-rate implementation.
 
 function _gnf3d_carreau_stress(gamma, eta0, etainf, lambda, n)
     etainf * gamma + (eta0 - etainf) * gamma *

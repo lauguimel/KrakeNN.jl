@@ -53,7 +53,7 @@ Phase 2a (`residual.jl`):
 - `residual(problem, ::LBM, u, p) -> same shape as u` — R = u - G(u,p); Enzyme-free (calls ad_step!/ad_thermal_cut_step!/ad_ve_coupled_step! directly).
 - `adjoint_vjp(problem, ::LBM, u_star, p, v) -> same shape as v` — (I - dG/du)^T v; delegates to `_ad_vjp_GtT` / `_ad_thermal_vjp_GtT` / `_ad_ve_vjp_GtT`; requires Enzyme loaded.
 
-Phase 2b-1 (`residual.jl` additive, `ad_step.jl` additive, `KrakenADExt.jl` additive):
+Phase 2b-1 (`residual.jl` additive, `ad_step.jl` additive, `KrakeNNADExt.jl` additive):
 - `LBMScalarParams` — parameter bundle with free scalar ν; geometry fields same as `LBMGeomParams`; `s_plus`/`s_minus` derived from ν at construction.
 - `residual(problem, ::LBM, f, p::LBMScalarParams)` — identical body to `LBMGeomParams` dispatch; uses derived rates.
 - `adjoint_vjp(problem, ::LBM, f_star, p::LBMScalarParams, v)` — identical body to `LBMGeomParams` dispatch; delegates to `_ad_vjp_GtT`.
@@ -66,20 +66,20 @@ Phase 2b-2 (`calibration.jl` NEW):
 - `CalibResult` — (`p_opt`, `loss_final`, `loss_trace`, `grad_trace`, `n_iter`, `converged`, `message`).
 - `_dJ_df_lineprofile_ux` — (private) analytic dL/df for `LineProfile(:ux)` observable; Enzyme-free.
 
-Phase 2c-2 (`calibration.jl` extended, `ext/KrakenOptimExt.jl` NEW, `Project.toml` +Optim weakdep):
+Phase 2c-2 (`calibration.jl` extended, `ext/KrakeNNOptimExt.jl` NEW, `Project.toml` +Optim weakdep):
 - `_reg_loss(nu_vec, alpha)` + `_reg_grad(nu_vec, alpha)` — Tikhonov smoothness
   penalty `(α/2) ‖D·ν‖²` and analytic gradient (discrete negative Laplacian); Enzyme-free.
 - `_is_nufield_pspace(pspace)` + `_extract_nufield(p_named, Ny)` — routing helpers.
 - `fit(...; reg_weight=0.0, method=:pgd)` — `reg_weight > 0` adds regularization to
   the loss and gradient for field-ν problems; `method=:lbfgs` routes to L-BFGS.
-- `_fit_lbfgs` stub in `src/ad/ad_api.jl` + impl in `ext/KrakenOptimExt.jl` —
+- `_fit_lbfgs` stub in `src/ad/ad_api.jl` + impl in `ext/KrakeNNOptimExt.jl` —
   L-BFGS-B via `Optim.Fminbox(LBFGS())`; first non-Enzyme `[weakdeps]` in Kraken.
 - `Project.toml`: `Optim = "429524aa-..."` in `[weakdeps]`,
-  `KrakenOptimExt = "Optim"` in `[extensions]`, `Optim = "2"` in `[compat]`.
+  `KrakeNNOptimExt = "Optim"` in `[extensions]`, `Optim = "2"` in `[compat]`.
 - Exit gate C-2a: field twin experiment `ν(y) = 0.03 + 0.04·sin(π·(j-1)/(Ny-1))`,
   Ny=8, σ=5e-4, reg_weight=1e-4, seed=42 — rel_L2 < 10% in ≤200 L-BFGS iters.
 
-Phase 2c-1 (`residual.jl` + `ad_step.jl` + `ad_forward.jl` + `KrakenADExt.jl`, additive):
+Phase 2c-1 (`residual.jl` + `ad_step.jl` + `ad_forward.jl` + `KrakeNNADExt.jl`, additive):
 - `LBMFieldParams` — parameter bundle with FREE per-row ν(y) field (Vector{Float64}, length Ny);
   `s_plus_field`/`s_minus_field` derived at construction via `ad_trt_rates_inline`.
 - `residual(_, ::LBM, f, p::LBMFieldParams)` — calls `ad_step_nufield!`; degenerates to scalar
@@ -89,7 +89,7 @@ Phase 2c-1 (`residual.jl` + `ad_step.jl` + `ad_forward.jl` + `KrakenADExt.jl`, a
 - `_ad_pvjp_nufield(f_star, lambda, nu_field, ...) -> Vector{Float64}` — (private) Enzyme Reverse
   with Duplicated array; O(1) Enzyme calls for all Ny rows simultaneously.
 - `_ad_vjp_GtT_nufield(f_star, v, ..., nu_field, ...) -> Array{Float64,3}` — (private) state VJP,
-  Const nu_field; implemented in `ext/KrakenADExt.jl`.
+  Const nu_field; implemented in `ext/KrakeNNADExt.jl`.
 
 Second concrete method (`src/methods/inc_ns/method.jl`, mirrors the LBM wrapper):
 - `IncNS <: AbstractMethod` — `IncNS(driver)` with driver ∈
@@ -151,7 +151,7 @@ platform fallback.
    (`FieldProbe`/`LineProfile`/`FieldReduction`).
 5. `src/platform/residual.jl` — Phase 2a: `residual`, `adjoint_vjp`, `LBMGeomParams`, `LBMThermalParams`, `LBMVEParams`, `SteadyResidual`.
 5b. `src/platform/calibration.jl` — Phase 2b-2: `ParameterSpace`, `loss`, `fit`, `CalibResult`.
-6. `src/Kraken.jl` — the `# --- Platform contract ---` include + export block (a choke file;
+6. `src/KrakeNN.jl` — the `# --- Platform contract ---` include + export block (a choke file;
    edits serialized on `dev/platform`).
 7. `test/platform/contract_parity_test.jl` — capabilities, bit-for-bit parity vs `run_simulation`,
    and observe/predict (Phase 1).

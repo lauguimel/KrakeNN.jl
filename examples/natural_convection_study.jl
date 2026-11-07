@@ -2,7 +2,7 @@
 """
 Natural convection in a differentially heated cavity — parametric study.
 
-Compares Kraken.jl LBM results against:
+Compares KrakeNN LBM results against:
   - De Vahl Davis (1983) benchmark (Rc=1)
   - OpenFOAM/RheoTool results from NatConv project
 
@@ -10,7 +10,7 @@ Usage:
     julia --project examples/natural_convection_study.jl
 """
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 using DelimitedFiles
@@ -156,7 +156,7 @@ end
 # ── Main ─────────────────────────────────────────────────────────────────
 
 function main()
-    println("\n  Kraken.jl — Natural Convection Parametric Study\n")
+    println("\n  KrakeNN — Natural Convection Parametric Study\n")
 
     run_validation(; N=128, max_steps=80000)
     run_benchmark(; N=128, Ra=1e4, max_steps=20000)

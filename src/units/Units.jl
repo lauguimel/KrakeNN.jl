@@ -1,13 +1,13 @@
 """
     Units
 
-Submodule containing Kraken lattice-unit planning, stability audits, and driver keyword conversion helpers.
-Use it through `Kraken.Units` when converting physical nondimensional inputs into lattice-unit simulation plans.
+Submodule containing KrakeNN lattice-unit planning, stability audits, and driver keyword conversion helpers.
+Use it through `KrakeNN.Units` when converting physical nondimensional inputs into lattice-unit simulation plans.
 
 ```julia
-using Kraken
+using KrakeNN
 
-plan = Kraken.Units.compile(; physics=:newtonian, geometry=(; type=:channel), bc=(;))
+plan = KrakeNN.Units.compile(; physics=:newtonian, geometry=(; type=:channel), bc=(;))
 ```
 """
 module Units

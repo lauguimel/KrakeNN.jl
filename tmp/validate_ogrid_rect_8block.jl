@@ -14,7 +14,7 @@
 #
 # No simulation kernel here — just loader + topology plumbing.
 
-using Kraken
+using KrakeNN
 include(joinpath(@__DIR__, "gen_ogrid_rect_8block.jl"))
 
 mktempdir() do dir
@@ -52,7 +52,7 @@ mktempdir() do dir
         tags = (b.boundary_tags.west, b.boundary_tags.east,
                 b.boundary_tags.south, b.boundary_tags.north)
         n_cyl   = count(==(:cylinder),   tags)
-        n_iface = count(==(Kraken.INTERFACE_TAG), tags)
+        n_iface = count(==(KrakeNN.INTERFACE_TAG), tags)
         n_other = 4 - n_cyl - n_iface
         println("  $(b.id): $tags  [cyl=$n_cyl iface=$n_iface outer=$n_other]")
     end

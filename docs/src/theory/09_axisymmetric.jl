@@ -8,7 +8,7 @@
 #
 # ## Coordinate mapping
 #
-# In Kraken.jl, the standard 2D lattice is reinterpreted as:
+# In KrakeNN, the standard 2D lattice is reinterpreted as:
 #
 # - ``x \to z`` (axial direction, along the pipe)
 # - ``y \to r`` (radial direction, from the axis outward)
@@ -35,7 +35,7 @@
 # ```
 #
 # These geometric ``1/r`` terms appear as **source terms** in the LBM collision
-# operator. Two schemes are implemented in Kraken.jl.
+# operator. Two schemes are implemented in KrakeNN.
 #
 # ## Zhou (2011) simple scheme
 #
@@ -55,7 +55,7 @@
 #
 # !!! note "Simplicity"
 #     The Zhou scheme requires only one extra multiplication per direction.
-#     It is implemented in Kraken.jl as `collide_axisymmetric_2d!`.
+#     It is implemented in KrakeNN as `collide_axisymmetric_2d!`.
 #
 # However, this simple scheme has limited accuracy: it recovers the
 # axisymmetric Navier--Stokes equations only at leading order and introduces
@@ -110,13 +110,13 @@
 #
 # !!! warning "Axis singularity"
 #     All axisymmetric schemes have a ``1/r`` factor. Near the axis
-#     (``r \to 0``), this requires careful treatment. Kraken.jl places the axis
+#     (``r \to 0``), this requires careful treatment. KrakeNN places the axis
 #     at ``r = 0.5`` and uses symmetry conditions on the ``j = 1`` row to
 #     avoid division by zero.
 #
-# ## Kraken.jl API
+# ## KrakeNN API
 
-using Kraken
+using KrakeNN
 
 lattice = D2Q9()
 

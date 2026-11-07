@@ -1,15 +1,15 @@
 println("IMPORT_BEGIN ",time()); flush(stdout)
-using Kraken, CUDA, KernelAbstractions, LinearAlgebra, TOML, DelimitedFiles, Test, Serialization
+using KrakeNN, CUDA, KernelAbstractions, LinearAlgebra, TOML, DelimitedFiles, Test, Serialization
 println("IMPORT_END ",time()); flush(stdout)
 include("reference_kernels.jl")
 using .ExternalMoment2D
 BLAS.set_num_threads(1); CUDA.allowscalar(false)
 const SOURCE_SHA=strip(read("SOURCE_SHA",String))
-@assert realpath(pathof(Kraken))==realpath("source/src/Kraken.jl")
+@assert realpath(pathof(KrakeNN))==realpath("source/src/KrakeNN.jl")
 @assert readchomp(`git -C source rev-parse HEAD`)==SOURCE_SHA
 @assert VERSION==v"1.11.9" && Base.pkgversion(CUDA)==v"5.11.3"
 @assert CUDA.functional()
-println("SOURCE ",pathof(Kraken)," SHA ",SOURCE_SHA); CUDA.versioninfo()
+println("SOURCE ",pathof(KrakeNN)," SHA ",SOURCE_SHA); CUDA.versioninfo()
 save(path,d)=open(io->TOML.print(io,d),path,"w")
 function ek()
     lo=pi/2; hi=pi
@@ -36,7 +36,7 @@ function boundary!(f,q,vx,vy,periodic,backend;moment=true)
     Nx,Ny=size(q)
     # Actual proposed src/ implementation. K=0 makes Ex/Ey unused; vx/vy are
     # prescribed total charge velocities in this exact scalar verification.
-    Kraken._apply_charge_moment_box_2d!(f,q,vx,vy,vx,vy,1.,0.,Nx,Ny;
+    KrakeNN._apply_charge_moment_box_2d!(f,q,vx,vy,vx,vy,1.,0.,Nx,Ny;
         periodic=periodic,moment=moment)
 end
 function simulate(H,periodic,backend;tau=.8,lowtau=false,moment=true,tend=.2)
@@ -59,13 +59,13 @@ function simulate(H,periodic,backend;tau=.8,lowtau=false,moment=true,tend=.2)
     t0=time_ns(); cpu_started=time()
     for step=1:steps
         # Same production collide/stream operators as EC; v is prescribed here.
-        Kraken.collide_electric_charge_regularized_2d!(f,xd,yd,zeroes,zeroes,tau,1.)
+        KrakeNN.collide_electric_charge_regularized_2d!(f,xd,yd,zeroes,zeroes,tau,1.)
         if periodic
-            Kraken.stream_periodic_x_wall_y_2d!(out,f,Nx,Ny)
+            KrakeNN.stream_periodic_x_wall_y_2d!(out,f,Nx,Ny)
         else
-            Kraken.stream_wall_x_wall_y_2d!(out,f,Nx,Ny)
+            KrakeNN.stream_wall_x_wall_y_2d!(out,f,Nx,Ny)
         end
-        Kraken.compute_ehd_scalar_2d!(qd,out)
+        KrakeNN.compute_ehd_scalar_2d!(qd,out)
         boundary!(out,qd,xd,yd,periodic,backend;moment=moment)
         f,out=out,f
         if step%32==0 || step==steps

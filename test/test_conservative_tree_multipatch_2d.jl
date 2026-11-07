@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Conservative tree multipatch ownership 2D" begin
     @testset "disjoint patches own parent and leaf cells" begin

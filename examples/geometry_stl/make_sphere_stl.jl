@@ -53,7 +53,7 @@ function write_sphere_stl(filename::AbstractString;
     mkpath(dirname(abspath(filename)))
     open(filename, "w") do io
         header = zeros(UInt8, 80)
-        label = codeunits("Kraken M-GEO-5 closed sphere")
+        label = codeunits("KrakeNN M-GEO-5 closed sphere")
         header[1:length(label)] .= label
         write(io, header)
         write(io, UInt32(2 * longitudes * (latitudes - 1)))

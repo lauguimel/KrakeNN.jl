@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Species transport" begin
 
@@ -15,14 +15,14 @@ using Kraken
         ux    = zeros(Float64, Nx, Ny)
         uy    = zeros(Float64, Nx, Ny)
 
-        w = Kraken.weights(D2Q9())
+        w = KrakeNN.weights(D2Q9())
         for j in 1:Ny, i in 1:Nx, q in 1:9
             h_in[i, j, q] = w[q] * 0.5
         end
         copy!(h_out, h_in)
 
         for step in 1:5000
-            Kraken.stream_periodic_x_wall_y_2d!(h_out, h_in, Nx, Ny)
+            KrakeNN.stream_periodic_x_wall_y_2d!(h_out, h_in, Nx, Ny)
             apply_fixed_conc_south_2d!(h_out, 1.0, Nx)
             apply_fixed_conc_north_2d!(h_out, 0.0, Nx, Ny)
             collide_species_2d!(h_out, ux, uy, ω_D)

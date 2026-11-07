@@ -64,7 +64,7 @@ The cylinder Wi=1 gap is now empirically attributed to **MUSCL boundary fallback
 ## Design notes (for future M41-style runs)
 
 - **Manifest.toml is NOT portable between Mac local and Aqua** — different package registry snapshots cause GPUCompiler / SimpleTraits / etc. pinning errors. Best practice: rsync project WITHOUT Manifest.toml (add `--exclude 'Manifest.toml'`), let each side `Pkg.instantiate` from its own Project.toml + registry.
-- **CairoMakie should stay in `[weakdeps]`** of Project.toml, NOT `[deps]`. Pulling it into `[deps]` triggers Aqua resolve failures because CairoMakie's transitive deps (e.g. SimpleTraits 0.9.6) are too new for the Aqua registry. The V&V suite plotting uses CairoMakie via the extension `KrakenMakieExt` which works with weakdep.
+- **CairoMakie should stay in `[weakdeps]`** of Project.toml, NOT `[deps]`. Pulling it into `[deps]` triggers Aqua resolve failures because CairoMakie's transitive deps (e.g. SimpleTraits 0.9.6) are too new for the Aqua registry. The V&V suite plotting uses CairoMakie via the extension `KrakeNNMakieExt` which works with weakdep.
 
 ## Status: **PENDING_AQUA** (job submission blocked by network)
 

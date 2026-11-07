@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 function _test_full_domain_nested_spec_2d(max_level::Integer)
     blocks = ConservativeTreeRefineBlock2D[]
@@ -66,29 +66,29 @@ end
 
 @testset "Conservative tree subcycling ledger 2D" begin
     @testset "generic recursive schedule is level agnostic" begin
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(3)
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(3)
 
         @test schedule.max_level == 3
         @test schedule.ratio == 2
         @test schedule.finest_ticks == 8
         @test schedule.level_step_ticks == [8, 4, 2, 1]
-        @test Kraken.conservative_tree_subcycle_advance_counts_2d(schedule) ==
+        @test KrakeNN.conservative_tree_subcycle_advance_counts_2d(schedule) ==
               [1, 2, 4, 8]
 
-        sync_counts = Kraken.conservative_tree_subcycle_sync_counts_2d(schedule)
+        sync_counts = KrakeNN.conservative_tree_subcycle_sync_counts_2d(schedule)
         for level in 0:2
             expected = 2^level
             @test sync_counts[(:sync_down, level, level + 1)] == expected
             @test sync_counts[(:sync_up, level + 1, level)] == expected
         end
 
-        tick0 = Kraken.conservative_tree_subcycle_events_at_tick_2d(schedule, 0)
+        tick0 = KrakeNN.conservative_tree_subcycle_events_at_tick_2d(schedule, 0)
         @test [(event.phase, event.src_level, event.dst_level)
                for event in tick0] == [(:sync_down, 0, 1),
                                        (:sync_down, 1, 2),
                                        (:sync_down, 2, 3)]
 
-        tick2 = Kraken.conservative_tree_subcycle_events_at_tick_2d(schedule, 2)
+        tick2 = KrakeNN.conservative_tree_subcycle_events_at_tick_2d(schedule, 2)
         @test (:advance, 3, 3) in
               [(event.phase, event.src_level, event.dst_level)
                for event in tick2]
@@ -102,19 +102,19 @@ end
               [(event.phase, event.src_level, event.dst_level)
                for event in tick2]
 
-        tick8 = Kraken.conservative_tree_subcycle_events_at_tick_2d(schedule, 8)
+        tick8 = KrakeNN.conservative_tree_subcycle_events_at_tick_2d(schedule, 8)
         @test [(event.phase, event.src_level, event.dst_level)
                for event in tick8][end-1:end] == [(:sync_up, 1, 0),
                                                   (:advance, 0, 0)]
     end
 
     @testset "schedule contracts reject invalid inputs" begin
-        @test Kraken.create_conservative_tree_subcycle_schedule_2d(0).events ==
-              [Kraken.ConservativeTreeSubcycleEvent2D(1, :advance, 0, 0)]
-        @test_throws ArgumentError Kraken.create_conservative_tree_subcycle_schedule_2d(-1)
-        @test_throws ArgumentError Kraken.create_conservative_tree_subcycle_schedule_2d(2; ratio=1)
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(2)
-        @test_throws ArgumentError Kraken.conservative_tree_subcycle_events_at_tick_2d(
+        @test KrakeNN.create_conservative_tree_subcycle_schedule_2d(0).events ==
+              [KrakeNN.ConservativeTreeSubcycleEvent2D(1, :advance, 0, 0)]
+        @test_throws ArgumentError KrakeNN.create_conservative_tree_subcycle_schedule_2d(-1)
+        @test_throws ArgumentError KrakeNN.create_conservative_tree_subcycle_schedule_2d(2; ratio=1)
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(2)
+        @test_throws ArgumentError KrakeNN.conservative_tree_subcycle_events_at_tick_2d(
             schedule, 5)
     end
 
@@ -123,13 +123,13 @@ end
             ConservativeTreeRefineBlock2D("outer", 3:6, 2:5),
             ConservativeTreeRefineBlock2D("inner", 7:8, 5:6; parent="outer"),
         ])
-        bank = Kraken.create_conservative_tree_subcycle_buffer_bank_2d(spec)
+        bank = KrakeNN.create_conservative_tree_subcycle_buffer_bank_2d(spec)
         F = allocate_conservative_tree_F_2d(spec)
         for cell_id in spec.active_cells, q in 1:9
             F[cell_id, q] = 10 * spec.cells[cell_id].level + cell_id + q / 10
         end
 
-        Kraken.conservative_tree_subcycle_store_active_owned_2d!(bank, F)
+        KrakeNN.conservative_tree_subcycle_store_active_owned_2d!(bank, F)
         level1_id = first(id for id in spec.active_cells
                           if spec.cells[id].level == 1)
         buffers = bank.levels[2]
@@ -138,14 +138,14 @@ end
         buffers.reflux_to_coarse[level1_id, 2] = 3.0
 
         @test buffers.owned[level1_id, 2] == owned_before
-        Kraken.conservative_tree_subcycle_apply_reflux_to_owned_level_2d!(
+        KrakeNN.conservative_tree_subcycle_apply_reflux_to_owned_level_2d!(
             bank, 1)
         @test buffers.owned[level1_id, 2] == owned_before + 3.0
         @test buffers.reflux_to_coarse[level1_id, 2] == 0.0
         @test buffers.ghost_from_coarse[level1_id, 2] == 7.0
 
         Frestored = allocate_conservative_tree_F_2d(spec)
-        Kraken.conservative_tree_subcycle_restore_owned_level_2d!(
+        KrakeNN.conservative_tree_subcycle_restore_owned_level_2d!(
             Frestored, bank, 1)
         @test Frestored[level1_id, 2] == owned_before + 3.0
         level0_id = first(id for id in spec.active_cells
@@ -158,7 +158,7 @@ end
             ConservativeTreeRefineBlock2D("outer", 3:6, 2:5),
             ConservativeTreeRefineBlock2D("inner", 7:8, 5:6; parent="outer"),
         ])
-        bank = Kraken.create_conservative_tree_subcycle_buffer_bank_2d(spec)
+        bank = KrakeNN.create_conservative_tree_subcycle_buffer_bank_2d(spec)
         for cell_id in spec.active_cells, q in 1:9
             level = spec.cells[cell_id].level
             bank.levels[level + 1].owned[cell_id, q] =
@@ -176,7 +176,7 @@ end
                        for child_id in children)
         end
 
-        Kraken.conservative_tree_subcycle_restrict_all_levels_2d!(bank)
+        KrakeNN.conservative_tree_subcycle_restrict_all_levels_2d!(bank)
         for (cell_id, cell) in pairs(spec.cells)
             spec.children[cell_id] == (0, 0, 0, 0) && continue
             buffers = bank.levels[cell.level + 1]
@@ -191,7 +191,7 @@ end
         spec = create_conservative_tree_spec_2d(6, 5, [
             ConservativeTreeRefineBlock2D("fine", 3:4, 2:3),
         ])
-        bank = Kraken.create_conservative_tree_subcycle_buffer_bank_2d(spec)
+        bank = KrakeNN.create_conservative_tree_subcycle_buffer_bank_2d(spec)
         Fparent = allocate_conservative_tree_F_2d(spec)
         parent_id = conservative_tree_cell_id_2d(spec, 0, 3, 2)
         children = conservative_tree_children_2d(spec, parent_id)
@@ -199,7 +199,7 @@ end
             Fparent[parent_id, q] = 4q
         end
 
-        Kraken.conservative_tree_subcycle_prolong_F_to_child_ghost_2d!(
+        KrakeNN.conservative_tree_subcycle_prolong_F_to_child_ghost_2d!(
             bank, Fparent, 0)
         child_buffers = bank.levels[2]
         for q in 1:9
@@ -213,8 +213,8 @@ end
     end
 
     @testset "scheduler binds one L/L+1 interface ledger" begin
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(1)
-        bank = Kraken.create_conservative_tree_subcycle_ledger_bank_2d(schedule)
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(1)
+        bank = KrakeNN.create_conservative_tree_subcycle_ledger_bank_2d(schedule)
         down = only(event for event in schedule.events
                     if event.phase == :sync_down)
         up = only(event for event in schedule.events
@@ -222,12 +222,12 @@ end
         advances = [event for event in schedule.events
                     if event.phase == :advance && event.src_level == 1]
 
-        @test Kraken.conservative_tree_subcycle_local_substep_2d(
+        @test KrakeNN.conservative_tree_subcycle_local_substep_2d(
             schedule, 0, advances[1].tick) == 1
-        @test Kraken.conservative_tree_subcycle_local_substep_2d(
+        @test KrakeNN.conservative_tree_subcycle_local_substep_2d(
             schedule, 0, advances[2].tick) == 2
 
-        ledger = Kraken.conservative_tree_subcycle_sync_down_face_2d!(
+        ledger = KrakeNN.conservative_tree_subcycle_sync_down_face_2d!(
             bank, down, 12.0, 2, :west)
         half1 = zeros(Float64, 2, 2, 9)
         half2 = zeros(Float64, 2, 2, 9)
@@ -235,25 +235,25 @@ end
         half1[2, 2, 2] = 2.75
         half2[2, 1, 2] = 2.0
         half2[2, 2, 2] = 3.0
-        Kraken.conservative_tree_subcycle_accumulate_advance_face_2d!(
+        KrakeNN.conservative_tree_subcycle_accumulate_advance_face_2d!(
             bank, advances[1], half1, 2, :east)
-        Kraken.conservative_tree_subcycle_accumulate_advance_face_2d!(
+        KrakeNN.conservative_tree_subcycle_accumulate_advance_face_2d!(
             bank, advances[2], half2, 2, :east)
 
-        @test Kraken.conservative_tree_subcycle_sync_up_ledger_2d(bank, up) ===
+        @test KrakeNN.conservative_tree_subcycle_sync_up_ledger_2d(bank, up) ===
               ledger
         sums = conservative_tree_subcycle_orientation_sums_2d(ledger)
         @test sums.coarse_to_fine[2] == 12.0
         @test sums.fine_to_coarse[2] == 9.0
 
-        Kraken.reset_conservative_tree_subcycle_pair_2d!(bank, 0)
-        ledger = Kraken.conservative_tree_subcycle_pair_ledger_2d(bank, 0)
-        Kraken.conservative_tree_subcycle_sync_down_corner_2d!(
+        KrakeNN.reset_conservative_tree_subcycle_pair_2d!(bank, 0)
+        ledger = KrakeNN.conservative_tree_subcycle_pair_ledger_2d(bank, 0)
+        KrakeNN.conservative_tree_subcycle_sync_down_corner_2d!(
             bank, down, 7.0, 6, :southwest)
         corner_half = zeros(Float64, 2, 2, 9)
         corner_half[2, 2, 6] = 2.0
         for event in advances
-            Kraken.conservative_tree_subcycle_accumulate_advance_corner_2d!(
+            KrakeNN.conservative_tree_subcycle_accumulate_advance_corner_2d!(
                 bank, event, corner_half, 6, :northeast)
         end
         sums = conservative_tree_subcycle_orientation_sums_2d(ledger)
@@ -262,30 +262,30 @@ end
     end
 
     @testset "scheduler binds all adjacent level-pair ledgers recursively" begin
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(3)
-        bank = Kraken.create_conservative_tree_subcycle_ledger_bank_2d(schedule)
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(3)
+        bank = KrakeNN.create_conservative_tree_subcycle_ledger_bank_2d(schedule)
 
         for event in schedule.events
             if event.phase == :sync_down
                 Fq = 10.0 * (event.src_level + 1)
-                Kraken.conservative_tree_subcycle_sync_down_face_2d!(
+                KrakeNN.conservative_tree_subcycle_sync_down_face_2d!(
                     bank, event, Fq, 2, :west)
             elseif event.phase == :advance && event.src_level > 0
                 half = zeros(Float64, 2, 2, 9)
                 half[2, 1, 2] = 1.0
                 half[2, 2, 2] = 1.0
-                Kraken.conservative_tree_subcycle_accumulate_advance_face_2d!(
+                KrakeNN.conservative_tree_subcycle_accumulate_advance_face_2d!(
                     bank, event, half, 2, :east)
             elseif event.phase == :sync_up
-                @test Kraken.conservative_tree_subcycle_sync_up_ledger_2d(
+                @test KrakeNN.conservative_tree_subcycle_sync_up_ledger_2d(
                     bank, event) ===
-                      Kraken.conservative_tree_subcycle_pair_ledger_2d(
+                      KrakeNN.conservative_tree_subcycle_pair_ledger_2d(
                           bank, event.dst_level)
             end
         end
 
         for parent in 0:2
-            ledger = Kraken.conservative_tree_subcycle_pair_ledger_2d(bank, parent)
+            ledger = KrakeNN.conservative_tree_subcycle_pair_ledger_2d(bank, parent)
             sums = conservative_tree_subcycle_orientation_sums_2d(ledger)
             sync_down_count = 2^parent
             child_advance_count = 2^(parent + 1)
@@ -303,8 +303,8 @@ end
             ConservativeTreeRefineBlock2D("fine", 3:4, 2:3),
         ])
         table = create_conservative_tree_route_table_2d(spec)
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(spec.max_level)
-        bank = Kraken.create_conservative_tree_subcycle_spatial_ledger_bank_2d(
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(spec.max_level)
+        bank = KrakeNN.create_conservative_tree_subcycle_spatial_ledger_bank_2d(
             spec; schedule=schedule)
         down = only(event for event in schedule.events
                     if event.phase == :sync_down)
@@ -326,28 +326,28 @@ end
                                 (route.kind == SPLIT_FACE ||
                                  route.kind == SPLIT_CORNER)) * 2
 
-        Kraken.conservative_tree_subcycle_sync_down_routes_F_2d!(
+        KrakeNN.conservative_tree_subcycle_sync_down_routes_F_2d!(
             bank, down, Fin, table)
-        Kraken.conservative_tree_subcycle_apply_child_advance_injection_F_2d!(
+        KrakeNN.conservative_tree_subcycle_apply_child_advance_injection_F_2d!(
             Fout, bank, advances[1])
         @test isapprox(sum(Fout[collect(children), 2]), split_expected / 2;
                        atol=1e-14, rtol=0)
-        Kraken.conservative_tree_subcycle_apply_child_advance_injection_F_2d!(
+        KrakeNN.conservative_tree_subcycle_apply_child_advance_injection_F_2d!(
             Fout, bank, advances[2])
         @test isapprox(sum(Fout[collect(children), 2]), split_expected;
                        atol=1e-14, rtol=0)
 
-        Kraken.reset_conservative_tree_subcycle_spatial_bank_2d!(bank)
+        KrakeNN.reset_conservative_tree_subcycle_spatial_bank_2d!(bank)
         fill!(Fin, 0.0)
         fill!(Fout, 0.0)
         fine_west = conservative_tree_cell_id_2d(spec, 1, 5, 3)
         Fin[fine_west, 4] = 1.25
-        Kraken.conservative_tree_subcycle_accumulate_advance_routes_F_2d!(
+        KrakeNN.conservative_tree_subcycle_accumulate_advance_routes_F_2d!(
             bank, advances[1], Fin, table)
         Fin[fine_west, 4] = 2.75
-        Kraken.conservative_tree_subcycle_accumulate_advance_routes_F_2d!(
+        KrakeNN.conservative_tree_subcycle_accumulate_advance_routes_F_2d!(
             bank, advances[2], Fin, table)
-        Kraken.conservative_tree_subcycle_apply_sync_up_F_2d!(
+        KrakeNN.conservative_tree_subcycle_apply_sync_up_F_2d!(
             Fout, bank, up)
         @test isapprox(Fout[coarse_west, 4], 2.0; atol=1e-14, rtol=0)
     end
@@ -357,8 +357,8 @@ end
             ConservativeTreeRefineBlock2D("fine", 3:4, 2:3),
         ])
         table = create_conservative_tree_route_table_2d(spec)
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(spec.max_level)
-        bank = Kraken.create_conservative_tree_subcycle_spatial_ledger_bank_2d(
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(spec.max_level)
+        bank = KrakeNN.create_conservative_tree_subcycle_spatial_ledger_bank_2d(
             spec; schedule=schedule)
         F = allocate_conservative_tree_F_2d(spec)
         coarse_west = conservative_tree_cell_id_2d(spec, 0, 2, 2)
@@ -374,10 +374,10 @@ end
                          route.q == 6 &&
                          route.kind == SPLIT_CORNER)
 
-        Kraken.conservative_tree_subcycle_deposit_coarse_to_fine_route_2d!(
+        KrakeNN.conservative_tree_subcycle_deposit_coarse_to_fine_route_2d!(
             bank, F, route; alpha=0.25)
         parent_id = spec.cells[route.dst].parent
-        ledger = Kraken.conservative_tree_subcycle_spatial_ledger_2d(
+        ledger = KrakeNN.conservative_tree_subcycle_spatial_ledger_2d(
             bank, parent_id)
 
         expected = ledger.ratio * reconstructed_integrated_D2Q9_packet(
@@ -394,8 +394,8 @@ end
             ConservativeTreeRefineBlock2D("inner", 7:8, 5:6; parent="outer"),
         ])
         table = create_conservative_tree_route_table_2d(spec)
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(spec.max_level)
-        bank = Kraken.create_conservative_tree_subcycle_spatial_ledger_bank_2d(
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(spec.max_level)
+        bank = KrakeNN.create_conservative_tree_subcycle_spatial_ledger_bank_2d(
             spec; schedule=schedule)
         Fin = allocate_conservative_tree_F_2d(spec)
         Fout = allocate_conservative_tree_F_2d(spec)
@@ -407,21 +407,21 @@ end
 
         for event in schedule.events
             if event.phase == :sync_down
-                Kraken.conservative_tree_subcycle_sync_down_routes_F_2d!(
+                KrakeNN.conservative_tree_subcycle_sync_down_routes_F_2d!(
                     bank, event, Fin, table)
             elseif event.phase == :advance && event.src_level > 0
-                Kraken.conservative_tree_subcycle_accumulate_advance_routes_F_2d!(
+                KrakeNN.conservative_tree_subcycle_accumulate_advance_routes_F_2d!(
                     bank, event, Fin, table)
-                Kraken.conservative_tree_subcycle_apply_child_advance_injection_F_2d!(
+                KrakeNN.conservative_tree_subcycle_apply_child_advance_injection_F_2d!(
                     Fout, bank, event)
             elseif event.phase == :sync_up
-                Kraken.conservative_tree_subcycle_apply_sync_up_F_2d!(
+                KrakeNN.conservative_tree_subcycle_apply_sync_up_F_2d!(
                     Fout, bank, event)
             end
         end
 
         for parent_level in 0:(spec.max_level - 1)
-            pair = Kraken.conservative_tree_subcycle_spatial_pair_ledgers_2d(
+            pair = KrakeNN.conservative_tree_subcycle_spatial_pair_ledgers_2d(
                 bank, parent_level)
             @test !isempty(pair)
             @test sum(sum(ledger.coarse_to_fine) for ledger in values(pair)) > 0
@@ -445,7 +445,7 @@ end
 
         stream_conservative_tree_routes_F_2d!(
             Froute, Fin, spec, table; boundary=:bounceback)
-        Kraken.stream_conservative_tree_subcycled_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_routes_F_2d!(
             Fsub, Fin, spec, table; boundary=:bounceback)
         @test Fsub == Froute
     end
@@ -465,7 +465,7 @@ end
 
         stream_conservative_tree_routes_F_2d!(
             Froute, Fin, spec, table; boundary=:bounceback)
-        Kraken.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
             Fsub, Fin, spec, table; boundary=:bounceback)
         @test Fsub == Froute
     end
@@ -485,7 +485,7 @@ end
             end
         end
 
-        Kraken.stream_conservative_tree_subcycled_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_routes_F_2d!(
             Fout, Fin, spec, table; boundary=:bounceback)
 
         @test isapprox(sum(active_population_sums_F_2d(Fout, spec)),
@@ -493,7 +493,7 @@ end
                        atol=1e-12, rtol=0)
         @test maximum(abs.(Fout[spec.active_cells, :] .-
                            Fin[spec.active_cells, :])) <= 1e-14
-        diag = Kraken.diagnose_conservative_tree_subcycled_rest_2d(spec, table)
+        diag = KrakeNN.diagnose_conservative_tree_subcycled_rest_2d(spec, table)
         @test abs(diag.active_drift) <= 1e-12
         @test diag.max_active_abs <= 1e-14
         @test maximum(abs.(diag.level_drift)) <= 1e-12
@@ -515,7 +515,7 @@ end
             end
         end
 
-        Kraken.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
             Fout, Fin, spec, table; boundary=:bounceback)
 
         @test isapprox(sum(active_population_sums_F_2d(Fout, spec)),
@@ -541,9 +541,9 @@ end
             end
         end
 
-        Kraken.stream_conservative_tree_subcycled_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_routes_F_2d!(
             Fout, Fin, spec, table; boundary=:bounceback)
-        diag = Kraken.diagnose_conservative_tree_subcycled_rest_2d(spec, table)
+        diag = KrakeNN.diagnose_conservative_tree_subcycled_rest_2d(spec, table)
 
         @test_broken isapprox(sum(active_population_sums_F_2d(Fout, spec)),
                               sum(active_population_sums_F_2d(Fin, spec));
@@ -570,7 +570,7 @@ end
             end
         end
 
-        Kraken.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
             Fout, Fin, spec, table; boundary=:bounceback)
 
         @test isapprox(sum(active_population_sums_F_2d(Fout, spec)),
@@ -598,7 +598,7 @@ end
             end
         end
 
-        Kraken.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
             Fout, Fin, spec, table; boundary=:bounceback)
 
         @test spec.max_level == 4
@@ -627,7 +627,7 @@ end
             end
         end
 
-        Kraken.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
+        KrakeNN.stream_conservative_tree_subcycled_buffered_routes_F_2d!(
             Fout, Fin, spec, table; boundary=:periodic_x_wall_y)
 
         @test spec.max_level == 4
@@ -706,26 +706,26 @@ end
     end
 
     @testset "leaf-equivalent physics scales by AMR-D level" begin
-        spec = Kraken.create_conservative_tree_nested_channel_spec_2d(4)
+        spec = KrakeNN.create_conservative_tree_nested_channel_spec_2d(4)
         omega_fine = 1.0
         force_fine = 1e-7
 
-        @test Kraken.conservative_tree_leaf_equivalent_level_scale_2d(
+        @test KrakeNN.conservative_tree_leaf_equivalent_level_scale_2d(
             spec, 4) == 1
-        @test Kraken.conservative_tree_leaf_equivalent_level_scale_2d(
+        @test KrakeNN.conservative_tree_leaf_equivalent_level_scale_2d(
             spec, 0) == 16
-        @test Kraken.conservative_tree_leaf_equivalent_force_2d(
+        @test KrakeNN.conservative_tree_leaf_equivalent_force_2d(
             force_fine, spec, 0) == 16force_fine
-        @test Kraken.conservative_tree_leaf_equivalent_force_2d(
+        @test KrakeNN.conservative_tree_leaf_equivalent_force_2d(
             force_fine, spec, 4) == force_fine
 
         tau_fine = inv(omega_fine)
-        tau_coarse = inv(Kraken.conservative_tree_leaf_equivalent_omega_2d(
+        tau_coarse = inv(KrakeNN.conservative_tree_leaf_equivalent_omega_2d(
             omega_fine, spec, 0))
         @test tau_coarse - 0.5 ≈ (tau_fine - 0.5) / 16
-        @test Kraken.conservative_tree_leaf_equivalent_omega_2d(
+        @test KrakeNN.conservative_tree_leaf_equivalent_omega_2d(
             omega_fine, spec, 4) == omega_fine
-        @test_throws ArgumentError Kraken.conservative_tree_leaf_equivalent_omega_2d(
+        @test_throws ArgumentError KrakeNN.conservative_tree_leaf_equivalent_omega_2d(
             2.0, spec, 0)
     end
 
@@ -760,8 +760,8 @@ end
     end
 
     @testset "scheduled ledger binding rejects wrong events" begin
-        schedule = Kraken.create_conservative_tree_subcycle_schedule_2d(2)
-        bank = Kraken.create_conservative_tree_subcycle_ledger_bank_2d(schedule)
+        schedule = KrakeNN.create_conservative_tree_subcycle_schedule_2d(2)
+        bank = KrakeNN.create_conservative_tree_subcycle_ledger_bank_2d(schedule)
         down = first(event for event in schedule.events
                      if event.phase == :sync_down)
         advance0 = first(event for event in schedule.events
@@ -770,17 +770,17 @@ end
                          if event.phase == :advance && event.src_level == 1)
 
         half = zeros(Float64, 2, 2, 9)
-        @test_throws ArgumentError Kraken.conservative_tree_subcycle_sync_down_face_2d!(
+        @test_throws ArgumentError KrakeNN.conservative_tree_subcycle_sync_down_face_2d!(
             bank, advance1, 1.0, 2, :west)
-        @test_throws ArgumentError Kraken.conservative_tree_subcycle_accumulate_advance_face_2d!(
+        @test_throws ArgumentError KrakeNN.conservative_tree_subcycle_accumulate_advance_face_2d!(
             bank, down, half, 2, :east)
-        @test_throws ArgumentError Kraken.conservative_tree_subcycle_accumulate_advance_face_2d!(
+        @test_throws ArgumentError KrakeNN.conservative_tree_subcycle_accumulate_advance_face_2d!(
             bank, advance0, half, 2, :east)
-        @test_throws ArgumentError Kraken.conservative_tree_subcycle_sync_up_ledger_2d(
+        @test_throws ArgumentError KrakeNN.conservative_tree_subcycle_sync_up_ledger_2d(
             bank, down)
-        @test_throws ArgumentError Kraken.conservative_tree_subcycle_pair_ledger_2d(
+        @test_throws ArgumentError KrakeNN.conservative_tree_subcycle_pair_ledger_2d(
             bank, 2)
-        @test_throws ArgumentError Kraken.conservative_tree_subcycle_local_substep_2d(
+        @test_throws ArgumentError KrakeNN.conservative_tree_subcycle_local_substep_2d(
             schedule, 0, 1)
     end
 

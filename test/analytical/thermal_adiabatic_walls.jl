@@ -10,12 +10,12 @@
 # CPU Float64. Runtime: about a minute, most of it the N = 64 cavity.
 
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Thermal adiabatic walls: specular reflection" begin
     lattice_c(lat) = lat isa D2Q9 ?
-        (Kraken.velocities_x(lat), Kraken.velocities_y(lat)) :
-        (Kraken.velocities_x(lat), Kraken.velocities_y(lat), Kraken.velocities_z(lat))
+        (KrakeNN.velocities_x(lat), KrakeNN.velocities_y(lat)) :
+        (KrakeNN.velocities_x(lat), KrakeNN.velocities_y(lat), KrakeNN.velocities_z(lat))
 
     # Reference pull for a box heated along x: a source across the x walls
     # gives the node's own opposite population (bounced value, turned into the
@@ -25,7 +25,7 @@ using Kraken
         dims = size(g_in)[1:end-1]
         D = length(dims)
         c = lattice_c(lat)
-        opp = Kraken.opposite(lat)
+        opp = KrakeNN.opposite(lat)
         Q = size(g_in, D + 1)
         slot = Dict(ntuple(d -> c[d][q], D) => q for q in 1:Q)
         g_out = similar(g_in)
@@ -46,14 +46,14 @@ using Kraken
     @testset "thermal stream kernels follow the mirror rule on every slot" begin
         g2 = rand(7, 5, 9)
         out2 = similar(g2)
-        Kraken.stream_thermal_cavity_2d!(out2, g2, 7, 5)
+        KrakeNN.stream_thermal_cavity_2d!(out2, g2, 7, 5)
         @test out2 == reference_pull(g2, D2Q9())
         # The fused cavity kernels pull through the same function.
-        @test all(Kraken.stream_pull_thermal_node(g2, i, j, 7, 5) == Tuple(out2[i, j, :])
+        @test all(KrakeNN.stream_pull_thermal_node(g2, i, j, 7, 5) == Tuple(out2[i, j, :])
                   for i in 1:7, j in 1:5)
         g3 = rand(5, 4, 6, 19)
         out3 = similar(g3)
-        Kraken.stream_thermal_cavity_3d!(out3, g3, 5, 4, 6)
+        KrakeNN.stream_thermal_cavity_3d!(out3, g3, 5, 4, 6)
         @test out3 == reference_pull(g3, D3Q19())
     end
 
@@ -74,7 +74,7 @@ using Kraken
                                           (32, 45000, 1e-12, 5e-12))
             r = run_natural_convection_2d(; N, Ra=0.0, Pr=0.71, max_steps=steps)
             dev = rowdev(r.Temp, linear(N))
-            rows = Kraken._hot_wall_nusselt_rows_2d(r.Temp, N, 1.0, 1.0)
+            rows = KrakeNN._hot_wall_nusselt_rows_2d(r.Temp, N, 1.0, 1.0)
             @test maximum(dev) < tol_T          # measured 6.9e-14 / 2.5e-13
             @test maximum(abs.(rows .- 1)) < tol_Nu  # measured 3.2e-13 / 1.2e-12
             @test abs(r.Nu - 1) < tol_Nu
@@ -112,16 +112,16 @@ using Kraken
         # with the half-way geometry (q = 1/2 on both heated walls) it must
         # give the fields of fused_natconv_step!, flow and thermal populations.
         N = 10
-        p = Kraken.ad_natconv_params(; N=N, Ra=1e4, Pr=0.71)
-        geom = Kraken.ad_cavity_wall_geometry(N, N, Float64(N); q_hot=0.5)
-        wts = Kraken.weights(D2Q9())
+        p = KrakeNN.ad_natconv_params(; N=N, Ra=1e4, Pr=0.71)
+        geom = KrakeNN.ad_cavity_wall_geometry(N, N, Float64(N); q_hot=0.5)
+        wts = KrakeNN.weights(D2Q9())
         f = zeros(N, N, 9)
         g = zeros(N, N, 9)
         for j in 1:N, i in 1:N
             ux = 0.02 * sin(2pi * i / N) * cos(pi * j / N)
             uy = -0.015 * cos(pi * i / N) * sin(2pi * j / N)
             for q in 1:9
-                f[i, j, q] = Kraken.feq_2d(Val(q), 1.0 + 0.01 * cos(i + 2j), ux, uy,
+                f[i, j, q] = KrakeNN.feq_2d(Val(q), 1.0 + 0.01 * cos(i + 2j), ux, uy,
                                            ux^2 + uy^2) + 1e-4 * sin(3i + j + q)
                 g[i, j, q] = wts[q] * (1 - (i - 0.5) / N + 0.05 * cos(2i + 5j + q))
             end
@@ -131,9 +131,9 @@ using Kraken
         f_out, g_out, Temp = similar(f), similar(g), zeros(N, N)
         worst = 0.0
         for step in 1:200
-            Kraken.fused_natconv_step!(f_out, f, g_out, g, Temp, N, N, p.omega_f,
+            KrakeNN.fused_natconv_step!(f_out, f, g_out, g, Temp, N, N, p.omega_f,
                                        p.omega_T, p.beta_g, p.T_ref, p.T_hot, p.T_cold)
-            Kraken.ad_thermal_cut_step!(w_out, w, geom.q_wall, geom.q_wall, p)
+            KrakeNN.ad_thermal_cut_step!(w_out, w, geom.q_wall, geom.q_wall, p)
             d = maximum(abs.(w_out .- vcat(vec(f_out), vec(g_out))))
             step == 1 && @test d < 1e-15            # measured 1.4e-17
             worst = max(worst, d)

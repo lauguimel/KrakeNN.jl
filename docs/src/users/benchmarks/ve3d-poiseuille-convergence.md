@@ -4,7 +4,7 @@ A planar Poiseuille flow of an Oldroyd-B fluid is the simplest case with a *curv
 conformation profile: the shear rate `γ̇(y)` varies linearly across the channel, so the
 shear conformation `C_xy = λ·γ̇(y)` is a steep, sharply-curved function near each wall.
 That curvature is exactly what an over-diffusive polymer-transport scheme smears — which
-makes this case the cleanest demonstration of the **#2B cure**: Kraken's **FVFD
+makes this case the cleanest demonstration of the **#2B cure**: KrakeNN's **FVFD
 log-conformation** polymer transport reproduces the near-wall conformation to round-off at
 `N_y = 32` and within 4 × 10⁻⁷ relative up to `N_y = 128`, where the diffusive **LBM convection–diffusion (LBM-CDE)** path on the *same case* is
 **25.9 % off near-wall**.
@@ -61,7 +61,7 @@ near-wall curvature exactly.
 
 ## Methodology
 
-**Kraken (FVFD log-conformation, 3D).** Planar Poiseuille driven by a constant body force
+**KrakeNN (FVFD log-conformation, 3D).** Planar Poiseuille driven by a constant body force
 `Fx`, periodic in `x`/`z`, no-slip walls in `y`. The polymer conformation is advected as
 `log C` by a dedicated finite-volume solver (MUSCL–superbee, adaptive sub-stepping) and
 the extra stress `τ_p = (ν_p/λ)(C − I)` couples back to the momentum solver. Driver
@@ -96,7 +96,7 @@ FVFD-vs-LBM near-wall cure directly (coarse `N_y = 32`, CPU Float64):
 
 ```julia
 # from the repo root
-import Pkg; Pkg.test("Kraken"; test_args=["test_fvfd_poiseuille_payoff_3d.jl"])
+import Pkg; Pkg.test("KrakeNN"; test_args=["test_fvfd_poiseuille_payoff_3d.jl"])
 ```
 
 The shipped Oldroyd-B `.krk` presets (sphere, extensional, cylinder) live in

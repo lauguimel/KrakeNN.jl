@@ -319,7 +319,7 @@ Platform-owned guard for the client verbs that read or move a state: throw an
 `ArgumentError` when `!at_boundary(state)`, i.e. when a previous `advance!` threw in
 the middle of a cycle. `what` names the refusing verb in the message. There is no
 repair path: the caller starts from a fresh state or restores a checkpoint.
-Unexported; call as `Kraken.require_boundary`. [`export_state`](@ref) performs the
+Unexported; call as `KrakeNN.require_boundary`. [`export_state`](@ref) performs the
 same refusal with a [`CheckpointError`](@ref).
 """
 function require_boundary(state::AbstractSimulationState, what::AbstractString)

@@ -86,7 +86,7 @@
 # to implement and efficient to run.
 #
 # For applications requiring better thermodynamic consistency (e.g. high
-# density ratios, controlled surface tension), Kraken provides the
+# density ratios, controlled surface tension), KrakeNN provides the
 # **phase-field** approach (see [Phase-Field LBM](@ref)) as an
 # alternative.
 #
@@ -111,7 +111,7 @@
 # This ensures second-order accuracy in the recovered Navier-Stokes
 # equations.
 #
-# ## Implementation in Kraken
+# ## Implementation in KrakeNN
 #
 # The Shan-Chen pipeline consists of three GPU kernels per time step:
 #

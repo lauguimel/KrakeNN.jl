@@ -76,7 +76,7 @@ For details on the species transport model see
 ## Code
 
 ```julia
-using Kraken
+using KrakeNN
 
 Nx, Ny = 4, 32
 D_coeff = 0.1
@@ -90,7 +90,7 @@ ux    = zeros(Float64, Nx, Ny)
 uy    = zeros(Float64, Nx, Ny)
 
 # Initialize to uniform C = 0.5
-w = Kraken.weights(D2Q9())
+w = KrakeNN.weights(D2Q9())
 for j in 1:Ny, i in 1:Nx, q in 1:9
     h_in[i, j, q] = w[q] * 0.5
 end
@@ -98,7 +98,7 @@ copy!(h_out, h_in)
 
 # Time stepping
 for step in 1:5000
-    Kraken.stream_periodic_x_wall_y_2d!(h_out, h_in, Nx, Ny)
+    KrakeNN.stream_periodic_x_wall_y_2d!(h_out, h_in, Nx, Ny)
     apply_fixed_conc_south_2d!(h_out, 1.0, Nx)
     apply_fixed_conc_north_2d!(h_out, 0.0, Nx, Ny)
     collide_species_2d!(h_out, ux, uy, ω_D)
@@ -151,7 +151,7 @@ for Ny_i in Ny_list
     copy!(h_o, h_i)
 
     for step in 1:8000
-        Kraken.stream_periodic_x_wall_y_2d!(h_o, h_i, 4, Ny_i)
+        KrakeNN.stream_periodic_x_wall_y_2d!(h_o, h_i, 4, Ny_i)
         apply_fixed_conc_south_2d!(h_o, 1.0, 4)
         apply_fixed_conc_north_2d!(h_o, 0.0, 4, Ny_i)
         collide_species_2d!(h_o, ux_i, uy_i, ω_D)

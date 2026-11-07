@@ -98,7 +98,7 @@
 #
 # ## Code
 
-using Kraken
+using KrakeNN
 
 N = 128
 R = 0.15 * N

@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 
 Nx_single = 10
 Nx_A, Nx_B = 6, 5
@@ -10,7 +10,7 @@ function init_eq(Nx, Ny, ρ0, ux0, uy0)
     f = zeros(Float64, Nx, Ny, 9)
     usq = ux0 * ux0 + uy0 * uy0
     @inbounds for j in 1:Ny, i in 1:Nx, q in 1:9
-        f[i, j, q] = Kraken.feq_2d(Val(q), ρ0, ux0, uy0, usq)
+        f[i, j, q] = KrakeNN.feq_2d(Val(q), ρ0, ux0, uy0, usq)
     end
     return f
 end

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # ==========================================================================
 # Planar Couette 3D (D3Q19) — LI-BB V2 canary.
@@ -64,7 +64,7 @@ function run_planar_couette_libb_3d(; Nx::Int=4, Ny::Int=4, Nz::Int=33,
     is_solid, qw, uw_x, uw_y, uw_z = planar_couette_3d_setup(Nx, Ny, Nz, u_top; q_w=q_w)
     f_in = zeros(Float64, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
-        f_in[i, j, k, q] = Kraken.equilibrium(D3Q19(), 1.0, 0.0, 0.0, 0.0, q)
+        f_in[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), 1.0, 0.0, 0.0, 0.0, q)
     end
     wrap_periodic_xy_3d!(f_in)
     f_out = similar(f_in)

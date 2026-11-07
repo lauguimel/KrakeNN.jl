@@ -271,8 +271,8 @@ are valid whenever a Dirichlet face makes the operator non-singular.
 
 Receipt: `test/analytical/poisson_embedded_mms.jl` (all-ones fractions reproduce
 the regular solver; tilted half-plane geometry `tilted_half_plane_fractions`
-converges ~2nd order in the fluid L2 norm). Registered in `src/Kraken.jl`
-(exported by `using Kraken`; still standalone-include-able via the guards).
+converges ~2nd order in the fluid L2 norm). Registered in `src/KrakeNN.jl`
+(exported by `using KrakeNN`; still standalone-include-able via the guards).
 """
 function solve_poisson_embedded(N::Integer, face_frac_x, face_frac_y, vol_frac,
                                 f::Function; kwargs...)

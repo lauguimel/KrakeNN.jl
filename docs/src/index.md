@@ -3,12 +3,12 @@
 layout: home
 
 hero:
-  name: "Kraken.jl"
+  name: "KrakeNN"
   text: "GPU-native, method-agnostic multiphysics in Julia"
   tagline: "A method-agnostic PDE framework whose mature core method is Lattice Boltzmann. Write a reproducible .krk case or a direct Julia driver, then run it on CUDA, Metal, or CPU backends."
   image:
     src: /logo.png
-    alt: Kraken
+    alt: KrakeNN
   actions:
     - theme: brand
       text: Get started
@@ -38,7 +38,7 @@ features:
 
 ```@raw html
 <div align="center">
-  <img src="./assets/showcases/vonkarman_re200.gif" alt="Von Kármán vortex street past a cylinder, simulated with Kraken.jl" width="100%"/>
+  <img src="./assets/showcases/vonkarman_re200.gif" alt="Von Kármán vortex street past a cylinder, simulated with KrakeNN" width="100%"/>
   <br/><em>Von Kármán vortex street (Re = 200) — D2Q9 LBM on GPU.</em>
 </div>
 ```
@@ -46,7 +46,7 @@ features:
 ## Quick start
 
 ```julia
-using Kraken
+using KrakeNN
 
 # Lid-driven cavity at Re = 100 on a 128×128 grid
 N = 128
@@ -74,7 +74,7 @@ Run        30000 steps
 krk cavity.krk
 ```
 
-## What Kraken can do
+## What KrakeNN can do
 
 ```@raw html
 <div class="kraken-caps">
@@ -116,7 +116,7 @@ krk cavity.krk
 </div>
 ```
 
-These are the capabilities of Kraken's mature LBM core. For how LBM fits into the
+These are the capabilities of KrakeNN's mature LBM core. For how LBM fits into the
 broader method-agnostic platform — and what is shipped versus on the roadmap — see
 the [architecture overview](architecture.md). See the
 [full capabilities matrix](capabilities.md) for the complete module breakdown, and
@@ -141,9 +141,9 @@ Every animation on this page is produced by the validated drivers in the table
 above; reproduce them from the [examples](examples/04_cavity_2d.md) and the
 [validation matrix](users/benchmarks/validation-matrix.md).
 
-## Citing Kraken
+## Citing KrakeNN
 
-If you use Kraken.jl in your research, please cite it. The repository ships a
+If you use KrakeNN in your research, please cite it. The repository ships a
 [`CITATION.cff`](https://github.com/lauguimel/Kraken.jl/blob/main/CITATION.cff),
 so GitHub's **"Cite this repository"** button (top-right of the
 [repository](https://github.com/lauguimel/Kraken.jl)) gives a ready-made entry.
@@ -151,7 +151,7 @@ so GitHub's **"Cite this repository"** button (top-right of the
 ```bibtex
 @software{kraken_jl,
   author  = {Maitrejean, Guillaume and Zhao, Jiachen and Sauret, Emilie},
-  title   = {{Kraken.jl}},
+  title   = {{KrakeNN}},
   year    = {2026},
   version = {0.6.0},
   doi     = {10.5281/zenodo.22747126},

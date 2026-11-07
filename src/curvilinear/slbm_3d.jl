@@ -30,9 +30,9 @@ Public function in the curvilinear mesh and SLBM API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.build_slbm_geometry_3d)
+methods(KrakeNN.build_slbm_geometry_3d)
 ```
 """
 function build_slbm_geometry_3d(mesh::CurvilinearMesh3D{T}; local_cfl::Bool=false) where {T}
@@ -102,9 +102,9 @@ Public function in the curvilinear mesh and SLBM API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.transfer_slbm_geometry_3d)
+methods(KrakeNN.transfer_slbm_geometry_3d)
 ```
 """
 function transfer_slbm_geometry_3d(geom::SLBMGeometry3D{T}, backend) where {T}

@@ -56,8 +56,8 @@ paper/data/voie_d_phase_p_summary.md
 Focused test gate:
 
 ```bash
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_topology_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_topology_2d.jl")'
 ```
 
 The figure gate is narrower and closer to the publication claim. The test gate

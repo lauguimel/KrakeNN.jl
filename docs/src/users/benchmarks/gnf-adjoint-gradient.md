@@ -1,6 +1,6 @@
 # GNF Adjoint Gradient (Steady)
 
-Kraken can compute the gradient of an objective of the converged steady velocity of
+KrakeNN can compute the gradient of an objective of the converged steady velocity of
 a generalised-Newtonian (GNF) lattice Boltzmann flow with respect to the parameters
 of its viscosity law. The flow is 2D D2Q9, periodic in `x`, driven by a body force,
 with a Carreau–Yasuda viscosity law. The differentiated parameters are
@@ -14,7 +14,7 @@ where `η∞* = η∞/η0` and `k*` is the time constant of the law in reduced u
 lambda, a, n)`). The objective is `J = ½ Σ (value − target)²`, where each value is a weighted
 sum of lattice-velocity components read at fluid nodes (`GNFVelocityObs`).
 
-The result is the discrete adjoint of Kraken's own step at the fixed point, not a
+The result is the discrete adjoint of KrakeNN's own step at the fixed point, not a
 tape of the transient. It does not use Enzyme: the local derivatives are built with
 ForwardDiff and the adjoint kernels are written by hand.
 
@@ -58,7 +58,7 @@ This block is not executed by the documentation build. It was run once on CPU as
 written; the printed values are given below it.
 
 ```julia
-using Kraken
+using KrakeNN
 
 # Channel periodic in x, walls in y, a half-disk on each wall; 32x16 nodes;
 # Carreau-Yasuda viscosity law.

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # =====================================================================
 # Phase A.5b canal validation with ghost-layer f arrays.
@@ -51,7 +51,7 @@ using Kraken
         usq = ux0 * ux0 + uy0 * uy0
         Nx_ext, Ny_ext = ext_dims(state)
         @inbounds for j in 1:Ny_ext, i in 1:Nx_ext, q in 1:9
-            state.f[i, j, q] = Kraken.feq_2d(Val(q), ρ0, ux0, uy0, usq)
+            state.f[i, j, q] = KrakeNN.feq_2d(Val(q), ρ0, ux0, uy0, usq)
         end
     end
 
@@ -84,7 +84,7 @@ using Kraken
         # At u = 0 the feq is symmetric in ±x/±y so halfway-BB at outer
         # ghosts gives the same value as the init; interior should still
         # be exactly the initial equilibrium.
-        ref = Kraken.feq_2d(Val(1), 1.0, 0.0, 0.0, 0.0)
+        ref = KrakeNN.feq_2d(Val(1), 1.0, 0.0, 0.0, 0.0)
         int_A = interior_f(states[1])
         int_B = interior_f(states[2])
         @test all(int_A[:, :, 1] .≈ ref)
@@ -150,7 +150,7 @@ using Kraken
             f = zeros(Float64, Nx, Ny, 9)
             usq = ux*ux + uy*uy
             @inbounds for j in 1:Ny, i in 1:Nx, q in 1:9
-                f[i, j, q] = Kraken.feq_2d(Val(q), ρ, ux, uy, usq)
+                f[i, j, q] = KrakeNN.feq_2d(Val(q), ρ, ux, uy, usq)
             end
             return f
         end

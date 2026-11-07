@@ -10,9 +10,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeRouteTable2D
+KrakeNN.ConservativeTreeRouteTable2D
 ```
 """
 struct ConservativeTreeRouteTable2D

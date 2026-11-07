@@ -115,7 +115,7 @@ The EC checkpoint (src/drivers/ehd_ec_checkpoint.jl) stores it as identity and
 refuses a restore with a different or missing `sidewall_bc`.
 
 Adaptive potential solve (`phi_scheme = :lbm`, `phi_substeps = nothing`): checked
-every `Kraken.EHD_EC_PHI_CHECK_EVERY = 8` iterations; a check accepts when the
+every `KrakeNN.EHD_EC_PHI_CHECK_EVERY = 8` iterations; a check accepts when the
 relative one-iteration change of `phi` is at most `phi_tol` and the field change is
 at most `field_tol` (default `1e-4`, independent of `phi_tol`). The field change is
 the change of `E` since the previous check, relative to `max(max|E|, E_ref)`, with

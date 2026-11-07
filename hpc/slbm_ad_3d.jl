@@ -1,4 +1,4 @@
-using Kraken, Enzyme
+using KrakeNN, Enzyme
 using KernelAbstractions
 
 # ===========================================================================
@@ -34,7 +34,7 @@ function forward_ke_3d(ν_val::Float64; Nx=24, Ny=24, Nz=24, steps=100)
         v0 = -0.01 * cos(2π * x) * sin(2π * y) * cos(2π * z)
         w0 =  0.0
         for q in 1:19
-            f_in[i, j, k, q] = Kraken.equilibrium(D3Q19(), 1.0, u0, v0, w0, q)
+            f_in[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), 1.0, u0, v0, w0, q)
         end
     end
 

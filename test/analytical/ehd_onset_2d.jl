@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 @testset "Coupled EHD electroconvection onset bracket" begin
     # Coarse CPU canary for the coupled qE -> BGK+Guo NS path. The PRE
@@ -12,8 +12,8 @@ using Kraken
               charge_scheme=:regularized, force_projection=:none,
               backend=KernelAbstractions.CPU(), FT=Float64)
 
-    sub = Kraken.run_electroconvection_2d(; common..., T=150.0)
-    sup = Kraken.run_electroconvection_2d(; common..., T=220.0)
+    sub = KrakeNN.run_electroconvection_2d(; common..., T=150.0)
+    sup = KrakeNN.run_electroconvection_2d(; common..., T=220.0)
 
     sub_peak = maximum(sub.umax_history)
     sub_final = last(sub.umax_history)

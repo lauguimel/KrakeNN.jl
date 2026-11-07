@@ -181,7 +181,7 @@ end
 
 Forward solve for the per-row ν(y) field variant. Iterates `ad_step_nufield!` to
 convergence using the same residual criterion as `ad_forward_solve`.
-INTERNAL — access via `Kraken.ad_forward_solve_nufield`; not exported.
+INTERNAL — access via `KrakeNN.ad_forward_solve_nufield`; not exported.
 """
 function ad_forward_solve_nufield(; Nx::Int, Ny::Int,
                                   cx::Union{Nothing,Real}=nothing,

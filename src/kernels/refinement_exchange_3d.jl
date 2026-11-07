@@ -102,9 +102,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.prolongate_f_rescaled_3d!)
+methods(KrakeNN.prolongate_f_rescaled_3d!)
 ```
 """
 function prolongate_f_rescaled_3d!(f_fine, f_coarse, rho_c, ux_c, uy_c, uz_c,
@@ -188,9 +188,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.prolongate_f_rescaled_full_3d!)
+methods(KrakeNN.prolongate_f_rescaled_full_3d!)
 ```
 """
 function prolongate_f_rescaled_full_3d!(f_fine, f_coarse, rho_c, ux_c, uy_c, uz_c,
@@ -307,9 +307,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.prolongate_f_rescaled_temporal_3d!)
+methods(KrakeNN.prolongate_f_rescaled_temporal_3d!)
 ```
 """
 function prolongate_f_rescaled_temporal_3d!(f_fine,
@@ -404,9 +404,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.restrict_f_rescaled_3d!)
+methods(KrakeNN.restrict_f_rescaled_3d!)
 ```
 """
 function restrict_f_rescaled_3d!(f_coarse, rho_c, ux_c, uy_c, uz_c,

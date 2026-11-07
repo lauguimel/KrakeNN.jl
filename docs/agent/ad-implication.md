@@ -1,6 +1,6 @@
 ---
 module: ad
-path: src/ad/; ext/KrakenADExt.jl
+path: src/ad/; ext/KrakeNNADExt.jl
 owner_concern: lbm-operator
 status: implemented
 last_verified: 2026-06-04
@@ -18,7 +18,7 @@ depends_on:
 The `src/ad/` path owns the steady shape-adjoint capabilities:
 `dCd/dR` for a residual-converged D2Q9 TRT/Li-BB cylinder and `dNu/dL`
 for the coupled differentially heated Boussinesq cavity. Core code is
-Enzyme-free; `ext/KrakenADExt.jl` supplies the reverse-mode seams when the
+Enzyme-free; `ext/KrakeNNADExt.jl` supplies the reverse-mode seams when the
 weak dependency `Enzyme` is loaded. The central maintenance contract is that
 `src/ad/ad_step.jl`, `src/ad/ad_thermal_step.jl`, and `src/ad/ad_qoi.jl`
 stay bit mirrors of their production operator/QoI paths, guarded by the AD
@@ -29,8 +29,8 @@ anti-drift tests.
 - `steady_shape_sensitivity(; Nx, Ny, radius, u_in, ν, qoi=:drag, wrt=:radius, tol=1e-12, ...)` — exported drag API; returns a NamedTuple with `gradient` (`dCd/dR`), `qoi_value`, `value`, `solver`, `terms`, forward residual fields, and optional `fd_check`.
 - `steady_shape_sensitivity(; N, Ra, Pr, qoi=:nusselt, wrt=:wall_position, L, q_hot, q_cold, ...)` — exported thermal API; returns the same result shape with `gradient` (`dNu/dL`) and thermal wall-position terms.
 - `.krk` dispatch: parsed `Sensitivity { qoi = drag, wrt = radius }` and `Sensitivity { qoi = nusselt, wrt = wall_position }` requests are routed by `run_simulation(setup)` to `steady_shape_sensitivity`.
-- Core implementation helpers are de-facto public as `Kraken.<name>` but are not exported: `ad_forward_solve`, `ad_thermal_forward_solve`, `ad_step!`, `ad_thermal_cut_step!`, `cd_pure`, `nu_pure`, `cd_production`, `gmres_adjoint`, `ad_gauge_augmented_adjoint`, `ad_assemble_radius_terms`, `ad_assemble_wall_position_terms`, `ad_fd_dCd_dR`, `ad_fd_dNu_dL`.
-- Extension seam methods imported by `KrakenADExt`: `_ad_dJdf`, `_ad_vjp_GtT`, `_ad_dqwall_terms`, `_ad_dNudw`, `_ad_thermal_vjp_GtT`, `_ad_thermal_dqwall_terms`. In core they throw "Load Enzyme"; the extension replaces them with Enzyme reverse passes.
+- Core implementation helpers are de-facto public as `KrakeNN.<name>` but are not exported: `ad_forward_solve`, `ad_thermal_forward_solve`, `ad_step!`, `ad_thermal_cut_step!`, `cd_pure`, `nu_pure`, `cd_production`, `gmres_adjoint`, `ad_gauge_augmented_adjoint`, `ad_assemble_radius_terms`, `ad_assemble_wall_position_terms`, `ad_fd_dCd_dR`, `ad_fd_dNu_dL`.
+- Extension seam methods imported by `KrakeNNADExt`: `_ad_dJdf`, `_ad_vjp_GtT`, `_ad_dqwall_terms`, `_ad_dNudw`, `_ad_thermal_vjp_GtT`, `_ad_thermal_dqwall_terms`. In core they throw "Load Enzyme"; the extension replaces them with Enzyme reverse passes.
 
 ## Reads from
 
@@ -39,13 +39,13 @@ anti-drift tests.
 - `bc` — the west velocity / east pressure Zou-He rebuild algebra mirrored inside `ad_apply_zou_he_rebuild!`.
 - `geometry` — `precompute_q_wall_cylinder` / `dq_wall_dR_cylinder` for drag and `ad_cavity_wall_geometry` for the thermal moving-wall `q_wall` / `dq_dL` chain.
 - `io-krk` — the parser-owned `Sensitivity` request and runner extraction of drag keywords (`Nx`, `Ny`, `radius`, `u_in`, `ν`, `ρ_out`) and thermal keywords (`N`, `Ra`, `Pr`, `L`, `wall_position`, `q_hot`, `q_cold`, `T_hot`, `T_cold`) plus tolerances.
-- `Project.toml` weakdep/extension metadata — `KrakenADExt = "Enzyme"` keeps Enzyme out of the unconditional `using Kraken` load path.
+- `Project.toml` weakdep/extension metadata — `KrakeNNADExt = "Enzyme"` keeps Enzyme out of the unconditional `using KrakeNN` load path.
 
 ## Writes to
 
 - Returns a fresh NamedTuple from `steady_shape_sensitivity`; it writes no files and mutates no global registries.
 - Mutates local host arrays during the forward fixed-point solves (`f_in`/`f_out` for drag, stacked `w=(f,g)` buffers for thermal) and during one-step AD products (`out`, cotangent arrays). These arrays are allocated inside the call or copied from inputs.
-- `ext/KrakenADExt.jl` allocates cotangent work arrays for drag (`dJ/df`, `(dG/df)^T v`, `dCd/dq_wall`, `d(lambda^T G)/dq_wall`) and thermal (`dNu/dw`, coupled `(dG/dw)^T v`, explicit `dNu/dq_wall`, and flow/thermal `d(lambda^T G)/dq_wall`).
+- `ext/KrakeNNADExt.jl` allocates cotangent work arrays for drag (`dJ/df`, `(dG/df)^T v`, `dCd/dq_wall`, `d(lambda^T G)/dq_wall`) and thermal (`dNu/dw`, coupled `(dG/dw)^T v`, explicit `dNu/dq_wall`, and flow/thermal `d(lambda^T G)/dq_wall`).
 - Optional `fd_check=true` re-runs two additional perturbed forwards (`R ± h` for drag, `L ± h` for thermal) and returns their finite-difference data; it does not cache results globally.
 
 ## Backend constraints
@@ -59,7 +59,7 @@ anti-drift tests.
 
 ## Failure modes
 
-- **Weakdep seam not loaded** — calling `steady_shape_sensitivity` after only `using Kraken` fails at the first Enzyme seam (`_ad_dJdf`, `_ad_dNudw`, or a VJP/q-wall seam) with the explicit "Load Enzyme" error. This is intentional packaging behavior from M-AD-P5.
+- **Weakdep seam not loaded** — calling `steady_shape_sensitivity` after only `using KrakeNN` fails at the first Enzyme seam (`_ad_dJdf`, `_ad_dNudw`, or a VJP/q-wall seam) with the explicit "Load Enzyme" error. This is intentional packaging behavior from M-AD-P5.
 - **Bit-mirror drift** — any production change to `fused_trt_libb_v2_step!`, the Zou-He rebuild, `compute_drag_libb_mei_2d`, direction tables, TRT rates, `fused_natconv_step!`, Boussinesq/thermal collision algebra, thermal wall BCs, or the Nusselt stencil must be reflected in `src/ad/ad_step.jl`, `src/ad/ad_thermal_step.jl`, and/or `src/ad/ad_qoi.jl`. The AD anti-drift tests in `test/ad/test_ad_sensitivity.jl` are the receipt: inline `Cd` and `Nu` must remain equivalent to their production mirrors.
 - **Dropped direct diameter term** — `dCd/dR` includes `direct_D = -Cd/R` because `Cd = 2Fx/(u_ref^2 D)` and `D=2R`. Losing this term gives a plausible but wrong sign/magnitude; see `ad_assemble_radius_terms`.
 - **Dropped moving-wall term** — `dNu/dL` includes explicit Nusselt wall geometry plus implicit flow-wall and thermal-wall terms. Losing either implicit contribution can still leave a plausible central-FD scale but breaks the moving wall contract; see `ad_assemble_wall_position_terms`.
@@ -78,7 +78,7 @@ For an AD sensitivity bug, inspect in this order:
 3. `src/ad/ad_qoi.jl` — inline MEI drag mirror, inline Nusselt mirror, q-wall finite-difference guards, and `lambda^T G` scalars used for implicit geometry terms.
 4. `src/ad/ad_geometry.jl` — `direct_D`, `ad_cavity_wall_geometry`, q-wall contractions, finite-difference `dCd/dR` / `dNu/dL`, and returned `terms`.
 5. `src/ad/ad_adjoint.jl` — Richardson-to-GMRES solve, gauge-augmented GMRES, linear residual norms, restart limits, and `rhohat` stall detection.
-6. `ext/KrakenADExt.jl` — Enzyme reverse passes for `dJ/df`, `dNu/dw`, `(dG/df)^T v`, coupled `(dG/dw)^T v`, q-wall cotangents, runtime-activity fallback, and directional-FD guards.
+6. `ext/KrakeNNADExt.jl` — Enzyme reverse passes for `dJ/df`, `dNu/dw`, `(dG/df)^T v`, coupled `(dG/dw)^T v`, q-wall cotangents, runtime-activity fallback, and directional-FD guards.
 7. `src/ad/ad_thermal_step.jl` — the unfused coupled Boussinesq bit mirror; check buoyancy `dG_f/dg`, advection `dG_g/df`, flow cut-links, thermal Dirichlet links, and mass-gradient support before changing constants.
 8. `src/ad/ad_step.jl` — the unfused TRT/Li-BB plus Zou-He bit mirror; check this against `src/kernels/li_bb_2d_v2.jl` and `src/bc/rebuild_2d.jl` before changing constants.
 9. `.krk` path: `src/ad/ad_krk.jl`, `src/io/krk/directives.jl`, `src/io/krk/parser.jl`, and `src/simulation_runner.jl` — only after the direct Julia API works but `Sensitivity { ... }` dispatch fails.

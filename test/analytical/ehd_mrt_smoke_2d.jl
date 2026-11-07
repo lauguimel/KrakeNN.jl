@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 @testset "EHD MRT electroconvection smoke" begin
     common = (Nx=31, Ny=48, C=10.0, M=10.0, Ma_E=1e-2, alpha=1e-4,
@@ -8,10 +8,10 @@ using Kraken
               charge_scheme=:regularized, force_projection=:none,
               perturb_amplitude=1e-4, backend=KernelAbstractions.CPU(), FT=Float64)
 
-    bgk_sup = Kraken.run_electroconvection_2d(; common..., T=220.0, ns_scheme=:bgk)
-    mrt_sup = Kraken.run_electroconvection_2d(; common..., T=220.0, ns_scheme=:mrt)
-    bgk_sub = Kraken.run_electroconvection_2d(; common..., T=150.0, ns_scheme=:bgk)
-    mrt_sub = Kraken.run_electroconvection_2d(; common..., T=150.0, ns_scheme=:mrt)
+    bgk_sup = KrakeNN.run_electroconvection_2d(; common..., T=220.0, ns_scheme=:bgk)
+    mrt_sup = KrakeNN.run_electroconvection_2d(; common..., T=220.0, ns_scheme=:mrt)
+    bgk_sub = KrakeNN.run_electroconvection_2d(; common..., T=150.0, ns_scheme=:bgk)
+    mrt_sub = KrakeNN.run_electroconvection_2d(; common..., T=150.0, ns_scheme=:mrt)
 
     bgk_final = last(bgk_sup.umax_history)
     mrt_final = last(mrt_sup.umax_history)

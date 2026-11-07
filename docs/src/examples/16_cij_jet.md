@@ -12,7 +12,7 @@ and stimulates it with a periodic velocity perturbation.  The stimulation
 triggers the **Rayleigh--Plateau instability** at a controlled wavelength,
 causing the jet to break up into uniform droplets.
 
-This is a validation case: we compare Kraken.jl's axisymmetric two-phase
+This is a validation case: we compare KrakeNN's axisymmetric two-phase
 LBM against reference data from **Basilisk** (Popinet, 2015), a
 well-validated Navier--Stokes VOF solver with adaptive mesh refinement.
 
@@ -54,11 +54,11 @@ corresponding to an optimal Rayleigh--Plateau wavenumber ``k\,R_0 \approx 0.9``.
 | AMR | Level 15, ``\Delta x_\min \approx 0.0156\, R_0`` |
 | Solver | Navier--Stokes VOF with wavelet adaptation |
 
-## Kraken.jl approach
+## KrakeNN approach
 
 ### Two simulation models
 
-Kraken.jl provides **two drivers** for the CIJ jet:
+KrakeNN provides **two drivers** for the CIJ jet:
 
 | Driver | Model | Max ``\rho_l/\rho_g`` | Interface tracking |
 |:-------|:------|:---------------------:|:-------------------|
@@ -101,7 +101,7 @@ when ``\tau`` approaches ``0.5``.  With ``R_0 = 40`` and
 ### VOF-based driver (moderate density ratio)
 
 ```julia
-using Kraken
+using KrakeNN
 
 Re = 200
 We = 600
@@ -176,7 +176,7 @@ The key validation metrics are:
    pinch-off point
 3. **Drop size and spacing**: regularity of the main drops
 
-With the phase-field driver at ``\rho_l/\rho_g = 1000``, Kraken.jl
+With the phase-field driver at ``\rho_l/\rho_g = 1000``, KrakeNN
 matches the Basilisk density ratio exactly, enabling direct quantitative
 comparison of interface shapes and breakup dynamics.
 

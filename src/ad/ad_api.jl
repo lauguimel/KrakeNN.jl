@@ -24,7 +24,7 @@ function _ad_thermal_dqwall_terms(args...)
     error(_AD_ENZYME_LOAD_ERROR)
 end
 
-# --- Viscoelastic (Cd_polymer) AD seams (methods live in ext/KrakenADExt.jl) ---
+# --- Viscoelastic (Cd_polymer) AD seams (methods live in ext/KrakeNNADExt.jl) ---
 # `_ad_ve_dJdw`     : reverse of `ad_ve_J_fx` wrt the stacked state w -> dJ/dw.
 # `_ad_ve_vjp_GtT`  : reverse of `ad_ve_coupled_step!` -> dG^T . v (adjoint matvec).
 # `_ad_ve_dGdR_jvp` : forward-JVP of `ad_ve_coupled_step!` seeded by d(geom)/dR
@@ -44,7 +44,7 @@ end
 # --- ν parameter VJP seam (M-P2b-1) ---
 # `_ad_pvjp_nu` : computes dL/dν = λᵀ (∂G/∂ν) via Enzyme Reverse over
 #                  ad_step_nu! with Active(ν). Returns a scalar Float64.
-#                  Impl lives in ext/KrakenADExt.jl.
+#                  Impl lives in ext/KrakeNNADExt.jl.
 function _ad_pvjp_nu(args...)
     error(_AD_ENZYME_LOAD_ERROR)
 end
@@ -471,10 +471,10 @@ end
 # --- ν-field VJP seams (M-P2c-1) ---
 # `_ad_pvjp_nufield` : computes dL/dν_j for each row j = λᵀ (∂G/∂ν_j) via Enzyme Reverse
 #                       over ad_step_nufield! with Duplicated(nu_field, dnu).
-#                       Returns Vector{Float64} of length Ny. Impl in ext/KrakenADExt.jl.
+#                       Returns Vector{Float64} of length Ny. Impl in ext/KrakeNNADExt.jl.
 # `_ad_vjp_GtT_nufield` : state VJP for field ν — same as _ad_vjp_GtT but
 #                          differentiates ad_step_nufield! with Const(nu_field).
-#                          Returns df (cotangent wrt f_star). Impl in ext/KrakenADExt.jl.
+#                          Returns df (cotangent wrt f_star). Impl in ext/KrakeNNADExt.jl.
 function _ad_pvjp_nufield(args...)
     error(_AD_ENZYME_LOAD_ERROR)
 end
@@ -485,7 +485,7 @@ end
 
 # --- Optim.jl L-BFGS field-fit seam (M-P2c-2) ---
 # `_fit_lbfgs` : delegates `fit(...; method=:lbfgs, ...)` to the Fminbox(LBFGS()) driver
-#                in ext/KrakenOptimExt.jl. Without Optim loaded, raises a documented error.
+#                in ext/KrakeNNOptimExt.jl. Without Optim loaded, raises a documented error.
 const _AD_OPTIM_LOAD_ERROR = "Load Optim to enable L-BFGS: `using " * "Optim`"
 
 function _fit_lbfgs(args...; kwargs...)

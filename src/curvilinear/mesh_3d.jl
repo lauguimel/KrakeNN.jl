@@ -135,9 +135,9 @@ Public function in the curvilinear mesh and SLBM API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.validate_mesh_3d)
+methods(KrakeNN.validate_mesh_3d)
 ```
 """
 function validate_mesh_3d(mesh::CurvilinearMesh3D{T}) where {T}

@@ -1,4 +1,4 @@
-# Analytical @testset for the LinearSolve.jl front-end (ext/KrakenLinearSolveExt).
+# Analytical @testset for the LinearSolve.jl front-end (ext/KrakeNNLinearSolveExt).
 # Requires `using LinearSolve` BEFORE inclusion — runtests.jl guards the LOAD
 # (Enzyme-guard pattern), so real ext failures still surface when LinearSolve
 # IS present. Covers: Dirichlet MMS convergence, parity vs the CHOLMOD seam AND
@@ -21,7 +21,7 @@ ls_neumann_rhs(x, y)     = 2.0 * pi^2 * cos(pi * x) * cos(pi * y)
         errors = Float64[]
         for N in NS
             u = solve_poisson_direct(ls_dirichlet_rhs, N)
-            push!(errors, Kraken.l2_error(u, ls_dirichlet_exact, N))
+            push!(errors, KrakeNN.l2_error(u, ls_dirichlet_exact, N))
         end
         orders = [log2(errors[k-1] / errors[k]) for k in 2:length(errors)]
         mean_order = sum(orders) / length(orders)
@@ -51,7 +51,7 @@ ls_neumann_rhs(x, y)     = 2.0 * pi^2 * cos(pi * x) * cos(pi * y)
             # Pinned-to-zero gauge: compare zero-mean fields (poisson_mg_mms.jl
             # Neumann convention).
             ua = u .- sum(u) / length(u)
-            ex = Kraken.exact_field(N, ls_neumann_exact)
+            ex = KrakeNN.exact_field(N, ls_neumann_exact)
             ex .-= sum(ex) / length(ex)
             push!(errors, sqrt((1.0 / N)^2 * sum((ua .- ex) .^ 2)))
         end
@@ -63,7 +63,7 @@ ls_neumann_rhs(x, y)     = 2.0 * pi^2 * cos(pi * x) * cos(pi * y)
 
     @testset "Factorize-once cache reuse (PoissonLinearSolve tag)" begin
         N = 16
-        A, b = Kraken.assemble_poisson_dirichlet(N, ls_dirichlet_rhs)
+        A, b = KrakeNN.assemble_poisson_dirichlet(N, ls_dirichlet_rhs)
 
         cache = lin_factorize(A; backend=PoissonLinearSolve(), spd=true)
         x1 = lin_solve!(cache, b)

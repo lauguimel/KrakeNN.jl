@@ -9,7 +9,7 @@
 # NOTE: as of v0.1.0 the .krk runner does not yet dispatch on the
 # refined driver. Run this case via the Julia API:
 #
-#   using Kraken
+#   using KrakeNN
 #   patches = create_refined_domain(...)  # see test_refinement.jl
 #   result = run_natural_convection_refined_2d(...)  # adapt for cavity
 #

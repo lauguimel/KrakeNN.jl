@@ -29,7 +29,7 @@ function write_cylinder_stl(filename::AbstractString;
     mkpath(dirname(abspath(filename)))
     open(filename, "w") do io
         header = zeros(UInt8, 80)
-        label = codeunits("Kraken M-GEO-1 closed cylinder prism")
+        label = codeunits("KrakeNN M-GEO-1 closed cylinder prism")
         header[1:length(label)] .= label
         write(io, header)
         write(io, UInt32(4 * segments))

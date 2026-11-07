@@ -26,7 +26,7 @@ using Test
         result = make_result(Nx=Nx, Ny=Ny, Lx=Lx, Ly=Ly, ux=ux)
 
         # Extract along y at x ≈ midpoint (at=0.5 => x_pos = 0.5*2.0 = 1.0)
-        prof = Kraken.extract_line(result, :ux, :y; at=0.5)
+        prof = KrakeNN.extract_line(result, :ux, :y; at=0.5)
         @test prof.axis == :y
         @test length(prof.values) == Ny
         @test length(prof.coord) == Ny
@@ -48,7 +48,7 @@ using Test
         end
         result = make_result(Nx=Nx, Ny=Ny, Lx=Lx, Ly=Ly, uy=uy)
 
-        prof = Kraken.extract_line(result, :uy, :x; at=0.5)
+        prof = KrakeNN.extract_line(result, :uy, :x; at=0.5)
         @test prof.axis == :x
         @test length(prof.values) == Nx
         j_expected = clamp(round(Int, (0.5 * Ly) / dy + 0.5), 1, Ny)
@@ -57,7 +57,7 @@ using Test
 
     @testset "extract_line invalid axis" begin
         result = make_result()
-        @test_throws ArgumentError Kraken.extract_line(result, :ux, :z)
+        @test_throws ArgumentError KrakeNN.extract_line(result, :ux, :z)
     end
 
     @testset "field_error with function — L2" begin
@@ -71,7 +71,7 @@ using Test
             ux[i, j] = analytical((i - 0.5) * dx, (j - 0.5) * dy)
         end
         result = make_result(Nx=Nx, Ny=Ny, Lx=Lx, Ly=Ly, ux=ux)
-        err = Kraken.field_error(result, :ux, analytical; norm=:L2)
+        err = KrakeNN.field_error(result, :ux, analytical; norm=:L2)
         @test err.error < 1e-14
         @test err.norm == :L2
     end
@@ -88,7 +88,7 @@ using Test
             ux[i, j] = analytical((i - 0.5) * dx, (j - 0.5) * dy) + offset
         end
         result = make_result(Nx=Nx, Ny=Ny, Lx=Lx, Ly=Ly, ux=ux)
-        err = Kraken.field_error(result, :ux, analytical; norm=:Linf)
+        err = KrakeNN.field_error(result, :ux, analytical; norm=:Linf)
         ref_max = maximum(abs.(ux .- offset))
         @test err.error ≈ offset / ref_max
     end
@@ -98,7 +98,7 @@ using Test
         ux = ones(Nx, Ny) * 2.0
         result = make_result(Nx=Nx, Ny=Ny, ux=ux)
         # Analytical = 2.0 everywhere => error = 0
-        err = Kraken.field_error(result, :ux, (x, y) -> 2.0; norm=:L1)
+        err = KrakeNN.field_error(result, :ux, (x, y) -> 2.0; norm=:L1)
         @test err.error < 1e-14
     end
 
@@ -113,15 +113,15 @@ using Test
         result = make_result(Nx=Nx, Ny=Ny, Lx=Lx, Ly=Ly, ρ=ρ)
 
         # Probe at cell center (i=5, j=3) => x=(5-0.5)*0.2=0.9, y=(3-0.5)*0.2=0.5
-        val = Kraken.probe(result, :ρ, 0.9, 0.5)
+        val = KrakeNN.probe(result, :ρ, 0.9, 0.5)
         @test val == ρ[5, 3]
 
         # Probe at domain corner
-        val_corner = Kraken.probe(result, :ρ, 0.0, 0.0)
+        val_corner = KrakeNN.probe(result, :ρ, 0.0, 0.0)
         @test val_corner == ρ[1, 1]
 
         # Probe beyond domain (clamped)
-        val_far = Kraken.probe(result, :ρ, 100.0, 100.0)
+        val_far = KrakeNN.probe(result, :ρ, 100.0, 100.0)
         @test val_far == ρ[Nx, Ny]
     end
 
@@ -132,7 +132,7 @@ using Test
         ρ  = ones(Nx, Ny) * 1.001
         result = make_result(Nx=Nx, Ny=Ny, ux=ux, uy=uy, ρ=ρ)
 
-        stats = Kraken.domain_stats(result)
+        stats = KrakeNN.domain_stats(result)
         @test stats.max_ux ≈ 0.1
         @test stats.max_uy ≈ 0.2
         @test stats.max_u  ≈ sqrt(0.1^2 + 0.2^2)
@@ -142,7 +142,7 @@ using Test
 
     @testset "domain_stats zero velocity" begin
         result = make_result()
-        stats = Kraken.domain_stats(result)
+        stats = KrakeNN.domain_stats(result)
         @test stats.max_u == 0.0
         @test stats.mean_rho ≈ 1.0
         @test stats.mass_error ≈ 0.0

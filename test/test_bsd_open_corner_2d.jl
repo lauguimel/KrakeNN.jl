@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # Both-sides-diffusion (BSD) correction of the 2D viscoelastic log-FV drivers:
 # the x second derivative at the first/last column of an open x end is taken as
@@ -18,24 +18,24 @@ using Kraken
         zeta_nu_p = 0.3
         force_x(bc) = begin
             fx = zeros2(); fy = zeros2()
-            Kraken.fvfd_bsd_force_2d!(fx, fy, zeros2(), zeros2(), ux, uy, solid,
+            KrakeNN.fvfd_bsd_force_2d!(fx, fy, zeros2(), zeros2(), ux, uy, solid,
                 1.0, zeta_nu_p, 1.0, 1.0, bc)
             fx
         end
         # Open x ends: interior columns see the curvature, end columns do not.
-        fx = force_x(Kraken.fvfd_openx_wally_bcspec_2d())
+        fx = force_x(KrakeNN.fvfd_openx_wally_bcspec_2d())
         @test all(fx[2:Nx-1, 2:Ny-1] .≈ -2 * zeta_nu_p)
         @test all(fx[1, :] .== 0)
         @test all(fx[Nx, :] .== 0)
         # Wall x ends and periodic x: unchanged one-sided / wrapped stencils.
-        fx_wall = force_x(Kraken.fvfd_wallxwally_bcspec_2d())
+        fx_wall = force_x(KrakeNN.fvfd_wallxwally_bcspec_2d())
         @test all(fx_wall[1, 2:Ny-1] .≈ -2 * zeta_nu_p)
         @test all(fx_wall[Nx, 2:Ny-1] .≈ -2 * zeta_nu_p)
-        periodic = Kraken.FVFDDomainBC2D(; west=:periodic, east=:periodic,
+        periodic = KrakeNN.FVFDDomainBC2D(; west=:periodic, east=:periodic,
             south=:wall, north=:wall)
         ux_p = [sin(2pi * (i - 1) / Nx) for i in 1:Nx, j in 1:Ny]
         fx_p = zeros2(); fy_p = zeros2()
-        Kraken.fvfd_bsd_force_2d!(fx_p, fy_p, zeros2(), zeros2(), ux_p, uy, solid,
+        KrakeNN.fvfd_bsd_force_2d!(fx_p, fy_p, zeros2(), zeros2(), ux_p, uy, solid,
             1.0, zeta_nu_p, 1.0, 1.0, periodic)
         lap = (circshift(ux_p, (-1, 0)) .- 2 .* ux_p .+ circshift(ux_p, (1, 0)))
         @test all(isapprox.(fx_p[:, 2:Ny-1], -zeta_nu_p .* lap[:, 2:Ny-1]; atol=1e-14))
@@ -44,7 +44,7 @@ using Kraken
     @testset "Stability: cylinder, beta = 0.01, Wi = 0.5" begin
         # Before the change the run went NaN at step 300.
         R = 4.0; um = 0.003; nu0 = 0.15; beta = 0.01
-        r = Kraken.run_viscoelastic_logfv_cylinder_coupled_2d(;
+        r = KrakeNN.run_viscoelastic_logfv_cylinder_coupled_2d(;
             radius=R, H=16, L_up=3, L_down=4,
             nu_s=beta * nu0, nu_p=(1 - beta) * nu0, lambda=0.5 * R / um,
             u_mean=um, bsd_fraction=1.0, max_steps=3000,
@@ -63,10 +63,10 @@ using Kraken
         Ny = 16; Nx = 4Ny; beta = 0.59; nu0 = 0.15; um = 0.003
         FT = Float64
         hm = fill(false, Ny); hm[2:(Ny-1)] .= true
-        geom = Kraken.StepChannelGeometry2D{FT,Array{FT,3},Matrix{Bool},Vector{Bool}}(
+        geom = KrakeNN.StepChannelGeometry2D{FT,Array{FT,3},Matrix{Bool},Vector{Bool}}(
             :straight, Nx, Ny, 1, 1:Ny, 1:Ny, Ny, Ny, Ny, zeros(FT, Nx, Ny, 9),
             Matrix{Bool}(falses(Nx, Ny)), hm, copy(hm), fill(true, Ny), fill(true, Ny))
-        r = Kraken._run_viscoelastic_logfv_step_channel_coupled_2d(geom;
+        r = KrakeNN._run_viscoelastic_logfv_step_channel_coupled_2d(geom;
             shear_length=Ny, nu_s=beta * nu0, nu_p=(1 - beta) * nu0,
             lambda=0.5 * Ny / (6um), u_mean=um, Fx_body=0.0, bsd_fraction=1.0,
             max_steps=20000, advection_scheme=:muscl_superbee, wall_bc=:halfwayBB)

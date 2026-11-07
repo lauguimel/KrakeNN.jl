@@ -93,11 +93,11 @@ test/test_conservative_tree_2d.jl
 Modifier:
 
 ```text
-src/Kraken.jl
+src/KrakeNN.jl
 test/runtests.jl
 ```
 
-Emplacement dans `src/Kraken.jl`:
+Emplacement dans `src/KrakeNN.jl`:
 
 ```julia
 # --- Grid refinement ---
@@ -124,7 +124,7 @@ include("test_conservative_tree_2d.jl")
 Commande de test focalisee:
 
 ```bash
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_2d.jl")'
 ```
 
 ## Convention de donnees
@@ -249,7 +249,7 @@ Dans `test/test_conservative_tree_2d.jl`:
 
 ```julia
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Conservative tree 2D" begin
     @testset "D2Q9 directions" begin
@@ -285,9 +285,9 @@ Test masse/momentum:
     coalesce_F_2d!(Fp, Fc)
 
     child_mass = sum(Fc)
-    child_mx = sum(Kraken.d2q9_cx(q) * Fc[ix, iy, q]
+    child_mx = sum(KrakeNN.d2q9_cx(q) * Fc[ix, iy, q]
                    for ix in 1:2, iy in 1:2, q in 1:9)
-    child_my = sum(Kraken.d2q9_cy(q) * Fc[ix, iy, q]
+    child_my = sum(KrakeNN.d2q9_cy(q) * Fc[ix, iy, q]
                    for ix in 1:2, iy in 1:2, q in 1:9)
 
     m, mx, my = moments_F(Fp)
@@ -510,7 +510,7 @@ La session est reussie si:
 
 - `src/refinement/conservative_tree_2d.jl` existe;
 - `test/test_conservative_tree_2d.jl` existe;
-- `src/Kraken.jl` inclut le nouveau fichier;
+- `src/KrakeNN.jl` inclut le nouveau fichier;
 - `test/runtests.jl` inclut le nouveau test;
 - les tests phase A et B passent;
 - idealement phase C east/west passe;

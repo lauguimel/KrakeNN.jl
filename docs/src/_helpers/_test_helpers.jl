@@ -35,11 +35,11 @@ println(badge)                                                                  
 # ## API extraction
 
 exports = extract_exports(
-    joinpath(@__DIR__, "..", "..", "..", "src", "Kraken.jl"),
+    joinpath(@__DIR__, "..", "..", "..", "src", "KrakeNN.jl"),
 )
 println("Exported symbols: ", length(exports))                                  #src
 
 data = api_page_data(
-    joinpath(@__DIR__, "..", "..", "..", "src", "Kraken.jl"),
+    joinpath(@__DIR__, "..", "..", "..", "src", "KrakeNN.jl"),
 )
 println("In-scope categories: ", sort(collect(keys(data))))                     #src

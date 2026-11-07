@@ -2,7 +2,7 @@
 # All 4 sides = HalfwayBB (walls) on EACH block except interface.
 # If exchange is correct, uniform equilibrium remains bit-exact.
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const Lx = 1.0
 const Ly = 0.25
@@ -27,7 +27,7 @@ function init_uniform!(state, u, T)
     Nξp = state.Nξ_phys; Nηp = state.Nη_phys; ng = state.n_ghost
     fill!(state.f, zero(T))
     @inbounds for j in 1:Nηp, i in 1:Nξp, q in 1:9
-        feq = Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q)
+        feq = KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q)
         state.f[i + ng, j + ng, q] = T(feq)
     end
 end

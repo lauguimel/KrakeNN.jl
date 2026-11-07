@@ -144,9 +144,9 @@ Public type or module in the kernel-level LBM operation.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.AbstractBC
+KrakeNN.AbstractBC
 ```
 """
 abstract type AbstractBC end

@@ -11,9 +11,9 @@ Public enumeration for the grid-refinement and conservative-tree AMR API. Export
 Use these tags when inspecting or constructing route and topology metadata.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.RouteKind3D
+KrakeNN.RouteKind3D
 ```
 """
 @enum RouteKind3D::UInt8 DIRECT_3D=0 SPLIT_FACE_3D=1 SPLIT_EDGE_3D=2 COALESCE_FACE_3D=3 COALESCE_EDGE_3D=4 ROUTE_BOUNDARY_3D=5
@@ -25,9 +25,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.CartesianMetrics3D
+KrakeNN.CartesianMetrics3D
 ```
 """
 struct CartesianMetrics3D <: AbstractCellMetrics
@@ -41,9 +41,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeCell3D
+KrakeNN.ConservativeTreeCell3D
 ```
 """
 struct ConservativeTreeCell3D
@@ -63,9 +63,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeLink3D
+KrakeNN.ConservativeTreeLink3D
 ```
 """
 struct ConservativeTreeLink3D
@@ -81,9 +81,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeRoute3D
+KrakeNN.ConservativeTreeRoute3D
 ```
 """
 struct ConservativeTreeRoute3D
@@ -101,9 +101,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeTopology3D
+KrakeNN.ConservativeTreeTopology3D
 ```
 """
 struct ConservativeTreeTopology3D

@@ -4,7 +4,7 @@
 # spans and pressure-reference outlet spans live on the west/east boundary.
 # Full-cell immersed solids are represented by is_solid; fluid-solid momentum
 # faces are no-slip Dirichlet faces, pressure-correction faces are homogeneous
-# Neumann faces. Registered in src/Kraken.jl (exported driver; platform wrapper
+# Neumann faces. Registered in src/KrakeNN.jl (exported driver; platform wrapper
 # IncNS(:manifold) forwards here).
 
 using KernelAbstractions
@@ -595,7 +595,7 @@ end
                          momentum_advection=:linear_upwind)
 
 Steady incompressible Navier-Stokes SIMPLE solver for a 2D manifold on a
-collocated cell-centred grid. Registered in `src/Kraken.jl` and exported; also
+collocated cell-centred grid. Registered in `src/KrakeNN.jl` and exported; also
 reachable as `solve(params, IncNS(:manifold))` through the platform contract.
 
 `inlet = (; side, j0, j1, u)` imposes a localized velocity Dirichlet span on the

@@ -1,6 +1,6 @@
 # Viscoelastic constitutive models — FVFD log-conformation (3D)
 
-Kraken ships **four** 3D viscoelastic constitutive closures, all evolved in the
+KrakeNN ships **four** 3D viscoelastic constitutive closures, all evolved in the
 log-conformation variable `Ψ = log C` (Fattal & Kupferman 2004) by the same
 finite-volume / finite-difference (**FVFD**) polymer transport that the
 [Viscoelastic Poiseuille](ve3d-poiseuille-convergence.md) and
@@ -12,8 +12,8 @@ wall-BC machinery and are selected by passing a different model spec
 
 This page introduces the four models and compares them **analytically**: each is
 driven single-cell through steady simple shear and steady planar extension by
-the *real* Kraken constitutive solver (no closed-form shortcut), so the figure
-below shows exactly what Kraken computes.
+the *real* KrakeNN constitutive solver (no closed-form shortcut), so the figure
+below shows exactly what KrakeNN computes.
 
 ## The four models
 
@@ -150,9 +150,9 @@ Each constitutive closure is validated independently before it appears here:
   byte-identical check.
 - **External cross-validation (RheoTool).** The Oldroyd-B planar-extension
   conformation matches RheoTool's `rheoTestFoam` to machine precision in the
-  Hookean (`L² → ∞`) limit. For finite `L²`, Kraken's FENE-P and RheoTool's
+  Hookean (`L² → ∞`) limit. For finite `L²`, KrakeNN's FENE-P and RheoTool's
   FENE-P differ by a documented `~11 %` in `C_xx` — a genuine **closure-variant**
-  difference (Peterlin argument `tr C` vs `tr A`), *not* a bug: Kraken's own
+  difference (Peterlin argument `tr C` vs `tr A`), *not* a bug: KrakeNN's own
   1000-step canary matches its own steady-state transcendental solution to
   `1e-5` relative. See
   `benchmarks/results/rheotool_compare/viscoelastic_extensional_fenep_3d/`
@@ -167,15 +167,15 @@ above (CPU Float64):
 ```julia
 # from the repo root
 import Pkg
-Pkg.test("Kraken"; test_args=["test_fvfd_giesekus_3d.jl"])
-Pkg.test("Kraken"; test_args=["test_fvfd_ptt_3d.jl"])
-Pkg.test("Kraken"; test_args=["test_fvfd_fenep_3d.jl"])
+Pkg.test("KrakeNN"; test_args=["test_fvfd_giesekus_3d.jl"])
+Pkg.test("KrakeNN"; test_args=["test_fvfd_ptt_3d.jl"])
+Pkg.test("KrakeNN"; test_args=["test_fvfd_fenep_3d.jl"])
 ```
 
 The analytical comparison data and the figure generator are tracked under
 `benchmarks/results/repro/ve-constitutive-models/`. The data is **fully
 CI-reproducible** (single-cell, CPU Float64, ~1 min) — regenerate the CSV with
-the real Kraken solver:
+the real KrakeNN solver:
 
 ```bash
 # from the repo root — drives all 4 models, both flows, writes the CSV

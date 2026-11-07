@@ -13,7 +13,7 @@
 #      second-order refinement, ε → 0 towards the analytical profile;
 #      quadratic Newton convergence from rest, one symbolic analysis;
 #   5. 2D: power-law cavity (quadratic convergence) and the Carreau-Yasuda
-#      obstacle channel against Kraken's LBM GNF driver
+#      obstacle channel against KrakeNN's LBM GNF driver
 #      (run_gnf_periodic_steady), with the gap shrinking under refinement.
 # GPU (cuDSS) contract: incns_fv_gnf_gpu.jl.
 
@@ -21,8 +21,8 @@ using Test
 using LinearAlgebra
 using Random
 using ForwardDiff
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 
 # These guards reproduce the inference failure behind CUDA's dynamic convert
 # at the residual stores. CPU numerical agreement alone does not detect it.
@@ -38,7 +38,7 @@ function _fvc3_inference_laws(::Type{T}) where {T}
 end
 
 function _fvc3_inference_guards()
-    D = ForwardDiff.Dual{Kraken.FVJacobianTag,Float64,4}
+    D = ForwardDiff.Dual{KrakeNN.FVJacobianTag,Float64,4}
     p = fv_steady_problem(4, 4)
     # Homogeneous Float64/Float32, both mixed eps/law directions, dual law
     # parameters. Float32 with Float64 thermal data checks thermal exclusion.
@@ -48,15 +48,15 @@ function _fvc3_inference_guards()
             visc = FVGNFViscosity(law, eps)
             V = promote_type(L, typeof(eps))
             @test isbitstype(typeof(visc))
-            @test (@inferred Kraken._fv_visc_eltype(visc)) === V
-            @test (@inferred Kraken._fv_visc_zero(visc)) === zero(V)
+            @test (@inferred KrakeNN._fv_visc_eltype(visc)) === V
+            @test (@inferred KrakeNN._fv_visc_zero(visc)) === zero(V)
             for S in (Float64, D)
                 # Newtonian viscosity is independent of the state gradient.
                 N = law isa Newtonian ? L : promote_type(V, S)
                 for values in ((0.0, 0.0, 0.0, 0.0), (0.2, 0.3, -0.1, 0.4))
                     grad = S.(values)
-                    @test (@inferred Kraken._fv_face_nu(visc, 0.0, 0.0, grad...)) isa N
-                    @test (@inferred Kraken._fv_wall_nu(visc, 0.0, grad...)) isa N
+                    @test (@inferred KrakeNN._fv_face_nu(visc, 0.0, 0.0, grad...)) isa N
+                    @test (@inferred KrakeNN._fv_wall_nu(visc, 0.0, grad...)) isa N
                 end
                 U = fill(S(0.1), fv_nunknowns(p))
                 @test (@inferred fv_cell_residual(U, p.tag, p.nu, p.bvel, p.src,
@@ -66,13 +66,13 @@ function _fvc3_inference_guards()
     end
     # Inspect the actual CPU kernel body: a Nothing return alone still permits
     # dynamically typed arithmetic and convert calls at the residual stores.
-    KA = Kraken.KernelAbstractions
+    KA = KrakeNN.KernelAbstractions
     visc = FVGNFViscosity(PowerLaw(0.1, 0.5; nu_min = 0.0, nu_max = Inf), 1e-2)
-    kernel = Kraken._fv_residual_kernel!(KA.CPU(), 64)
+    kernel = KrakeNN._fv_residual_kernel!(KA.CPU(), 64)
     for S in (Float64, D)
         U = fill(S(0.1), fv_nunknowns(p))
         args = (similar(U), U, p.tag, p.nu, p.bvel, p.src, p.grid, visc,
-                Kraken._fv_immersed_args(p.immersed)..., nothing)
+                KrakeNN._fv_immersed_args(p.immersed)..., nothing)
         ir = only(KA.ka_code_typed(kernel, Tuple{map(typeof, args)...};
                                    ndrange = (4, 4), optimize = true)).first
         # Control-flow nodes may carry Any without representing a value.

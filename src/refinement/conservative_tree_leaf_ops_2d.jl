@@ -32,9 +32,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_Guo_integrated_D2Q9!)
+methods(KrakeNN.collide_Guo_integrated_D2Q9!)
 ```
 """
 function collide_Guo_integrated_D2Q9!(Fcell::AbstractVector,
@@ -224,9 +224,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.cylinder_solid_mask_leaf_2d)
+methods(KrakeNN.cylinder_solid_mask_leaf_2d)
 ```
 """
 function cylinder_solid_mask_leaf_2d(Nx::Int, Ny::Int, cx, cy, radius)
@@ -245,9 +245,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.square_solid_mask_leaf_2d)
+methods(KrakeNN.square_solid_mask_leaf_2d)
 ```
 """
 function square_solid_mask_leaf_2d(Nx::Int, Ny::Int,
@@ -275,9 +275,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.backward_facing_step_solid_mask_leaf_2d)
+methods(KrakeNN.backward_facing_step_solid_mask_leaf_2d)
 ```
 """
 function backward_facing_step_solid_mask_leaf_2d(Nx::Int, Ny::Int,
@@ -354,9 +354,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_bounceback_xy_solid_F_2d!)
+methods(KrakeNN.stream_bounceback_xy_solid_F_2d!)
 ```
 """
 function stream_bounceback_xy_solid_F_2d!(Fout::AbstractArray{<:Any,3},
@@ -405,9 +405,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_west_cell_F_2d!)
+methods(KrakeNN.apply_zou_he_west_cell_F_2d!)
 ```
 """
 function apply_zou_he_west_cell_F_2d!(Fcell::AbstractVector{T}, u_in, volume) where T
@@ -434,9 +434,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_west_F_2d!)
+methods(KrakeNN.apply_zou_he_west_F_2d!)
 ```
 """
 function apply_zou_he_west_F_2d!(F::AbstractArray{T,3}, u_in, volume) where T
@@ -465,9 +465,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_pressure_east_cell_F_2d!)
+methods(KrakeNN.apply_zou_he_pressure_east_cell_F_2d!)
 ```
 """
 function apply_zou_he_pressure_east_cell_F_2d!(
@@ -497,9 +497,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_pressure_east_F_2d!)
+methods(KrakeNN.apply_zou_he_pressure_east_F_2d!)
 ```
 """
 function apply_zou_he_pressure_east_F_2d!(F::AbstractArray{T,3}, volume;
@@ -562,9 +562,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_drag_mea_solid_F_2d)
+methods(KrakeNN.compute_drag_mea_solid_F_2d)
 ```
 """
 function compute_drag_mea_solid_F_2d(Fpre::AbstractArray{<:Any,3},

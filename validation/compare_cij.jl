@@ -1,8 +1,8 @@
 #!/usr/bin/env julia
-# Compare Kraken CIJ jet interfaces with Basilisk reference data
+# Compare KrakeNN CIJ jet interfaces with Basilisk reference data
 # Usage: julia --project compare_cij.jl [result_dir]
 
-using Kraken
+using KrakeNN
 using Serialization
 using Printf
 
@@ -40,12 +40,12 @@ function compare_single_case(result_dir)
     @printf("  Domain: %d × %d, T_period=%.0f steps\n", p.Nz, p.Nr, p.T_period)
     println("  Breakup: ", result.breakup_detected ? "YES (step $(result.breakup_step))" : "NO")
 
-    # Get last Kraken snapshot
+    # Get last KrakeNN snapshot
     last_step = maximum(keys(result.interfaces))
     kraken_pts = result.interfaces[last_step]
     t_phys_krak = last_step * u_lb / R0
 
-    println("\n  Kraken snapshot: step=$last_step, t_phys=$(@sprintf("%.2f", t_phys_krak))")
+    println("\n  KrakeNN snapshot: step=$last_step, t_phys=$(@sprintf("%.2f", t_phys_krak))")
     println("  Interface points: $(length(kraken_pts))")
 
     if isempty(kraken_pts)
@@ -53,11 +53,11 @@ function compare_single_case(result_dir)
         return
     end
 
-    # Normalize Kraken coordinates to physical units (R₀=1)
+    # Normalize KrakeNN coordinates to physical units (R₀=1)
     z_krak = [pt[1] / R0 for pt in kraken_pts]
     r_krak = [pt[2] / R0 for pt in kraken_pts]
 
-    @printf("  Kraken jet: z ∈ [%.1f, %.1f] R₀, r ∈ [%.3f, %.3f] R₀\n",
+    @printf("  KrakeNN jet: z ∈ [%.1f, %.1f] R₀, r ∈ [%.3f, %.3f] R₀\n",
             minimum(z_krak), maximum(z_krak), minimum(r_krak), maximum(r_krak))
 
     # Find closest Basilisk snapshot
@@ -82,7 +82,7 @@ function compare_single_case(result_dir)
         # Compare breakup lengths
         L_krak = maximum(z_krak)
         L_bas = extract_breakup_length(bas_contour)
-        @printf("  Jet length: Kraken=%.1f R₀, Basilisk=%.1f R₀ (ratio=%.2f)\n",
+        @printf("  Jet length: KrakeNN=%.1f R₀, Basilisk=%.1f R₀ (ratio=%.2f)\n",
                 L_krak, L_bas, L_krak / L_bas)
     end
 

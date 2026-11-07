@@ -63,7 +63,7 @@
 # Drag aggregation: sum compute_drag_libb_mei_2d on each of the 8
 # ring blocks' INTERIOR views (each contributes its 45° arc contribution).
 
-using Kraken, CUDA, KernelAbstractions, Gmsh
+using KrakeNN, CUDA, KernelAbstractions, Gmsh
 using FFTW: rfft, rfftfreq
 
 include(joinpath(@__DIR__, "..", "tmp", "gen_ogrid_rect_8block.jl"))
@@ -223,7 +223,7 @@ run_Efull(D_lu, steps, sw, se; N_arc=8, N_radial_factor=2) = begin
                 x = blk.mesh.X[i, j]; y = blk.mesh.Y[i, j]
                 inside = (x - cx_p)^2 + (y - cy_p)^2 ≤ R_p^2
                 u = inside ? 0.0 : Float64(u_max)
-                f_int[i, j, q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+                f_int[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
             end
             int_view = interior_f(states[k])
             copyto!(int_view, CuArray(f_int))

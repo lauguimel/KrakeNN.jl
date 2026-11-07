@@ -12,7 +12,7 @@
 # The caller may extend a run simply by calling `advance!` for more cycles.
 #
 # ```julia
-# using Kraken
+# using KrakeNN
 # s = init_state(ECState; Nx=10, Ny=16, T=190.0,
 #                phi_scheme=:direct, history_interval=3)
 # advance!(s, 7)

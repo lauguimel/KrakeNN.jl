@@ -5,9 +5,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeAdaptiveRun2D
+KrakeNN.ConservativeTreeAdaptiveRun2D
 ```
 """
 struct ConservativeTreeAdaptiveRun2D{T}
@@ -31,9 +31,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeSolidAdaptiveRun2D
+KrakeNN.ConservativeTreeSolidAdaptiveRun2D
 ```
 """
 struct ConservativeTreeSolidAdaptiveRun2D{T}
@@ -59,9 +59,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeOpenChannelRun2D
+KrakeNN.ConservativeTreeOpenChannelRun2D
 ```
 """
 struct ConservativeTreeOpenChannelRun2D{T}
@@ -102,9 +102,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_couette_route_native_2d)
+methods(KrakeNN.run_conservative_tree_couette_route_native_2d)
 ```
 """
 function run_conservative_tree_couette_route_native_2d(;
@@ -164,9 +164,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_poiseuille_route_native_2d)
+methods(KrakeNN.run_conservative_tree_poiseuille_route_native_2d)
 ```
 """
 function run_conservative_tree_poiseuille_route_native_2d(;
@@ -226,9 +226,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_open_channel_route_native_2d)
+methods(KrakeNN.run_conservative_tree_open_channel_route_native_2d)
 ```
 """
 function run_conservative_tree_open_channel_route_native_2d(;
@@ -356,9 +356,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_bfs_route_native_2d)
+methods(KrakeNN.run_conservative_tree_bfs_route_native_2d)
 ```
 """
 function run_conservative_tree_bfs_route_native_2d(;
@@ -432,9 +432,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_poiseuille_adaptive_route_native_2d)
+methods(KrakeNN.run_conservative_tree_poiseuille_adaptive_route_native_2d)
 ```
 """
 function run_conservative_tree_poiseuille_adaptive_route_native_2d(;
@@ -518,9 +518,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_poiseuille_gradient_adaptive_route_native_2d)
+methods(KrakeNN.run_conservative_tree_poiseuille_gradient_adaptive_route_native_2d)
 ```
 """
 function run_conservative_tree_poiseuille_gradient_adaptive_route_native_2d(;

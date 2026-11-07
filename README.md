@@ -1,4 +1,4 @@
-# Kraken.jl
+# KrakeNN
 
 [![Build Status](https://github.com/lauguimel/Kraken.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/lauguimel/Kraken.jl/actions/workflows/CI.yml)
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://lauguimel.github.io/Kraken.jl/stable)
@@ -6,7 +6,7 @@
 
 A GPU-portable Lattice Boltzmann (LBM) framework written in Julia, targeting
 single-phase incompressible, thermal, and viscoelastic flows on CPU, CUDA, and
-Apple Metal backends. Kraken.jl provides a compact kernel core (D2Q9, D3Q19), a
+Apple Metal backends. KrakeNN provides a compact kernel core (D2Q9, D3Q19), a
 declarative `.krk` configuration DSL and
 spatial boundary conditions — all behind a small, hackable API.
 
@@ -32,7 +32,7 @@ theory pages, examples, and API — see the
 
 ## Installation
 
-Kraken.jl is not yet registered. Install from GitHub:
+KrakeNN is not yet registered. Install from GitHub:
 
 ```julia
 using Pkg
@@ -55,11 +55,11 @@ julia --project=. examples/quickstart.jl
 ```
 
 ```julia
-# Kraken.jl quickstart: the README shows this file verbatim and CI runs it on CPU.
+# KrakeNN quickstart: the README shows this file verbatim and CI runs it on CPU.
 # From a clone of the repository:
 #
 #     julia --project=. examples/quickstart.jl
-using Kraken
+using KrakeNN
 
 # 1. Run a lid-driven cavity described by a .krk configuration file.
 #    `max_steps` overrides the file's `Run 60000 steps` so the script finishes
@@ -116,12 +116,12 @@ julia --project=docs docs/make.jl
 
 ## Citation
 
-If you use Kraken.jl in academic work, please cite:
+If you use KrakeNN in academic work, please cite:
 
 ```bibtex
 @software{kraken_jl,
   author  = {Maitrejean, Guillaume and Zhao, Jiachen and Sauret, Emilie},
-  title   = {Kraken.jl: a GPU-portable Lattice Boltzmann framework in Julia},
+  title   = {KrakeNN: a GPU-portable Lattice Boltzmann framework in Julia},
   year    = {2026},
   url     = {https://github.com/lauguimel/Kraken.jl},
   version = {0.6.0},
@@ -130,5 +130,5 @@ If you use Kraken.jl in academic work, please cite:
 
 ## License
 
-Kraken.jl is released under the MIT License. See [LICENSE](LICENSE) for
+KrakeNN is released under the MIT License. See [LICENSE](LICENSE) for
 details.
