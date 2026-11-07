@@ -1,7 +1,7 @@
 #!/bin/bash -l
 # Prepared only; run manually on the login node after copying src_law.
 # Creates an isolated environment. Does not modify src_law/Project.toml.
-set -euo pipefail
+set -e
 WORKDIR=${WORKDIR:-$HOME/kraken_law}
 cd "$WORKDIR"
 export JULIA_DEPOT_PATH=$WORKDIR/depot

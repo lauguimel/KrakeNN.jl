@@ -1,23 +1,13 @@
 # Prepared CUDA/cuDSS validation. Default size: 512^2, Float64, no CPU solve.
 using Test, LinearAlgebra, Random, Statistics, Printf, Kraken
 
-const LAW_GPU_READY = (try
-    @eval using CUDA
-    if CUDA.functional()
-        @eval using CUDSS
-        true
-    else
-        @info "CUDA.functional() is false; GPU benchmark not executed"
-        false
-    end
-catch err
-    @info "CUDA/cuDSS unavailable; GPU benchmark not executed" reason=sprint(showerror, err)
-    false
-end) === true
-const LAW_REQUIRE_GPU = get(ENV, "KRAKEN_REQUIRE_GPU", "0") in ("1", "true")
-if LAW_GPU_READY
-    @eval law_device_allocated(f) = CUDA.@allocated f()
-end
+# Plain top-level imports: an `@eval using CUDA` inside the same expression as
+# its first use hits the world-age trap and kills the job at start-up.
+using CUDA, CUDSS
+CUDA.functional() || error("FV law GPU validation requires functional CUDA")
+const LAW_GPU_READY = true
+const LAW_REQUIRE_GPU = true
+law_device_allocated(f) = CUDA.@allocated f()
 
 const LAW_NEWTON = (; atol=1e-12, rtol=1e-12, maxit=40)
 const LAW_EPS = 1e-2
