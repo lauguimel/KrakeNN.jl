@@ -40,8 +40,8 @@ closure. The physical-cut traction is deliberately a separate reconstruction.
     mass = _fv_corrected_wall_mass(mass, U, g, i, j, d, face_pair)
     gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure)
     tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure)
-    au = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, 1) + _fv_negp(mass) * ua)
-    av = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, 2) + _fv_negp(mass) * va)
+    au = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)) + _fv_negp(mass) * ua)
+    av = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)) + _fv_negp(mass) * va)
     return au, av, tx, ty, pf, mass
 end
 
@@ -144,16 +144,16 @@ function _fv_surface_reconstruction(U, prob, i, j, d, normal, wall_tangent,
         _fv_ib_error("surface opposite cell must be fluid", (i, j), (oi, oj))
     tx, ty = -ny, nx
     et = ex * tx + ey * ty
-    axial(c) = (q / (1 + q) * _fv_val(U, g, oi, oj, c) -
-        (1 + q) / q * _fv_val(U, g, i, j, c) +
+    axial(c) = (q / (1 + q) * _fv_val(U, g, oi, oj, _fv_velocity_slot(g.layout, c)) -
+        (1 + q) / q * _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, c)) +
         (1 + 2q) / (q * (1 + q)) * ib.wvel[c, d, i, j]) / g.h
     un = (axial(1) - et * wall_tangent[1]) / en
     vn = (axial(2) - et * wall_tangent[2]) / en
     ux, uy = un * nx + wall_tangent[1] * tx, un * ny + wall_tangent[1] * ty
     vx, vy = vn * nx + wall_tangent[2] * tx, vn * ny + wall_tangent[2] * ty
     nuw = _fv_wall_nu(prob.visc, physical_nu, ux, uy, vx, vy, i, j)
-    pP = _fv_val(U, g, i, j, 3)
-    pw = pP + q * (pP - _fv_val(U, g, oi, oj, 3))
+    pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
+    pw = pP + q * (pP - _fv_val(U, g, oi, oj, _fv_pressure_slot(g.layout)))
     pressure = (pw * nx, pw * ny)
     viscous = (-nuw * (2ux * nx + (uy + vx) * ny),
                -nuw * ((uy + vx) * nx + 2vy * ny))

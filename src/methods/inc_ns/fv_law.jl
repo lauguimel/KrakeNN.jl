@@ -233,8 +233,8 @@ end
     pu, pv, pc = ForwardDiff.partials(ru), ForwardDiff.partials(rv), ForwardDiff.partials(rc)
     b = fv_index(g, i, j, 0)
     @inbounds for d in 1:4
-        sensitivity[c, d] = -(lambda[b + 1] * pu[d] + lambda[b + 2] * pv[d] +
-                              lambda[b + 3] * pc[d])
+        sensitivity[c, d] = -(lambda[b + _fv_velocity_slot(g.layout, 1)] * pu[d] + lambda[b + _fv_velocity_slot(g.layout, 2)] * pv[d] +
+                              lambda[b + _fv_pressure_slot(g.layout)] * pc[d])
     end
 end
 

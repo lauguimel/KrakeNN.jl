@@ -24,6 +24,37 @@ using SparseArrays
 using KernelAbstractions
 
 # ------------------------------------------------------------------ pattern
+# Dependencies are declared by equation, using the residual's face traversal.
+# Each entry is (unknown component, tuple of cells); missing neighbours are zero.
+function _fv_dependency_stencil(g, tag, i, j)
+    function nb(i, j, d)
+        i == 0 && return (0, 0)
+        kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
+        return kind == _FV_F_INT ? (ii, jj) : (0, 0)
+    end
+    P = (i, j)
+    E = nb(i, j, 1); W = nb(i, j, 2); N = nb(i, j, 3); S = nb(i, j, 4)
+    star = (P, E, W, N, S)
+    axis2 = (nb(E..., 1), nb(W..., 2), nb(N..., 3), nb(S..., 4))
+    cross_u = (nb(N..., 1), nb(N..., 2), nb(S..., 1), nb(S..., 2))
+    cross_v = (nb(E..., 3), nb(E..., 4), nb(W..., 3), nb(W..., 4))
+    return (; P, E, W, N, S, star, axis2, cross_u, cross_v)
+end
+function _fv_equation_dependencies(::Val{1}, s, tag)
+    tag == FV_CELL_SOLID && return ((1, (s.P,)),)
+    return ((1, s.star), (2, (s.star..., s.cross_u...)), (3, (s.star..., s.axis2...)))
+end
+function _fv_equation_dependencies(::Val{2}, s, tag)
+    tag == FV_CELL_SOLID && return ((2, (s.P,)),)
+    return ((1, (s.star..., s.cross_v...)), (2, s.star), (3, (s.star..., s.axis2...)))
+end
+function _fv_equation_dependencies(::Val{3}, s, tag)
+    tag in (FV_CELL_SOLID, FV_CELL_PINNED) && return ((3, (s.P,)),)
+    return ((1, (s.P, s.E, s.W)), (2, (s.P, s.N, s.S)), (3, (s.star..., s.axis2...)))
+end
+# T1 scalar rows are identities for every cell tag, including solids and pins.
+_fv_equation_dependencies(::Val{K}, s, tag) where {K} = ((K, (s.P,)),)
+
 """
     fv_jacobian_pattern(prob::FVSteadyProblem2D) -> SparseMatrixCSC{Bool,Int}
 
@@ -65,54 +96,16 @@ function fv_jacobian_pattern(prob::FVSteadyProblem2D)
     n = fv_nunknowns(prob)
     I = Int[]; J = Int[]
     sizehint!(I, 21 * n); sizehint!(J, 21 * n)
-    # neighbour through face d, or (0, 0) when the face is not interior
-    function nb(i, j, d)
-        i == 0 && return (0, 0)
-        kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
-        return kind == _FV_F_INT ? (ii, jj) : (0, 0)
-    end
-    push(r, c, comp) = (c[1] != 0 && (push!(I, r); push!(J, fv_index(g, c[1], c[2], comp))); nothing)
     for j in 1:Ny, i in 1:Nx
-        P = (i, j)
-        ru = fv_index(g, i, j, 1); rv = ru + 1; rc = ru + 2
-        if tag[i, j] == FV_CELL_SOLID
-            push!(I, ru, rv, rc); push!(J, ru, rv, rc)
-            continue
-        end
-        E = nb(i, j, 1); W = nb(i, j, 2); N = nb(i, j, 3); S = nb(i, j, 4)
-        star = (P, E, W, N, S)
-        axis2 = (nb(E..., 1), nb(W..., 2), nb(N..., 3), nb(S..., 4))
-        # cross terms: Ru reads v at the E/W neighbours of N and S, Rv reads u
-        # at the N/S neighbours of E and W
-        cross_u = (nb(N..., 1), nb(N..., 2), nb(S..., 1), nb(S..., 2))
-        cross_v = (nb(E..., 3), nb(E..., 4), nb(W..., 3), nb(W..., 4))
-        for c in star
-            push(ru, c, 1); push(ru, c, 2); push(ru, c, 3)
-            push(rv, c, 1); push(rv, c, 2); push(rv, c, 3)
-        end
-        for c in axis2
-            push(ru, c, 3); push(rv, c, 3)
-        end
-        for c in cross_u
-            push(ru, c, 2)
-        end
-        for c in cross_v
-            push(rv, c, 1)
-        end
-        if tag[i, j] == FV_CELL_PINNED
-            push(rc, P, 3)
-        else
-            for c in (P, E, W)
-                push(rc, c, 1)
-            end
-            for c in (P, N, S)
-                push(rc, c, 2)
-            end
-            for c in star
-                push(rc, c, 3)
-            end
-            for c in axis2
-                push(rc, c, 3)
+        stencil = _fv_dependency_stencil(g, tag, i, j)
+        for equation in 1:_fv_nfields(g)
+            row = fv_index(g, i, j, equation)
+            for (component, cells) in _fv_equation_dependencies(Val(equation), stencil, tag[i, j])
+                for cell in cells
+                    cell[1] == 0 && continue
+                    push!(I, row)
+                    push!(J, fv_index(g, cell[1], cell[2], component))
+                end
             end
         end
     end
@@ -254,12 +247,12 @@ end
     end
 end
 
-@kernel function _fv_diag_shift_kernel!(nzval, @Const(diag), sigma)
+@kernel function _fv_diag_shift_kernel!(nzval, @Const(diag), sigma, layout)
     c = @index(Global)          # cell index; shift the two momentum rows
     @inbounds begin
-        b = 3 * (c - 1)
-        nzval[diag[b + 1]] += sigma
-        nzval[diag[b + 2]] += sigma
+        b = _fv_cell_base(layout, c)
+        nzval[diag[b + _fv_velocity_slot(layout, 1)]] += sigma
+        nzval[diag[b + _fv_velocity_slot(layout, 2)]] += sigma
     end
 end
 
@@ -293,22 +286,27 @@ function fv_assemble_jacobian!(nzval, asm::FVJacobianAssembler{N}, U,
 end
 
 # ------------------------------------------------------------------ residual norms
-@kernel function _fv_norm_partials_kernel!(Pt, @Const(R), ncell, per)
+@kernel function _fv_norm_partials_kernel!(Pt, @Const(R), cells, per)
     t = @index(Global)
+    ncell, layout = _fv_norm_cells(cells)
+    nlocal = _fv_nfields(layout) * ncell
     T = eltype(Pt)
     m2 = zero(T); c2 = zero(T); mi = zero(T); ci = zero(T)
     c0 = (t - 1) * per + 1
-    c1 = min(t * per, ncell + length(R) - 3ncell)
+    c1 = min(t * per, ncell + length(R) - nlocal)
     @inbounds for c in c0:c1
         if c <= ncell
-            b = 3 * (c - 1)
-            ru = R[b + 1]; rv = R[b + 2]; rc = R[b + 3]
+            b = _fv_cell_base(layout, c)
+            ru = R[b + _fv_velocity_slot(layout, 1)]; rv = R[b + _fv_velocity_slot(layout, 2)]; rc = R[b + _fv_pressure_slot(layout)]
             m2 += ru * ru + rv * rv
             c2 += rc * rc
             mi = max(mi, abs(ru), abs(rv))
             ci = max(ci, abs(rc))
+            for scalar in 1:_fv_nscalars(layout)
+                ci = max(ci, abs(R[b + _fv_scalar_slot(layout, scalar)]))
+            end
         else
-            rc = R[3ncell + c - ncell]
+            rc = R[nlocal + c - ncell]
             c2 += rc * rc
             ci = max(ci, abs(rc))
         end
@@ -318,16 +316,108 @@ end
     end
 end
 
-struct _FVNormBuffers{D,H}
+# Keep the original Int kernel argument valid for compiler/unit callers.
+@inline _fv_norm_cells(ncell::Int) = (ncell, FVFieldLayout{0}())
+@inline _fv_norm_cells(cells::Tuple{Int,<:FVFieldLayout}) = cells
+
+struct _FVEquationNormBuffers{D,H,V}
+    dev::D
+    host::H
+    scales::V
+    host_scales::Vector{Float64}
+end
+struct _FVNormBuffers{D,H,L,E}
     dev::D
     host::H
     per::Int
     ncell::Int
+    layout::L
+    equations::E
 end
 
-function _FVNormBuffers(to, ncell::Int; per::Int = 256, nextra::Int = 0)
+function _FVNormBuffers(to, ncell::Int; per::Int = 256, nextra::Int = 0,
+                         layout::FVFieldLayout = FVFieldLayout{0}())
     nt = cld(ncell + nextra, per)
-    return _FVNormBuffers(to(zeros(Float64, 4, nt)), zeros(Float64, 4, nt), per, ncell)
+    nf = _fv_nfields(layout)
+    eq = _FVEquationNormBuffers(to(zeros(Float64, 2nf, nt)), zeros(Float64, 2nf, nt),
+                                to(ones(Float64, nf)), ones(Float64, nf))
+    return _FVNormBuffers(to(zeros(Float64, 4, nt)), zeros(Float64, 4, nt), per, ncell, layout, eq)
+end
+
+"""Set fixed positive equation scales for norm reports and Newton stopping only.
+
+Residuals, Jacobians and adjoints are unscaled. No scale is updated from the
+iterate. Unit scales retain the legacy momentum/continuity reduction order.
+"""
+function _fv_equation_scales!(nb::_FVNormBuffers, scales)
+    length(scales) == _fv_nfields(nb.layout) || throw(DimensionMismatch("one scale per cell equation is required"))
+    values = Float64.(scales)
+    all(x -> isfinite(x) && x > 0, values) || throw(ArgumentError("equation scales must be finite and strictly positive"))
+    copyto!(nb.equations.host_scales, values)
+    copyto!(nb.equations.scales, values)
+    return nb
+end
+
+# Separate reductions deliberately do not replace m2 += ru*ru + rv*rv above.
+@kernel function _fv_equation_norm_kernel!(Pt, @Const(R), @Const(scales), cells, per)
+    t = @index(Global)
+    ncell, layout = _fv_norm_cells(cells)
+    nf = _fv_nfields(layout)
+    nlocal = nf * ncell
+    c0 = (t - 1) * per + 1
+    c1 = min(t * per, ncell + length(R) - nlocal)
+    @inbounds for equation in 1:nf
+        square = 0.0; inf = 0.0
+        for cell in c0:c1
+            if cell <= ncell
+                value = R[_fv_cell_index(layout, cell, equation)] / scales[equation]
+                square += value * value
+                inf = max(inf, abs(value))
+            elseif equation == _fv_pressure_slot(layout)
+                value = R[nlocal + cell - ncell] / scales[equation]
+                square += value * value
+                inf = max(inf, abs(value))
+            end
+        end
+        Pt[equation, t] = square
+        Pt[nf + equation, t] = inf
+    end
+end
+
+function _fv_equation_norms(nb::_FVNormBuffers, R)
+    eq = nb.equations
+    backend = KernelAbstractions.get_backend(R)
+    _fv_equation_norm_kernel!(backend, 64)(eq.dev, R, eq.scales, (nb.ncell, nb.layout), nb.per;
+                                           ndrange = size(eq.dev, 2))
+    KernelAbstractions.synchronize(backend)
+    H = eq.dev isa Array ? eq.dev : copyto!(eq.host, eq.dev)
+    nf = _fv_nfields(nb.layout)
+    l2 = zeros(Float64, nf); inf = zeros(Float64, nf)
+    @inbounds for t in axes(H, 2), equation in 1:nf
+        l2[equation] += H[equation, t]
+        inf[equation] = max(inf[equation], H[nf + equation, t])
+    end
+    return (; l2 = sqrt.(l2), inf)
+end
+
+# Hook for reporting and Newton merit/stopping norms. Synthetic scalar equations
+# participate in the solve, while unit-scale NS=0 follows the exact legacy path.
+function _fv_newton_report_norms(nb::_FVNormBuffers, R)
+    m, c, ri = _fv_norms(nb, R)
+    equations = _fv_equation_norms(nb, R)
+    if !all(isone, nb.equations.host_scales)
+        m = hypot(equations.l2[_fv_velocity_slot(nb.layout, 1)],
+                  equations.l2[_fv_velocity_slot(nb.layout, 2)])
+        c = equations.l2[_fv_pressure_slot(nb.layout)]
+        ri = maximum(equations.inf)
+    end
+    r = hypot(m, c)
+    for scalar in 1:_fv_nscalars(nb.layout)
+        slot = _fv_scalar_slot(nb.layout, scalar)
+        r = hypot(r, equations.l2[slot])
+        ri = max(ri, equations.inf[slot])
+    end
+    return m, c, ri, r, equations
 end
 
 # (‖R_momentum‖₂, ‖R_continuity‖₂, ‖R‖∞): one kernel + one copy of the
@@ -335,7 +425,7 @@ end
 function _fv_norms(nb::_FVNormBuffers, R)
     ncell = nb.ncell
     backend = KernelAbstractions.get_backend(R)
-    _fv_norm_partials_kernel!(backend, 64)(nb.dev, R, ncell, nb.per; ndrange = size(nb.dev, 2))
+    _fv_norm_partials_kernel!(backend, 64)(nb.dev, R, (ncell, nb.layout), nb.per; ndrange = size(nb.dev, 2))
     KernelAbstractions.synchronize(backend)
     H = nb.dev isa Array ? nb.dev : copyto!(nb.host, nb.dev)
     m2 = 0.0; c2 = 0.0; inf = 0.0
@@ -383,11 +473,12 @@ end
 
 # Reuse the norm workspace for the two state checksums. GPU `sum` allocates
 # reduction storage; these fixed partial sums keep finalization allocation-free.
-@kernel function _fv_state_sig_kernel!(Pt, @Const(U), ncell, per)
+@kernel function _fv_state_sig_kernel!(Pt, @Const(U), cells, per)
     t = @index(Global)
+    _, layout = _fv_norm_cells(cells)
     su = 0.0; sq = 0.0
-    k0 = 3 * (t - 1) * per + 1
-    k1 = min(3 * t * per, length(U))
+    k0 = _fv_nfields(layout) * (t - 1) * per + 1
+    k1 = min(_fv_nfields(layout) * t * per, length(U))
     @inbounds for k in k0:k1
         u = Float64(U[k])
         su += u
@@ -402,7 +493,7 @@ end
 function _fv_state_sig(nb::_FVNormBuffers, shift, U)
     ncell = nb.ncell
     backend = KernelAbstractions.get_backend(U)
-    _fv_state_sig_kernel!(backend, 64)(nb.dev, U, ncell, nb.per; ndrange = size(nb.dev, 2))
+    _fv_state_sig_kernel!(backend, 64)(nb.dev, U, (ncell, nb.layout), nb.per; ndrange = size(nb.dev, 2))
     KernelAbstractions.synchronize(backend)
     H = nb.dev isa Array ? nb.dev : copyto!(nb.host, nb.dev)
     su = 0.0; sq = 0.0
@@ -455,7 +546,7 @@ function fv_newton_solver(prob::FVSteadyProblem2D; to = Array,
     dprob = fv_adapt(to, prob)
     vec0() = to(zeros(Float64, n))
     return FVNewtonSolver(dprob, asm, J, nzval, linsolve, nothing,
-                          vec0(), vec0(), vec0(), _FVNormBuffers(to, prob.grid.Nx * prob.grid.Ny; nextra=_fv_npairs(prob.immersed)), 0, 0,
+                          vec0(), vec0(), vec0(), _FVNormBuffers(to, prob.grid.Nx * prob.grid.Ny; nextra=_fv_npairs(prob.immersed), layout=prob.grid.layout), 0, 0,
                           t_pattern, t_coloring,
                           (NaN, NaN, NaN), (NaN, NaN, NaN))
 end
@@ -474,7 +565,7 @@ function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0)
     s.asm_sig = _fv_state_sig(s.norms, shift, U)
     if shift != 0
         backend = KernelAbstractions.get_backend(U)
-        _fv_diag_shift_kernel!(backend, 256)(s.nzval, s.asm.diag, Float64(shift);
+        _fv_diag_shift_kernel!(backend, 256)(s.nzval, s.asm.diag, Float64(shift), s.prob.grid.layout;
                                              ndrange = s.prob.grid.Nx * s.prob.grid.Ny)
         KernelAbstractions.synchronize(backend)
     end
@@ -518,7 +609,9 @@ so the last iterations are pure Newton (quadratic convergence).
 Returns `(converged, stagnated, iterations, history, mom, cont, inf, alpha,
 shift, t_assembly, t_factor, t_solve, t_linesearch, n_factorize, n_refactorize)`:
 `history[k]` = `‖R‖₂` before iteration `k` (`history[end]` final), `mom`/`cont`
-the separate momentum / continuity 2-norms, `inf` the max norm, timings in
+the separate momentum / continuity 2-norms, `inf` the max norm. Additional
+`equation_l2`, `equation_inf` histories use the fixed `equation_scales`, one
+entry per cell equation (M3 constraints join pressure/continuity). Timings are in
 seconds per iteration (`t_factor[1]` includes the analysis). The cache in
 `solver.cache` holds the factors of the last assembled Jacobian (shifted if
 continuation was still active): call [`fv_newton_finalize!`](@ref) before using
@@ -533,10 +626,12 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
     R = s.R; dU = s.dU; Ut = s.Ut
     hist = Float64[]; mom = Float64[]; cont = Float64[]; inf = Float64[]
     alphas = Float64[]; shifts = Float64[]
+    equation_l2 = Vector{Float64}[]; equation_inf = Vector{Float64}[]
+    equation_scales = copy(s.norms.equations.host_scales)
     ta = Float64[]; tf = Float64[]; ts = Float64[]; tl = Float64[]
     fv_residual!(R, U, p)
-    m, c, ri = _fv_norms(s.norms, R)
-    r = hypot(m, c)
+    m, c, ri, r, equations = _fv_newton_report_norms(s.norms, R)
+    push!(equation_l2, equations.l2); push!(equation_inf, equations.inf)
     r0 = r
     push!(hist, r); push!(mom, m); push!(cont, c); push!(inf, ri)
     ptc = dtau0 !== nothing
@@ -561,12 +656,11 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
         _fv_sync(U)
         t3 = time_ns()
         alpha = 1.0
-        local mt, ct, rit, rt
+        local mt, ct, rit, rt, equation_trial
         while true
             Ut .= U .- alpha .* dU
             fv_residual!(R, Ut, p)
-            mt, ct, rit = _fv_norms(s.norms, R)
-            rt = hypot(mt, ct)
+            mt, ct, rit, rt, equation_trial = _fv_newton_report_norms(s.norms, R)
             (!linesearch || rt <= (1 - armijo * alpha) * r || alpha <= alpha_min) && break
             alpha /= 2
         end
@@ -576,6 +670,7 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
         r = rt
         push!(hist, rt); push!(mom, mt); push!(cont, ct); push!(inf, rit)
         push!(alphas, alpha); push!(shifts, sigma)
+        push!(equation_l2, equation_trial.l2); push!(equation_inf, equation_trial.inf)
         push!(ta, (t1 - t0) / 1e9); push!(tf, (t2 - t1) / 1e9)
         push!(ts, (t3 - t2) / 1e9); push!(tl, (t4 - t3) / 1e9)
         verbose && @info "fv_newton" it res = rt inf = rit alpha shift = sigma
@@ -588,7 +683,8 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
     return (; converged, stagnated, iterations = it, history = hist, mom, cont, inf,
             alpha = alphas, shift = shifts, t_assembly = ta, t_factor = tf,
             t_solve = ts, t_linesearch = tl,
-            n_factorize = s.n_factorize, n_refactorize = s.n_refactorize)
+            n_factorize = s.n_factorize, n_refactorize = s.n_refactorize,
+            equation_l2, equation_inf, equation_scales)
 end
 
 """

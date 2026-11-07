@@ -205,7 +205,7 @@ function _fv_param_problem!(B, ::FVSideVelocity, prob, θ)
 end
 function _fv_param_problem!(B, m::FVUniformSource, prob, θ)
     copyto!(B.src, prob.src)
-    view(B.src, m.comp:3:length(B.src)) .= θ[1]
+    view(B.src, m.comp:_fv_nfields(prob.grid):length(B.src)) .= θ[1]
     return _fv_with(prob; src = B.src)
 end
 function _fv_param_problem!(B, m::FVProblemMap, prob, θ)
@@ -337,16 +337,16 @@ struct FVStateObs <: FVObjective
     scale::Float64
 end
 
-function _fv_field_comp(f::Symbol)
-    f in (:u, :ux) && return 1
-    f in (:v, :uy) && return 2
-    f === :p && return 3
+function _fv_field_comp(f::Symbol, layout::FVFieldLayout = FVFieldLayout{0}())
+    f in (:u, :ux) && return _fv_velocity_slot(layout, 1)
+    f in (:v, :uy) && return _fv_velocity_slot(layout, 2)
+    f === :p && return _fv_pressure_slot(layout)
     throw(ArgumentError("FV observable field must be :u/:ux, :v/:uy or :p, got :$f"))
 end
 
 function FVStateObs(prob::FVSteadyProblem2D, lp::LineProfile, target::AbstractVector;
                     scale::Real = 1.0)
-    comp = _fv_field_comp(lp.field)
+    comp = _fv_field_comp(lp.field, prob.grid.layout)
     idx = [fv_index(prob.grid, ij[1], ij[2], comp) for ij in lp.indices]
     length(target) == length(idx) || throw(DimensionMismatch("one target per profile point"))
     return FVStateObs(reshape(idx, 1, :), ones(1, length(idx)), Vector{Float64}(target), Float64(scale))
@@ -408,7 +408,7 @@ over its fluid cells.
 function fv_flow_rate(prob::FVSteadyProblem2D, i::Integer)
     g = prob.grid; tag = Array(prob.tag)
     js = [j for j in 1:g.Ny if _fv_is_fluid(tag, i, j)]
-    return FVLinearFunctional([fv_index(g, i, j, 1) for j in js], fill(Float64(g.h), length(js)))
+    return FVLinearFunctional([fv_index(g, i, j, _fv_velocity_slot(g.layout, 1)) for j in js], fill(Float64(g.h), length(js)))
 end
 
 """
@@ -421,7 +421,7 @@ function fv_pressure_drop(prob::FVSteadyProblem2D, i1::Integer, i2::Integer)
     idx = Int[]; w = Float64[]
     for (i, sgn) in ((i1, 1.0), (i2, -1.0))
         js = [j for j in 1:g.Ny if _fv_is_fluid(tag, i, j)]
-        append!(idx, [fv_index(g, i, j, 3) for j in js])
+        append!(idx, [fv_index(g, i, j, _fv_pressure_slot(g.layout)) for j in js])
         append!(w, fill(sgn / length(js), length(js)))
     end
     return FVLinearFunctional(idx, w)
@@ -547,7 +547,7 @@ end
     end
     isx = d <= 2
     sx = (d == 1 || d == 3) ? 1 : -1
-    pP = _fv_val(U, g, i, j, 3)
+    pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
     gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
     _, _, _, _, pf, _, _, dun, dvn =
         _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
@@ -558,7 +558,7 @@ end
         dop = d == 1 ? 2 : d == 2 ? 1 : d == 3 ? 4 : 3
         kind, ii, jj = _fv_face_kind(g, tag, i, j, dop)
         if kind == _FV_F_INT
-            pf = pP + (pP - _fv_val(U, g, ii, jj, 3)) / 2
+            pf = pP + (pP - _fv_val(U, g, ii, jj, _fv_pressure_slot(g.layout))) / 2
         end
     end
     force = f.dir == 1 ? -h * tx + (isx ? h * sx * pf : zero(pf)) :
@@ -617,7 +617,7 @@ function fv_objective_support(f::FVWallObjective, prob)
             c > 0 && push!(cells, c)
         end
     end
-    support = [3 * (c - 1) + comp for c in cells for comp in 1:3]
+    support = [_fv_cell_index(g, c, comp) for c in cells for comp in 1:_fv_nfields(g)]
     if f.kind == :residual_flux && _fv_mass(prob.immersed) !== nothing
         face_pair = prob.immersed.mass.face_pair
         for (i,j,d) in _fv_wall_faces(f, prob)
@@ -671,7 +671,8 @@ end
 function _fv_wall_state(U, prob, i, j, d=0)
     raw = _fv_wall_state_cells(prob, i, j)
     cells = ntuple(k -> any(l -> raw[l] == raw[k], 1:(k - 1)) ? 0 : raw[k], length(raw))
-    indices = ntuple(k -> 3 * (cells[(k - 1) ÷ 3 + 1] - 1) + mod1(k, 3), 3 * length(raw))
+    nf = _fv_nfields(prob.grid)
+    indices = ntuple(k -> _fv_cell_index(prob.grid, cells[(k - 1) ÷ nf + 1], mod1(k, nf)), nf * length(raw))
     face_pair = _fv_face_pair(prob.immersed)
     if face_pair !== nothing && d > 0
         k = face_pair[d,i,j]
@@ -743,7 +744,7 @@ function _fv_objective_grad_theta(obj::FVObjective, ::FVViscosityField, Uh, hpro
     g = hprob.grid
     gθ = zeros(Float64, g.Nx * g.Ny)
     fv_objective_explicit(obj) || return gθ
-    cells = unique!([(k - 1) ÷ 3 + 1 for k in fv_objective_support(obj, hprob) if k <= fv_nunknowns(g)])
+    cells = unique!([_fv_cell_from_index(g, k) for k in fv_objective_support(obj, hprob) if k <= fv_nunknowns(g)])
     D = ForwardDiff.Dual{_FVObjTag,Float64,chunk}
     zp = ForwardDiff.Partials(ntuple(_ -> 0.0, Val(chunk)))
     nud = D[D(x, zp) for x in hprob.nu]
@@ -927,9 +928,15 @@ end
 
 @inline function _fv_rows_dot(λ, Rd, g, i, j, col)
     b = fv_index(g, i, j, 0)
-    @inbounds return λ[b + 1] * ForwardDiff.partials(Rd[b + 1])[col] +
-                     λ[b + 2] * ForwardDiff.partials(Rd[b + 2])[col] +
-                     λ[b + 3] * ForwardDiff.partials(Rd[b + 3])[col]
+    @inbounds result = λ[b + _fv_velocity_slot(g.layout, 1)] * ForwardDiff.partials(Rd[b + _fv_velocity_slot(g.layout, 1)])[col] +
+                     λ[b + _fv_velocity_slot(g.layout, 2)] * ForwardDiff.partials(Rd[b + _fv_velocity_slot(g.layout, 2)])[col] +
+                     λ[b + _fv_pressure_slot(g.layout)] * ForwardDiff.partials(Rd[b + _fv_pressure_slot(g.layout)])[col]
+    # Preserve the original triple's addition order, then extend by scalar rows.
+    @inbounds for scalar in 1:_fv_nscalars(g.layout)
+        row = b + _fv_scalar_slot(g.layout, scalar)
+        result += λ[row] * ForwardDiff.partials(Rd[row])[col]
+    end
+    return result
 end
 
 # s[c] = −λᵀ ∂R/∂ν_c for the cells c of the colours offset+1 .. offset+N:

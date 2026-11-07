@@ -174,7 +174,7 @@ function _fv_lower_mass(b, g, tag, wall_flux)
             scale = g.h * ((d == 1 || d == 3) ? 1 : -1) / 2
             cP = b.closure.ghost == 1 ? 2-inv(q) : 3-2inv(q)
             cO = b.closure.ghost == 1 ? zero(q) : (1-q)/(1+q)
-            comp = d <= 2 ? 1 : 2
+            comp = _fv_velocity_slot(g.layout, d <= 2 ? 1 : 2)
             oi, oj = i - (d == 1) + (d == 2), j - (d == 3) + (d == 4)
             p, o = fv_index(g, i, j, comp), fv_index(g, oi, oj, comp)
             coefficients[p] = get(coefficients, p, zero(T)) + scale*cP
@@ -236,10 +236,11 @@ function _fv_mass_pattern!(I, J, prob)
     for k in eachindex(m.Q)
         for l in m.faceptr[k]:m.faceptr[k+1]-1
             d, i, j = m.faces[:,l]
-            row = fv_index(g, i, j, 1)
-            push!(I, row, row+1); push!(J, n+k, n+k)
+            ru = fv_index(g, i, j, _fv_velocity_slot(g.layout, 1))
+            rv = fv_index(g, i, j, _fv_velocity_slot(g.layout, 2))
+            push!(I, ru, rv); push!(J, n+k, n+k)
             if prob.tag[i,j] != FV_CELL_PINNED
-                push!(I, row+2); push!(J, n+k)
+                push!(I, fv_index(g, i, j, _fv_pressure_slot(g.layout))); push!(J, n+k)
             end
         end
         for l in m.rowptr[k]:m.rowptr[k+1]-1

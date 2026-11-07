@@ -169,6 +169,13 @@ fv_jacobian_pattern(prob::_FVGNFProblem) = _fv_gnf_jacobian_pattern(prob)
 
 # Scalar laws of the same face gradient share exactly this stencil. Prescribed
 # cell fields are parameters, so they add no state unknowns or pattern entries.
+# Equation-local viscosity dependencies: momentum reads every non-outlet face;
+# unpinned continuity reads interior faces; identity scalars read no viscosity.
+_fv_viscosity_dependency(::Val{1}, kind, pinned) = kind != _FV_F_OUTLET
+_fv_viscosity_dependency(::Val{2}, kind, pinned) = kind != _FV_F_OUTLET
+_fv_viscosity_dependency(::Val{3}, kind, pinned) = kind == _FV_F_INT && !pinned
+_fv_viscosity_dependency(::Val{K}, kind, pinned) where {K} = false
+
 function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
     S0 = invoke(fv_jacobian_pattern, Tuple{FVSteadyProblem2D}, prob)
     g = prob.grid
@@ -184,13 +191,12 @@ function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
     tang(c, d) = d <= 2 ? (nb(c..., 3), nb(c..., 4)) : (nb(c..., 1), nb(c..., 2))
     function pushuv(r, c)
         c[1] == 0 && return nothing
-        push!(I, r, r); push!(J, fv_index(g, c[1], c[2], 1), fv_index(g, c[1], c[2], 2))
+        push!(I, r, r); push!(J, fv_index(g, c[1], c[2], _fv_velocity_slot(g.layout, 1)), fv_index(g, c[1], c[2], _fv_velocity_slot(g.layout, 2)))
         return nothing
     end
     for j in 1:g.Ny, i in 1:g.Nx
         tag[i, j] == FV_CELL_SOLID && continue
         P = (i, j)
-        ru = fv_index(g, i, j, 1); rv = ru + 1; rc = ru + 2
         pinned = tag[i, j] == FV_CELL_PINNED
         for d in 1:4
             kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
@@ -198,9 +204,12 @@ function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
             cells = kind == _FV_F_INT ?
                 (P, (ii, jj), tang(P, d)..., tang((ii, jj), d)...) :
                 (P, tang(P, d)...)
-            for c in cells
-                pushuv(ru, c); pushuv(rv, c)
-                (kind == _FV_F_INT && !pinned) && pushuv(rc, c)
+            for equation in 1:_fv_nfields(g)
+                _fv_viscosity_dependency(Val(equation), kind, pinned) || continue
+                row = fv_index(g, i, j, equation)
+                for c in cells
+                    pushuv(row, c)
+                end
             end
         end
     end
