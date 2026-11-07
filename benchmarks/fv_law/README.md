@@ -21,8 +21,8 @@ and field arrays. Warm Newton and gradient calls must allocate zero device
 bytes. Host allocations are reported separately. First calls include compilation;
 warm calls reuse the solver and adjoint workspace. Output CSVs contain classical
 and learned residual histories, directional derivatives, and timing/allocation
-receipts. These full-solve gates remain unexecuted in L3; the fixed-state GPU
-checks described below have an execution receipt in [validation.md](validation.md).
+receipts. All gates passed on one H100 (Aqua job 27746753, 2026-11-08); the
+receipt is in [validation.md](validation.md).
 
 From an environment already containing CUDA, CUDSS, and this Kraken checkout:
 
@@ -49,14 +49,13 @@ paths, checking relative agreement <=1e-12 at the common size. Set
 `KRAKEN_LAW_DUAL_N=512` to compare timings on the larger grid too. Outputs are
 `law_gpu_contraction_checks.csv` and `law_gpu_contraction_timings.csv`.
 
-For Aqua, copy the checkout as `$WORKDIR/src_law`, then run `setup_law.sh`
-manually on the login node. It prepares `$WORKDIR/env` and `$WORKDIR/depot`.
-`law_gpu.pbs` requests one A100, 64 GB host memory and two hours, with
+For Aqua, copy the checkout as `$WORKDIR/src_law` and submit `law_gpu.pbs`
+(supply the allocation with `qsub -P`). On the first run the job itself runs
+`setup_law.sh` on the compute node, preparing `$WORKDIR/env` and
+`$WORKDIR/depot`, and marks the environment ready; do not run the setup on the
+login node. The job requests one GPU, 32 GB host memory and two hours, with
 `JULIA_CUDA_USE_COMPAT=false`. Set `WORKDIR` explicitly or use
-`$HOME/kraken_law`; supply the allocation externally with `qsub -P`.
-The L3 execution reused an existing Aqua environment without installing
-dependencies. Its job and device receipts are in [validation.md](validation.md);
-the supplied setup script was not executed.
+`$HOME/kraken_law`.
 
 ## Isolated CPU parameter-contraction cost
 

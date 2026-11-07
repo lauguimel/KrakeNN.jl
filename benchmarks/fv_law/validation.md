@@ -224,39 +224,34 @@ the allocations and repeated parameter sweeps remain a limitation. The complete
 gradient is not independent of parameter-count sweeps, and no larger-grid or
 GPU claim follows from this host objective measurement.
 
-## L3 CUDA execution on Aqua
+## GPU execution on Aqua (job 27746753)
 
-The fixed-state path of `law_gpu.jl` ran on Aqua node `gpu0n008`, using a full
-NVIDIA A100-SXM4-40GB, Julia 1.12.5, CUDA.jl 6.4.1, and CUDSS.jl 1.0.0.
-PBS job `27746360.aqua` completed with exit status 0 after 3 min 22 s and
-`DONE contraction_status=0`. Exact receipts are retained in
-[checks CSV](results_l3_a100/law_gpu_contraction_checks.csv),
-[timings CSV](results_l3_a100/law_gpu_contraction_timings.csv), and
-[run log](results_l3_a100/run.log).
-`JULIA_CUDA_USE_COMPAT=false` was exported. Execution selected:
+Date: 2026-11-08. Aqua node `gpu1n014`, one NVIDIA H100 80GB HBM3, Julia 1.12.5,
+CUDA.jl 6.4.1, CUDSS.jl 1.0.0, Float64, code at commit `2b6dfeadf`. The job
+installed its environment on the compute node (`setup_law.sh`, 179 s of
+precompilation), then ran the full validation mode of `law_gpu.jl` at 512 × 512
+followed by the contraction-only mode. Exit status 0, 8 min 33 s of walltime.
+Receipts (user paths and project identifiers removed) are in
+[results/aqua_27746753/](results/aqua_27746753/).
 
-```sh
-KRAKEN_LAW_CONTRACTION_ONLY=1 KRAKEN_LAW_N=512 KRAKEN_LAW_DUAL_N=512 julia --startup-file=no --project=env benchmarks/fv_law/law_gpu.jl
-```
+| Gate | Result |
+| --- | --- |
+| `ClassicalLaw` vs `FVGNFViscosity` Newton, 512² | 6/6; residual histories differ by at most 2.7e-19 |
+| `LearnedViscosity` (17 parameters, prescribed temperature field) Newton, 512² | converged in 2 iterations, residual 9.8e-5 → 1.3e-7 → 3.1e-13 |
+| Complete steady gradient vs central differences, 2 directions × 2 steps | 8/8; relative error ≤ 2.0e-9 |
+| Contraction vs parameter duals and GPU vs CPU, 12², three laws, with and without immersed circle | 24/24; max relative difference 2.8e-15 |
 
-The six 12² cases (three laws, each with and without an immersed boundary)
-passed **24/24** checks. They compare contraction against parameter duals,
-compare GPU against CPU, require zero warm device allocation, and verify that
-no factorization occurred. The maximum CPU/GPU relative difference was
-`2.8496337976897043e-15`. The 59.3-second small-case testset includes GPU compilation; it is
-not a CPU simulation or a warm kernel timing.
+Timings at 512² (first call includes compilation): classical first Newton
+10.0 s, learned first Newton 10.7 s, learned warm Newton 0.54 s, first gradient
+3.8 s, warm gradient 0.16 s. Warm Newton and warm gradient allocate zero device
+bytes; host allocations are listed in `law_gpu_timings.csv`.
 
-At 512² with 248 parameters and Float64, median warm times over three calls
-were `47.554339 ms` for contraction and `418.841663 ms` for parameter duals.
-Both paths allocated zero device bytes; host allocations were 5536 and 748640
-bytes respectively. Their relative difference was
-`2.2277313084470435e-15`, below the frozen `1e-12` gate. These measurements include
-the returned host parameter vector but exclude setup, compilation, Newton
-iterations, Jacobian assembly, factorization, transposed solves, and objective
-derivatives.
+Parameter contraction with 248 parameters: warm 36.5 ms at 512². At 128² the
+first call takes 0.034 s with contraction and 2.96 s with parameter duals (62
+residual sweeps); warm calls take 34.3 ms and 36.6 ms. At this size the warm
+GPU calls are not limited by the number of sweeps; the 512² dual-path timing
+was not run in this job. These figures exclude Newton, factorisation,
+transposed solve and objective derivatives.
 
-A separate completed run on an A100 MIG 3g.20gb partition also passed the
-same checks; its timings are not used for the full-device comparison above.
-The full GPU Newton and converged-objective-gradient path remains unexecuted
-in L3. Neither the fixed-state GPU checks nor the CPU measurements establish
-a complete-gradient or complete-simulation speedup.
+An earlier set of A100 measurements, taken from an uncommitted tree by a job
+that was not authorised, has been discarded and is not reported here.

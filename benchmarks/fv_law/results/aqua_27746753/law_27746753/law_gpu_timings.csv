@@ -1,0 +1,2 @@
+N,precision,parameters,chunk,gnf_first_newton_s,classical_first_newton_s,learned_first_newton_s,learned_first_newton_host_bytes,learned_warm_newton_s,learned_warm_newton_host_bytes,learned_warm_newton_device_bytes,first_gradient_s,warm_gradient_s,warm_gradient_host_bytes,warm_gradient_device_bytes,residual_inf
+512,Float64,17,4,19.478684231,10.038273833,10.654735343,283782504,0.539363925,75216,0,3.795259746,0.159299021,174804944,0,3.1870217622022377e-15

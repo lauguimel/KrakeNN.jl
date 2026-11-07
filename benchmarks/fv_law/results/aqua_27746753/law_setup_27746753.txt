@@ -1,0 +1,458 @@
+Precompiling packages...
+  90415.5 ms  ✓ Pkg (serial)
+  1 dependency successfully precompiled in 91 seconds
+   Resolving package versions...
+    Updating `~/kraken_law/env/Project.toml`
+⌃ [052768ef] + CUDA v6.4.1
+  [45b445bb] + CUDSS v1.0.0
+  [b9c8ae56] + Kraken v0.6.0 `../src_law`
+  [10745b16] + Statistics v1.11.5
+  [37e2e46d] ~ LinearAlgebra ⇒ v1.12.0
+  [de0858da] ~ Printf ⇒ v1.11.0
+  [9a3f8284] ~ Random ⇒ v1.11.0
+  [8dfed614] ~ Test ⇒ v1.11.0
+    Updating `~/kraken_law/env/Manifest.toml`
+Precompiling packages...
+    368.4 ms  ✓ Unicode
+    688.4 ms  ✓ Preferences
+    481.6 ms  ✓ JLLWrappers
+   1047.7 ms  ✓ CUDA_Driver_jll
+  4 dependencies successfully precompiled in 3 seconds. 3 already precompiled.
+Precompiling packages...
+    417.5 ms  ✓ MSVCRuntime_jll
+    563.7 ms  ✓ CompilerSupportLibraries_jll
+    771.4 ms  ✓ LazyArtifacts
+   2370.5 ms  ✓ CUDA_Compiler_jll
+  10828.0 ms  ✓ CUDA_Runtime_jll
+  5 dependencies successfully precompiled in 15 seconds. 28 already precompiled.
+  [47edcb42] + ADTypes v1.24.0
+  [621f4979] + AbstractFFTs v1.5.0
+  [79e6a3ab] + Adapt v4.8.0
+⌃ [a9b6321e] + Atomix v1.2.1
+  [13072b0f] + AxisAlgorithms v1.1.0
+  [ab4f0b2a] + BFloat16s v0.6.5
+⌅ [fa961155] + CEnum v0.5.0
+⌃ [052768ef] + CUDA v6.4.1
+⌅ [bd0ed864] + CUDACore v6.4.1
+⌅ [9ec180c6] + CUDATools v6.4.1
+  [1af6417a] + CUDA_Runtime_Discovery v2.1.1
+  [45b445bb] + CUDSS v1.0.0
+⌅ [9e67e8f6] + CUPTI v6.4.1
+  [d360d2e6] + ChainRulesCore v1.26.8
+  [523fee87] + CodecBzip2 v0.8.5
+  [944b1d66] + CodecZlib v0.7.9
+  [bbf7d656] + CommonSubexpressions v0.3.1
+  [34da2185] + Compat v4.18.1
+  [9db33cc3] + CompilerCaching v0.5.3
+  [a8cc5b0e] + Crayons v4.2.0
+  [9a962f9c] + DataAPI v1.16.0
+  [e2d170a0] + DataValueInterfaces v1.0.0
+  [163ba53b] + DiffResults v1.1.0
+  [b552c78f] + DiffRules v1.16.0
+⌅ [ffbed154] + DocStringExtensions v0.9.5
+  [e2ba6199] + ExprTools v0.1.11
+  [7a1cc6ca] + FFTW v1.10.0
+  [1a297f60] + FillArrays v1.18.2
+  [f6369f11] + ForwardDiff v1.4.7
+⌅ [0c68f7d7] + GPUArrays v11.5.16
+⌅ [46192b85] + GPUArraysCore v0.2.1
+⌃ [61eb1bfa] + GPUCompiler v2.10.0
+  [096a3bc2] + GPUToolbox v3.5.1
+  [705231aa] + Gmsh v0.3.1
+  [f67ccb44] + HDF5 v0.17.4
+  [076d061b] + HashArrayMappedTries v0.2.0
+  [a98d9a8b] + Interpolations v0.16.3
+  [92d709cd] + IrrationalConstants v0.2.7
+  [82899510] + IteratorInterfaceExtensions v1.0.0
+  [692b3bcd] + JLLWrappers v1.8.0
+⌅ [63c18a36] + KernelAbstractions v0.9.45
+  [b9c8ae56] + Kraken v0.6.0 `../src_law`
+⌅ [929cbde3] + LLVM v9.13.2
+  [8b046642] + LLVMLoopInfo v1.0.0
+  [11f193de] + LMDB v3.0.1
+  [b964fa9f] + LaTeXStrings v1.4.1
+  [9c8b4983] + LightXML v0.9.3
+  [2ab3a3ac] + LogExpFunctions v1.0.3
+  [3da0fdf6] + MPIPreferences v0.1.12
+  [1914dd2f] + MacroTools v0.5.16
+⌃ [dde4c033] + Metal v1.11.1
+⌅ [611af6d1] + NVML v6.4.1
+  [5da4648a] + NVTX v1.0.3
+  [77ba4419] + NaNMath v1.1.5
+⌅ [e86c9b32] + ObjectiveC v6.0.1
+  [6fe1bfb0] + OffsetArrays v1.18.0
+  [bac558e1] + OrderedCollections v2.0.3
+  [aea7be01] + PrecompileTools v1.3.4
+  [21216c6a] + Preferences v1.6.1
+  [08abe8d2] + PrettyTables v3.5.1
+  [74087812] + Random123 v1.7.1
+  [e6cf234a] + RandomNumbers v1.6.0
+  [c84ed2f1] + Ratios v0.4.5
+  [189a3867] + Reexport v1.2.2
+  [ae029012] + Requires v1.3.1
+  [7e506255] + ScopedValues v1.6.2
+  [6c6a2e73] + Scratch v1.3.0
+  [0a514795] + SparseMatrixColorings v0.4.29
+  [276daf66] + SpecialFunctions v2.9.1
+  [90137ffa] + StaticArrays v1.9.24
+  [1e83bf80] + StaticArraysCore v1.4.4
+  [10745b16] + Statistics v1.11.5
+  [892a3eda] + StringManipulation v0.6.1
+  [3783bdb8] + TableTraits v1.0.1
+  [bd369af6] + Tables v1.14.0
+  [e689c965] + Tracy v0.1.6
+  [3bb67fe8] + TranscodingStreams v0.11.3
+⌅ [013be700] + UnsafeAtomics v0.3.2
+  [4004b06d] + VTKBase v1.0.2
+  [efce3f68] + WoodburyMatrices v1.1.0
+  [64499a7a] + WriteVTK v1.22.0
+⌅ [182d3088] + cuBLAS v6.4.1
+⌅ [533571aa] + cuFFT v6.4.1
+⌅ [20fd9a0b] + cuRAND v6.4.1
+⌅ [887afef0] + cuSOLVER v6.4.1
+⌅ [b26da814] + cuSPARSE v6.4.1
+  [6e34b625] + Bzip2_jll v1.0.9+0
+  [d1e2174e] + CUDA_Compiler_jll v0.6.4+0
+  [4ee394cb] + CUDA_Driver_jll v13.5.0+0
+⌅ [76a88914] + CUDA_Runtime_jll v0.25.0+3
+  [4889d778] + CUDSS_jll v1.0.0+0
+  [83423d85] + Cairo_jll v1.18.8+1
+  [2e619515] + Expat_jll v2.10.0+0
+  [f5851436] + FFTW_jll v3.3.12+0
+  [4fce6fc7] + FLTK_jll v1.3.8+0
+  [a3f928ae] + Fontconfig_jll v2.18.3+0
+  [d7e528f0] + FreeType2_jll v2.15.0+0
+  [bd17208b] + GLU_jll v9.0.1+0
+⌅ [b0724c58] + GettextRuntime_jll v0.22.4+0
+  [7746bdde] + Glib_jll v2.90.1+0
+⌅ [0234f1f7] + HDF5_jll v2.1.2+0
+  [e33a78d0] + Hwloc_jll v2.15.0+0
+  [1d5cc7b8] + IntelOpenMP_jll v2025.2.0+0
+  [aacddb02] + JpegTurbo_jll v3.2.1+0
+  [9c1d0b0a] + JuliaNVTXCallbacks_jll v0.2.1+0
+⌅ [f52de702] + LLVMDowngrader_jll v0.11.0+0
+⌅ [dad2f222] + LLVMExtra_jll v0.0.47+0
+  [1d63c593] + LLVMOpenMP_jll v23.1.1+0
+  [6206cf0b] + LMDB_jll v1.0.3+0
+  [ad6e5548] + LibTracyClient_jll v0.13.1+0
+⌅ [e9f186c6] + Libffi_jll v3.4.7+0
+  [7e76a0d4] + Libglvnd_jll v1.7.1+1
+  [94ce4f54] + Libiconv_jll v1.18.0+0
+  [4b2f31a3] + Libmount_jll v2.42.4+0
+  [38a345b3] + Libuuid_jll v2.42.4+0
+  [18c40d15] + LinearElasticity_jll v5.0.1+0
+  [d00139f3] + METIS_jll v5.1.4+0
+  [856f044c] + MKL_jll v2025.2.0+0
+  [86086c02] + MMG_jll v5.8.0+0
+⌅ [b5ada748] + MPIABI_jll v0.1.5+0
+  [7cb0a576] + MPICH_jll v5.0.3+0
+  [f1f71cc9] + MPItrampoline_jll v5.5.7+0
+  [ce32ce21] + MSVCRuntime_jll v14.51.36247+0
+  [9237b28f] + MicrosoftMPI_jll v10.1.5+0
+  [ef6e0fe3] + NVPTX_LLVM_Backend_jll v23.1.2+2
+  [e98f9f5b] + NVTX_jll v3.2.2+0
+  [baad4e97] + OCCT_jll v7.9.3+0
+  [fe0851c0] + OpenMPI_jll v5.0.14+0
+  [efe28fd5] + OpenSpecFun_jll v0.5.6+0
+  [30392449] + Pixman_jll v0.46.4+0
+  [a8d0f55d] + SCOTCH_jll v7.0.11+0
+  [02c8fc9c] + XML2_jll v2.15.4+0
+  [ffd25f8a] + XZ_jll v5.8.4+0
+  [4f6342f7] + Xorg_libX11_jll v1.8.14+0
+  [0c0b7dd1] + Xorg_libXau_jll v1.0.13+0
+  [a3789734] + Xorg_libXdmcp_jll v1.1.6+0
+  [1082639a] + Xorg_libXext_jll v1.3.8+0
+  [d091e8ba] + Xorg_libXfixes_jll v6.0.2+0
+  [2c808117] + Xorg_libXft_jll v2.3.9+0
+  [d1454406] + Xorg_libXinerama_jll v1.1.7+0
+  [ea2f1a96] + Xorg_libXrender_jll v0.9.13+0
+  [a65dc6b1] + Xorg_libpciaccess_jll v0.19.0+0
+  [c7cfdc94] + Xorg_libxcb_jll v1.17.1+0
+  [c5fb5394] + Xorg_xtrans_jll v1.6.0+0
+  [3161d3a3] + Zstd_jll v1.5.7+1
+⌅ [2b3700d1] + aws_c_auth_jll v0.9.6+0
+⌅ [70f11efc] + aws_c_cal_jll v0.9.13+0
+⌅ [73048d1d] + aws_c_common_jll v0.12.6+0
+⌅ [73a04cd5] + aws_c_compression_jll v0.3.2+0
+⌅ [3254fc65] + aws_c_http_jll v0.10.15+0
+⌅ [13c41daa] + aws_c_io_jll v0.26.3+0
+⌅ [bd1f34fb] + aws_c_s3_jll v0.11.5+0
+⌅ [1282aa60] + aws_c_sdkutils_jll v0.2.4+1
+⌅ [b2a88e68] + aws_checksums_jll v0.2.10+0
+  [1e29f10c] + demumble_jll v1.3.0+0
+  [c4b69c83] + dlfcn_win32_jll v1.4.2+0
+  [630162c2] + gmsh_jll v4.15.2+0
+  [477f73a3] + libaec_jll v1.1.8+0
+  [b53b4c65] + libpng_jll v1.6.59+1
+⌅ [9aeb927a] + mpif_jll v0.1.7+0
+  [1317d2d5] + oneTBB_jll v2023.1.0+0
+  [cddc5d3d] + s2n_tls_jll v1.7.12+0
+  [8b5cbfcf] + tree_sitter_gcn_jll v0.1.0+0
+  [44208993] + tree_sitter_llvm_jll v1.1.0+0
+  [71e3f6e6] + tree_sitter_ptx_jll v0.1.0+0
+  [f0e86581] + tree_sitter_spirv_jll v0.1.0+0
+  [0dad84c5] + ArgTools v1.1.2
+  [56f22d72] + Artifacts v1.11.0
+  [2a0f44e3] + Base64 v1.11.0
+  [ade2ca70] + Dates v1.11.0
+  [8ba89e20] + Distributed v1.11.0
+  [f43a241f] + Downloads v1.7.0
+  [7b1f6079] + FileWatching v1.11.0
+  [b77e0a4c] + InteractiveUtils v1.11.0
+  [ac6e5ff7] + JuliaSyntaxHighlighting v1.12.0
+  [4af54fe1] + LazyArtifacts v1.11.0
+  [b27032c2] + LibCURL v0.6.4
+  [76f85450] + LibGit2 v1.11.0
+  [8f399da3] + Libdl v1.11.0
+  [37e2e46d] ~ LinearAlgebra ⇒ v1.12.0
+  [56ddb016] + Logging v1.11.0
+  [d6f4376e] + Markdown v1.11.0
+  [a63ad114] + Mmap v1.11.0
+  [ca575930] + NetworkOptions v1.3.0
+  [44cfe95a] + Pkg v1.12.1
+  [de0858da] ~ Printf ⇒ v1.11.0
+  [3fa0cd96] + REPL v1.11.0
+  [9a3f8284] ~ Random ⇒ v1.11.0
+  [ea8e919c] + SHA v0.7.0
+  [9e88b42a] + Serialization v1.11.0
+  [1a1011a3] + SharedArrays v1.11.0
+  [6462fe0b] + Sockets v1.11.0
+  [2f01184e] + SparseArrays v1.12.0
+  [f489334b] + StyledStrings v1.11.0
+  [fa267f1f] + TOML v1.0.3
+  [a4e569a6] + Tar v1.10.0
+  [8dfed614] ~ Test ⇒ v1.11.0
+  [cf7118a7] + UUIDs v1.11.0
+  [4ec0a83e] + Unicode v1.11.0
+  [e66e0078] + CompilerSupportLibraries_jll v1.3.0+1
+  [781609d7] + GMP_jll v6.3.0+2
+  [deac9b47] + LibCURL_jll v8.15.0+0
+  [e37daf67] + LibGit2_jll v1.9.0+0
+  [29816b5a] + LibSSH2_jll v1.11.3+1
+  [14a3606d] + MozillaCACerts_jll v2025.11.4
+  [4536629a] + OpenBLAS_jll v0.3.29+0
+  [05823500] + OpenLibm_jll v0.8.7+0
+  [458c3c95] + OpenSSL_jll v3.5.4+0
+  [efcefdf7] + PCRE2_jll v10.44.0+1
+  [bea87d4a] + SuiteSparse_jll v7.8.3+2
+  [83775a58] + Zlib_jll v1.3.1+2
+  [8e850b90] + libblastrampoline_jll v5.15.0+0
+  [8e850ede] + nghttp2_jll v1.64.0+1
+  [3f19e933] + p7zip_jll v17.7.0+0
+        Info Packages marked with ⌃ and ⌅ have new versions available. Those with ⌃ may be upgradable, but those with ⌅ are restricted by compatibility constraints from upgrading. To see why use `status --outdated -m`
+Precompiling packages...
+    552.7 ms  ✓ LLVMLoopInfo
+    550.4 ms  ✓ IteratorInterfaceExtensions
+    603.6 ms  ✓ LaTeXStrings
+    692.1 ms  ✓ ExprTools
+    733.7 ms  ✓ AbstractFFTs
+    419.6 ms  ✓ OpenLibm_jll
+    639.3 ms  ✓ Serialization
+    551.6 ms  ✓ Statistics
+   1045.4 ms  ✓ OffsetArrays
+    493.1 ms  ✓ CompilerSupportLibraries_jll
+   1605.4 ms  ✓ CEnum
+   1138.7 ms  ✓ FillArrays
+    492.0 ms  ✓ SuiteSparse_jll
+   2094.0 ms  ✓ GPUToolbox
+    524.4 ms  ✓ Unicode
+    569.0 ms  ✓ VTKBase
+   2226.7 ms  ✓ UnsafeAtomics
+    402.3 ms  ✓ DataValueInterfaces
+    779.4 ms  ✓ Requires
+    431.2 ms  ✓ Reexport
+    597.9 ms  ✓ DocStringExtensions
+   1224.4 ms  ✓ RandomNumbers
+    430.7 ms  ✓ GMP_jll
+    500.3 ms  ✓ Mmap
+    421.1 ms  ✓ PCRE2_jll
+   1620.1 ms  ✓ OrderedCollections
+    450.3 ms  ✓ HashArrayMappedTries
+    671.9 ms  ✓ TranscodingStreams
+    511.3 ms  ✓ Adapt
+    427.3 ms  ✓ DataAPI
+    620.7 ms  ✓ StaticArraysCore
+    482.2 ms  ✓ TableTraits
+   1682.4 ms  ✓ CUDA_Runtime_Discovery
+   3214.6 ms  ✓ MacroTools
+   2425.6 ms  ✓ IrrationalConstants
+    500.7 ms  ✓ FillArrays → FillArraysStatisticsExt
+   2717.9 ms  ✓ ChainRulesCore
+    442.1 ms  ✓ Scratch
+   1550.7 ms  ✓ NaNMath
+   2401.5 ms  ✓ Crayons
+    725.9 ms  ✓ Preferences
+   2363.8 ms  ✓ InteractiveUtils
+   1566.3 ms  ✓ BFloat16s
+    579.6 ms  ✓ Atomix
+    429.9 ms  ✓ Ratios
+    889.5 ms  ✓ LazyArtifacts
+    451.0 ms  ✓ ScopedValues
+   1481.5 ms  ✓ Compat
+    539.2 ms  ✓ CodecZlib
+    604.1 ms  ✓ GPUArraysCore
+    981.3 ms  ✓ Random123
+    469.3 ms  ✓ OffsetArrays → OffsetArraysAdaptExt
+    505.2 ms  ✓ DiffResults
+   3036.7 ms  ✓ Distributed
+    569.2 ms  ✓ CommonSubexpressions
+    500.6 ms  ✓ AbstractFFTs → AbstractFFTsChainRulesCoreExt
+    585.9 ms  ✓ JLLWrappers
+    451.8 ms  ✓ PrecompileTools
+    669.0 ms  ✓ LogExpFunctions
+    652.4 ms  ✓ MPIPreferences
+    454.4 ms  ✓ Compat → CompatLinearAlgebraExt
+    649.2 ms  ✓ SharedArrays
+    574.7 ms  ✓ dlfcn_win32_jll
+    641.8 ms  ✓ Libmount_jll
+   2362.9 ms  ✓ Tables
+    648.4 ms  ✓ aws_c_common_jll
+    637.9 ms  ✓ LLVMOpenMP_jll
+    643.4 ms  ✓ tree_sitter_spirv_jll
+   5423.0 ms  ✓ SparseArrays
+   2235.4 ms  ✓ CUDA_Driver_jll
+    685.5 ms  ✓ Bzip2_jll
+    547.1 ms  ✓ MSVCRuntime_jll
+    669.1 ms  ✓ Xorg_libpciaccess_jll
+    682.5 ms  ✓ libaec_jll
+    648.5 ms  ✓ s2n_tls_jll
+    770.2 ms  ✓ METIS_jll
+    642.3 ms  ✓ NVTX_jll
+    711.1 ms  ✓ LibTracyClient_jll
+    862.8 ms  ✓ Xorg_libXau_jll
+    802.1 ms  ✓ libpng_jll
+    814.0 ms  ✓ tree_sitter_gcn_jll
+   4154.5 ms  ✓ Test
+   1249.4 ms  ✓ IntelOpenMP_jll
+    955.0 ms  ✓ demumble_jll
+    840.4 ms  ✓ LinearElasticity_jll
+    854.8 ms  ✓ JpegTurbo_jll
+    794.6 ms  ✓ XZ_jll
+    638.7 ms  ✓ Xorg_libXdmcp_jll
+    690.8 ms  ✓ Zstd_jll
+   1149.0 ms  ✓ oneTBB_jll
+    662.9 ms  ✓ NVPTX_LLVM_Backend_jll
+    781.1 ms  ✓ LMDB_jll
+    796.6 ms  ✓ Expat_jll
+   6044.8 ms  ✓ ObjectiveC
+   1501.7 ms  ✓ LLVMExtra_jll
+    754.8 ms  ✓ JuliaNVTXCallbacks_jll
+    766.6 ms  ✓ Xorg_xtrans_jll
+    807.1 ms  ✓ Libffi_jll
+    886.7 ms  ✓ Libiconv_jll
+    652.1 ms  ✓ tree_sitter_llvm_jll
+    689.2 ms  ✓ FFTW_jll
+    649.7 ms  ✓ tree_sitter_ptx_jll
+    658.1 ms  ✓ Libuuid_jll
+    758.7 ms  ✓ OpenSpecFun_jll
+    978.1 ms  ✓ ADTypes
+    698.9 ms  ✓ aws_checksums_jll
+   1032.4 ms  ✓ MicrosoftMPI_jll
+   1035.3 ms  ✓ MPItrampoline_jll
+   1282.9 ms  ✓ LogExpFunctions → LogExpFunctionsChainRulesCoreExt
+    678.6 ms  ✓ aws_c_cal_jll
+    662.7 ms  ✓ aws_c_compression_jll
+    660.4 ms  ✓ aws_c_sdkutils_jll
+    648.1 ms  ✓ Pixman_jll
+    606.7 ms  ✓ Statistics → SparseArraysExt
+    695.5 ms  ✓ WoodburyMatrices
+    668.5 ms  ✓ FillArrays → FillArraysSparseArraysExt
+    587.6 ms  ✓ Adapt → AdaptSparseArraysExt
+    733.5 ms  ✓ FreeType2_jll
+    500.3 ms  ✓ CodecBzip2
+   1866.7 ms  ✓ ChainRulesCore → ChainRulesCoreSparseArraysExt
+   3822.1 ms  ✓ StringManipulation
+   1376.0 ms  ✓ Tracy
+   1242.5 ms  ✓ SCOTCH_jll
+   1740.3 ms  ✓ AbstractFFTs → AbstractFFTsTestExt
+   1202.1 ms  ✓ LLVMDowngrader_jll
+   1309.4 ms  ✓ LMDB
+   1598.8 ms  ✓ MKL_jll
+   1842.8 ms  ✓ Xorg_libxcb_jll
+   1191.3 ms  ✓ NVTX
+   4178.7 ms  ✓ CUDA_Compiler_jll
+    875.1 ms  ✓ XML2_jll
+    938.6 ms  ✓ GettextRuntime_jll
+    427.1 ms  ✓ ADTypes → ADTypesChainRulesCoreExt
+    647.6 ms  ✓ AxisAlgorithms
+    927.0 ms  ✓ aws_c_io_jll
+   1183.8 ms  ✓ Fontconfig_jll
+   1093.1 ms  ✓ CompilerCaching
+   2973.6 ms  ✓ SpecialFunctions
+   1566.3 ms  ✓ MMG_jll
+   8889.2 ms  ✓ StaticArrays
+    624.7 ms  ✓ LightXML
+   1262.9 ms  ✓ Xorg_libX11_jll
+    914.8 ms  ✓ Hwloc_jll
+   1109.0 ms  ✓ Glib_jll
+    765.5 ms  ✓ aws_c_http_jll
+    639.0 ms  ✓ DiffRules
+   1632.7 ms  ✓ SpecialFunctions → SpecialFunctionsChainRulesCoreExt
+   1363.1 ms  ✓ StaticArrays → StaticArraysStatisticsExt
+   1482.4 ms  ✓ FillArrays → FillArraysStaticArraysExt
+   2475.8 ms  ✓ StaticArrays → StaticArraysChainRulesCoreExt
+   6642.9 ms  ✓ SparseMatrixColorings
+    748.8 ms  ✓ Adapt → AdaptStaticArraysExt
+   4645.7 ms  ✓ CUDA_Runtime_jll
+    829.0 ms  ✓ Xorg_libXext_jll
+   1000.7 ms  ✓ Xorg_libXrender_jll
+    819.8 ms  ✓ Xorg_libXfixes_jll
+   2479.4 ms  ✓ MPIABI_jll
+   7893.9 ms  ✓ FFTW
+   3062.7 ms  ✓ WriteVTK
+   2021.6 ms  ✓ aws_c_auth_jll
+   2248.2 ms  ✓ MPICH_jll
+  11557.8 ms  ✓ LLVM
+   2520.4 ms  ✓ OpenMPI_jll
+    755.8 ms  ✓ Xorg_libXinerama_jll
+    797.6 ms  ✓ Xorg_libXft_jll
+    962.0 ms  ✓ Libglvnd_jll
+    760.4 ms  ✓ aws_c_s3_jll
+   1260.1 ms  ✓ Cairo_jll
+   1111.9 ms  ✓ LLVM → BFloat16sExt
+   3280.2 ms  ✓ CUDSS_jll
+   5131.8 ms  ✓ GLU_jll
+   7747.2 ms  ✓ Interpolations
+   5450.1 ms  ✓ mpif_jll
+   6169.6 ms  ✓ UnsafeAtomics → UnsafeAtomicsLLVM
+   8620.5 ms  ✓ ForwardDiff
+   1185.0 ms  ✓ FLTK_jll
+   8956.6 ms  ✓ KernelAbstractions
+  31481.5 ms  ✓ REPL
+    832.7 ms  ✓ ForwardDiff → ForwardDiffStaticArraysExt
+   1052.8 ms  ✓ Interpolations → InterpolationsForwardDiffExt
+   1892.2 ms  ✓ HDF5_jll
+    749.0 ms  ✓ KernelAbstractions → LinearAlgebraExt
+   6360.7 ms  ✓ OCCT_jll
+    956.0 ms  ✓ KernelAbstractions → SparseArraysExt
+   5053.9 ms  ✓ Pkg → REPLExt
+   4590.9 ms  ✓ gmsh_jll
+   6089.4 ms  ✓ GPUArrays
+   1995.3 ms  ✓ Gmsh
+   7028.1 ms  ✓ HDF5
+   1819.2 ms  ✓ SparseMatrixColorings → SparseMatrixColoringsGPUArraysExt
+  21106.8 ms  ✓ PrettyTables
+  26533.4 ms  ✓ GPUCompiler
+  27450.8 ms  ✓ Metal
+   3158.8 ms  ✓ Metal → SpecialFunctionsExt
+   3176.9 ms  ✓ Atomix → AtomixMetalExt
+  46557.0 ms  ✓ CUDACore
+   3996.7 ms  ✓ CUDACore → ChainRulesCoreExt
+   4000.2 ms  ✓ CUDACore → SpecialFunctionsExt
+   4810.9 ms  ✓ cuFFT
+   5617.5 ms  ✓ cuRAND
+   6544.5 ms  ✓ NVML
+   7130.8 ms  ✓ CUPTI
+   8579.6 ms  ✓ cuSPARSE
+  11846.8 ms  ✓ cuBLAS
+   4496.0 ms  ✓ CUDSS
+  12451.6 ms  ✓ CUDATools
+   8275.7 ms  ✓ cuSOLVER
+   5201.2 ms  ✓ CUDA
+   5091.4 ms  ✓ SparseMatrixColorings → SparseMatrixColoringsCUDAExt
+   5262.5 ms  ✓ Atomix → AtomixCUDAExt
+  22316.4 ms  ✓ Kraken
+   5884.7 ms  ✓ Kraken → KrakenCUDSSExt
+  212 dependencies successfully precompiled in 179 seconds. 24 already precompiled.
+CUDA 6.4.1 CUDSS 1.0.0 Kraken 0.6.0
+SETUP EXIT 0
