@@ -55,7 +55,7 @@ const _FV_SIDES = (:E, :W, :N, :S)
     FVFieldLayout{NS}()
 
 Internal, isbits cell layout: two velocity components, pressure, and `NS`
-scalar slots. Scalars currently carry synthetic identity equations only.
+scalar slots. Scalars carry identity equations unless a scalar model is active.
 The compile-time slot count changes storage, never physical vector dimensions.
 """
 struct FVFieldLayout{NS}
@@ -129,11 +129,13 @@ type; the residual is evaluated in the promoted type, so a parameter array of
   face strain rate; `nu` is then not read). Its parameters may be duals too.
 - `immersed`: `nothing` (the original halfway walls), or a lowered
   [`FVImmersedBoundary2D`](@ref) with fixed cell tags and cut-face data.
+- `energy`: `nothing` (three fields), or lowered [`FVEnergy`](@ref) data
+  activating temperature in the first scalar slot.
 
 Build with [`fv_steady_problem`](@ref); move to a device with
 [`fv_adapt`](@ref).
 """
-struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I}
+struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E}
     grid::G
     tag::TA
     nu::NA
@@ -141,11 +143,14 @@ struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I}
     src::SA
     visc::V
     immersed::I
+    energy::E
 end
 FVSteadyProblem2D(grid, tag, nu, bvel, src) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, FVNewtonianViscosity())
 FVSteadyProblem2D(grid, tag, nu, bvel, src, visc) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, nothing)
+FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed) =
+    FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, nothing)
 
 # Arrays are separate kernel arguments: only the scalar closure description
 # crosses the device boundary as a struct. Number types come from signatures.
@@ -359,6 +364,19 @@ end
 @inline _fv_posp(F) = (F + abs(F)) / 2
 @inline _fv_negp(F) = (F - abs(F)) / 2
 
+"""Oriented Rhie--Chow mass flux, shared by flow and scalar transport.
+
+The arithmetic order is the original three-field residual's order.
+"""
+@inline function _fv_interior_mass_flux(h, conv, uP, vP, pP, uN, vN, pN,
+                                        gP, gN, nuf, isx, sx)
+    ubn = sx * (isx ? (uP + uN) / 2 : (vP + vN) / 2)
+    df = h * h / (4 * nuf + conv * abs(ubn) * h)
+    dpc = (pN - pP) / h
+    dpa = sx * (isx ? (gP[5] + gN[5]) / 2 : (gP[6] + gN[6]) / 2)
+    return h * (ubn - df * (dpc - dpa))
+end
+
 """
     fv_cell_residual(U, tag, nu, bvel, src, grid, i, j[, visc, qcut, wvel, closure, face_pair])
         -> (Ru, Rv, Rc)
@@ -406,12 +424,8 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
                 nuf = _fv_face_nu(face_visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
                                   (gP[3] + gN[3]) / 2, sx * dvn, i, j, ii, jj)
             end
-            ubn = sx * (isx ? (uP + uN) / 2 : (vP + vN) / 2)
-            # Rhie-Chow coefficient, decision D-RC (ii)
-            df = h * h / (4 * nuf + g.conv * abs(ubn) * h)
-            dpc = (pN - pP) / h
-            dpa = sx * (isx ? (gP[5] + gN[5]) / 2 : (gP[6] + gN[6]) / 2)
-            F = h * (ubn - df * (dpc - dpa))
+            F = _fv_interior_mass_flux(h, g.conv, uP, vP, pP, uN, vN, pN,
+                                       gP, gN, nuf, isx, sx)
             Ru += g.conv * (_fv_posp(F) * uP + _fv_negp(F) * uN)
             Rv += g.conv * (_fv_posp(F) * vP + _fv_negp(F) * vN)
             if isx
@@ -455,21 +469,40 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
     return Ru, Rv, Rc
 end
 
-@kernel function _fv_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
-                                      @Const(bvel), @Const(src), g, visc,
-                                      @Const(qcut), @Const(wvel), closure, @Const(face_pair))
-    i, j = @index(Global, NTuple)
+@inline function _fv_residual_cell!(R, U, tag, nu, bvel, src, g, visc,
+                                    qcut, wvel, closure, face_pair, energy, energy_source, i, j)
     ru, rv, rc = fv_cell_residual(U, tag, nu, bvel, src, g, i, j, visc, qcut, wvel, closure, face_pair)
     b = fv_index(g, i, j, 0)
     @inbounds R[b + _fv_velocity_slot(g.layout, 1)] = ru
     @inbounds R[b + _fv_velocity_slot(g.layout, 2)] = rv
     @inbounds R[b + _fv_pressure_slot(g.layout)] = rc
-    # Storage-only scalar equations are independent of flow, sources and walls.
     @inbounds for scalar in 1:_fv_nscalars(g.layout)
         slot = _fv_scalar_slot(g.layout, scalar)
-        R[b + slot] = U[b + slot]
+        R[b + slot] = _fv_scalar_residual(energy, energy_source, U, tag, nu, bvel,
+                                         g, i, j, visc, scalar)
     end
 end
+
+# Preserve the original launcher signature, including direct compiler probes.
+@kernel function _fv_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
+                                      @Const(bvel), @Const(src), g, visc,
+                                      @Const(qcut), @Const(wvel), closure, @Const(face_pair))
+    i, j = @index(Global, NTuple)
+    _fv_residual_cell!(R, U, tag, nu, bvel, src, g, visc, qcut, wvel, closure,
+                        face_pair, nothing, nothing, i, j)
+end
+
+@kernel function _fv_energy_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
+                                             @Const(bvel), @Const(src), g, visc,
+                                             @Const(qcut), @Const(wvel), closure, @Const(face_pair),
+                                             energy, @Const(energy_source))
+    i, j = @index(Global, NTuple)
+    _fv_residual_cell!(R, U, tag, nu, bvel, src, g, visc, qcut, wvel, closure,
+                        face_pair, energy, energy_source, i, j)
+end
+
+@inline _fv_scalar_residual(::Nothing, source, U, tag, nu, bvel, g, i, j, visc, scalar) =
+    _fv_val(U, g, i, j, _fv_scalar_slot(g.layout, scalar))
 
 """
     fv_residual!(R, U, prob::FVSteadyProblem2D; workgroup = 64, sync = true) -> R
@@ -494,9 +527,16 @@ function fv_residual!(R, U, prob::FVSteadyProblem2D; workgroup::Int = 64, sync::
     length(R) == n || throw(DimensionMismatch("length(R) = $(length(R)), expected $n"))
     backend = KernelAbstractions.get_backend(U)
     qcut, wvel, closure = _fv_immersed_args(prob.immersed)
-    _fv_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
-                                             prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed);
-                                             ndrange = (g.Nx, g.Ny))
+    if prob.energy === nothing
+        _fv_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
+            prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed);
+            ndrange = (g.Nx, g.Ny))
+    else
+        energy, energy_source = _fv_energy_args(prob.energy)
+        _fv_energy_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
+            prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed),
+            energy, energy_source; ndrange = (g.Nx, g.Ny))
+    end
     mass_rows && _fv_mass_residual!(R, U, prob, backend, workgroup)
     sync && KernelAbstractions.synchronize(backend)
     return R
@@ -510,7 +550,8 @@ element type of `U` and of the arrays of `prob`.
 """
 function fv_residual(U, prob::FVSteadyProblem2D)
     T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel), eltype(prob.src),
-                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed),
+                     _fv_energy_eltype(prob.energy))
     R = similar(U, T)
     return fv_residual!(R, U, prob)
 end
@@ -600,6 +641,9 @@ Build the host-side problem of the steady FV residual.
 - `viscosity`: an explicit viscosity model, including [`FVLawViscosity`](@ref)
   for a scalar law with prescribed cell fields. Mutually exclusive with
   `rheology`; its own `eps` supplies the shear-rate regularisation.
+- `energy`: `nothing` (default), or [`FVEnergy`](@ref) to activate the
+  temperature equation. Thermal source data belongs to that model;
+  `source` continues to prescribe the three flow equations.
 
 Pressure pins are set by [`fv_pressure_pins!`](@ref). Cell centres are at
 `((i - 1/2) h, (j - 1/2) h)`.
@@ -610,14 +654,15 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
                            solid = nothing, source = nothing, conv::Bool = true,
                            T::Type{<:Real} = Float64, rheology = nothing,
                            gnf_eps::Real = 0.0, immersed = nothing, wall_flux = nothing,
-                           viscosity = nothing)
+                           viscosity = nothing, energy = nothing)
     Nx = Int(Nx); Ny = Int(Ny)
     (_fv_bc_code(bc.W) == FV_BC_PERIODIC) == (_fv_bc_code(bc.E) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic W/E sides must be paired"))
     (_fv_bc_code(bc.S) == FV_BC_PERIODIC) == (_fv_bc_code(bc.N) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic S/N sides must be paired"))
-    g = FVGrid2D{T}(Nx, Ny, T(h), conv ? one(T) : zero(T),
-                    _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S))
+    layout = energy === nothing ? FVFieldLayout{0}() : FVFieldLayout{1}()
+    g = FVGrid2D(Nx, Ny, T(h), conv ? one(T) : zero(T),
+                 _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S), layout)
     xc(i) = (i - 0.5) * h
     yc(j) = (j - 0.5) * h
     tag = fill(FV_CELL_FLUID, Nx, Ny)
@@ -660,8 +705,17 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
     srcv = if source === nothing
         zeros(T, n)
     elseif source isa AbstractVector
-        length(source) == n || throw(DimensionMismatch("source must have length $n"))
-        T.(source)
+        if length(source) == n
+            T.(source)
+        elseif energy !== nothing && length(source) == 3 * Nx * Ny
+            s = zeros(T, n)
+            for cell in 1:(Nx * Ny), c in 1:3
+                s[_fv_cell_index(g, cell, c)] = source[3 * (cell - 1) + c]
+            end
+            s
+        else
+            throw(DimensionMismatch("source must have length $n (or $(3 * Nx * Ny) flow entries with energy)"))
+        end
     else
         s = zeros(T, n)
         for j in 1:Ny, i in 1:Nx
@@ -677,7 +731,8 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
     visc = viscosity === nothing ?
         (rheology === nothing ? FVNewtonianViscosity() : FVGNFViscosity(rheology, T(gnf_eps))) : viscosity
     _fv_validate_viscosity(visc, g, nuc)
-    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed)
+    thermal = _fv_lower_energy(energy, g, tag, immersed, T)
+    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed, thermal)
 end
 
 """
@@ -688,7 +743,7 @@ or `Array` to come back to the host). The grid is passed through.
 """
 fv_adapt(to, p::FVSteadyProblem2D) =
     FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
-                      _fv_adapt_immersed(to, p.immersed))
+                      _fv_adapt_immersed(to, p.immersed), _fv_adapt_energy(to, p.energy))
 
 """
     fv_state(prob, u, v, p) -> Vector
@@ -712,17 +767,19 @@ function fv_state(prob::FVSteadyProblem2D, u, v, p)
 end
 
 """
-    fv_fields(prob, U) -> (u, v, p)
+    fv_fields(prob, U) -> (u, v, p) or (u, v, p, temperature)
 
-Unpack the cell entries of a (host) state vector into three `Nx × Ny` matrices.
+Unpack the cell entries into `Nx × Ny` matrices. Temperature is returned
+only when the energy model is active; synthetic scalar slots stay internal.
 Any appended M3 lambda entries remain accessible in the original vector.
 """
 function fv_fields(prob::FVSteadyProblem2D, U::AbstractVector)
     g = prob.grid
     length(U) == fv_nunknowns(prob) || throw(DimensionMismatch("state length does not match problem"))
     A = reshape(Array(U)[1:fv_nunknowns(g)], _fv_nfields(g), g.Nx, g.Ny)
-    return A[_fv_velocity_slot(g.layout, 1), :, :],
-           A[_fv_velocity_slot(g.layout, 2), :, :], A[_fv_pressure_slot(g.layout), :, :]
+    flow = (A[_fv_velocity_slot(g.layout, 1), :, :],
+            A[_fv_velocity_slot(g.layout, 2), :, :], A[_fv_pressure_slot(g.layout), :, :])
+    return prob.energy === nothing ? flow : (flow..., A[_fv_scalar_slot(g.layout, 1), :, :])
 end
 
 """Rebuild a host problem with an internal cell layout, preserving physical data.
@@ -733,6 +790,8 @@ residuals; their source slots are storage placeholders initialized to zero.
 """
 function _fv_with_layout(p::FVSteadyProblem2D, layout::FVFieldLayout)
     p.nu isa Array || throw(ArgumentError("layout changes require a host problem"))
+    p.energy === nothing || _fv_nscalars(layout) == 1 ||
+        throw(ArgumentError("an active energy equation requires exactly one scalar slot"))
     old = p.grid
     g = FVGrid2D(old.Nx, old.Ny, old.h, old.conv, old.bcE, old.bcW, old.bcN, old.bcS, layout)
     src = zeros(eltype(p.src), fv_nunknowns(g))
@@ -740,7 +799,7 @@ function _fv_with_layout(p::FVSteadyProblem2D, layout::FVFieldLayout)
         src[_fv_cell_index(g, cell, component)] = p.src[_fv_cell_index(old, cell, component)]
     end
     immersed = _fv_lower_mass(p.immersed, g, p.tag, nothing)
-    return FVSteadyProblem2D(g, p.tag, p.nu, p.bvel, src, p.visc, immersed)
+    return FVSteadyProblem2D(g, p.tag, p.nu, p.bvel, src, p.visc, immersed, p.energy)
 end
 
 # ------------------------------------------------------------------ platform

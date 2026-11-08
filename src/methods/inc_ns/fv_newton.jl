@@ -55,6 +55,18 @@ end
 # T1 scalar rows are identities for every cell tag, including solids and pins.
 _fv_equation_dependencies(::Val{K}, s, tag) where {K} = ((K, (s.P,)),)
 
+# The energy row reads both signs of every face flux, including the GNF face
+# gradient, plus the cell-gradient heating and the second upwind temperature.
+# Pins only replace continuity: their energy row keeps its complete support.
+function _fv_problem_dependencies(prob, equation, s, tag)
+    if prob.energy !== nothing && equation == 4 && tag != FV_CELL_SOLID
+        uv = (s.star..., s.cross_u..., s.cross_v...)
+        return ((1, uv), (2, uv), (3, (s.star..., s.axis2...)),
+                (4, (s.star..., s.axis2...)))
+    end
+    return _fv_equation_dependencies(Val(equation), s, tag)
+end
+
 """
     fv_jacobian_pattern(prob::FVSteadyProblem2D) -> SparseMatrixCSC{Bool,Int}
 
@@ -100,7 +112,7 @@ function fv_jacobian_pattern(prob::FVSteadyProblem2D)
         stencil = _fv_dependency_stencil(g, tag, i, j)
         for equation in 1:_fv_nfields(g)
             row = fv_index(g, i, j, equation)
-            for (component, cells) in _fv_equation_dependencies(Val(equation), stencil, tag[i, j])
+            for (component, cells) in _fv_problem_dependencies(prob, equation, stencil, tag[i, j])
                 for cell in cells
                     cell[1] == 0 && continue
                     push!(I, row)
@@ -553,6 +565,58 @@ end
 
 _fv_sync(U) = KernelAbstractions.synchronize(KernelAbstractions.get_backend(U))
 
+"""Freeze the pass-3 physical scales from case data, never from the iterate.
+
+H is the domain height. nu_ref is the fluid-cell mean viscosity at rest
+(prescribed cell values for Newtonian fields, the regularised constitutive
+value at zero velocity gradient for GNF/laws). U_c uses the largest wall
+speed and body-force magnitude in the plane-Poiseuille estimate; no mean-flow
+target exists in T2. DeltaT uses imposed-temperature spread and a one-kelvin
+floor. Pure conduction retains positive unused flow scales with U_floor=1e-12.
+"""
+function _fv_energy_scales(prob)
+    p = prob.nu isa Array ? prob : fv_adapt(Array, prob)
+    g = p.grid; e = p.energy; H = g.Ny * g.h
+    nu_sum = 0.0; count = 0; force = 0.0
+    for j in 1:g.Ny, i in 1:g.Nx
+        p.tag[i, j] == FV_CELL_SOLID && continue
+        nu_sum += _fv_wall_nu(p.visc, p.nu[i, j], 0.0, 0.0, 0.0, 0.0, i, j)
+        count += 1
+        force = max(force, hypot(p.src[fv_index(g,i,j,1)], p.src[fv_index(g,i,j,2)]))
+    end
+    nu_ref = nu_sum / count
+    isfinite(nu_ref) && nu_ref > 0 || throw(ArgumentError("energy scales require positive finite reference viscosity"))
+    wall = maximum(hypot(p.bvel[1,l,d], p.bvel[2,l,d])
+                   for l in axes(p.bvel,2), d in 1:4)
+    Uc = max(wall, force * H^2 / (12nu_ref), 1e-12)
+    temperatures = [e.boundary[d] for d in 1:4 if e.dirichlet[d]]
+    spread = maximum(temperatures) - minimum(temperatures)
+    deltaT = max(e.sigma_nom * nu_ref * Uc^2 / e.alpha, spread, 1.0)
+    momentum = nu_ref * Uc * g.h^2 / H^2
+    continuity = Uc * g.h
+    energy = e.alpha * deltaT * g.h^2 / H^2
+    return (; Uc, nu_ref, deltaT, equations=(momentum,momentum,continuity,energy))
+end
+
+# Temperature increment reduction uses existing, preallocated norm buffers.
+# No GPU reduction workspace is allocated in a Newton iteration.
+@kernel function _fv_temperature_increment_kernel!(Pt, @Const(dU), layout, ncell, per)
+    t = @index(Global)
+    value = 0.0
+    @inbounds for cell in ((t-1)*per+1):min(t*per,ncell)
+        value = max(value, abs(dU[_fv_cell_index(layout,cell,4)]))
+    end
+    @inbounds Pt[1,t] = value
+end
+function _fv_temperature_increment(nb, dU)
+    backend = KernelAbstractions.get_backend(dU)
+    _fv_temperature_increment_kernel!(backend,64)(nb.dev,dU,nb.layout,nb.ncell,nb.per;
+                                                   ndrange=size(nb.dev,2))
+    KernelAbstractions.synchronize(backend)
+    H = nb.dev isa Array ? nb.dev : copyto!(nb.host,nb.dev)
+    return maximum(view(H,1,:))
+end
+
 """
     fv_jacobian!(solver, U; shift = 0.0) -> solver.J
 
@@ -601,6 +665,13 @@ Stops when `‖R‖∞ ≤ atol` or `‖R‖₂ ≤ rtol ‖R₀‖₂`, or afte
 or when two consecutive line searches reach `alpha_min` without decrease
 (round-off floor; flagged `stagnated`).
 
+With opt-in energy, `atol`/`rtol` do not select the stopping rule: every
+equation's scaled maximum residual must be at most 1e-10, and the accepted
+temperature increment at most 1e-10*DeltaT_c. The pass-3 scales are computed
+once from case data at entry and remain fixed through all line searches.
+An initially converged state has zero accepted increment. These scales affect
+norms only; the physical residual and its Jacobian remain cell-integrated.
+
 Pseudo-transient continuation (off by default): with `dtau0` set, the momentum
 rows get the diagonal shift `h²/Δτ_k`, `Δτ_k = dtau0 ‖R₀‖₂ / ‖R_k‖₂` (switched
 evolution relaxation); once `Δτ_k ≥ dtau_max` the shift is dropped for good,
@@ -622,6 +693,10 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
                     alpha_min::Real = 2.0^-10, dtau0 = nothing, dtau_max::Real = 1e8,
                     verbose::Bool = false)
     p = s.prob
+    thermal = p.energy !== nothing
+    thermal_scales = thermal ? _fv_energy_scales(p) : nothing
+    thermal && _fv_equation_scales!(s.norms, thermal_scales.equations)
+    temperature_increment = Float64[]
     h = Float64(p.grid.h)
     R = s.R; dU = s.dU; Ut = s.Ut
     hist = Float64[]; mom = Float64[]; cont = Float64[]; inf = Float64[]
@@ -635,7 +710,7 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
     r0 = r
     push!(hist, r); push!(mom, m); push!(cont, c); push!(inf, ri)
     ptc = dtau0 !== nothing
-    converged = ri <= atol || r <= rtol * r0
+    converged = thermal ? maximum(equations.inf) <= 1e-10 : ri <= atol || r <= rtol * r0
     stagnated = false
     nfail = 0
     it = 0
@@ -654,6 +729,7 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
         t2 = time_ns()
         lin_solve!(dU, s.cache, R)
         _fv_sync(U)
+        delta_temperature = thermal ? _fv_temperature_increment(s.norms, dU) : 0.0
         t3 = time_ns()
         alpha = 1.0
         local mt, ct, rit, rt, equation_trial
@@ -674,17 +750,167 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
         push!(ta, (t1 - t0) / 1e9); push!(tf, (t2 - t1) / 1e9)
         push!(ts, (t3 - t2) / 1e9); push!(tl, (t4 - t3) / 1e9)
         verbose && @info "fv_newton" it res = rt inf = rit alpha shift = sigma
-        converged = rit <= atol || rt <= rtol * r0
-        if nfail >= 2
+        thermal && push!(temperature_increment, alpha * delta_temperature)
+        converged = thermal ? (maximum(equation_trial.inf) <= 1e-10 &&
+                               alpha * delta_temperature <= 1e-10 * thermal_scales.deltaT) :
+                              rit <= atol || rt <= rtol * r0
+        if nfail >= 2 && (!thermal || !converged)
             stagnated = true
             break
         end
     end
-    return (; converged, stagnated, iterations = it, history = hist, mom, cont, inf,
+    result = (; converged, stagnated, iterations = it, history = hist, mom, cont, inf,
             alpha = alphas, shift = shifts, t_assembly = ta, t_factor = tf,
             t_solve = ts, t_linesearch = tl,
             n_factorize = s.n_factorize, n_refactorize = s.n_refactorize,
             equation_l2, equation_inf, equation_scales)
+    return thermal ? merge(result, (; temperature_increment, thermal_scales)) : result
+end
+
+# ------------------------------------------------------------------ frozen-flow energy solve
+"""Workspace for Newton on the temperature block with bitwise frozen u,v,p.
+
+Only the Ncell-by-Ncell temperature matrix is factorized. Coloured duals
+still traverse the production residual, with zero seeds in all flow slots.
+The full-state workspaces and all reduction/device buffers are allocated once.
+"""
+mutable struct FVEnergySolver{P,A,M,V,B,N,S}
+    prob::P
+    asm::A
+    J::M
+    nzval::V
+    linsolve::B
+    cache::Union{Nothing,LinearSolveCache}
+    U::V
+    Rfull::V
+    R::V
+    dT::V
+    trial::V
+    norms::N
+    scales::S
+end
+
+@kernel function _fv_energy_scatter_kernel!(U, @Const(temperature), layout)
+    cell = @index(Global)
+    @inbounds U[_fv_cell_index(layout,cell,4)] = temperature[cell]
+end
+@kernel function _fv_energy_gather_kernel!(temperature, @Const(U), layout)
+    cell = @index(Global)
+    @inbounds temperature[cell] = U[_fv_cell_index(layout,cell,4)]
+end
+@kernel function _fv_energy_norm_kernel!(Pt, @Const(R), per)
+    t = @index(Global)
+    square = 0.0; inf = 0.0
+    @inbounds for cell in ((t-1)*per+1):min(t*per,length(R))
+        square += R[cell]^2
+        inf = max(inf,abs(R[cell]))
+    end
+    @inbounds begin Pt[1,t]=square; Pt[2,t]=inf end
+end
+
+"""
+    fv_energy_solver(prob, U; to=Array, linsolve=CPUBackendTag(), chunk=4)
+
+Prepare an energy-only solve, freezing the supplied full state U's u,v,p.
+U must be a host vector; use the same to/linsolve pair as fv_newton_solver
+for GPU execution. Rebuild this workspace when the prescribed flow changes.
+"""
+function fv_energy_solver(prob::FVSteadyProblem2D, U::AbstractVector;
+                          to=Array, linsolve::LinearSolveBackend=CPUBackendTag(), chunk::Int=4)
+    prob.energy === nothing && throw(ArgumentError("energy-only solve requires energy=FVEnergy(...)"))
+    length(U) == fv_nunknowns(prob) || throw(DimensionMismatch("full frozen state has wrong length"))
+    nf = _fv_nfields(prob.grid); nfull = length(U); n = prob.grid.Nx*prob.grid.Ny
+    thermal = 4:nf:nfull
+    S = fv_jacobian_pattern(prob)[thermal,thermal]
+    colors,ncolors = fv_jacobian_coloring(S)
+    if linsolve isa CPUBackendTag
+        J = SparseMatrixCSC{Float64,Int}(n,n,copy(S.colptr),copy(rowvals(S)),zeros(nnz(S)))
+        nzval=nonzeros(J); order=:csc
+    else
+        _,_,rowptr,colval = _fv_storage_order(S,:csr)
+        J,nzval = _fv_device_csr(linsolve,rowptr,colval,n); order=:csr
+    end
+    rows,cols,_,_ = _fv_storage_order(S,order)
+    fullcolors=zeros(Int32,nfull); fullcolors[thermal] .= colors
+    D=ForwardDiff.Dual{FVJacobianTag,Float64,chunk}
+    Ud=to(Vector{D}(undef,nfull)); Rd=similar(Ud)
+    nzrow=to(Int32.(nf .* (rows .- 1) .+ 4))
+    nzcol=to(Int32.(nf .* (cols .- 1) .+ 4))
+    asm=FVJacobianAssembler{chunk,typeof(nzrow),typeof(Ud)}(
+        nfull,length(rows),ncolors,nzrow,nzcol,to(fullcolors),to(zeros(Int32,nfull)),Ud,Rd)
+    nb=_FVNormBuffers(to,n)
+    return FVEnergySolver(fv_adapt(to,prob),asm,J,nzval,linsolve,nothing,
+        to(Float64.(U)),to(zeros(nfull)),to(zeros(n)),to(zeros(n)),to(zeros(n)),
+        nb,_fv_energy_scales(prob))
+end
+
+function _fv_energy_block_norm(s, R)
+    nb=s.norms; backend=KernelAbstractions.get_backend(R)
+    _fv_energy_norm_kernel!(backend,64)(nb.dev,R,nb.per;ndrange=size(nb.dev,2))
+    KernelAbstractions.synchronize(backend)
+    H=nb.dev isa Array ? nb.dev : copyto!(nb.host,nb.dev)
+    square=0.0; inf=0.0
+    for t in axes(H,2)
+        square+=H[1,t]; inf=max(inf,H[2,t])
+    end
+    return sqrt(square),inf
+end
+function _fv_energy_block_residual!(s, temperature)
+    backend=KernelAbstractions.get_backend(temperature); n=length(temperature)
+    _fv_energy_scatter_kernel!(backend,256)(s.U,temperature,s.prob.grid.layout;ndrange=n)
+    fv_residual!(s.Rfull,s.U,s.prob;sync=false)
+    _fv_energy_gather_kernel!(backend,256)(s.R,s.Rfull,s.prob.grid.layout;ndrange=n)
+    KernelAbstractions.synchronize(backend)
+    return _fv_energy_block_norm(s,s.R)
+end
+
+"""
+    fv_energy_solve!(solver, temperature; maxit=30) -> stats
+
+Solve only the T block in place with frozen u,v,p. The residual is affine in T
+in T2; Newton normally takes one physical step and one round-off correction.
+Stopping requires scaled max residual <=1e-10 AND max increment <=1e-10*DeltaT.
+No whole-flow convergence criterion is imposed on the prescribed velocity.
+"""
+function fv_energy_solve!(s::FVEnergySolver, temperature::AbstractVector; maxit::Int=30)
+    length(temperature)==length(s.R) || throw(DimensionMismatch("temperature block has wrong length"))
+    _,ri=_fv_energy_block_residual!(s,temperature)
+    scale=s.scales.equations[4]; history=[ri/scale]; increments=Float64[]
+    converged=ri/scale<=1e-10; iterations=0
+    while !converged && iterations<maxit
+        iterations+=1
+        fv_assemble_jacobian!(s.nzval,s.asm,s.U,s.prob)
+        if s.cache===nothing
+            s.cache=lin_factorize(s.J;backend=s.linsolve,spd=false)
+        else
+            lin_refactorize!(s.cache)
+        end
+        lin_solve!(s.dT,s.cache,s.R)
+        _,increment=_fv_energy_block_norm(s,s.dT)
+        temperature .-= s.dT
+        _,ri=_fv_energy_block_residual!(s,temperature)
+        push!(history,ri/scale); push!(increments,increment)
+        converged=ri/scale<=1e-10 && increment<=1e-10*s.scales.deltaT
+    end
+    return (;converged,iterations,history,temperature_increment=increments,
+             thermal_scales=s.scales)
+end
+
+"""
+    fv_energy_solve(prob, U; to=Array, linsolve=CPUBackendTag(), chunk=4, maxit=30)
+
+Return host (u,v,p,T), full device state U and stats after solving energy with
+the supplied u,v,p fixed. The caller's U is not changed. Initial T is U's
+first scalar. Use fv_energy_solver/fv_energy_solve! to reuse GPU workspaces.
+"""
+function fv_energy_solve(prob::FVSteadyProblem2D,U::AbstractVector;
+                         to=Array,linsolve::LinearSolveBackend=CPUBackendTag(),chunk::Int=4,
+                         maxit::Int=30)
+    s=fv_energy_solver(prob,U;to,linsolve,chunk)
+    temperature=to(Float64.(Array(U)[4:_fv_nfields(prob.grid):end]))
+    stats=fv_energy_solve!(s,temperature;maxit)
+    u,v,p,T=fv_fields(prob,s.U)
+    return (;u,v,p,T,U=s.U,stats,solver=s,converged=stats.converged,iterations=stats.iterations)
 end
 
 """
@@ -722,7 +948,12 @@ function solve_incns_fv_newton(; problem::FVSteadyProblem2D, U0 = nothing, to = 
     s = fv_newton_solver(problem; to, linsolve, chunk)
     U = to(U0 === nothing ? zeros(Float64, fv_nunknowns(problem)) : Vector{Float64}(U0))
     stats = fv_newton!(s, U; newton...)
-    u, v, p = fv_fields(problem, U)
+    fields = fv_fields(problem, U)
+    u, v, p = fields
+    if problem.energy !== nothing
+        return (; u, v, p, T=fields[4], U, converged=stats.converged,
+                iterations=stats.iterations, residual_history=stats.history, stats, solver=s)
+    end
     return (; u, v, p, U, converged = stats.converged, iterations = stats.iterations,
             residual_history = stats.history, stats, solver = s)
 end

@@ -130,6 +130,7 @@ include("methods/inc_ns/manifold_flow.jl")
 include("methods/scalar_transport/thermal_transport.jl")
 include("methods/inc_ns/method.jl")   # platform-contract wrapper (IncNS <: AbstractMethod)
 include("methods/inc_ns/fv_steady_residual.jl")   # C1: steady FV residual (KA kernel, generic eltype)
+include("methods/inc_ns/fv_energy.jl")            # Opt-in one-way temperature transport
 include("methods/inc_ns/fv_immersed.jl")   # C5: analytic cut geometry and ghost-wall closures
 include("methods/inc_ns/fv_immersed_surface.jl") # C5: local physical-cut reconstruction
 include("methods/inc_ns/fv_immersed_mass.jl") # C5: augmented body/region mass constraints
@@ -142,7 +143,8 @@ include("methods/inc_ns/fv_immersed_shape.jl") # C5: fixed-topology shape parame
 # IncNS platform contract
 export IncNS, IncNSSolution
 # Steady colocated FV residual (C1 of the FV Newton roadmap)
-export FVGrid2D, FVSteadyProblem2D, fv_steady_problem, fv_residual!, fv_residual,
+export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!, fv_energy_solve,
+       fv_steady_problem, fv_residual!, fv_residual,
        fv_cell_residual, fv_pressure_pins!, fv_adapt, fv_state, fv_fields,
        fv_index, fv_nunknowns,
        FV_BC_WALL, FV_BC_INLET, FV_BC_OUTLET, FV_BC_PERIODIC,

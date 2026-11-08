@@ -179,8 +179,8 @@ _fv_param_buffers(::FVProblemMap, prob, ::Type{T}) where {T} =
     _FVParamBuffers(nothing, nothing, nothing, nothing)
 
 _fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc,
-          immersed = p.immersed) =
-    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed)
+          immersed = p.immersed, energy = p.energy) =
+    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy)
 
 function _fv_check_nparams(m, prob, θ)
     length(θ) == fv_nparams(m, prob) ||
@@ -851,15 +851,23 @@ function fv_nu_coloring(prob::FVSteadyProblem2D)
     return fv_jacobian_coloring(sparse(I, J, trues(length(I)), nc, nc, |))
 end
 
+function _fv_require_isothermal_adjoint(prob)
+    prob.energy === nothing || throw(ArgumentError(
+        "thermal sensitivities are not supported yet: heating-source parameter derivatives are not implemented"))
+    return nothing
+end
+
 """
     fv_adjoint_workspace(solver, map; chunk = 4) -> FVAdjointWorkspace
 
 Allocate the adjoint buffers for `solver` (an [`FVNewtonSolver`](@ref), on its
 device) and the parameter map `map`; `chunk` = number of parameters (scalar
 maps) or colours ([`FVViscosityField`](@ref)) per dual residual evaluation.
+Thermal sensitivities are not supported by this workspace yet.
 """
 function fv_adjoint_workspace(s::FVNewtonSolver, m::FVParameterMap; chunk::Int = 4)
     prob = s.prob
+    _fv_require_isothermal_adjoint(prob)
     n = fv_nunknowns(prob)
     D = ForwardDiff.Dual{FVParamTag,Float64,chunk}
     vec0() = fill!(similar(s.R, Float64, n), 0)
@@ -1090,6 +1098,7 @@ thrown on mismatch (shifted factors, other `U`, or `fv_set_params!` since).
 function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FVViscosityField(),
                            θ = nothing, ws = nothing, finalize::Bool = true,
                            law_gradient = :contraction)
+    _fv_require_isothermal_adjoint(s.prob)
     _fv_check_law_gradient(law_gradient)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
     ws.map isa typeof(params) ||
@@ -1143,6 +1152,7 @@ t_finalize, t_solve, t_param, t_explicit, t_total)` with `grad` a host vector
 function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVObjective;
                             params::FVParameterMap, ws = nothing, finalize::Bool = true,
                             law_gradient = :contraction)
+    _fv_require_isothermal_adjoint(s.prob)
     _fv_check_law_gradient(law_gradient)
     t0 = time_ns()
     hprob = _fv_host_problem(s.prob)
@@ -1171,6 +1181,7 @@ is the directional derivative of `𝒥` — the forward check of the adjoint.
 """
 function fv_steady_tangent(s::FVNewtonSolver, U, θ, δθ; params::FVParameterMap,
                            ws = nothing, finalize::Bool = true)
+    _fv_require_isothermal_adjoint(s.prob)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
     finalize ? fv_newton_finalize!(s, U) : _fv_check_factors(s, U)
     s.cache === nothing && throw(ArgumentError("the solver has no factorization"))
