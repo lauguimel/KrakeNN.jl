@@ -10,9 +10,6 @@ using Test
 if !isdefined(@__MODULE__, :ssa_stream_problem)
     include(joinpath(@__DIR__, "ssa_helpers.jl"))
 end
-if !isdefined(@__MODULE__, :ssa_learned_gradient_check)
-    include(joinpath(@__DIR__, "ssa_learned_adjoint.jl"))
-end
 
 const _SSA_GPU_OK = (try
     @eval Main using CUDA, CUDSS

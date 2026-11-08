@@ -403,15 +403,16 @@ end
 
 """
     ssa_newton!(solver, U; atol = 1e-9, rtol = 1e-12, maxit = 40, linesearch = true,
-                armijo = 1e-4, alpha_min = 2^-10, verbose = false) -> NamedTuple
+                armijo = 1e-4, alpha_min = 2^-10, xtol = 1e-12, verbose = false) -> NamedTuple
 
 Newton with Armijo backtracking on `‖R‖₂`, `U` on the solver's device, updated
-in place. Stops when `‖R‖∞ ≤ atol` (kPa) or `‖R‖₂ ≤ rtol ‖R₀‖₂`. Returns
+in place. Stops when `‖R‖∞ ≤ atol` (kPa), `‖R‖₂ ≤ rtol ‖R₀‖₂`, or the increment
+`‖δ‖∞ ≤ xtol (1 + ‖U‖∞)` (round-off floor of the residual). Returns
 `(converged, iterations, history, inf, alpha)`.
 """
 function ssa_newton!(s::SSANewtonSolver, U; atol::Real = 1e-9, rtol::Real = 1e-12,
                      maxit::Int = 40, linesearch::Bool = true, armijo::Real = 1e-4,
-                     alpha_min::Real = 2.0^-10, verbose::Bool = false)
+                     alpha_min::Real = 2.0^-10, xtol::Real = 1e-12, verbose::Bool = false)
     R = s.R; dU = s.dU; Ut = s.Ut
     ssa_residual!(R, U, s.prob)
     r = norm(R); ri = maximum(abs, R); r0 = r
@@ -437,8 +438,11 @@ function ssa_newton!(s::SSANewtonSolver, U; atol::Real = 1e-9, rtol::Real = 1e-1
         r = rt
         push!(hist, rt); push!(inf, rit); push!(alphas, alpha)
         verbose && @info "ssa_newton" it res = rt inf = rit alpha
-        converged = rit <= atol || rt <= rtol * r0
-        nfail >= 2 && break
+        # round-off floor: the residual sums O(1e3) kPa terms and cannot reach a tiny
+        # atol; a Newton increment below xtol (relative to |U|) is converged
+        converged = rit <= atol || rt <= rtol * r0 ||
+                    maximum(abs, dU) <= xtol * (1 + maximum(abs, U))
+        nfail >= 2 && !converged && break
     end
     return (; converged, iterations = it, history = hist, inf, alpha = alphas)
 end
