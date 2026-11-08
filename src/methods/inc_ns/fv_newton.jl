@@ -366,7 +366,7 @@ function _fv_equation_scales!(nb::_FVNormBuffers, scales)
     values = Float64.(scales)
     all(x -> isfinite(x) && x > 0, values) || throw(ArgumentError("equation scales must be finite and strictly positive"))
     copyto!(nb.equations.host_scales, values)
-    copyto!(nb.equations.scales, values)
+    copyto!(nb.equations.scales, nb.equations.host_scales)
     return nb
 end
 
