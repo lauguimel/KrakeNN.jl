@@ -1,7 +1,7 @@
 # T2 CUDA/cuDSS energy contract. Same analytical thresholds as the CPU file.
 # This gate is skipped locally without CUDA; KRAKEN_REQUIRE_GPU=1 makes
 # missing CUDA/CUDSS an error, so a cluster receipt cannot silently skip it.
-using Test, Kraken, LinearAlgebra, Random, SparseArrays
+using Test, KrakeNN, LinearAlgebra, Random, SparseArrays
 
 const _FVE_GPU_OK=(try
     @eval Main using CUDA, CUDSS
@@ -63,8 +63,8 @@ _fve_gpu_host(J)=sparse(transpose(SparseMatrixCSC(size(J)...,
                 @test relative<=1e-10
                 @test sg.n_factorize==1
                 @test norm(transpose(_fve_gpu_host(sg.J))*Array(rg.λ)-rg.gU)/norm(rg.gU)<=1e-10
-                Kraken._fv_param_cotangent!(wg,map,sg,Ug,theta)
-                @test _fve_gpu_allocated(()->Kraken._fv_param_cotangent!(wg,map,sg,Ug,theta))==0
+                KrakeNN._fv_param_cotangent!(wg,map,sg,Ug,theta)
+                @test _fve_gpu_allocated(()->KrakeNN._fv_param_cotangent!(wg,map,sg,Ug,theta))==0
                 @info "T4 GPU gradient parity" name target objective=string(typeof(obj)) relative
             end
         end

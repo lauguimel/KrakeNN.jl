@@ -1,4 +1,4 @@
-# T5 comparison driver: FV (Kraken fixed-point/Newton thermal) vs LBM on the E5
+# T5 comparison driver: FV (KrakeNN fixed-point/Newton thermal) vs LBM on the E5
 # six-cylinder periodic cell, at identical voxel mask and identical lattice
 # coefficients (plan R6 ladder). Nothing here tunes the FV discretisation.
 #
@@ -21,7 +21,7 @@
 #   l2_rel_norm  = ||diff||_2 / ||reference||_2
 module E5Compare
 
-using Kraken, LinearAlgebra, Printf, Statistics, TOML, SparseArrays
+using KrakeNN, LinearAlgebra, Printf, Statistics, TOML, SparseArrays
 
 const BACKEND = lowercase(get(ENV, "KRAKEN_E5_BACKEND", "cpu"))
 BACKEND in ("cpu", "cuda") || error("KRAKEN_E5_BACKEND must be cpu or cuda, got $BACKEND")
@@ -85,7 +85,7 @@ end
 cval(cs::Case, k) = Float64(cs.consts[k])
 make_law(cs::Case) = E5ThermalLaw(cs.theta; T_wall = cval(cs, "T_wall"),
                                   nu_ref = cval(cs, "nuref"), shear_scale = cval(cs, "s"))
-law_nu(law, theta, I1, T) = Kraken.law_value(law, (sqrt(2 * I1), T), theta)
+law_nu(law, theta, I1, T) = KrakeNN.law_value(law, (sqrt(2 * I1), T), theta)
 
 # ------------------------------------------------------------------- metrics
 function compare(a, b, fluid, scale = maximum(abs, b[fluid]))
@@ -166,7 +166,7 @@ function init_state(cs::Case, prob; temperature = nothing)
     useL = lowercase(get(ENV, "KRAKEN_E5_INIT", "zero")) == "lbm"
     u = useL ? cs.ux : z; v = useL ? cs.uy : z
     U = temperature === nothing ? fv_state(prob, u, v, z) : fv_state(prob, u, v, z, temperature)
-    Kraken._fv_initial_force!(U, prob)
+    KrakeNN._fv_initial_force!(U, prob)
     return U
 end
 
@@ -175,8 +175,8 @@ function cell_fields(prob, Uh, law, theta, T)
     g = prob.grid; Nx, Ny = g.Nx, g.Ny
     I1 = zeros(Nx, Ny); nu = zeros(Nx, Ny)
     for j in 1:Ny, i in 1:Nx
-        prob.tag[i, j] == Kraken.FV_CELL_SOLID && continue
-        gP = Kraken._fv_cell_grad(Uh, prob.tag, prob.bvel, g, i, j)
+        prob.tag[i, j] == KrakeNN.FV_CELL_SOLID && continue
+        gP = KrakeNN._fv_cell_grad(Uh, prob.tag, prob.bvel, g, i, j)
         sxy = (gP[2] + gP[3]) / 2
         I1[i, j] = gP[1]^2 + gP[4]^2 + 2sxy^2
         nu[i, j] = law_nu(law, theta, I1[i, j], T[i, j])
@@ -352,7 +352,7 @@ function stage3(cs::Case; outdir = nothing, fd::Bool = true)
     res["dT_max_fv"] = maximum((T .- Tw)[fluid]); res["dT_max_lbm"] = maximum((cs.T .- Tw)[fluid])
     res["nu_vs_nu_from_gradient_base"] = compare(nu, cs.nu, fluid)
     res["I1_vs_I1_from_gradient_base"] = compare(I1, cs.I1, fluid)
-    P = sum(Kraken._fv_energy_heating(Uh, hp.tag, hp.nu, hp.bvel, hp.grid, i, j, hp.visc, sigma)
+    P = sum(KrakeNN._fv_energy_heating(Uh, hp.tag, hp.nu, hp.bvel, hp.grid, i, j, hp.visc, sigma)
             for j in 1:cs.Ny, i in 1:cs.Nx if fluid[i, j])
     Q = bottom_flux(T, fluid, Tw, alpha)
     res["power_balance_fv"] = Dict{String,Any}("integral_heating" => P, "bottom_flux" => Q,

@@ -5,12 +5,12 @@
 # Derivative consistency <=1e-12 relative, Newton/Picard and force/flow
 # agreement <=1e-10 relative. No acceptance constant is fitted to FV results.
 # Run: sh tmp/thermal_julia.sh --project=. test/analytical/incns_fv_thermal_coupling_test.jl
-using Test, Kraken, ForwardDiff, LinearAlgebra, Random, SparseArrays
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random, SparseArrays
 
 struct _FVTExpLaw <: AbstractScalarLaw end
-Kraken.law_ninputs(::_FVTExpLaw)=2
-Kraken.law_nparams(::_FVTExpLaw)=3
-@inline Kraken.law_value(::_FVTExpLaw,x::Tuple,theta::AbstractVector)=
+KrakeNN.law_ninputs(::_FVTExpLaw)=2
+KrakeNN.law_nparams(::_FVTExpLaw)=3
+@inline KrakeNN.law_value(::_FVTExpLaw,x::Tuple,theta::AbstractVector)=
     theta[1]*exp(-theta[2]*(x[2]-theta[3]))
 const _FVT_BC=(W=:periodic,E=:periodic,S=:wall,N=:wall)
 const _FVT_SIGMA=1.9127858635347974
@@ -45,7 +45,7 @@ function _fvt_initial(p;kind=:poiseuille)
         _fvt_zero,_fvt_zero,(x,y)->1.)
 end
 function _fvt_dense_jacobian(p,U)
-    D=ForwardDiff.Dual{Kraken.FVJacobianTag,Float64,4}
+    D=ForwardDiff.Dual{KrakeNN.FVJacobianTag,Float64,4}
     X=D.(U);R=similar(X);J=zeros(length(U),length(U))
     for col in eachindex(U)
         X[col]=D(U[col],ForwardDiff.Partials((1.,0.,0.,0.)))
@@ -59,20 +59,20 @@ function _fvt_dense_jacobian(p,U)
 end
 function _fvt_fluxes(p,U)
     g=p.grid;flux=Float64[];axis=Int[]
-    visc=Kraken._fv_bind_viscosity(p.visc,U,g)
+    visc=KrakeNN._fv_bind_viscosity(p.visc,U,g)
     for j in 1:g.Ny,i in 1:g.Nx
         p.tag[i,j]==FV_CELL_SOLID && continue
-        gp=Kraken._fv_cell_grad(U,p.tag,p.bvel,g,i,j)
+        gp=KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,i,j)
         for d in (1,3)
-            kind,ii,jj=Kraken._fv_face_kind(g,p.tag,i,j,d)
-            kind==Kraken._FV_F_INT || continue
-            gn=Kraken._fv_cell_grad(U,p.tag,p.bvel,g,ii,jj)
+            kind,ii,jj=KrakeNN._fv_face_kind(g,p.tag,i,j,d)
+            kind==KrakeNN._FV_F_INT || continue
+            gn=KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,ii,jj)
             up,vp,pp=ntuple(c->U[fv_index(g,i,j,c)],3)
             un,vn,pn=ntuple(c->U[fv_index(g,ii,jj,c)],3)
             grad=d==1 ? ((un-up)/g.h,(gp[2]+gn[2])/2,(vn-vp)/g.h,(gp[4]+gn[4])/2) :
                 ((gp[1]+gn[1])/2,(un-up)/g.h,(gp[3]+gn[3])/2,(vn-vp)/g.h)
-            nu=Kraken._fv_face_nu(visc,p.nu[i,j],p.nu[ii,jj],grad...,i,j,ii,jj)
-            push!(flux,Kraken._fv_interior_mass_flux(g.h,g.conv,up,vp,pp,un,vn,pn,
+            nu=KrakeNN._fv_face_nu(visc,p.nu[i,j],p.nu[ii,jj],grad...,i,j,ii,jj)
+            push!(flux,KrakeNN._fv_interior_mass_flux(g.h,g.conv,up,vp,pp,un,vn,pn,
                 gp,gn,nu,d==1,1)); push!(axis,d)
         end
     end
@@ -179,7 +179,7 @@ end
             @test norm(J*d-fd,Inf)<=2e-8+2e-7*norm(J*d,Inf)
             rest=fv_state(p,_fvt_zero,_fvt_zero,_fvt_zero,468.15)
             @test all(isfinite,Matrix(fv_jacobian!(s,rest)))
-            @test all(isfinite,Kraken._fv_energy_scales(p).equations)
+            @test all(isfinite,KrakeNN._fv_energy_scales(p).equations)
         end
         thermal=_fvt_channel(4);s=fv_newton_solver(thermal);U=_fvt_initial(thermal)
         workspace=fv_adjoint_workspace(s,FVLawParameters(3))
@@ -272,14 +272,14 @@ end
         p=fv_steady_problem(10,10;h=1.,immersed=ib,wall_flux=0.,nu=.3,conv=false,
             bc=_FVT_BC,source=(x,y)->(.006,0.,0.),u_mean_target=.2)
         U=.1randn(MersenneTwister(8173),fv_nunknowns(p));U[end]=.006
-        @test length(U)==fv_nunknowns(p.grid)+Kraken._fv_npairs(p.immersed)+1
+        @test length(U)==fv_nunknowns(p.grid)+KrakeNN._fv_npairs(p.immersed)+1
         Jref=_fvt_dense_jacobian(p,U);J=Matrix(fv_jacobian!(fv_newton_solver(p),U))
         @test maximum(abs,J-Jref)<=1e-12*maximum(abs,Jref)
         @test count((.!iszero.(Jref)).&.!Matrix(fv_jacobian_pattern(p)))==0
         @test J[end,end]==0.
         @test all(iszero,J[end,fv_nunknowns(p.grid)+1:end])
         @test fv_flow_force(p,U)==U[end]
-        @info "T3 immersed plus flow border" unknowns=length(U) immersed_constraints=Kraken._fv_npairs(p.immersed) dual_difference=maximum(abs,J-Jref)
+        @info "T3 immersed plus flow border" unknowns=length(U) immersed_constraints=KrakeNN._fv_npairs(p.immersed) dual_difference=maximum(abs,J-Jref)
     end
 
     @testset "independent fold and heating continuation" begin

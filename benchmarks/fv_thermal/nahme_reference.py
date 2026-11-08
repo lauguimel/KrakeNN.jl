@@ -1,6 +1,6 @@
 """Independent continuum BVP reference for the CPU thermal coupling tests.
 
-No Kraken implementation, residual, interpolation or reference driver is used.
+No KrakeNN implementation, residual, interpolation or reference driver is used.
 The first-order ODE uses shear stress and conductive temperature slope, solved
 by scipy's fourth-order collocation. Top-temperature continuation makes the
 fixed-force turning point accessible without following the FV Newton solver.

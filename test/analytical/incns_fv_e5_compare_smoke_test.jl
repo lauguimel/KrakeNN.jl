@@ -14,7 +14,7 @@
 # dyadic values, so the face velocities are exactly divergence-free in floating
 # point; they are not an LBM solution.
 # Run: sh tmp/thermal_julia.sh --project=. test/analytical/incns_fv_e5_compare_smoke_test.jl
-using Test, Kraken, LinearAlgebra, Statistics, TOML
+using Test, KrakeNN, LinearAlgebra, Statistics, TOML
 
 ENV["KRAKEN_E5_BACKEND"] = "cpu"
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "fv_thermal", "e5_compare.jl"))
@@ -44,7 +44,7 @@ function _e5s_case(; Nx = 24, Ny = 8)
           ((j < Ny ? ux[i, j+1] : 0.0) - (j > 1 ? ux[i, j-1] : 0.0))^2 / 8 for i in 1:Nx, j in 1:Ny]
     I1[solid] .= 0
     law = E5ThermalLaw(theta; T_wall = Tw, nu_ref = consts["nuref"], shear_scale = consts["s"])
-    nu = [solid[i, j] ? 0.0 : Kraken.law_value(law, (sqrt(2 * I1[i, j]), T[i, j]), theta) for i in 1:Nx, j in 1:Ny]
+    nu = [solid[i, j] ? 0.0 : KrakeNN.law_value(law, (sqrt(2 * I1[i, j]), T[i, j]), theta) for i in 1:Nx, j in 1:Ny]
     return E5Compare.Case("synthetic", Nx, Ny, consts, theta, ux, uy, uf, vf, T, solid, nu, I1,
                           nothing, nothing, nothing, Dict{String,Any}())
 end

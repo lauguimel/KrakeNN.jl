@@ -6,13 +6,13 @@
 # within 1e-12*maxabs(Jref). These are derivative-consistency gates, not a
 # continuum-accuracy claim. The reference seeds every state column separately,
 # never consulting the declared sparsity or colours, including M3 pair rows.
-using Test, Kraken, ForwardDiff, Random, SparseArrays
+using Test, KrakeNN, ForwardDiff, Random, SparseArrays
 
 function _fvt0b_dense_jacobian(p, U)
     # Reuse its dual type to avoid compiling a second copy of the same kernel.
     # Only lane 1 is seeded, in exactly one column; other lanes stay zero.
     # Neither the seed nor the dense extraction consults pattern or colouring.
-    D = ForwardDiff.Dual{Kraken.FVJacobianTag,Float64,4}
+    D = ForwardDiff.Dual{KrakeNN.FVJacobianTag,Float64,4}
     Ud = D.(U)
     Rd = similar(Ud)
     J = zeros(length(U), length(U))
@@ -45,23 +45,23 @@ function _fvt0b_fluxes(p, U)
     # Diagnostic evaluation of the actual interior Rhie--Chow formula in
     # fv_cell_residual, not a separate residual or differentiation reference.
     g = p.grid
-    q, w, closure = Kraken._fv_immersed_args(p.immersed)
+    q, w, closure = KrakeNN._fv_immersed_args(p.immersed)
     flux = Float64[]; mean_normal = Float64[]; xflux = Float64[]
     cutflux = Float64[]
     for j in 1:g.Ny, i in 1:g.Nx
         p.tag[i, j] == FV_CELL_SOLID && continue
-        gp = Kraken._fv_cell_grad(U, p.tag, p.bvel, g, i, j, q, w, closure)
+        gp = KrakeNN._fv_cell_grad(U, p.tag, p.bvel, g, i, j, q, w, closure)
         for d in (1, 3) # Unique east/north orientation, including periodic wrap.
-            kind, ii, jj = Kraken._fv_face_kind(g, p.tag, i, j, d)
-            kind == Kraken._FV_F_INT || continue
-            gn = Kraken._fv_cell_grad(U, p.tag, p.bvel, g, ii, jj, q, w, closure)
+            kind, ii, jj = KrakeNN._fv_face_kind(g, p.tag, i, j, d)
+            kind == KrakeNN._FV_F_INT || continue
+            gn = KrakeNN._fv_cell_grad(U, p.tag, p.bvel, g, ii, jj, q, w, closure)
             up, vp, pp = ntuple(c -> U[fv_index(g, i, j, c)], 3)
             un, vn, pn = ntuple(c -> U[fv_index(g, ii, jj, c)], 3)
             gradient = d == 1 ? ((un-up)/g.h, (gp[2]+gn[2])/2,
                                  (vn-vp)/g.h, (gp[4]+gn[4])/2) :
                                 ((gp[1]+gn[1])/2, (un-up)/g.h,
                                  (gp[3]+gn[3])/2, (vn-vp)/g.h)
-            nu = Kraken._fv_face_nu(p.visc, p.nu[i,j], p.nu[ii,jj],
+            nu = KrakeNN._fv_face_nu(p.visc, p.nu[i,j], p.nu[ii,jj],
                                     gradient..., i, j, ii, jj)
             ub = d == 1 ? (up+un)/2 : (vp+vn)/2
             df = g.h^2 / (4nu + g.conv*abs(ub)*g.h)
@@ -73,9 +73,9 @@ function _fvt0b_fluxes(p, U)
         if p.immersed !== nothing
             for d in 1:4
                 q[d, i, j] > 0 || continue
-                parts = Kraken._fv_wall_flux_components(U, p.tag, p.nu, p.bvel,
+                parts = KrakeNN._fv_wall_flux_components(U, p.tag, p.nu, p.bvel,
                     g, i, j, d, p.visc, q, w, closure, gp,
-                    Kraken._fv_face_pair(p.immersed))
+                    KrakeNN._fv_face_pair(p.immersed))
                 push!(cutflux, last(parts))
             end
         end

@@ -6,12 +6,12 @@
 # iteration count is identical, and the coupled solve at 468 K meets the
 # production gate (scaled residual <= 1e-10, increment <= 1e-10 DeltaT).
 # Run: sh tmp/thermal_julia.sh --project=. test/analytical/incns_fv_energy_theta_test.jl
-using Test, Kraken
+using Test, KrakeNN
 
 struct _FVthExpLaw <: AbstractScalarLaw end
-Kraken.law_ninputs(::_FVthExpLaw)=2
-Kraken.law_nparams(::_FVthExpLaw)=3
-@inline Kraken.law_value(::_FVthExpLaw,x::Tuple,theta::AbstractVector)=
+KrakeNN.law_ninputs(::_FVthExpLaw)=2
+KrakeNN.law_nparams(::_FVthExpLaw)=3
+@inline KrakeNN.law_value(::_FVthExpLaw,x::Tuple,theta::AbstractVector)=
     theta[1]*exp(-theta[2]*(x[2]-theta[3]))
 
 const _FVth_BC=(W=:periodic,E=:periodic,S=:wall,N=:wall)

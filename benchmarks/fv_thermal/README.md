@@ -8,7 +8,7 @@ Scripts for the steady FV energy equation, its thermal coupling and its adjoint
 - `nahme_reference.py` writes the independent continuum reference of the Nahme
   channel (viscosity `nu(T) = nu0 exp(-beta (T - Tw))` with viscous heating,
   Poiseuille and Couette, plus the fold branch) to
-  `test/reference/fv_thermal_nahme/`. It uses SciPy collocation only, no Kraken
+  `test/reference/fv_thermal_nahme/`. It uses SciPy collocation only, no KrakeNN
   code. Regenerate from the repository root:
   `conda run -n kraken-v0-3-figures python benchmarks/fv_thermal/nahme_reference.py`.
   The provenance and the frozen error bounds are in that directory's `README.md`.

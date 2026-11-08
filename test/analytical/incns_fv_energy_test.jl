@@ -4,7 +4,7 @@
 # Run: sh tmp/thermal_julia.sh --project=. test/analytical/incns_fv_energy_test.jl
 # Measured 2026-11-08, macOS arm64 / Julia 1.12.5: 430 checks in 15.0 s
 # after package loading, including compilation; no optimisation flag needed.
-using Test, Kraken, ForwardDiff, LinearAlgebra, Random, SparseArrays
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random, SparseArrays
 
 const _FVE_BC = (W=:periodic, E=:periodic, S=:wall, N=:wall)
 _fve_zero(x, y) = 0.0
@@ -13,7 +13,7 @@ _fve_orders(errors) = log2.(errors[1:end-1] ./ errors[2:end])
 
 function _fve_dense_jacobian(p, U)
     # Independent one-column seeds: no declared pattern or colouring is read.
-    D = ForwardDiff.Dual{Kraken.FVJacobianTag,Float64,4}
+    D = ForwardDiff.Dual{KrakeNN.FVJacobianTag,Float64,4}
     X = D.(U); R = similar(X); J = zeros(length(U), length(U))
     for col in eachindex(U)
         X[col] = D(U[col], ForwardDiff.Partials((1.0, 0.0, 0.0, 0.0)))
@@ -30,17 +30,17 @@ function _fve_fluxes(p,U)
     g=p.grid; flux=Float64[]; axis=Int[]
     for j in 1:g.Ny,i in 1:g.Nx
         p.tag[i,j]==FV_CELL_SOLID && continue
-        gp=Kraken._fv_cell_grad(U,p.tag,p.bvel,g,i,j)
+        gp=KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,i,j)
         for d in (1,3)
-            kind,ii,jj=Kraken._fv_face_kind(g,p.tag,i,j,d)
-            kind==Kraken._FV_F_INT || continue
-            gn=Kraken._fv_cell_grad(U,p.tag,p.bvel,g,ii,jj)
+            kind,ii,jj=KrakeNN._fv_face_kind(g,p.tag,i,j,d)
+            kind==KrakeNN._FV_F_INT || continue
+            gn=KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,ii,jj)
             up,vp,pp=ntuple(c->U[fv_index(g,i,j,c)],3)
             un,vn,pn=ntuple(c->U[fv_index(g,ii,jj,c)],3)
             grad=d==1 ? ((un-up)/g.h,(gp[2]+gn[2])/2,(vn-vp)/g.h,(gp[4]+gn[4])/2) :
                 ((gp[1]+gn[1])/2,(un-up)/g.h,(gp[3]+gn[3])/2,(vn-vp)/g.h)
-            nu=Kraken._fv_face_nu(p.visc,p.nu[i,j],p.nu[ii,jj],grad...,i,j,ii,jj)
-            f=Kraken._fv_interior_mass_flux(g.h,g.conv,up,vp,pp,un,vn,pn,
+            nu=KrakeNN._fv_face_nu(p.visc,p.nu[i,j],p.nu[ii,jj],grad...,i,j,ii,jj)
+            f=KrakeNN._fv_interior_mass_flux(g.h,g.conv,up,vp,pp,un,vn,pn,
                 gp,gn,nu,d==1,1)
             push!(flux,f); push!(axis,d)
         end
@@ -68,7 +68,7 @@ function _fve_heat_balance(p, U)
     # Outward conductive heat through the halfway isothermal bottom face.
     # All other boundaries are adiabatic or periodic in these channel cases.
     outward = sum(2p.energy.alpha*(T[i,1]-1.0) for i in 1:g.Nx)
-    heating = sum(Kraken._fv_energy_heating(U,p.tag,p.nu,p.bvel,g,i,j,
+    heating = sum(KrakeNN._fv_energy_heating(U,p.tag,p.nu,p.bvel,g,i,j,
         p.visc,p.energy.sigma) for j in 1:g.Ny, i in 1:g.Nx)
     return abs(outward-heating) / max(abs(outward), abs(heating), eps())
 end
@@ -121,9 +121,9 @@ function _fve_mms_errors(p, U)
     away=copy(fluid)
     for j in 1:g.Ny,i in 1:g.Nx,d in 1:4
         away[i,j] || continue
-        kind,ii,jj=Kraken._fv_face_kind(g,p.tag,i,j,d)
-        away[i,j]=kind==Kraken._FV_F_INT &&
-            first(Kraken._fv_face_kind(g,p.tag,ii,jj,d))==Kraken._FV_F_INT
+        kind,ii,jj=KrakeNN._fv_face_kind(g,p.tag,i,j,d)
+        away[i,j]=kind==KrakeNN._FV_F_INT &&
+            first(KrakeNN._fv_face_kind(g,p.tag,ii,jj,d))==KrakeNN._FV_F_INT
     end
     return (; away=norm((T-exact)[away])/sqrt(count(away)),
         full=norm((T-exact)[fluid])/sqrt(count(fluid)))
@@ -162,7 +162,7 @@ end
                 @test r.converged
                 @test maximum(last(r.stats.equation_inf))<=1e-10
                 @test last(r.stats.temperature_increment)<=1e-10*r.stats.thermal_scales.deltaT
-                @test r.stats.thermal_scales==Kraken._fv_energy_scales(c.p)
+                @test r.stats.thermal_scales==KrakeNN._fv_energy_scales(c.p)
                 push!(scaled_residual,maximum(last(r.stats.equation_inf)))
                 push!(increments,last(r.stats.temperature_increment))
                 T=_fve_temperature(c.p,r.U)
@@ -211,7 +211,7 @@ end
                 energy=FVEnergy(;alpha=0.2,bottom=1.0,scheme))
             U=fv_state(p,_fve_zero,_fve_zero,_fve_zero,(x,y)->x+3y+0.2x*y)
             value(i,j)=U[fv_index(p.grid,i,j,4)]
-            face(i,j,d,ii,jj)=Kraken._fv_energy_face_temperature(
+            face(i,j,d,ii,jj)=KrakeNN._fv_energy_face_temperature(
                 U,p.tag,p.grid,i,j,d,ii,jj,p.energy.scheme)
             for (i,j,d,ii,jj) in ((3,3,1,4,3),(3,3,3,3,4))
                 positive,negative=face(i,j,d,ii,jj)
@@ -238,7 +238,7 @@ end
             tags=copy(p.tag); tags[tags.==FV_CELL_PINNED].=FV_CELL_FLUID
             R=fv_residual(U,p); mass=Float64[]; differences=Float64[]
             for j in 1:p.grid.Ny,i in 1:p.grid.Nx
-                rc=Kraken.fv_cell_residual(U,tags,p.nu,p.bvel,p.src,p.grid,i,j,p.visc)[3]
+                rc=KrakeNN.fv_cell_residual(U,tags,p.nu,p.bvel,p.src,p.grid,i,j,p.visc)[3]
                 push!(mass,rc)
                 push!(differences,abs(R[fv_index(p.grid,i,j,4)]-2.5rc))
                 @test differences[end] <= 1e-12
@@ -287,7 +287,7 @@ end
             energy=FVEnergy(;alpha=0.2,sigma=3.0,bottom=1.0))
         rest=fv_state(regularised,_fve_zero,_fve_zero,_fve_zero,(x,y)->1.0)
         @test iszero(fv_residual(rest,regularised))
-        @test iszero(Kraken._fv_energy_heating(rest,regularised.tag,regularised.nu,
+        @test iszero(KrakeNN._fv_energy_heating(rest,regularised.tag,regularised.nu,
             regularised.bvel,regularised.grid,2,2,regularised.visc,3.0))
         # Continuation keeps the final heating scale even at sigma=0. The
         # physical source uses sigma, so nominal heating cannot warm a cell.
@@ -300,13 +300,13 @@ end
             energy=FVEnergy(;alpha=0.2,sigma=0.0,sigma_nom=10.0,bottom=1.0))
         nominal=fv_steady_problem(2,4;channel_options...,
             energy=FVEnergy(;alpha=0.2,sigma=10.0,bottom=1.0))
-        @test Kraken._fv_energy_scales(initial)==Kraken._fv_energy_scales(nominal)
-        @test Kraken._fv_energy_scales(initial).deltaT≈15.0
+        @test KrakeNN._fv_energy_scales(initial)==KrakeNN._fv_energy_scales(nominal)
+        @test KrakeNN._fv_energy_scales(initial).deltaT≈15.0
         @test fv_adapt(Array,initial).energy.sigma_nom==10.0
         shear=fv_state(initial,(x,y)->y,_fve_zero,_fve_zero,(x,y)->1.0)
         @test iszero(fv_residual(shear,initial)[4:4:end])
         @test maximum(abs,fv_residual(shear,nominal)[4:4:end])>0.0
-        @info "T2 nominal continuation scales" deltaT=Kraken._fv_energy_scales(initial).deltaT zero_sigma_heating=maximum(abs,fv_residual(shear,initial)[4:4:end])
+        @info "T2 nominal continuation scales" deltaT=KrakeNN._fv_energy_scales(initial).deltaT zero_sigma_heating=maximum(abs,fv_residual(shear,initial)[4:4:end])
 
         # Thermal parameter adjoints belong to T4. A caller-provided workspace
         # must not bypass the explicit unsupported-capability guard.

@@ -6,7 +6,7 @@
 # with unit step lengths (no line-search collapse); a state 1e-6 off the solution
 # is >= 1e3 times its floor.
 # Run: sh tmp/thermal_julia.sh --project=. test/analytical/incns_fv_energy_floor_test.jl
-using Test, Kraken
+using Test, KrakeNN
 
 const _FVfl_BC=(W=:periodic,E=:periodic,S=:wall,N=:wall)
 
@@ -26,7 +26,7 @@ end
 
 function _fvfl_floor(p,U)
     Fl=zeros(length(U))
-    Kraken._fv_energy_roundoff_floor!(Fl,U,p)
+    KrakeNN._fv_energy_roundoff_floor!(Fl,U,p)
     return Fl
 end
 
@@ -81,10 +81,10 @@ end
         # (b) the converged state moved by 1e-6 K in one cell: gate :none through the floor test
         r=solve_incns_fv_newton(problem=p,maxit=30)
         U=Array(r.U); k=findfirst(i->p.tag[i]!=FV_CELL_SOLID,eachindex(p.tag))
-        U[Kraken._fv_cell_index(p.grid,k,4)]+=1e-6
+        U[KrakeNN._fv_cell_index(p.grid,k,4)]+=1e-6
         R=fv_residual(U,p); Fl=_fvfl_floor(p,U)
-        nb=Kraken._FVNormBuffers(Array,p.grid.Nx*p.grid.Ny;layout=p.grid.layout)
-        chk=Kraken._fv_energy_floor_check(nb,R,Fl,p.grid.layout)
+        nb=KrakeNN._FVNormBuffers(Array,p.grid.Nx*p.grid.Ny;layout=p.grid.layout)
+        chk=KrakeNN._fv_energy_floor_check(nb,R,Fl,p.grid.layout)
         @test !chk.passed && chk.max_ratio>1e3
         # (c) increment criterion still required: a restart from the converged state is accepted at once
         s=fv_newton_solver(p); V=copy(Array(r.U))
@@ -96,14 +96,14 @@ end
         p=_fvfl_e5(;N=12)
         r=solve_incns_fv_newton(problem=p,maxit=30)
         U=Array(r.U); Fl=zeros(length(U)); R=fv_residual(U,p)
-        nb=Kraken._FVNormBuffers(Array,p.grid.Nx*p.grid.Ny;layout=p.grid.layout)
-        @inferred Kraken._fv_energy_roundoff_floor!(Fl,U,p)
-        @inferred Kraken._fv_energy_floor_check(nb,R,Fl,p.grid.layout)
-        energy,src=Kraken._fv_energy_args(p.energy)
-        @inferred Kraken._fv_energy_cell(U,p.tag,p.nu,p.bvel,p.grid,3,3,p.visc,energy,src,Val(true))
-        @inferred Kraken._fv_energy_cell(U,p.tag,p.nu,p.bvel,p.grid,3,3,p.visc,energy,src)
+        nb=KrakeNN._FVNormBuffers(Array,p.grid.Nx*p.grid.Ny;layout=p.grid.layout)
+        @inferred KrakeNN._fv_energy_roundoff_floor!(Fl,U,p)
+        @inferred KrakeNN._fv_energy_floor_check(nb,R,Fl,p.grid.layout)
+        energy,src=KrakeNN._fv_energy_args(p.energy)
+        @inferred KrakeNN._fv_energy_cell(U,p.tag,p.nu,p.bvel,p.grid,3,3,p.visc,energy,src,Val(true))
+        @inferred KrakeNN._fv_energy_cell(U,p.tag,p.nu,p.bvel,p.grid,3,3,p.visc,energy,src)
         # sum mode is the residual, bit for bit
-        @test Kraken._fv_energy_cell(U,p.tag,p.nu,p.bvel,p.grid,3,3,p.visc,energy,src)==R[Kraken._fv_cell_index(p.grid,3+2*p.grid.Nx,4)]
+        @test KrakeNN._fv_energy_cell(U,p.tag,p.nu,p.bvel,p.grid,3,3,p.visc,energy,src)==R[KrakeNN._fv_cell_index(p.grid,3+2*p.grid.Nx,4)]
         # continuation reports the gate of every step
         pc=_fvfl_e5(;N=12)
         c=fv_thermal_continuation(pc)

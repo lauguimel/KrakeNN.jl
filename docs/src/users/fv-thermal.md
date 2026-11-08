@@ -80,7 +80,7 @@ convective fluxes, the diffusive fluxes, the wall terms, the heating and the
 source: the magnitude of what cancels in the row. `C = 64` is 4 faces times
 (convective plus diffusive term) times a margin of 8 for the accumulated
 rounding of a short sum of products; it was fixed before any measurement and is
-not tuned (`Kraken.FV_ENERGY_FLOOR_C`). The tolerance gate is tried first. The
+not tuned (`KrakeNN.FV_ENERGY_FLOOR_C`). The tolerance gate is tried first. The
 Newton and continuation results carry `gate` and, for Newton, `energy_floor`
 (`passed`, `excess`, `max_floor`, `max_ratio`); in the E5 stage 2 measurements below the
 largest `|R|/floor` is 0.025 (300x100) and 0.023 (600x200).
@@ -128,12 +128,12 @@ then the gradient of the mean temperature rise with respect to `(nu0, beta, Tw)`
 continuation, with `using CUDA, CUDSS`):
 
 ```julia
-using Kraken
+using KrakeNN
 
 struct ExpLaw <: AbstractScalarLaw end        # inputs: (shear rate, temperature)
-Kraken.law_ninputs(::ExpLaw) = 2
-Kraken.law_nparams(::ExpLaw) = 3
-@inline Kraken.law_value(::ExpLaw, x::Tuple, theta::AbstractVector) =
+KrakeNN.law_ninputs(::ExpLaw) = 2
+KrakeNN.law_nparams(::ExpLaw) = 3
+@inline KrakeNN.law_value(::ExpLaw, x::Tuple, theta::AbstractVector) =
     theta[1] * exp(-theta[2] * (x[2] - theta[3]))
 
 theta = [0.3, 1.0, 1.0]                       # nu0, beta, Tw
@@ -163,7 +163,7 @@ Test files are in `test/analytical/`; each frozen threshold carries its date and
 source in the file header.
 
 **Nahme channel (continuum reference).** `test/reference/fv_thermal_nahme/`
-holds an independent solution (SciPy collocation, `solve_bvp`, no Kraken code)
+holds an independent solution (SciPy collocation, `solve_bvp`, no KrakeNN code)
 of the fully developed channel with `nu(T) = nu0 exp(-beta (T - Tw))` and
 viscous heating, for Poiseuille and Couette (`incns_fv_thermal_coupling_test.jl`).
 The FV error must be second-order (order at least 1.8 on N = 32, 64, 128) and,

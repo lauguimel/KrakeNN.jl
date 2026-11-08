@@ -3,7 +3,7 @@
 # central full-resolve FD best relative <= 1e-6 and absolute <= 1e-9 +
 # 1e-6*|derivative|. These check differentiation, not continuum accuracy.
 # R_theta holds all of U=(u,v,p,T[,Fx]) and E5 normalization fixed.
-using Test, Kraken, ForwardDiff, LinearAlgebra, Random
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random
 
 const _FVT4_BC=(W=:periodic,E=:periodic,S=:wall,N=:wall)
 const _FVT4_TW=468.15
@@ -33,20 +33,20 @@ _fvt4_tindices(p)=[fv_index(p.grid,i,j,4) for j in 1:p.grid.Ny for i in 1:p.grid
 # decision. Boundary fluxes are prescribed zero and cannot switch with theta.
 function _fvt4_fluxes(p,U)
     g=p.grid;flux=Float64[]
-    visc=Kraken._fv_bind_viscosity(p.visc,U,g)
+    visc=KrakeNN._fv_bind_viscosity(p.visc,U,g)
     for j in 1:g.Ny,i in 1:g.Nx
         p.tag[i,j]==FV_CELL_SOLID && continue
-        gp=Kraken._fv_cell_grad(U,p.tag,p.bvel,g,i,j)
+        gp=KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,i,j)
         for d in (1,3)
-            kind,ii,jj=Kraken._fv_face_kind(g,p.tag,i,j,d)
-            kind==Kraken._FV_F_INT || continue
-            gn=Kraken._fv_cell_grad(U,p.tag,p.bvel,g,ii,jj)
+            kind,ii,jj=KrakeNN._fv_face_kind(g,p.tag,i,j,d)
+            kind==KrakeNN._FV_F_INT || continue
+            gn=KrakeNN._fv_cell_grad(U,p.tag,p.bvel,g,ii,jj)
             up,vp,pp=ntuple(c->U[fv_index(g,i,j,c)],3)
             un,vn,pn=ntuple(c->U[fv_index(g,ii,jj,c)],3)
             grad=d==1 ? ((un-up)/g.h,(gp[2]+gn[2])/2,(vn-vp)/g.h,(gp[4]+gn[4])/2) :
                 ((gp[1]+gn[1])/2,(un-up)/g.h,(gp[3]+gn[3])/2,(vn-vp)/g.h)
-            nu=Kraken._fv_face_nu(visc,p.nu[i,j],p.nu[ii,jj],grad...,i,j,ii,jj)
-            push!(flux,Kraken._fv_interior_mass_flux(g.h,g.conv,up,vp,pp,un,vn,pn,
+            nu=KrakeNN._fv_face_nu(visc,p.nu[i,j],p.nu[ii,jj],grad...,i,j,ii,jj)
+            push!(flux,KrakeNN._fv_interior_mass_flux(g.h,g.conv,up,vp,pp,un,vn,pn,
                 gp,gn,nu,d==1,1))
         end
     end
@@ -135,33 +135,33 @@ end
             s=fv_newton_solver(p);map=FVLawParameters(length(theta));ws=fv_adjoint_workspace(s,map)
             rng=MersenneTwister(8403);U=.15randn(rng,fv_nunknowns(p))
             U[_fvt4_tindices(p)].+=1. # raw state is theta=T-T_ref (T_ref=T_wall): T=T_wall+1
-            bound=@inferred Kraken._fv_bind_viscosity(p.visc,U,p.grid)
-            @test (@inferred Kraken._fv_visc_eltype(bound))===Float64
-            capture=@inferred Kraken._FVLawCapture(law,zeros(20,5,2),1,1,Val(5))
+            bound=@inferred KrakeNN._fv_bind_viscosity(p.visc,U,p.grid)
+            @test (@inferred KrakeNN._fv_visc_eltype(bound))===Float64
+            capture=@inferred KrakeNN._FVLawCapture(law,zeros(20,5,2),1,1,Val(5))
             captured=FVLawViscosity(capture,theta,bound.fields,bound.eps)
-            @test (@inferred Kraken._fv_visc_eltype(captured))===ForwardDiff.Dual{Kraken.FVParamTag,Float64,5}
-            @test (@inferred Kraken._fv_heating_viscosity(captured)).law.face==5
-            @test isfinite(@inferred Kraken._fv_gnf_nu(captured,.1,.2,.3,.4,(_FVT4_TW,)))
+            @test (@inferred KrakeNN._fv_visc_eltype(captured))===ForwardDiff.Dual{KrakeNN.FVParamTag,Float64,5}
+            @test (@inferred KrakeNN._fv_heating_viscosity(captured)).law.face==5
+            @test isfinite(@inferred KrakeNN._fv_gnf_nu(captured,.1,.2,.3,.4,(_FVT4_TW,)))
             lambda=randn(rng,length(U));copyto!(ws.λ,lambda)
-            a=Kraken._fv_param_cotangent!(ws,map,s,U,theta)
-            b=Kraken._fv_param_cotangent!(ws,map,s,U,theta;law_gradient=:duals)
+            a=KrakeNN._fv_param_cotangent!(ws,map,s,U,theta)
+            b=KrakeNN._fv_param_cotangent!(ws,map,s,U,theta;law_gradient=:duals)
             @test _fvt4_rel(a,b)<=1e-12
             # Retain only thermal cotangents; switch off heating to expose the
             # viscosity-dependent Rhie--Chow transport contribution separately.
             lambda.=0.;lambda[_fvt4_tindices(p)].=randn(rng,length(_fvt4_tindices(p)))
             copyto!(ws.λ,lambda)
-            allenergy=Kraken._fv_param_cotangent!(ws,map,s,U,theta)
+            allenergy=KrakeNN._fv_param_cotangent!(ws,map,s,U,theta)
             p0=_fvt4_problem(law,theta;target,sigma=0.);s0=fv_newton_solver(p0)
             w0=fv_adjoint_workspace(s0,map);copyto!(w0.λ,lambda)
-            transport=Kraken._fv_param_cotangent!(w0,map,s0,U,theta)
-            transportdual=Kraken._fv_param_cotangent!(w0,map,s0,U,theta;law_gradient=:duals)
+            transport=KrakeNN._fv_param_cotangent!(w0,map,s0,U,theta)
+            transportdual=KrakeNN._fv_param_cotangent!(w0,map,s0,U,theta;law_gradient=:duals)
             @test _fvt4_rel(transport,transportdual)<=1e-12
             @test norm(transport)>1e-6
             @test norm(allenergy-transport)>1e-6
             # Independent fixed-U dual of cell heating, without energy transport.
             function heating(t)
                 q=fv_param_problem(map,p,t)
-                sum(lambda[fv_index(p.grid,i,j,4)]*Kraken._fv_energy_heating(U,q.tag,q.nu,q.bvel,q.grid,i,j,q.visc,q.energy.sigma)
+                sum(lambda[fv_index(p.grid,i,j,4)]*KrakeNN._fv_energy_heating(U,q.tag,q.nu,q.bvel,q.grid,i,j,q.visc,q.energy.sigma)
                     for j in 1:5,i in 1:4)
             end
             heatingdual=ForwardDiff.gradient(heating,theta)
@@ -169,7 +169,7 @@ end
             @info "T4 fixed-state contributions" kind target contraction_relative=_fvt4_rel(a,b) transport_norm=norm(transport) heating_norm=norm(heatingdual) heating_relative=_fvt4_rel(allenergy-transport,heatingdual)
             # Existing residual-wall force must differentiate its state T input.
             obj=FVWallForce(1;kind=:residual_flux)
-            _,g=Kraken._fv_objective_grad_u(obj,U,p)
+            _,g=KrakeNN._fv_objective_grad_u(obj,U,p)
             d=zeros(length(U));d[_fvt4_tindices(p)].=randn(rng,length(_fvt4_tindices(p)))
             h=1e-4;fd=(fv_objective(obj,U+h*d,p)-fv_objective(obj,U-h*d,p))/(2h)
             @test abs(dot(g,d))>1e-8
@@ -181,8 +181,8 @@ end
         # h=1, nuf=.25, ubn=1, conv=1, dp=2 gives F=0 exactly.
         # The T reconstructions are unequal, so no unique derivative exists.
         gradient=ntuple(_->0.,6)
-        flux(nu)=Kraken._fv_interior_mass_flux(1.,1.,1.,0.,0.,1.,0.,2.,gradient,gradient,nu,true,1)
-        transport(nu)=Kraken._fv_posp(flux(nu))*2.0 + Kraken._fv_negp(flux(nu))*5.0
+        flux(nu)=KrakeNN._fv_interior_mass_flux(1.,1.,1.,0.,0.,1.,0.,2.,gradient,gradient,nu,true,1)
+        transport(nu)=KrakeNN._fv_posp(flux(nu))*2.0 + KrakeNN._fv_negp(flux(nu))*5.0
         @test flux(.25)==0.
         expected=(left=10.,right=4.) # dF/dnu=2 at the switching point.
         errors=Float64[]
@@ -253,7 +253,7 @@ end
             pc=_fvt4_problem(law,theta;target,sigma=0.,fields=())
             pi=_fvt4_problem(law,theta;target,thermal=false,fields=())
             sc=fv_newton_solver(pc);si=fv_newton_solver(pi)
-            Uc=_fvt4_initial(pc);Ui=zeros(fv_nunknowns(pi));Kraken._fv_initial_force!(Ui,pi)
+            Uc=_fvt4_initial(pc);Ui=zeros(fv_nunknowns(pi));KrakeNN._fv_initial_force!(Ui,pi)
             _fvt4_solve!(sc,Uc);_fvt4_solve!(si,Ui)
             ic=[fv_index(pc.grid,i,j,k) for j in 1:5 for i in 1:4 for k in 1:3]
             ii=[fv_index(pi.grid,i,j,k) for j in 1:5 for i in 1:4 for k in 1:3]

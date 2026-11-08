@@ -1,7 +1,7 @@
 # T1 storage/derivative invariants, CPU Float64. Gates are exact equality:
 # scalar identities and remapped flow blocks describe the same discrete operator.
-using Test, Kraken, Random, LinearAlgebra
-using Kraken.SparseArrays
+using Test, KrakeNN, Random, LinearAlgebra
+using KrakeNN.SparseArrays
 
 # Independent transcription of the original physical dependency rules. This
 # deliberately does not call the production dependency-declaration helpers.
@@ -56,14 +56,14 @@ end
 
 @testset "FV field layout: offsets and independent dependency rules" begin
     for ns in (0, 1, 2)
-        layout = Kraken.FVFieldLayout{ns}()
+        layout = KrakeNN.FVFieldLayout{ns}()
         @test isbitstype(typeof(layout))
-        @test Kraken._fv_nfields(layout) == 3 + ns
-        @test Kraken._fv_velocity_slot(layout, 2) == 2
-        @test Kraken._fv_pressure_slot(layout) == 3
-        @test Kraken._fv_scalar_slot(layout, 1) == 4
+        @test KrakeNN._fv_nfields(layout) == 3 + ns
+        @test KrakeNN._fv_velocity_slot(layout, 2) == 2
+        @test KrakeNN._fv_pressure_slot(layout) == 3
+        @test KrakeNN._fv_scalar_slot(layout, 1) == 4
     end
-    @test_throws ArgumentError Kraken.FVFieldLayout{-1}()
+    @test_throws ArgumentError KrakeNN.FVFieldLayout{-1}()
     bc = (W=:periodic, E=:periodic, S=:wall, N=:wall)
     for obstacle in (false, true)
         solid = falses(7, 7)
@@ -99,7 +99,7 @@ end
         fv_steady_problem(10, 10; h=1.0, bc, immersed=ib, wall_flux=0.0, nu=0.3))
     for (case, p) in enumerate(cases)
         @testset "case $case" begin
-            q = Kraken._fv_with_layout(p, Kraken.FVFieldLayout{1}())
+            q = KrakeNN._fv_with_layout(p, KrakeNN.FVFieldLayout{1}())
             g = q.grid
             @test fv_nunknowns(g) == 4g.Nx*g.Ny
             @test fv_nunknowns(q)-fv_nunknowns(g) == fv_nunknowns(p)-fv_nunknowns(p.grid)
@@ -111,7 +111,7 @@ end
             @test RX[scalar] == X[scalar]
             @test fv_fields(q, X) == fv_fields(p, U)
             @test fv_adapt(Array, q).grid === q.grid
-            @test Kraken._fv_with(q; nu=copy(q.nu)).grid === q.grid
+            @test KrakeNN._fv_with(q; nu=copy(q.nu)).grid === q.grid
             source = fv_param_problem(FVUniformSource(2), q, [0.7])
             @test source.src[scalar] == q.src[scalar]
             @test all(==(0.7), source.src[2:4:fv_nunknowns(g)])
@@ -127,10 +127,10 @@ end
             @test iszero(J1[scalar, ids]) && iszero(J1[ids, scalar])
             shifted = copy(fv_jacobian!(s1, X; shift=0.5))
             @test diag(shifted)[scalar] == ones(length(scalar))
-            sig = Kraken._fv_state_sig(s1.norms, 0.0, X)
+            sig = KrakeNN._fv_state_sig(s1.norms, 0.0, X)
             Y = copy(X); Y[last(scalar)] += 1.0
-            @test Kraken._fv_state_sig(s1.norms, 0.0, Y) != sig
-            @test maximum(abs, RX) == last(Kraken._fv_norms(s1.norms, RX))
+            @test KrakeNN._fv_state_sig(s1.norms, 0.0, Y) != sig
+            @test maximum(abs, RX) == last(KrakeNN._fv_norms(s1.norms, RX))
             params, values = if case == 2
                 FVProblemMap(fv_with_gnf_parameters, 5), fv_gnf_parameters(p)
             elseif case == 3
@@ -142,8 +142,8 @@ end
             lambda = randn(MersenneTwister(94), length(U))
             w0, w1 = fv_adjoint_workspace(s0, params), fv_adjoint_workspace(s1, params)
             copyto!(w0.λ, lambda); fill!(w1.λ, 0.3); w1.λ[ids] .= lambda
-            a = Kraken._fv_param_cotangent!(w0, params, s0, U, values)
-            b = Kraken._fv_param_cotangent!(w1, params, s1, X, values)
+            a = KrakeNN._fv_param_cotangent!(w0, params, s0, U, values)
+            b = KrakeNN._fv_param_cotangent!(w1, params, s1, X, values)
             @test a == b
             fv_set_params!(s1, params, values)
             @test s1.prob.grid === g
@@ -153,8 +153,8 @@ end
                 @test q.immersed.mass.quadrature_error == p.immersed.mass.quadrature_error
                 for obj in (FVWallForce(1;kind=:residual_flux), FVWallForce(1;kind=:surface))
                     @test fv_objective(obj, X, q) == fv_objective(obj, U, p)
-                    value0, gu0 = Kraken._fv_objective_grad_u(obj, U, p)
-                    value1, gu1 = Kraken._fv_objective_grad_u(obj, X, q)
+                    value0, gu0 = KrakeNN._fv_objective_grad_u(obj, U, p)
+                    value1, gu1 = KrakeNN._fv_objective_grad_u(obj, X, q)
                     @test value0 == value1 && gu1[ids] == gu0
                     @test iszero(gu1[scalar])
                     old_support = fv_objective_support(obj, p)
@@ -171,20 +171,20 @@ end
 end
 
 @testset "FV equation scales and Newton reports" begin
-    p = Kraken._fv_with_layout(fv_steady_problem(3, 2; conv=false), Kraken.FVFieldLayout{1}())
+    p = KrakeNN._fv_with_layout(fv_steady_problem(3, 2; conv=false), KrakeNN.FVFieldLayout{1}())
     solver = fv_newton_solver(p)
     nb = solver.norms
     for invalid in ([1.0], [1.0, 1.0, 1.0, 0.0], [1.0, 1.0, -1.0, 1.0],
                     [1.0, Inf, 1.0, 1.0], [NaN, 1.0, 1.0, 1.0])
-        @test_throws Exception Kraken._fv_equation_scales!(nb, invalid)
+        @test_throws Exception KrakeNN._fv_equation_scales!(nb, invalid)
         @test nb.equations.host_scales == ones(4)
     end
     scales = [2.0, 4.0, 8.0, 16.0]
-    Kraken._fv_equation_scales!(nb, scales)
+    KrakeNN._fv_equation_scales!(nb, scales)
     R = repeat([2.0, 8.0, 24.0, 64.0], 6)
-    eq = Kraken._fv_equation_norms(nb, R)
+    eq = KrakeNN._fv_equation_norms(nb, R)
     @test eq.inf == [1.0, 2.0, 3.0, 4.0]
-    @test last(Kraken._fv_norms(nb, R)) == 64.0
+    @test last(KrakeNN._fv_norms(nb, R)) == 64.0
     @test eq.l2 == sqrt.([6.0, 24.0, 54.0, 96.0])
     X = zeros(fv_nunknowns(p)); X[4:4:end] .= 2.0
     stats = fv_newton!(solver, X; atol=1e-12, rtol=0.0)
@@ -203,12 +203,12 @@ end
     @test gradient.residual_inf == 2.0
     @test iszero(gradient.gU[4:4:end])
     # More than one reduction tile, with an appended constraint-like row.
-    big = Kraken._FVNormBuffers(Array, 5; per=2, nextra=1, layout=Kraken.FVFieldLayout{1}())
+    big = KrakeNN._FVNormBuffers(Array, 5; per=2, nextra=1, layout=KrakeNN.FVFieldLayout{1}())
     state = Float64.(mod.(1:21, 17) .- 8)
-    @test Kraken._fv_state_sig(big, 0.0, state) == (0.0, sum(state), sum(abs2, state))
-    eq = Kraken._fv_equation_norms(big, state)
+    @test KrakeNN._fv_state_sig(big, 0.0, state) == (0.0, sum(state), sum(abs2, state))
+    eq = KrakeNN._fv_equation_norms(big, state)
     @test eq.l2[3] == sqrt(sum(abs2, state[3:4:20]) + state[end]^2)
-    before = Kraken._fv_state_sig(big, 0.0, state)
+    before = KrakeNN._fv_state_sig(big, 0.0, state)
     state[end] += 1.0
-    @test Kraken._fv_state_sig(big, 0.0, state) != before
+    @test KrakeNN._fv_state_sig(big, 0.0, state) != before
 end
