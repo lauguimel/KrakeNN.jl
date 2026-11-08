@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using ForwardDiff
 using Random
 using LinearAlgebra
@@ -72,9 +72,9 @@ _law_fit_target(gamma, temperature) =
     1.2*(1/temperature-1)
 
 struct _LawPolynomial <: AbstractScalarLaw end
-Kraken.law_nparams(::_LawPolynomial) = 2
-Kraken.law_ninputs(::_LawPolynomial) = 2
-Kraken.law_value(::_LawPolynomial, x::Tuple, theta::AbstractVector) =
+KrakeNN.law_nparams(::_LawPolynomial) = 2
+KrakeNN.law_ninputs(::_LawPolynomial) = 2
+KrakeNN.law_value(::_LawPolynomial, x::Tuple, theta::AbstractVector) =
     theta[1] * x[1]^2 + theta[2] * x[1] * x[2]
 
 _law_rebuild(m::PowerLaw, p) =
@@ -116,20 +116,20 @@ _law_rebuild(m::CarreauYasuda, p) =
             theta = law_init(law; rng=MersenneTwister(9))
             raw_h = law_init(law.mlp; rng=init_rng)
             nh = law_nparams(law.mlp)
-            ho = Kraken._mlp_output_offset(law.mlp)
-            width = Kraken._mlp_width(law.mlp)
+            ho = KrakeNN._mlp_output_offset(law.mlp)
+            width = KrakeNN._mlp_width(law.mlp)
             @test theta[1:ho] == raw_h[1:ho]
             @test theta[nh] == 0
             if law.monotone
-                @test all(isapprox.(Kraken._law_softplus.(theta[ho+1:ho+width]), 0.01;
+                @test all(isapprox.(KrakeNN._law_softplus.(theta[ho+1:ho+width]), 0.01;
                                    rtol=8eps(), atol=0))
-                @test isapprox(law.epsilon + Kraken._law_softplus(theta[end]), 1; rtol=8eps())
+                @test isapprox(law.epsilon + KrakeNN._law_softplus(theta[end]), 1; rtol=8eps())
                 bound = width*0.01
                 if law.field_mlp === nothing
                     @test law_nparams(law) == nh + 1
                 else
                     raw_g = law_init(law.field_mlp; rng=init_rng)
-                    go = Kraken._mlp_output_offset(law.field_mlp)
+                    go = KrakeNN._mlp_output_offset(law.field_mlp)
                     @test theta[nh+1:nh+go] == raw_g[1:go]
                     @test theta[nh+go+1:nh+go+width] == 0.2 .* raw_g[go+1:go+width]
                     @test theta[end-1] == 0
@@ -240,7 +240,7 @@ _law_rebuild(m::CarreauYasuda, p) =
                 reference = _law_rebuild(model, p)
                 for g in (1e-4, 0.2, 1.0, 5.0, 1e4)
                     @test isapprox(law_value(law, (g,), p),
-                                   Kraken.gnf_viscosity(reference, g^2 / 2); rtol=1e-14, atol=0)
+                                   KrakeNN.gnf_viscosity(reference, g^2 / 2); rtol=1e-14, atol=0)
                     _law_check_derivatives(law, (g,), p)
                 end
             end

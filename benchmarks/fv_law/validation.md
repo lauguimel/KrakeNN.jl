@@ -10,7 +10,7 @@ not the full repository suite or GPU numerical execution.
 ## Unchanged-test comparison
 
 The six existing files below were run unchanged, in the same order, each
-inside its own module and top-level testset. The before process loaded Kraken
+inside its own module and top-level testset. The before process loaded KrakeNN
 before source modifications. Test Summary counts and rounded times are copied
 verbatim from that runner's output. Both processes exited 0; no failures,
 errors, or broken tests were reported. The before/after test counts match.
@@ -73,18 +73,18 @@ Temperature remains fixed while network parameters vary. Scalar/cell type
 inference covers all six real/dual and monotone/free combinations; kernel
 reflection checks the monotone parameter-dual and state-dual cases.
 
-The final independent check used a fresh Julia process, loaded Kraken, then
+The final independent check used a fresh Julia process, loaded KrakeNN, then
 timed the complete file inclusion. Total elapsed was **27.751042417 s,
 compilation included** (`27.334223335 s` of compilation). A separate fresh
 process measured `28.511797834 s`, also including compilation. Both complete
 inclusions satisfy the 30-second gate; no compilation time was subtracted.
-Package startup and the initial `using Kraken` precede the timer. The timing
+Package startup and the initial `using KrakeNN` precede the timer. The timing
 refinement removed duplicate free-law force checks and redundant kernel
 reflection; no numerical threshold or required objective check was weakened.
 
 ```sh
 julia --startup-file=no --project=. test/analytical/incns_fv_law_test.jl
-julia --startup-file=no --project=. -e 'using Kraken; t=@timed include("test/analytical/incns_fv_law_test.jl"); println((elapsed_seconds=t.time,compile_seconds=t.compile_time));'
+julia --startup-file=no --project=. -e 'using KrakeNN; t=@timed include("test/analytical/incns_fv_law_test.jl"); println((elapsed_seconds=t.time,compile_seconds=t.compile_time));'
 ```
 
 ## Allocation diagnosis and corrected implementation
@@ -133,13 +133,13 @@ Both shell files passed `bash -n`; both Julia scripts parsed successfully;
 
 Date: 2026-11-07. Apple M3, macOS arm64, Julia 1.12.5, CPU Float64.
 The new `test/analytical/incns_fv_law_contraction_test.jl` passed **99/99**
-checks. A fresh process, with Kraken loaded before the timer, took
+checks. A fresh process, with KrakeNN loaded before the timer, took
 `27.715442833 s` for the complete file inclusion, including
 `27.482308501 s` of compilation. The test therefore meets the 30-second
 unit-test gate without subtracting compilation. Reproduction:
 
 ```sh
-julia --startup-file=no --project=. -e 'using Kraken; t=@timed include("test/analytical/incns_fv_law_contraction_test.jl"); println((elapsed_seconds=t.time,compile_seconds=t.compile_time));'
+julia --startup-file=no --project=. -e 'using KrakeNN; t=@timed include("test/analytical/incns_fv_law_contraction_test.jl"); println((elapsed_seconds=t.time,compile_seconds=t.compile_time));'
 ```
 
 Every law (ClassicalLaw/Carreau--Yasuda, monotone LearnedViscosity, and free
@@ -160,7 +160,7 @@ and supplied parameters differing from those in the solver problem. Invalid
 gradient-mode keywords are rejected.
 
 The unchanged-test runner shown in the L2 receipt was rerun with the following
-six paths. The before process loaded Kraken before any L3 source edits, and the
+six paths. The before process loaded KrakeNN before any L3 source edits, and the
 after process loaded the finished implementation. Both exited 0. Counts and
 rounded test-summary times follow; times include compilation and are not warmed
 flow timings.

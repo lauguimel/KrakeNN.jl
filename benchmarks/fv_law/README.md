@@ -24,7 +24,7 @@ and learned residual histories, directional derivatives, and timing/allocation
 receipts. All gates passed on one H100 (Aqua job 27746753, 2026-11-08); the
 receipt is in [validation.md](validation.md).
 
-From an environment already containing CUDA, CUDSS, and this Kraken checkout:
+From an environment already containing CUDA, CUDSS, and this KrakeNN checkout:
 
 ```sh
 KRAKEN_REQUIRE_GPU=1 julia --startup-file=no --project=env benchmarks/fv_law/law_gpu.jl
@@ -73,7 +73,7 @@ requiring 3, 15, and 62 sweeps respectively. Columns prefixed `l3_` append the
 same-case L3 measurements of both `law_gradient=:contraction` and `:duals`.
 The original three rows and historical columns are preserved on reruns.
 
-The measured operation is `Kraken._fv_param_cotangent!`:
+The measured operation is `KrakeNN._fv_param_cotangent!`:
 `-lambda' * dR/dtheta`, at a seeded arbitrary velocity/pressure state and seeded
 fixed `lambda`. It includes parameter seeds, residual evaluations, reduction,
 and the host result. It excludes Newton iterations, Jacobian assembly,

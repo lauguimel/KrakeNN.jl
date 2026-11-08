@@ -2,7 +2,7 @@
 # Float64 relative contraction/parameter-dual agreement <= 1e-12 and centred
 # differences of full converged objectives in two random directions <= 1e-6.
 # These are discrete derivative checks, not continuum-accuracy tolerances.
-using Test, Kraken, Random, LinearAlgebra
+using Test, KrakeNN, Random, LinearAlgebra
 
 _fvl3_rel(a, b) = norm(a-b) / max(norm(a), norm(b), eps(Float64))
 function _fvl3_law(kind)
@@ -93,8 +93,8 @@ end
         U = 0.1randn(MersenneTwister(71),fv_nunknowns(p))
         copyto!(ws.λ,randn(MersenneTwister(72),length(U)))
         for supplied in (theta,theta.+0.01)
-            a = Kraken._fv_param_cotangent!(ws,map,s,U,supplied;law_gradient=:contraction)
-            b = Kraken._fv_param_cotangent!(ws,map,s,U,supplied;law_gradient=:duals)
+            a = KrakeNN._fv_param_cotangent!(ws,map,s,U,supplied;law_gradient=:contraction)
+            b = KrakeNN._fv_param_cotangent!(ws,map,s,U,supplied;law_gradient=:duals)
             @test _fvl3_rel(a,b) <= 1e-12
         end
     end

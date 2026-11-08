@@ -1,5 +1,5 @@
 # Prepared CUDA/cuDSS validation. Default size: 512^2, Float64, no CPU solve.
-using Test, LinearAlgebra, Random, Statistics, Printf, Kraken
+using Test, LinearAlgebra, Random, Statistics, Printf, KrakeNN
 
 # Plain top-level imports: an `@eval using CUDA` inside the same expression as
 # its first use hits the world-age trap and kills the job at start-up.
@@ -41,7 +41,7 @@ function law_gpu_fd_objective!(s, U0, map, theta, obj)
     st = fv_newton!(s, U; LAW_NEWTON...)
     st.converged || error("Perturbed GPU Newton did not converge")
     # The objective is evaluated on the host, matching fv_steady_gradient.
-    return fv_objective(obj, Array(U), Kraken._fv_host_problem(s.prob))
+    return fv_objective(obj, Array(U), KrakeNN._fv_host_problem(s.prob))
 end
 
 function law_write_csv(path, records)
@@ -70,7 +70,7 @@ function law_gpu_fixed_setup(law, theta, N; immersed=false)
 end
 
 function law_gpu_fixed_operation(case, theta, path)
-    r = Kraken._fv_param_cotangent!(case.ws,case.map,case.s,case.U,theta;
+    r = KrakeNN._fv_param_cotangent!(case.ws,case.map,case.s,case.U,theta;
         law_gradient=path)
     CUDA.synchronize()
     return r
@@ -101,7 +101,7 @@ function law_gpu_contraction_main()
             cpu = fv_newton_solver(case.p)
             cpuws = fv_adjoint_workspace(cpu,case.map;chunk=4)
             copyto!(cpuws.λ,case.lambda)
-            reference = Kraken._fv_param_cotangent!(cpuws,case.map,cpu,case.Uh,theta;
+            reference = KrakeNN._fv_param_cotangent!(cpuws,case.map,cpu,case.Uh,theta;
                 law_gradient=:duals)
             cpu_relative_error = law_gradient_relative(c,reference)
             @test cpu_relative_error <= 1e-12
@@ -165,7 +165,7 @@ function law_gpu_main()
     output = get(ENV, "KRAKEN_LAW_OUTPUT", @__DIR__)
     mkpath(output)
     println("GPU=", CUDA.name(CUDA.device()), " N=", N, " precision=Float64 CUDA=",
-        pkgversion(CUDA), " CUDSS=", pkgversion(CUDSS), " Kraken=", pkgversion(Kraken))
+        pkgversion(CUDA), " CUDSS=", pkgversion(CUDSS), " KrakeNN=", pkgversion(KrakeNN))
     flush(stdout)
 
     classical = CarreauYasuda(0.3, 0.03, 2.0, 2.0, 0.7)

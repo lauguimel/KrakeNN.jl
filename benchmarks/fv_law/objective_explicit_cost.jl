@@ -1,6 +1,6 @@
 # Host explicit-objective cost at fixed state: no Newton or adjoint solve.
 # Match the L3 248-parameter model; use an immersed circle with 92 wall faces.
-using Kraken, Random, LinearAlgebra, Statistics
+using KrakeNN, Random, LinearAlgebra, Statistics
 
 function objective_explicit_cost()
     N = 64
@@ -18,14 +18,14 @@ function objective_explicit_cost()
     copyto!(ws.λ,randn(MersenneTwister(72),length(U)))
     for kind in (:contraction,:residual_flux,:surface)
         operation = kind == :contraction ?
-            () -> Kraken._fv_param_cotangent!(ws,map,s,U,theta;law_gradient=:contraction) :
-            () -> Kraken._fv_objective_grad_theta(FVWallForce(1;kind),map,U,p,theta)
+            () -> KrakeNN._fv_param_cotangent!(ws,map,s,U,theta;law_gradient=:contraction) :
+            () -> KrakeNN._fv_objective_grad_theta(FVWallForce(1;kind),map,U,p,theta)
         cold = @timed operation()
         all(isfinite,cold.value) || error("Nonfinite result")
         warm = [@timed operation() for _ in 1:3]
         all(r -> r.value == cold.value,warm) || error("Non-reproducible result")
         println((;kind,N,parameters=length(theta),
-            wall_faces=length(Kraken._fv_wall_faces(FVWallForce(1),p)),cold_s=cold.time,
+            wall_faces=length(KrakeNN._fv_wall_faces(FVWallForce(1),p)),cold_s=cold.time,
             compile_s=cold.compile_time,warm_s=median(r.time for r in warm),
             host_bytes=minimum(r.bytes for r in warm),gradient_norm=norm(cold.value)))
         flush(stdout)

@@ -1,6 +1,6 @@
 # Isolated CPU cost of both -lambda' * dR/dtheta paths at fixed U and lambda.
 # No Newton solve, Jacobian assembly, transposed solve, or full objective gradient.
-using Kraken, Random, LinearAlgebra, Statistics, Dates
+using KrakeNN, Random, LinearAlgebra, Statistics, Dates
 
 function parameter_sweep_cost(width; N=64, chunk=4, samples=3)
     law = LearnedViscosity(TinyMLP{2,width,1}(); nu_ref=0.3, monotone=true)
@@ -18,7 +18,7 @@ function parameter_sweep_cost(width; N=64, chunk=4, samples=3)
     rows = NamedTuple[]
     values = Vector{Float64}[]
     for path in (:contraction,:duals)
-        operation() = Kraken._fv_param_cotangent!(ws,map,solver,U,theta;law_gradient=path)
+        operation() = KrakeNN._fv_param_cotangent!(ws,map,solver,U,theta;law_gradient=path)
         cold = @timed operation()
         reference = copy(cold.value)
         push!(values,reference)
