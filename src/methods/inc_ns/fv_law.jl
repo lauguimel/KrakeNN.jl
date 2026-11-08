@@ -113,6 +113,10 @@ end
 @inline _fv_law_number_type(::Type{TinyMLP{N,H,L,T}}) where {N,H,L,T} = T
 @inline _fv_law_number_type(::Type{LearnedViscosity{M,B,T,G}}) where {M,B,T,G} =
     promote_type(T, _fv_law_number_type(M), _fv_law_number_type(G))
+# Explicit: the generic fallback below splats too many field types (e.g. the
+# 8-tuple of E5ThermalLaw) for inference, leaving a dynamic call on device.
+@inline _fv_law_number_type(::Type{E5ThermalLaw{T}}) where {T} = T
+@inline _fv_law_number_type(::Type{NTuple{N,T}}) where {N,T<:Number} = T
 @inline _fv_law_number_type(::Type{T}) where {T} =
     promote_type(Bool, ntuple(i -> _fv_law_number_type(fieldtype(T, i)), Val(fieldcount(T)))...)
 @inline function _fv_visc_eltype(::FVLawViscosity{L,A,F,T}) where {L,A,F,T}
