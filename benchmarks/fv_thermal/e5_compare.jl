@@ -188,13 +188,22 @@ function bottom_flux(T, fluid, Tw, alpha)
     return sum(2alpha * (T[i, 1] - Tw) for i in 1:size(T, 1) if fluid[i, 1]; init = 0.0)
 end
 
+# Stopping gate and round-off-floor diagnostics (thermal solves only).
+function gate_fields!(res, stats)
+    hasproperty(stats, :gate) || return res
+    res["gate"] = string(stats.gate)
+    f = stats.energy_floor
+    f === nothing || (res["floor_max_abs"] = f.max_floor; res["floor_max_ratio_residual_over_floor"] = f.max_ratio)
+    return res
+end
+
 function newton_summary(stats, nunk, nnz_, secs, mem0, mem1)
-    return Dict{String,Any}("converged" => stats.converged, "iterations" => stats.iterations,
+    return gate_fields!(Dict{String,Any}("converged" => stats.converged, "iterations" => stats.iterations,
         "final_residual_inf" => isempty(stats.inf) ? NaN : last(stats.inf),
         "initial_residual_inf" => isempty(stats.inf) ? NaN : first(stats.inf),
         "n_unknowns" => nunk, "nnz" => nnz_, "seconds" => secs,
         "gpu_used_bytes_before" => mem0, "gpu_used_bytes_after" => mem1,
-        "gpu_peak_note" => "device used memory (total-free, includes pool cache) sampled before and after the solve")
+        "gpu_peak_note" => "device used memory (total-free, includes pool cache) sampled before and after the solve"), stats)
 end
 
 function write_csv(path, cols, Nx, Ny)
@@ -271,10 +280,11 @@ function stage2(cs::Case; outdir = nothing)
         "min_scaled_residual" => minimum(r.stats.history),
         "last_increment_over_deltaT" => isempty(r.stats.temperature_increment) ? 0.0 :
             last(r.stats.temperature_increment) / r.sol.scales.deltaT,
-        "gate_note" => "gate is scaled residual <= 1e-10 AND increment <= 1e-10 deltaT; the state is theta = T - T_ref (T_ref = T_wall), so absolute-T round-off is not the floor",
+        "gate_note" => "gate is (scaled residual <= 1e-10 AND increment <= 1e-10 deltaT) = tolerance, or (increment criterion AND every row <= C eps sum|terms|) = roundoff_floor; the state is theta = T - T_ref (T_ref = T_wall)",
         "n_unknowns" => length(T),
         "nnz" => length(r.sol.nzval), "seconds" => r.tsolve, "setup_seconds" => r.tsetup,
         "gpu_used_bytes_before" => r.mem0, "gpu_used_bytes_after" => r.mem1)
+    gate_fields!(res, r.stats)
     res["dT"] = compare(T .- Tw, cs.T .- Tw, fluid)
     m_fv = mean_rise(T, fluid, Tw); m_lbm = mean_rise(cs.T, fluid, Tw)
     res["m_fv"] = m_fv; res["m_lbm"] = m_lbm; res["m_ratio_fv_over_lbm"] = m_fv / m_lbm
@@ -318,6 +328,7 @@ function stage3(cs::Case; outdir = nothing, fd::Bool = true)
         "newton_iterations_per_step" => [h.stats.iterations for h in cont.history],
         "newton_iterations_total" => sum(h.stats.iterations for h in cont.history; init = 0),
         "sigma_per_step" => [h.sigma for h in cont.history],
+        "gate_per_step" => string.(cont.gates),
         "n_unknowns" => fv_nunknowns(prob), "nnz" => length(cont.solver.nzval),
         "seconds_continuation" => tcont, "gpu_used_bytes_before" => mem0, "gpu_used_bytes_after" => mem1)
     res["attempt_reasons"] = [string(a.reason) for a in cont.attempts]

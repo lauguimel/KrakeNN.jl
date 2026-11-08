@@ -244,8 +244,26 @@ end
     @inbounds return _fv_energy_heating_from_gradient(nu[i, j], visc, gP, i, j, sigma, g.h)
 end
 
+# Accumulation of the thermal row. `Val(false)` is the residual itself (the
+# grouping of every sum is the historical one, so results are bit-identical);
+# `Val(true)` adds the absolute value of each term instead, which is the
+# magnitude of what cancels in the row (see `_fv_energy_roundoff_floor!`).
+@inline _fv_eacc(::Val{false}, R, a) = R + a
+@inline _fv_eacc(::Val{true}, R, a) = R + abs(a)
+@inline _fv_eacc(::Val{false}, R, a, b) = R + (a + b)
+@inline _fv_eacc(::Val{true}, R, a, b) = R + (abs(a) + abs(b))
+# Diffusive flux a*(x - y): in magnitude mode its operands a*x and a*y are what
+# cancel (each carries the storage rounding of its temperature), not |a*(x - y)|.
+@inline _fv_ediff(::Val{false}, a, x, y) = a * (x - y)
+@inline _fv_ediff(::Val{true}, a, x, y) = a * (abs(x) + abs(y))
+@inline _fv_esolid(::Val{false}, TP, z) = TP + z
+@inline _fv_esolid(::Val{true}, TP, z) = z
+
 """Integrated thermal row using exactly the continuity mass-flux expression."""
-@inline function _fv_energy_cell(U, tag, nu, bvel, g, i, j, visc, energy, source)
+@inline _fv_energy_cell(U, tag, nu, bvel, g, i, j, visc, energy, source) =
+    _fv_energy_cell(U, tag, nu, bvel, g, i, j, visc, energy, source, Val(false))
+
+@inline function _fv_energy_cell(U, tag, nu, bvel, g, i, j, visc, energy, source, mode::Val)
     visc = _fv_bind_viscosity(visc, U, g)
     slot = _fv_scalar_slot(g.layout, 1)
     TP = _fv_val(U, g, i, j, slot)  # theta = T - T_ref: the state stores theta
@@ -253,7 +271,7 @@ end
     @inbounds nuP = nu[i, j]
     z = zero(TP) + zero(nuP) + zero(eltype(bvel)) + _fv_visc_zero(visc) +
         zero(energy.alpha) + zero(eltype(source))
-    @inbounds tag[i, j] == FV_CELL_SOLID && return TP + z
+    @inbounds tag[i, j] == FV_CELL_SOLID && return _fv_esolid(mode, TP, z)
     thP = TP
     uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2)
     pP = _fv_val(U, g, i, j, 3)
@@ -283,21 +301,21 @@ end
                                        gP, gN, nuf, isx, sx)
             F = _fv_energy_face_flux(source, F, g, d, i, j, ii, jj)
             positive, negative = _fv_energy_face_temperature(U, tag, g, i, j, d, ii, jj, energy.scheme)
-            R += _fv_posp(F) * positive + _fv_negp(F) * negative
-            R += energy.alpha * (thP - thN)
+            R = _fv_eacc(mode, R, _fv_posp(F) * positive, _fv_negp(F) * negative)
+            R = _fv_eacc(mode, R, _fv_ediff(mode, energy.alpha, thP, thN))
         else
             # Only domain walls can carry heat; voxel-solid faces are insulated.
             if _fv_domain_face(g, i, j, d)
                 uw, vw = _fv_dirichlet_velocity(g, bvel, i, j, d)
                 F = g.h * sx * (isx ? uw : vw)
                 boundary_th = energy.dirichlet[d] ? energy.boundary[d] - Tref : thP
-                R += _fv_posp(F) * thP + _fv_negp(F) * boundary_th
-                energy.dirichlet[d] && (R += 2 * energy.alpha * (thP - boundary_th))
+                R = _fv_eacc(mode, R, _fv_posp(F) * thP, _fv_negp(F) * boundary_th)
+                energy.dirichlet[d] && (R = _fv_eacc(mode, R, _fv_ediff(mode, 2 * energy.alpha, thP, boundary_th)))
             end
         end
     end
-    R -= _fv_energy_heating_from_gradient(nuP, visc, gP, i, j, energy.sigma, g.h)
-    @inbounds R -= g.h * g.h * source[i, j]
+    R = _fv_eacc(mode, R, -_fv_energy_heating_from_gradient(nuP, visc, gP, i, j, energy.sigma, g.h))
+    @inbounds R = _fv_eacc(mode, R, -(g.h * g.h * source[i, j]))
     return R
 end
 
@@ -336,4 +354,77 @@ function fv_fields(prob::FVSteadyProblem2D{<:FVGrid2D,<:Any,<:Any,<:Any,<:Any,<:
     tag = Array(prob.tag)
     return u, v, p, [tag[k] == FV_CELL_SOLID ? theta[k] : theta[k] + prob.energy.Tref
                      for k in CartesianIndices(theta)]
+end
+
+# ------------------------------------------------------------------ round-off floor
+"""Multiplier of the per-cell round-off floor (fixed before any measurement, never tuned).
+
+64 = 4 faces x (convective + diffusive term) x a generous 8 for the accumulated
+rounding of a short sum of products of already-rounded operands.
+"""
+const FV_ENERGY_FLOOR_C = 64.0
+
+@kernel function _fv_energy_floor_kernel!(Fl, @Const(U), @Const(tag), @Const(nu), @Const(bvel),
+                                          g, visc, energy, @Const(source), C)
+    i, j = @index(Global, NTuple)
+    s = _fv_energy_cell(U, tag, nu, bvel, g, i, j, visc, energy, source, Val(true))
+    @inbounds Fl[fv_index(g, i, j, 0) + _fv_scalar_slot(g.layout, 1)] = C * eps(typeof(s)) * s
+end
+
+"""
+    _fv_energy_roundoff_floor!(Fl, U, prob; C = FV_ENERGY_FLOOR_C, workgroup = 64) -> Fl
+
+Write into the thermal slot of every cell of `Fl` (length `fv_nunknowns(prob)`,
+same backend as `U`) the round-off floor `C * eps * sum(|terms|)` of the energy
+row: the same kernel body as the residual, accumulating the absolute value of
+each term (convective face fluxes, diffusive fluxes, wall terms, heating, source)
+instead of their signed sum. Solid cells get 0. `eps` is the machine epsilon of
+`eltype(Fl)`: the terms already carry the magnitude of the temperature.
+"""
+function _fv_energy_roundoff_floor!(Fl, U, prob::FVSteadyProblem2D; C::Real = FV_ENERGY_FLOOR_C,
+                                    workgroup::Int = 64)
+    prob.energy === nothing && throw(ArgumentError("round-off floor requires an energy model"))
+    g = prob.grid
+    backend = KernelAbstractions.get_backend(U)
+    energy, energy_source = _fv_energy_args(prob.energy)
+    _fv_energy_floor_kernel!(backend, workgroup)(Fl, U, prob.tag, prob.nu, prob.bvel, g, prob.visc,
+        energy, energy_source, eltype(Fl)(C); ndrange = (g.Nx, g.Ny))
+    KernelAbstractions.synchronize(backend)
+    return Fl
+end
+
+@kernel function _fv_floor_excess_kernel!(Pt, @Const(R), @Const(Fl), layout, ncell, per)
+    t = @index(Global)
+    excess = -Inf; fmax = 0.0; ratio = 0.0
+    @inbounds for cell in ((t - 1) * per + 1):min(t * per, ncell)
+        k = _fv_cell_index(layout, cell, 4)
+        r = abs(R[k]); f = Fl[k]
+        excess = max(excess, r - f)
+        fmax = max(fmax, f)
+        ratio = max(ratio, f > 0 ? r / f : (r > 0 ? Inf : 0.0))
+    end
+    @inbounds begin
+        Pt[1, t] = excess; Pt[2, t] = fmax; Pt[3, t] = ratio
+    end
+end
+
+"""
+    _fv_energy_floor_check(nb, R, Fl, layout) -> (; passed, excess, max_floor, max_ratio)
+
+Compare `|R|` with the floor `Fl` over all thermal rows (both full-layout
+vectors). `passed` iff no cell exceeds its floor; `max_ratio = max |R|/floor`
+(`Inf` where the floor is 0 and `R` is not). Uses the preallocated partials
+of `nb`; no device allocation.
+"""
+function _fv_energy_floor_check(nb, R, Fl, layout)
+    backend = KernelAbstractions.get_backend(R)
+    _fv_floor_excess_kernel!(backend, 64)(nb.dev, R, Fl, layout, nb.ncell, nb.per;
+                                         ndrange = size(nb.dev, 2))
+    KernelAbstractions.synchronize(backend)
+    H = nb.dev isa Array ? nb.dev : copyto!(nb.host, nb.dev)
+    excess = -Inf; fmax = 0.0; ratio = 0.0
+    @inbounds for t in axes(H, 2)
+        excess = max(excess, H[1, t]); fmax = max(fmax, H[2, t]); ratio = max(ratio, H[3, t])
+    end
+    return (; passed = excess <= 0, excess, max_floor = fmax, max_ratio = ratio)
 end

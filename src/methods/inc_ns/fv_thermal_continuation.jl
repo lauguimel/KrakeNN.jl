@@ -44,10 +44,10 @@ function _fv_continuation_attempt!(s,U,scales;maxit,verbose)
                             alpha_min=1e-4,abort_small_step=true)
         reason = stats.converged ? :converged : stats.failure_reason == :line_search ?
                  :line_search : stats.iterations >= maxit ? :max_iterations : :stagnated
-        return (; converged=stats.converged,reason,stats,error=nothing)
+        return (; converged=stats.converged,reason,stats,gate=stats.gate,error=nothing)
     catch error
         _fv_continuation_failure(error) || rethrow()
-        return (;converged=false,reason=:singular_factorization,stats=nothing,
+        return (;converged=false,reason=:singular_factorization,stats=nothing,gate=:none,
                  error=sprint(showerror,error))
     end
 end
@@ -71,7 +71,8 @@ at most five times in the whole run. No arclength continuation is attempted.
 
 Returns fields, device `U`, solver, `converged`, `reason`, `last_sigma`,
 `last_failure`, `halvings`, converged-step `history`, and all `attempts`.
-Each history entry includes `sigma`, Newton `stats`, and `singular_min`, an
+Each history entry includes `sigma`, Newton `stats`, the stopping `gate` of that
+step (`:tolerance` or `:roundoff_floor`, see [`fv_newton!`](@ref)) and `singular_min`, an
 inverse-iteration estimate for the physical Jacobian using normal/transpose
 solves of its existing factorization. Exhaustion is a structured return;
 `reason=:step_halving_limit` may indicate thermal runaway but does not prove
@@ -120,13 +121,13 @@ function fv_thermal_continuation(prob::FVSteadyProblem2D; U0=nothing,
                 estimate = _fv_smallest_singular_estimate!(s,x,y,z;iterations=singular_iterations)
             catch error
                 _fv_continuation_failure(error) || rethrow()
-                attempt = (;converged=false,reason=:singular_factorization,stats=attempt.stats,
+                attempt = (;converged=false,reason=:singular_factorization,stats=attempt.stats,gate=:none,
                              error=sprint(showerror,error))
             end
         end
         push!(attempts,(;sigma=trial_sigma,step,halvings,attempt...))
         if attempt.converged
-            push!(history,(;sigma=trial_sigma,singular_min=estimate,stats=attempt.stats))
+            push!(history,(;sigma=trial_sigma,singular_min=estimate,gate=attempt.gate,stats=attempt.stats))
             copyto!(saved,U); last_sigma = trial_sigma
             if trial_sigma >= nominal
                 reason = :converged
@@ -152,5 +153,5 @@ function fv_thermal_continuation(prob::FVSteadyProblem2D; U0=nothing,
     end
     u,v,pressure,temperature = fv_fields(p,U)
     return (;converged=reason==:converged,reason,last_sigma,last_failure,halvings,
-             history,attempts,U,u,v,p=pressure,T=temperature,solver=s,thermal_scales=scales)
+             history,attempts,gates=[h.gate for h in history],U,u,v,p=pressure,T=temperature,solver=s,thermal_scales=scales)
 end

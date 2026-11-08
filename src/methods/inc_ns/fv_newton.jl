@@ -666,6 +666,24 @@ function _fv_factor!(s::FVNewtonSolver)
     return s.cache
 end
 
+# Stopping gate of the thermal Newton: the scaled tolerance gate first, then the
+# round-off floor gate. Returns (gate, floor) with gate in
+# (:tolerance, :roundoff_floor, :none); `floor` is the last floor check or nothing.
+# The floor gate needs the same increment criterion, every non-energy equation
+# within the tolerance, and |R_c| <= floor_c in every thermal row. `scratch` is a
+# full-length work vector (its thermal slots receive the floor); R holds R(U).
+function _fv_thermal_gate(s::FVNewtonSolver, U, equations, increment, scales, scratch)
+    energy_slot = _fv_scalar_slot(s.prob.grid.layout, 1)
+    increment_ok = increment <= 1e-10 * scales.deltaT
+    maximum(equations.inf) <= 1e-10 && increment_ok && return :tolerance, nothing
+    increment_ok || return :none, nothing
+    all(e -> e == energy_slot || equations.inf[e] <= 1e-10, eachindex(equations.inf)) ||
+        return :none, nothing
+    _fv_energy_roundoff_floor!(scratch, U, s.prob)
+    check = _fv_energy_floor_check(s.norms, s.R, scratch, s.prob.grid.layout)
+    return (check.passed ? :roundoff_floor : :none), check
+end
+
 """
     fv_newton!(solver, U; atol = 1e-12, rtol = 1e-13, maxit = 30,
                linesearch = true, armijo = 1e-4, alpha_min = 2.0^-10,
@@ -693,6 +711,14 @@ Pseudo-transient continuation (off by default): with `dtau0` set, the momentum
 rows get the diagonal shift `h²/Δτ_k`, `Δτ_k = dtau0 ‖R₀‖₂ / ‖R_k‖₂` (switched
 evolution relaxation); once `Δτ_k ≥ dtau_max` the shift is dropped for good,
 so the last iterations are pure Newton (quadratic convergence).
+
+A second way to pass (energy only) is the round-off floor gate: the increment
+criterion above, every non-energy equation within 1e-10, and `|R_c| ≤ floor_c`
+in every thermal row, `floor_c = FV_ENERGY_FLOOR_C · eps · Σ|terms of row c|`
+(the magnitude of what cancels in the row; see `_fv_energy_roundoff_floor!`).
+The scaled tolerance gate is tried first. The result carries `gate`
+(`:tolerance`, `:roundoff_floor`, or `:none` when not converged) and
+`energy_floor` (`(passed, excess, max_floor, max_ratio)` of the last check).
 
 Returns `(converged, stagnated, iterations, history, mom, cont, inf, alpha,
 shift, t_assembly, t_factor, t_solve, t_linesearch, n_factorize, n_refactorize)`:
@@ -729,7 +755,13 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
     r0 = r
     push!(hist, r); push!(mom, m); push!(cont, c); push!(inf, ri)
     ptc = dtau0 !== nothing
-    converged = thermal ? maximum(equations.inf) <= 1e-10 : ri <= atol || r <= rtol * r0
+    gate = :none; floor_check = nothing
+    if thermal
+        gate, floor_check = _fv_thermal_gate(s, U, equations, 0.0, thermal_scales, Ut)
+        converged = gate !== :none
+    else
+        converged = ri <= atol || r <= rtol * r0
+    end
     stagnated = false
     failure_reason = :none
     nfail = 0
@@ -776,9 +808,13 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
         push!(ts, (t3 - t2) / 1e9); push!(tl, (t4 - t3) / 1e9)
         verbose && @info "fv_newton" it res = rt inf = rit alpha shift = sigma
         thermal && push!(temperature_increment, alpha * delta_temperature)
-        converged = thermal ? (maximum(equation_trial.inf) <= 1e-10 &&
-                               alpha * delta_temperature <= 1e-10 * thermal_scales.deltaT) :
-                              rit <= atol || rt <= rtol * r0
+        if thermal
+            gate, floor_check = _fv_thermal_gate(s, U, equation_trial, alpha * delta_temperature,
+                                                 thermal_scales, Ut)
+            converged = gate !== :none
+        else
+            converged = rit <= atol || rt <= rtol * r0
+        end
         if nfail >= 2 && (!thermal || !converged)
             stagnated = true
             break
@@ -789,7 +825,13 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
             t_solve = ts, t_linesearch = tl,
             n_factorize = s.n_factorize, n_refactorize = s.n_refactorize,
             equation_l2, equation_inf, equation_scales)
-    return thermal ? merge(result, (; temperature_increment, thermal_scales, failure_reason)) : result
+    if thermal && floor_check === nothing
+        # Diagnostic only: the floor state of the final iterate.
+        _fv_energy_roundoff_floor!(Ut, U, p)
+        floor_check = _fv_energy_floor_check(s.norms, R, Ut, p.grid.layout)
+    end
+    return thermal ? merge(result, (; temperature_increment, thermal_scales, failure_reason,
+                                    gate, energy_floor = floor_check)) : result
 end
 
 # ------------------------------------------------------------------ frozen-flow energy solve
@@ -813,6 +855,7 @@ mutable struct FVEnergySolver{P,A,M,V,B,N,S}
     trial::V
     norms::N
     scales::S
+    floor::V
 end
 
 @kernel function _fv_energy_scatter_kernel!(U, @Const(temperature), layout)
@@ -866,7 +909,7 @@ function fv_energy_solver(prob::FVSteadyProblem2D, U::AbstractVector;
     nb=_FVNormBuffers(to,n)
     return FVEnergySolver(fv_adapt(to,prob),asm,J,nzval,linsolve,nothing,
         to(Float64.(U)),to(zeros(nfull)),to(zeros(n)),to(zeros(n)),to(zeros(n)),
-        nb,_fv_energy_scales(prob))
+        nb,_fv_energy_scales(prob),to(zeros(nfull)))
 end
 
 function _fv_energy_block_norm(s, R)
@@ -879,6 +922,12 @@ function _fv_energy_block_norm(s, R)
         square+=H[1,t]; inf=max(inf,H[2,t])
     end
     return sqrt(square),inf
+end
+# Floor check of the residual last evaluated by _fv_energy_block_residual!
+# (s.Rfull holds it in full layout).
+function _fv_energy_solver_floor(s)
+    _fv_energy_roundoff_floor!(s.floor,s.U,s.prob)
+    return _fv_energy_floor_check(s.norms,s.Rfull,s.floor,s.prob.grid.layout)
 end
 function _fv_energy_block_residual!(s, temperature)
     backend=KernelAbstractions.get_backend(temperature); n=length(temperature)
@@ -896,14 +945,22 @@ Solve only the T block in place with frozen u,v,p. `temperature` is the raw
 state block, i.e. `theta = T - T_ref` of fluid cells (`prob.energy.Tref`; solid
 rows are storage identities and start at 0). The residual is affine in T
 in T2; Newton normally takes one physical step and one round-off correction.
-Stopping requires scaled max residual <=1e-10 AND max increment <=1e-10*DeltaT.
+Stopping requires scaled max residual <=1e-10 AND max increment <=1e-10*DeltaT
+(`gate = :tolerance`), or that increment criterion and every thermal row at or
+below its round-off floor (`gate = :roundoff_floor`, see `_fv_energy_roundoff_floor!`).
 No whole-flow convergence criterion is imposed on the prescribed velocity.
 """
 function fv_energy_solve!(s::FVEnergySolver, temperature::AbstractVector; maxit::Int=30)
     length(temperature)==length(s.R) || throw(DimensionMismatch("temperature block has wrong length"))
     _,ri=_fv_energy_block_residual!(s,temperature)
     scale=s.scales.equations[4]; history=[ri/scale]; increments=Float64[]
+    gate=:none; floor_check=nothing
     converged=ri/scale<=1e-10; iterations=0
+    converged && (gate=:tolerance)
+    if !converged
+        floor_check=_fv_energy_solver_floor(s)
+        floor_check.passed && (converged=true; gate=:roundoff_floor)
+    end
     while !converged && iterations<maxit
         iterations+=1
         fv_assemble_jacobian!(s.nzval,s.asm,s.U,s.prob)
@@ -917,10 +974,17 @@ function fv_energy_solve!(s::FVEnergySolver, temperature::AbstractVector; maxit:
         temperature .-= s.dT
         _,ri=_fv_energy_block_residual!(s,temperature)
         push!(history,ri/scale); push!(increments,increment)
-        converged=ri/scale<=1e-10 && increment<=1e-10*s.scales.deltaT
+        increment_ok=increment<=1e-10*s.scales.deltaT
+        converged=ri/scale<=1e-10 && increment_ok
+        converged && (gate=:tolerance)
+        if !converged && increment_ok
+            floor_check=_fv_energy_solver_floor(s)
+            floor_check.passed && (converged=true; gate=:roundoff_floor)
+        end
     end
+    floor_check===nothing && (floor_check=_fv_energy_solver_floor(s))
     return (;converged,iterations,history,temperature_increment=increments,
-             thermal_scales=s.scales)
+             thermal_scales=s.scales,gate,energy_floor=floor_check)
 end
 
 """
