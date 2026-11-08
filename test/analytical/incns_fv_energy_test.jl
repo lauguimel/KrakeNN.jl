@@ -96,7 +96,7 @@ function _fve_mms(N, scheme; alpha=0.2, masked=true)
     solid = falses(N,N)
     masked && (solid[N÷4+1:3N÷4,N÷4+1:3N÷4] .= true)
     p = fv_steady_problem(N,N; nu=0.3, solid, bc=_FVE_BC,
-        energy=FVEnergy(; alpha, bottom=1.0, scheme,
+        energy=FVEnergy(; alpha, bottom=1.0, scheme, T_ref=0.0,
             source=(x,y)->_fve_mms_source(x,y,alpha)))
     U = fv_state(p,(x,y)->_fve_mms_velocity(x,y)[1],
         (x,y)->_fve_mms_velocity(x,y)[2],_fve_zero,(x,y)->1.0)
@@ -233,7 +233,7 @@ end
         rng=MersenneTwister(208)
         for scheme in (:linear_upwind,:upwind)
             p=fv_steady_problem(9,7;bc=_FVE_BC,
-                energy=FVEnergy(;alpha=0.2,bottom=2.5,scheme))
+                energy=FVEnergy(;alpha=0.2,bottom=2.5,scheme,T_ref=0.0))
             U=randn(rng,fv_nunknowns(p)); U[4:4:end].=2.5
             tags=copy(p.tag); tags[tags.==FV_CELL_PINNED].=FV_CELL_FLUID
             R=fv_residual(U,p); mass=Float64[]; differences=Float64[]

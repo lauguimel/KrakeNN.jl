@@ -23,8 +23,9 @@ function fv_mean_temperature(prob::FVSteadyProblem2D; T_wall::Real, target::Real
     isfinite(T_wall) && isfinite(target) ||
         throw(ArgumentError("T_wall and target must be finite"))
     index, _ = _fv_temperature_indices(prob)
+    # The state stores theta = T - T_ref, so the absolute offset is T_wall + target - T_ref.
     return FVStateObs(reshape(index, :, 1), fill(inv(Float64(length(index))), length(index), 1),
-                       [Float64(T_wall + target)], 1.0)
+                       [Float64(T_wall + target - prob.energy.Tref)], 1.0)
 end
 
 struct _FVTemperatureL2 <: FVObjective
@@ -58,7 +59,7 @@ during differentiation. Solid cells contribute neither value nor gradient.
 """
 function fv_temperature_l2(prob::FVSteadyProblem2D, target; weights=1)
     index, cells = _fv_temperature_indices(prob)
-    target_values = _fv_temperature_data(target, prob, cells, "target")
+    target_values = _fv_temperature_data(target, prob, cells, "target") .- prob.energy.Tref  # state is theta = T - T_ref
     weight_values = _fv_temperature_data(weights, prob, cells, "weights")
     all(>=(0), weights isa AbstractMatrix ? Array(weights) : (weights,)) ||
         throw(ArgumentError("temperature weights must be nonnegative"))

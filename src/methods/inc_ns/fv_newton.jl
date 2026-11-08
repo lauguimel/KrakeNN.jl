@@ -892,7 +892,9 @@ end
 """
     fv_energy_solve!(solver, temperature; maxit=30) -> stats
 
-Solve only the T block in place with frozen u,v,p. The residual is affine in T
+Solve only the T block in place with frozen u,v,p. `temperature` is the raw
+state block, i.e. `theta = T - T_ref` of fluid cells (`prob.energy.Tref`; solid
+rows are storage identities and start at 0). The residual is affine in T
 in T2; Newton normally takes one physical step and one round-off correction.
 Stopping requires scaled max residual <=1e-10 AND max increment <=1e-10*DeltaT.
 No whole-flow convergence criterion is imposed on the prescribed velocity.
@@ -976,7 +978,7 @@ function solve_incns_fv_newton(; problem::FVSteadyProblem2D, U0 = nothing, to = 
         e = problem.energy
         Tw = minimum(e.boundary[d] for d in 1:4 if e.dirichlet[d])
         for cell in eachindex(problem.tag)
-            initial[_fv_cell_index(problem.grid,cell,4)] = problem.tag[cell] == FV_CELL_SOLID ? 0.0 : Tw
+            initial[_fv_cell_index(problem.grid,cell,4)] = problem.tag[cell] == FV_CELL_SOLID ? 0.0 : Tw - e.Tref
         end
     end
     U = to(initial)

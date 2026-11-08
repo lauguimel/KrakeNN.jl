@@ -134,7 +134,7 @@ end
             law,theta=_fvt4_model(kind);p=_fvt4_problem(law,theta;target)
             s=fv_newton_solver(p);map=FVLawParameters(length(theta));ws=fv_adjoint_workspace(s,map)
             rng=MersenneTwister(8403);U=.15randn(rng,fv_nunknowns(p))
-            U[_fvt4_tindices(p)].+=_FVT4_TW+1.
+            U[_fvt4_tindices(p)].+=1. # raw state is theta=T-T_ref (T_ref=T_wall): T=T_wall+1
             bound=@inferred Kraken._fv_bind_viscosity(p.visc,U,p.grid)
             @test (@inferred Kraken._fv_visc_eltype(bound))===Float64
             capture=@inferred Kraken._FVLawCapture(law,zeros(20,5,2),1,1,Val(5))

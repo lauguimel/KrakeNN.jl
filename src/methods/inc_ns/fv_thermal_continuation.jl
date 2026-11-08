@@ -2,7 +2,7 @@
 function _fv_heating_problem(p, sigma)
     e = p.energy
     energy = _FVEnergyData(e.alpha, typeof(e.sigma)(sigma), e.sigma_nom,
-                           e.boundary, e.dirichlet, e.scheme, e.source)
+                           e.boundary, e.dirichlet, e.scheme, e.source, e.Tref)
     return _fv_with(p; energy)
 end
 
@@ -99,7 +99,7 @@ function fv_thermal_continuation(prob::FVSteadyProblem2D; U0=nothing,
     initial = U0 === nothing ? _fv_initial_force!(zeros(Float64,fv_nunknowns(p)),p) : Float64.(Array(U0))
     length(initial) == fv_nunknowns(p) || throw(DimensionMismatch("U0 does not match the problem"))
     for cell in eachindex(p.tag)
-        initial[_fv_cell_index(p.grid,cell,4)] = p.tag[cell] == FV_CELL_SOLID ? 0.0 : Tw
+        initial[_fv_cell_index(p.grid,cell,4)] = p.tag[cell] == FV_CELL_SOLID ? 0.0 : Tw - e.Tref
     end
     s = fv_newton_solver(_fv_heating_problem(p,0);to,linsolve,chunk)
     U = to(initial); saved = copy(U)

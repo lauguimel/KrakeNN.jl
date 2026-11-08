@@ -1,7 +1,7 @@
 """
     FVEnergy(; alpha, sigma=0, sigma_nom=sigma, bottom=:adiabatic, top=:adiabatic,
                left=:adiabatic, right=:adiabatic, source=nothing,
-               scheme=:linear_upwind, face_velocity=nothing)
+               scheme=:linear_upwind, face_velocity=nothing, T_ref=nothing)
 
 Opt-in steady temperature equation `div(u*T) - alpha*laplacian(T) =
 2*sigma*nu*(S:S) + source` for [`fv_steady_problem`](@ref). `alpha` must be
@@ -24,6 +24,16 @@ It is meant for energy-only solves with an externally prescribed face field;
 the momentum and continuity rows are not affected.
 Heating uses the momentum Green--Gauss cell gradient and the existing cell
 viscosity law. Viscosity regularisation affects viscosity only, never `S:S`.
+The temperature unknown is stored as `theta = T - T_ref` (constant `T_ref`,
+default: the mean of the prescribed wall temperatures). At a few hundred kelvin
+the spacing of absolute floating-point temperatures (6e-14 K at 468 K) is a
+residual floor, and the convective term would carry `T_ref` times the
+continuity residual; `theta` has neither problem. The solution does not
+depend on `T_ref` (to round-off, for a divergence-free flux). Wall values, `fv_state`,
+`fv_fields`, viscosity laws via [`FVStateTemperature`](@ref), the thermal
+objectives and the public results all stay in absolute temperature; only the
+raw state vector (`U[4:4:end]`, `fv_residual(U, prob)`) holds `theta`. `T_ref=0`
+reproduces the absolute-temperature unknown.
 Temperature feeds back into viscosity when the model explicitly selects
 [`FVStateTemperature`](@ref); prescribed viscosity inputs remain one-way.
 
@@ -38,11 +48,13 @@ struct FVEnergy{T,B,S}
     boundary::B
     source::S
     scheme::Symbol
+    T_ref::Union{Nothing,T}
 end
 
 function FVEnergy(; alpha::Real, sigma::Real=0, sigma_nom::Real=sigma, bottom=:adiabatic,
                     top=:adiabatic, left=:adiabatic, right=:adiabatic,
-                    source=nothing, scheme::Symbol=:linear_upwind, face_velocity=nothing)
+                    source=nothing, scheme::Symbol=:linear_upwind, face_velocity=nothing,
+                    T_ref=nothing)
     if face_velocity !== nothing
         (face_velocity isa Tuple && length(face_velocity) == 2 &&
          all(f -> f isa AbstractMatrix, face_velocity)) ||
@@ -58,8 +70,11 @@ function FVEnergy(; alpha::Real, sigma::Real=0, sigma_nom::Real=sigma, bottom=:a
     boundary = (right, left, top, bottom)
     all(b -> b === :adiabatic || (b isa Real && isfinite(b)), boundary) ||
         throw(ArgumentError("thermal walls require a finite temperature or :adiabatic"))
+    T_ref === nothing || (T_ref isa Real && isfinite(T_ref)) ||
+        throw(ArgumentError("T_ref must be nothing or a finite real"))
     a, s, nominal = promote(float(alpha), float(sigma), float(sigma_nom))
-    return FVEnergy(a, s, nominal, boundary, source, scheme)
+    return FVEnergy(a, s, nominal, boundary, source, scheme,
+                    T_ref === nothing ? nothing : convert(typeof(a), T_ref))
 end
 
 """Opt-in carrier of prescribed face velocities, riding in the `source` slot.
@@ -99,6 +114,7 @@ struct _FVEnergySpec{T}
     boundary::NTuple{4,T}
     dirichlet::NTuple{4,Bool}
     scheme::UInt8
+    Tref::T
 end
 struct _FVEnergyData{T,A}
     alpha::T
@@ -108,17 +124,18 @@ struct _FVEnergyData{T,A}
     dirichlet::NTuple{4,Bool}
     scheme::UInt8
     source::A
+    Tref::T
 end
 
 _fv_energy_args(::Nothing) = (nothing, nothing)
 _fv_energy_args(e::_FVEnergyData) =
-    (_FVEnergySpec(e.alpha, e.sigma, e.boundary, e.dirichlet, e.scheme), e.source)
+    (_FVEnergySpec(e.alpha, e.sigma, e.boundary, e.dirichlet, e.scheme, e.Tref), e.source)
 _fv_energy_eltype(::Nothing) = Bool
 _fv_energy_eltype(e::_FVEnergyData) = promote_type(typeof(e.alpha), eltype(e.source))
 _fv_adapt_energy(to, ::Nothing) = nothing
 _fv_adapt_energy(to, e::_FVEnergyData) =
     _FVEnergyData(e.alpha, e.sigma, e.sigma_nom, e.boundary, e.dirichlet, e.scheme,
-                  _fv_adapt_energy_source(to, e.source))
+                  _fv_adapt_energy_source(to, e.source), e.Tref)
 _fv_lower_energy(::Nothing, g, tag, immersed, T) = nothing
 
 function _fv_lower_energy_source(source, g, ::Type{T}) where {T}
@@ -156,8 +173,11 @@ function _fv_lower_energy(e::FVEnergy, g, tag, immersed, ::Type{T}) where {T}
     src = _fv_lower_energy_source(e.source, g, T)
     all(isfinite, src isa _FVEnergyFaceFlux ? src.source : src) ||
         throw(ArgumentError("thermal source must be finite"))
+    walls = [boundary[d] for d in 1:4 if dirichlet[d]]
+    Tref = e.T_ref === nothing ? (isempty(walls) ? zero(T) : sum(walls) / T(length(walls))) : T(e.T_ref)
+    isfinite(Tref) || throw(ArgumentError("T_ref must remain finite in $T"))
     data = _FVEnergyData(a, s, nominal, boundary, dirichlet,
-                         e.scheme === :linear_upwind ? 0x01 : 0x00, src)
+                         e.scheme === :linear_upwind ? 0x01 : 0x00, src, Tref)
     _fv_validate_energy_components(data, g, tag)
     return data
 end
@@ -228,11 +248,13 @@ end
 @inline function _fv_energy_cell(U, tag, nu, bvel, g, i, j, visc, energy, source)
     visc = _fv_bind_viscosity(visc, U, g)
     slot = _fv_scalar_slot(g.layout, 1)
-    TP = _fv_val(U, g, i, j, slot)
+    TP = _fv_val(U, g, i, j, slot)  # theta = T - T_ref: the state stores theta
+    Tref = energy.Tref
     @inbounds nuP = nu[i, j]
     z = zero(TP) + zero(nuP) + zero(eltype(bvel)) + _fv_visc_zero(visc) +
         zero(energy.alpha) + zero(eltype(source))
     @inbounds tag[i, j] == FV_CELL_SOLID && return TP + z
+    thP = TP
     uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2)
     pP = _fv_val(U, g, i, j, 3)
     gP = _fv_cell_grad(U, tag, bvel, g, i, j)
@@ -245,7 +267,7 @@ end
         if kind == _FV_F_INT
             uN = _fv_val(U, g, ii, jj, 1); vN = _fv_val(U, g, ii, jj, 2)
             pN = _fv_val(U, g, ii, jj, 3)
-            TN = _fv_val(U, g, ii, jj, slot)
+            thN = _fv_val(U, g, ii, jj, slot)
             gN = _fv_cell_grad(U, tag, bvel, g, ii, jj)
             @inbounds nuN = nu[ii, jj]
             dun = (uN - uP) / g.h
@@ -262,15 +284,15 @@ end
             F = _fv_energy_face_flux(source, F, g, d, i, j, ii, jj)
             positive, negative = _fv_energy_face_temperature(U, tag, g, i, j, d, ii, jj, energy.scheme)
             R += _fv_posp(F) * positive + _fv_negp(F) * negative
-            R += energy.alpha * (TP - TN)
+            R += energy.alpha * (thP - thN)
         else
             # Only domain walls can carry heat; voxel-solid faces are insulated.
             if _fv_domain_face(g, i, j, d)
                 uw, vw = _fv_dirichlet_velocity(g, bvel, i, j, d)
                 F = g.h * sx * (isx ? uw : vw)
-                boundary_T = energy.dirichlet[d] ? energy.boundary[d] : TP
-                R += _fv_posp(F) * TP + _fv_negp(F) * boundary_T
-                energy.dirichlet[d] && (R += 2 * energy.alpha * (TP - boundary_T))
+                boundary_th = energy.dirichlet[d] ? energy.boundary[d] - Tref : thP
+                R += _fv_posp(F) * thP + _fv_negp(F) * boundary_th
+                energy.dirichlet[d] && (R += 2 * energy.alpha * (thP - boundary_th))
             end
         end
     end
@@ -294,10 +316,24 @@ function fv_state(prob::FVSteadyProblem2D, u, v, p, temperature)
     g = prob.grid
     temperature isa AbstractMatrix && size(temperature) != (g.Nx, g.Ny) &&
         throw(DimensionMismatch("temperature must match the grid"))
+    Tref = prob.energy.Tref
     for j in 1:g.Ny, i in 1:g.Nx
         value = temperature isa Number ? temperature : temperature isa AbstractMatrix ?
             temperature[i, j] : temperature((i - 0.5) * g.h, (j - 0.5) * g.h)
+        # The state stores theta = T - T_ref; solid rows are storage identities, kept raw.
+        prob.tag[i, j] == FV_CELL_SOLID || (value -= Tref)
         U[fv_index(g, i, j, _fv_scalar_slot(g.layout, 1))] = value
     end
     return U
+end
+
+# Energy-active problems report absolute temperature T = theta + T_ref
+# (fluid cells; solid storage rows are returned as stored).
+function fv_fields(prob::FVSteadyProblem2D{<:FVGrid2D,<:Any,<:Any,<:Any,<:Any,<:Any,<:Any,<:_FVEnergyData},
+                   U::AbstractVector)
+    u, v, p, theta = invoke(fv_fields, Tuple{FVSteadyProblem2D,AbstractVector}, prob, U)
+    iszero(prob.energy.Tref) && return u, v, p, theta
+    tag = Array(prob.tag)
+    return u, v, p, [tag[k] == FV_CELL_SOLID ? theta[k] : theta[k] + prob.energy.Tref
+                     for k in CartesianIndices(theta)]
 end

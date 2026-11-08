@@ -249,11 +249,13 @@ function solve_heat_only(cs::Case, S, uf, vf; Tinit = nothing)
     U = fv_state(prob, z, z, z, Tw)
     mem0 = gpu_used()
     sol, tsetup = timed(() -> fv_energy_solver(prob, U; tl.to, tl.linsolve))
-    # solid rows are storage identities (T -> 0): start them at 0, fluid at T_wall
-    T0 = tl.to(Float64.(vec(ifelse.(cs.solid, 0.0, Tw))))
+    # The solver block is theta = T - T_ref (T_ref = prob.energy.Tref; here T_wall, so 0 at start).
+    # Solid rows are storage identities (-> 0): start them at 0.
+    Tref = Float64(prob.energy.Tref)
+    T0 = tl.to(Float64.(vec(ifelse.(cs.solid, 0.0, Tw - Tref))))
     stats, tsolve = timed(() -> fv_energy_solve!(sol, T0))
     mem1 = gpu_used()
-    Tflat = Array(T0)
+    Tflat = Array(T0) .+ Tref                  # back to absolute temperature
     T = copy(reshape(Tflat, cs.Nx, cs.Ny))    # cell ordering is i fastest, as the matrix
     T[cs.solid] .= Tw                          # report solids at T_wall as in the export
     return (; prob, sol, stats, T, tsetup, tsolve, mem0, mem1)
@@ -269,7 +271,7 @@ function stage2(cs::Case; outdir = nothing)
         "min_scaled_residual" => minimum(r.stats.history),
         "last_increment_over_deltaT" => isempty(r.stats.temperature_increment) ? 0.0 :
             last(r.stats.temperature_increment) / r.sol.scales.deltaT,
-        "gate_note" => "gate is scaled residual <= 1e-10 AND increment <= 1e-10 deltaT; with T ~ 468 K it can sit below the round-off floor (see min_scaled_residual)",
+        "gate_note" => "gate is scaled residual <= 1e-10 AND increment <= 1e-10 deltaT; the state is theta = T - T_ref (T_ref = T_wall), so absolute-T round-off is not the floor",
         "n_unknowns" => length(T),
         "nnz" => length(r.sol.nzval), "seconds" => r.tsolve, "setup_seconds" => r.tsetup,
         "gpu_used_bytes_before" => r.mem0, "gpu_used_bytes_after" => r.mem1)
@@ -285,7 +287,8 @@ function stage2(cs::Case; outdir = nothing)
         "relative_imbalance" => (bottom_flux(cs.T, fluid, Tw, alpha) - P) / P)
     # operator equality: residual of the FV energy operator at the LBM temperature
     tl = tools()
-    Tl = tl.to(Float64.(vec(ifelse.(cs.solid, 0.0, cs.T))))
+    Tref = Float64(r.prob.energy.Tref)
+    Tl = tl.to(Float64.(vec(ifelse.(cs.solid, 0.0, cs.T .- Tref))))   # theta block
     st0 = fv_energy_solve!(r.sol, Tl; maxit = 0)
     Rv = Array(r.sol.R)
     res["fv_operator_residual_at_lbm_T"] = Dict{String,Any}(

@@ -120,6 +120,7 @@ function run_incns_testset()
         include("analytical/incns_fv_thermal_coupling_test.jl")
         include("analytical/incns_fv_thermal_adjoint_test.jl")
         include("analytical/incns_fv_e5_compare_smoke_test.jl")
+        include("analytical/incns_fv_energy_theta_test.jl")
         include("analytical/incns_fv_newton_gpu.jl")
         include("analytical/incns_fv_energy_gpu.jl")
         # C3 GNF viscosity in that residual: exact-stencil pattern, Jacobian

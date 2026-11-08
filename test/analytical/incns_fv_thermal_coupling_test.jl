@@ -142,7 +142,7 @@ end
         @test picard.delta<=1e-12
         @test picard.residual<=1e-13
         @test rel<=1e-10
-        @info "T3 Newton and Picard" history=Tuple(r.stats.history) resolved_last_three=Tuple(tail) order ratios strict_last_three=Tuple(strict_tail) strict_order strict_ratios picard_iterations=picard.iterations picard_delta=picard.delta picard_residual=picard.residual relative_state=rel
+        @info "T3 Newton and Picard" history=Tuple(r.stats.history) resolved_last_three=Tuple(tail) order ratios picard_iterations=picard.iterations picard_delta=picard.delta picard_residual=picard.residual relative_state=rel
     end
 
     @testset "physical E5 normalization and thermal classical laws" begin
@@ -209,7 +209,7 @@ end
             visc=FVLawViscosity(law,parameters,(FVStateTemperature(),);eps=.02)
             p=fv_steady_problem(5,5;bc=_FVT_BC,solid=masked ? solid : falses(5,5),
                 viscosity=visc,energy=FVEnergy(alpha=.2,sigma=.3,bottom=Tw))
-            base=.3randn(rng,fv_nunknowns(p));base[3:4:end].*=.1;base[4:4:end].+=Tw+1.
+            base=.3randn(rng,fv_nunknowns(p));base[3:4:end].*=.1;base[4:4:end].+=1. # raw state is theta=T-T_ref (T_ref=Tw): T=Tw+1
             S=Matrix(fv_jacobian_pattern(p));solver=fv_newton_solver(p)
             for direction in (1.,-1.)
                 U=copy(base);U[1:4:end].*=direction;U[2:4:end].*=direction;U[3:4:end].*=direction
