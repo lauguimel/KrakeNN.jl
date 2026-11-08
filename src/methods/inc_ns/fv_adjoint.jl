@@ -533,16 +533,17 @@ end
                                      qcut, wvel, closure, nuP = prob.nu[i, j], nuO = nothing)
     f.kind == :surface && return _fv_surface_force_face(f, U, prob, i, j, d, nuP, nuO)
     g = prob.grid; tag = prob.tag; bvel = prob.bvel
+    visc = _fv_bind_viscosity(prob.visc, U, g)
     h = g.h
     cells = _fv_wall_nu_cells(prob, i, j, d, qcut, closure)
     opposite = nuO === nothing ? (cells[2] > 0 ? prob.nu[cells[2]] : nuP) : nuO
     nu = _FVWallViscosity(prob.nu, cells, promote(nuP, opposite))
     if f.kind == :residual_flux
         gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
-        flux = _fv_wall_momentum_flux(U, tag, nu, bvel, g, i, j, d, prob.visc,
+        flux = _fv_wall_momentum_flux(U, tag, nu, bvel, g, i, j, d, visc,
                                       qcut, wvel, closure, gP, _fv_face_pair(prob.immersed))
         T = promote_type(eltype(U), eltype(nu), eltype(bvel),
-                         _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+                         _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed))
         return flux[f.dir] + zero(T)
     end
     isx = d <= 2
@@ -552,7 +553,7 @@ end
     _, _, _, _, pf, _, _, dun, dvn =
         _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
     gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure)
-    tx, ty = _fv_wall_stress(nu, prob.visc, g, i, j, d, gF, dun, dvn, qcut, closure)
+    tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure)
     if f.pressure === :linear
         # Second cell away from the wall; retain the C1 fallback at corners.
         dop = d == 1 ? 2 : d == 2 ? 1 : d == 3 ? 4 : 3
@@ -567,7 +568,7 @@ end
     # the local dual type when only viscosity was seeded. Conversion preserves
     # the signed zero of the Newtonian force.
     T = promote_type(eltype(U), eltype(nu), eltype(bvel),
-                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed))
     return convert(T, force)
 end
 
@@ -851,9 +852,9 @@ function fv_nu_coloring(prob::FVSteadyProblem2D)
     return fv_jacobian_coloring(sparse(I, J, trues(length(I)), nc, nc, |))
 end
 
-function _fv_require_isothermal_adjoint(prob)
+function _fv_require_adjoint_map(prob, map)
     prob.energy === nothing || throw(ArgumentError(
-        "thermal sensitivities are not supported yet: heating-source parameter derivatives are not implemented"))
+        "thermal sensitivities require FVLawParameters with FVLawViscosity"))
     return nothing
 end
 
@@ -863,11 +864,12 @@ end
 Allocate the adjoint buffers for `solver` (an [`FVNewtonSolver`](@ref), on its
 device) and the parameter map `map`; `chunk` = number of parameters (scalar
 maps) or colours ([`FVViscosityField`](@ref)) per dual residual evaluation.
-Thermal sensitivities are not supported by this workspace yet.
+Thermal sensitivities support [`FVLawParameters`](@ref) with
+[`FVLawViscosity`](@ref), including state-temperature law inputs.
 """
 function fv_adjoint_workspace(s::FVNewtonSolver, m::FVParameterMap; chunk::Int = 4)
     prob = s.prob
-    _fv_require_isothermal_adjoint(prob)
+    _fv_require_adjoint_map(prob, m)
     n = fv_nunknowns(prob)
     D = ForwardDiff.Dual{FVParamTag,Float64,chunk}
     vec0() = fill!(similar(s.R, Float64, n), 0)
@@ -1070,14 +1072,16 @@ end
 
 Discrete adjoint of the steady FV residual at the converged state `U` (device
 vector of `solver`), for a cotangent `gU = ∂𝒥/∂U` (host or device vector,
-length `3 Nx Ny`, unknown ordering of [`fv_index`](@ref)):
+length `fv_nunknowns(solver.prob)`, unknown ordering of [`fv_index`](@ref),
+including temperature and the global force when active):
 
 1. `finalize = true`: [`fv_newton_finalize!`](@ref) re-assembles the exact
    Jacobian at `U` and refactorizes it — numeric only, the symbolic analysis
    of the Newton solve is reused (`solver.n_factorize` does not change);
 2. `Jᵀ λ = gU` with the Newton factors (`lin_solve!(...; transpose = true)`);
 3. `s = −λᵀ ∂R/∂θ` through the residual kernel. [`FVLawParameters`](@ref)
-   contracts face-viscosity cotangents with local law pullbacks by default;
+   contracts face and, with energy, cell-heating viscosity cotangents with
+   local law pullbacks by default;
    `law_gradient = :duals` selects its parameter-dual reference. Other maps
    ([`FVParameterMap`](@ref)) retain their existing parameter-dual path.
 
@@ -1098,7 +1102,7 @@ thrown on mismatch (shifted factors, other `U`, or `fv_set_params!` since).
 function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FVViscosityField(),
                            θ = nothing, ws = nothing, finalize::Bool = true,
                            law_gradient = :contraction)
-    _fv_require_isothermal_adjoint(s.prob)
+    _fv_require_adjoint_map(s.prob, params)
     _fv_check_law_gradient(law_gradient)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
     ws.map isa typeof(params) ||
@@ -1132,13 +1136,27 @@ by [`fv_set_params!`](@ref)) and `U` its converged state ([`fv_newton!`](@ref)).
 
     d𝒥/dθ = ∂𝒥/∂θ − λᵀ ∂R/∂θ,   Jᵀ λ = ∂𝒥/∂U
 
-`∂𝒥/∂U` and the explicit `∂𝒥/∂θ` come from host duals restricted to the
-objective's support. Wall forces use local face stencils for state and
+Here `J = R_U` is the full physical, cell-integrated, unscaled residual
+Jacobian; `U = (u,v,p,T[,Fx])` when energy is active. `R_θ` holds all of `U`
+fixed, including temperature and any solved flow-control force. Law constants
+(`eta_ref`, `nu_ref`, `shear_scale`), diffusivity `alpha`, heating `sigma`, wall
+temperatures and prescribed law inputs stay fixed. Temperature derivatives
+of viscosity belong only to `R_U`; local law input pullbacks are not added
+again to `R_θ`. Thermal parameter maps currently require
+[`FVLawParameters`](@ref) with [`FVLawViscosity`](@ref).
+For a result from [`fv_thermal_continuation`](@ref), differentiation applies
+only to its returned converged state at the returned `last_sigma`, held fixed;
+the continuation path, step selection and failed attempts are not differentiated.
+
+Objective derivatives use host duals restricted to the objective's support,
+except the weighted temperature L2 state derivative, which uses its direct
+formula. Wall forces use local face stencils for state and
 viscosity derivatives, and parameter chunks for other maps. The adjoint is
 [`fv_steady_adjoint`](@ref) (one
 refactorization of the Newton Jacobian at `U`, no new symbolic analysis, one
 transposed solve). For [`FVLawParameters`](@ref), `law_gradient = :contraction`
-uses one face-seeded residual traversal followed by local law pullbacks;
+uses one traversal seeded at four faces (plus a fifth cell-heating evaluation
+with energy) followed by local law pullbacks;
 `:duals` retains `⌈P/chunk⌉` parameter-dual residual evaluations as a reference.
 Other maps keep their parameter/colour dual evaluations. Explicit parameter
 derivatives of wall force and torque objectives still use host parameter duals
@@ -1152,7 +1170,7 @@ t_finalize, t_solve, t_param, t_explicit, t_total)` with `grad` a host vector
 function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVObjective;
                             params::FVParameterMap, ws = nothing, finalize::Bool = true,
                             law_gradient = :contraction)
-    _fv_require_isothermal_adjoint(s.prob)
+    _fv_require_adjoint_map(s.prob, params)
     _fv_check_law_gradient(law_gradient)
     t0 = time_ns()
     hprob = _fv_host_problem(s.prob)
@@ -1181,7 +1199,7 @@ is the directional derivative of `𝒥` — the forward check of the adjoint.
 """
 function fv_steady_tangent(s::FVNewtonSolver, U, θ, δθ; params::FVParameterMap,
                            ws = nothing, finalize::Bool = true)
-    _fv_require_isothermal_adjoint(s.prob)
+    _fv_require_adjoint_map(s.prob, params)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
     finalize ? fv_newton_finalize!(s, U) : _fv_check_factors(s, U)
     s.cache === nothing && throw(ArgumentError("the solver has no factorization"))

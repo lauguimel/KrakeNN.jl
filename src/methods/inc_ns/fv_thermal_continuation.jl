@@ -76,6 +76,9 @@ inverse-iteration estimate for the physical Jacobian using normal/transpose
 solves of its existing factorization. Exhaustion is a structured return;
 `reason=:step_halving_limit` may indicate thermal runaway but does not prove
 a fold. The returned state is always the last converged state if one exists.
+An adjoint of the returned solver and state differentiates only that final
+steady problem at `last_sigma`, with `sigma` held fixed; it does not
+differentiate the continuation path, its step selection or failed attempts.
 """
 function fv_thermal_continuation(prob::FVSteadyProblem2D; U0=nothing,
         initial_step::Real=0.25, max_halvings::Int=5, maxit::Int=30,

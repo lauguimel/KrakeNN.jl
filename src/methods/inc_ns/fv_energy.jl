@@ -159,9 +159,10 @@ end
     ux, uy, vx, vy = gP[1], gP[2], gP[3], gP[4]
     sxy = (uy + vx) / 2
     I1 = ux * ux + vy * vy + 2 * sxy * sxy
-    nuc = _fv_wall_nu(visc, nuP, ux, uy, vx, vy, i, j)
+    nuc = _fv_wall_nu(_fv_heating_viscosity(visc), nuP, ux, uy, vx, vy, i, j)
     return 2 * sigma * nuc * I1 * h * h
 end
+@inline _fv_heating_viscosity(visc) = visc
 @inline function _fv_energy_heating(U, tag, nu, bvel, g, i, j, visc, sigma)
     visc = _fv_bind_viscosity(visc, U, g)
     @inbounds tag[i, j] == FV_CELL_SOLID && return zero(eltype(U))
@@ -183,6 +184,7 @@ end
     gP = _fv_cell_grad(U, tag, bvel, g, i, j)
     R = z
     for d in 1:4
+        face_visc = _fv_face_viscosity(visc, d)
         isx = d <= 2
         sx = (d == 1 || d == 3) ? 1 : -1
         kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
@@ -195,10 +197,10 @@ end
             dun = (uN - uP) / g.h
             dvn = (vN - vP) / g.h
             if isx
-                nuf = _fv_face_nu(visc, nuP, nuN, sx * dun, (gP[2] + gN[2]) / 2,
+                nuf = _fv_face_nu(face_visc, nuP, nuN, sx * dun, (gP[2] + gN[2]) / 2,
                                   sx * dvn, (gP[4] + gN[4]) / 2, i, j, ii, jj)
             else
-                nuf = _fv_face_nu(visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
+                nuf = _fv_face_nu(face_visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
                                   (gP[3] + gN[3]) / 2, sx * dvn, i, j, ii, jj)
             end
             F = _fv_interior_mass_flux(g.h, g.conv, uP, vP, pP, uN, vN, pN,

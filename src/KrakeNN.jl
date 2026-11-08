@@ -256,7 +256,9 @@ include("platform/closures/law.jl")
 include("platform/closures/tiny_mlp.jl")
 include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing FV/adjoint seam
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
+include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities
 include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
+export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---
 include("curvilinear/mesh.jl")

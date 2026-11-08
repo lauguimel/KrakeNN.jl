@@ -182,9 +182,12 @@ end
             @test all(isfinite,Kraken._fv_energy_scales(p).equations)
         end
         thermal=_fvt_channel(4);s=fv_newton_solver(thermal);U=_fvt_initial(thermal)
-        @test_throws ArgumentError fv_adjoint_workspace(s,FVLawParameters(3))
-        @test_throws ArgumentError fv_steady_gradient(s,U,[.3,1.,1.],
-            FVLinearFunctional([4],[1.]);params=FVLawParameters(3))
+        workspace=fv_adjoint_workspace(s,FVLawParameters(3))
+        @test workspace isa FVAdjointWorkspace
+        thermal_stats=fv_newton!(s,U;maxit=20)
+        thermal_gradient=fv_steady_gradient(s,U,[.3,1.,1.],
+            FVLinearFunctional([4],[1.]);params=FVLawParameters(3),ws=workspace)
+        @test thermal_stats.converged && all(isfinite,thermal_gradient.grad)
         # A state-temperature Arrhenius model must initialize at physical Tw
         # when U0 is omitted; a zero-kelvin seed makes its viscosity infinite.
         rest_problem=fv_steady_problem(3,4;bc=_FVT_BC,viscosity=models[2],

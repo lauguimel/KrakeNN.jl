@@ -17,6 +17,60 @@ end
 _fve_gpu_host(J)=sparse(transpose(SparseMatrixCSC(size(J)...,
     Array(J.rowPtr),Array(J.colVal),Array(J.nzVal))))
 
+# T4 additions: the full thermal adjoint uses the existing Newton/cuDSS
+# factors, and its five viscosity slots allocate no warmed device storage.
+@testset "FV thermal adjoint (T4, CUDA Float64)" begin
+    if !_FVE_GPU_OK
+        if _FVE_REQUIRE_GPU
+            @test _FVE_GPU_OK
+        else
+            @test_skip "T4 thermal adjoint requires CUDA.functional()"
+        end
+    else
+        CU=Main.CUDA;Tw=468.15
+        bc=(W=:periodic,E=:periodic,S=:wall,N=:wall)
+        solid=falses(4,5);solid[2,3]=true;solid[3,4]=true
+        truth=[2000.,.4,.035,.30,.006,1.5,465.15,2.5]
+        e5=E5ThermalLaw(truth;T_wall=Tw,nu_ref=.3,shear_scale=2.)
+        learned=LearnedViscosity(TinyMLP{2,2,1}(;shift=(0.,Tw),scale=(1.,2.));
+            nu_ref=.3,monotone=false)
+        learnedtheta=[.3,-.2,.4,-.3,.1,-.15,.2,-.15,.04]
+        for (name,law,theta) in ((:e5,e5,truth),(:learned,learned,learnedtheta)),target in (nothing,.12)
+            p=fv_steady_problem(4,5;bc,solid,conv=true,u_mean_target=target,
+                source=(x,y)->(1.4,.07sin(2x+3y),0.),
+                energy=FVEnergy(alpha=.08,sigma=.6,bottom=Tw),
+                viscosity=FVLawViscosity(law,theta,(FVStateTemperature(),);eps=.02))
+            sc=fv_newton_solver(p)
+            sg=fv_newton_solver(p;to=CU.CuArray,linsolve=CUDABackendTag())
+            Uc=fv_state(p,(x,y)->0.,(x,y)->0.,(x,y)->0.,Tw);Ug=CU.CuArray(Uc)
+            for (s,U) in ((sc,Uc),(sg,Ug))
+                @test fv_newton!(s,U;maxit=20).converged
+                for _ in 1:2
+                    fv_newton_finalize!(s,U);fv_residual!(s.R,U,s.prob)
+                    lin_solve!(s.dU,s.cache,s.R);U.-=s.dU
+                end
+            end
+            @test norm(Array(Ug)-Uc,Inf)<=1e-10
+            map=FVLawParameters(length(theta))
+            wc=fv_adjoint_workspace(sc,map);wg=fv_adjoint_workspace(sg,map)
+            objs=FVObjective[fv_mean_temperature(p;T_wall=Tw,target=.25),
+                fv_temperature_l2(p,Tw+.25;weights=.7)]
+            target===nothing || push!(objs,fv_flow_force_objective(p))
+            for obj in objs
+                rc=fv_steady_gradient(sc,Uc,theta,obj;params=map,ws=wc)
+                rg=fv_steady_gradient(sg,Ug,theta,obj;params=map,ws=wg)
+                relative=norm(rg.grad-rc.grad)/max(norm(rc.grad),eps())
+                @test relative<=1e-10
+                @test sg.n_factorize==1
+                @test norm(transpose(_fve_gpu_host(sg.J))*Array(rg.λ)-rg.gU)/norm(rg.gU)<=1e-10
+                Kraken._fv_param_cotangent!(wg,map,sg,Ug,theta)
+                @test _fve_gpu_allocated(()->Kraken._fv_param_cotangent!(wg,map,sg,Ug,theta))==0
+                @info "T4 GPU gradient parity" name target objective=string(typeof(obj)) relative
+            end
+        end
+    end
+end
+
 # T3 additions retain every T2 gate below. These exercise state-T inputs in
 # device residual/Jacobian traversal and the global fixed-flow border.
 @testset "FV two-way energy (T3, CUDA Float64)" begin
