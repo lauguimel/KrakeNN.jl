@@ -258,6 +258,12 @@ include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing F
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
 include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities
 include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
+include("methods/ssa/ssa.jl") # 2D shallow-shelf/stream approximation: Newton + learned sliding law + adjoint
+export SSAProblem2D, SSAWeertman, SSALearnedDrag, SSANewtonSolver, SSA_RHOG, ssa_problem,
+       ssa_adapt, ssa_with, ssa_residual!, ssa_residual, ssa_jacobian_pattern,
+       ssa_assemble_jacobian!, ssa_newton_solver, ssa_jacobian!, ssa_newton!,
+       ssa_newton_continuation!, ssa_solve, ssa_initial_state, ssa_fields, ssa_nunknowns,
+       ssa_theta_gradient, ssa_misfit, ssa_set_theta!, ssa_drag
 export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---
