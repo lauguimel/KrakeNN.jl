@@ -15,8 +15,8 @@ authors:
     family-names: Sauret
     affiliation: "Queensland University of Technology"
     orcid: "https://orcid.org/0000-0002-8322-3319"
-repository-code: "https://github.com/lauguimel/Kraken.jl"
-url: "https://lauguimel.github.io/Kraken.jl/stable/"
+repository-code: "https://github.com/lauguimel/KrakeNN.jl"
+url: "https://lauguimel.github.io/KrakeNN.jl/stable/"
 license: MIT
 version: 0.6.0
 date-released: "2026-11-04"

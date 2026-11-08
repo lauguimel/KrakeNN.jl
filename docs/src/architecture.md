@@ -49,8 +49,8 @@ scoped but not shipped.
 | Capability | Status | Notes |
 |---|---|---|
 | Method-agnostic platform contract | Planned | `solve` / `sample` / `observe` |
-| Steady incompressible Navier–Stokes | Planned | structured FV/FD method (SIMPLE) for the elliptic regime ([issue #7](https://github.com/lauguimel/Kraken.jl/issues/7)) |
-| Shared GPU linear-solve service | Planned | matrix-free Poisson ([issue #8](https://github.com/lauguimel/Kraken.jl/issues/8)) |
+| Steady incompressible Navier–Stokes | Planned | structured FV/FD method (SIMPLE) for the elliptic regime ([issue #7](https://github.com/lauguimel/KrakeNN.jl/issues/7)) |
+| Shared GPU linear-solve service | Planned | matrix-free Poisson ([issue #8](https://github.com/lauguimel/KrakeNN.jl/issues/8)) |
 | Geometry/shape automatic differentiation | Planned | steady shape-adjoint |
 | Curvilinear / multi-block grids | Planned | — |
 | Multiphase | Planned | VOF / phase-field / Shan-Chen / species |

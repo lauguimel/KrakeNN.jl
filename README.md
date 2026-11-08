@@ -1,7 +1,7 @@
 # KrakeNN
 
-[![Build Status](https://github.com/lauguimel/Kraken.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/lauguimel/Kraken.jl/actions/workflows/CI.yml)
-[![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://lauguimel.github.io/Kraken.jl/stable)
+[![Build Status](https://github.com/lauguimel/KrakeNN.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/lauguimel/KrakeNN.jl/actions/workflows/CI.yml)
+[![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://lauguimel.github.io/KrakeNN.jl/stable)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A GPU-portable Lattice Boltzmann (LBM) framework written in Julia, targeting
@@ -36,7 +36,7 @@ KrakeNN is not yet registered. Install from GitHub:
 
 ```julia
 using Pkg
-Pkg.add(url = "https://github.com/lauguimel/Kraken.jl")
+Pkg.add(url = "https://github.com/lauguimel/KrakeNN.jl")
 ```
 
 For GPU execution, also add the backend of your choice (`CUDA.jl` or
@@ -44,7 +44,7 @@ For GPU execution, also add the backend of your choice (`CUDA.jl` or
 
 ## Quickstart
 
-From a clone of the repository (`git clone https://github.com/lauguimel/Kraken.jl`),
+From a clone of the repository (`git clone https://github.com/lauguimel/KrakeNN.jl`),
 run `examples/quickstart.jl` on CPU. It runs a lid-driven cavity from the
 `examples/cavity.krk` configuration file, then the same kind of case built from
 Julia, and stops with an error if the flow is not finite. CI runs this exact file.
@@ -123,7 +123,7 @@ If you use KrakeNN in academic work, please cite:
   author  = {Maitrejean, Guillaume and Zhao, Jiachen and Sauret, Emilie},
   title   = {KrakeNN: a GPU-portable Lattice Boltzmann framework in Julia},
   year    = {2026},
-  url     = {https://github.com/lauguimel/Kraken.jl},
+  url     = {https://github.com/lauguimel/KrakeNN.jl},
   version = {0.6.0},
 }
 ```

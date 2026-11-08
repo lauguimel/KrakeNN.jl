@@ -13,7 +13,7 @@ terms of performance and accuracy.
 
 A detailed table comparing KrakeNN MLUPs against published results from
 Palabos, OpenLB, waLBerla, TCLB, and Sailfish is maintained in
-[`benchmarks/external/comparisons.md`](https://github.com/lauguimel/Kraken.jl/blob/main/benchmarks/external/comparisons.md).
+[`benchmarks/external/comparisons.md`](https://github.com/lauguimel/KrakeNN.jl/blob/main/benchmarks/external/comparisons.md).
 
 !!! warning "Work in progress"
     The external comparisons file is being assembled as part of Phase 5.4.

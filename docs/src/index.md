@@ -144,9 +144,9 @@ above; reproduce them from the [examples](examples/04_cavity_2d.md) and the
 ## Citing KrakeNN
 
 If you use KrakeNN in your research, please cite it. The repository ships a
-[`CITATION.cff`](https://github.com/lauguimel/Kraken.jl/blob/main/CITATION.cff),
+[`CITATION.cff`](https://github.com/lauguimel/KrakeNN.jl/blob/main/CITATION.cff),
 so GitHub's **"Cite this repository"** button (top-right of the
-[repository](https://github.com/lauguimel/Kraken.jl)) gives a ready-made entry.
+[repository](https://github.com/lauguimel/KrakeNN.jl)) gives a ready-made entry.
 
 ```bibtex
 @software{kraken_jl,
@@ -155,7 +155,7 @@ so GitHub's **"Cite this repository"** button (top-right of the
   year    = {2026},
   version = {0.6.0},
   doi     = {10.5281/zenodo.22747126},
-  url     = {https://github.com/lauguimel/Kraken.jl}
+  url     = {https://github.com/lauguimel/KrakeNN.jl}
 }
 ```
 

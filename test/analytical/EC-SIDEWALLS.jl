@@ -221,7 +221,7 @@ function hydrostatic_sidewalls(FT, scheme, force_sign; backend=CPU())
     gate = FT === Float64 ? 1e-4 : 5e-3
     speed_gate = FT === Float64 ? 1e-8 : 2e-6
     # Prospective Float32 revision agreed in PR #37, 2026-09-22:
-    # https://github.com/lauguimel/Kraken.jl/pull/37#issuecomment-5774111607
+    # https://github.com/lauguimel/KrakeNN.jl/pull/37#issuecomment-5774111607
     # Momentum cancellation from O(rho) populations/moments gives a velocity
     # noise scale of O(ulp(rho)) per step near rho=1, not eps of the tiny u.
     # Run 35686553469 (CPU Julia 1.11.9/1.12.7) recorded max du100=8.32e-7
