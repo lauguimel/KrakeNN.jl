@@ -131,11 +131,13 @@ type; the residual is evaluated in the promoted type, so a parameter array of
   [`FVImmersedBoundary2D`](@ref) with fixed cell tags and cut-face data.
 - `energy`: `nothing` (three fields), or lowered [`FVEnergy`](@ref) data
   activating temperature in the first scalar slot.
+- `flowrate`: `nothing` (prescribed forcing), or lowered mean-x-velocity
+  target with one final global force unknown after any immersed multipliers.
 
 Build with [`fv_steady_problem`](@ref); move to a device with
 [`fv_adapt`](@ref).
 """
-struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E}
+struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E,F}
     grid::G
     tag::TA
     nu::NA
@@ -144,6 +146,7 @@ struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E}
     visc::V
     immersed::I
     energy::E
+    flowrate::F
 end
 FVSteadyProblem2D(grid, tag, nu, bvel, src) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, FVNewtonianViscosity())
@@ -151,6 +154,8 @@ FVSteadyProblem2D(grid, tag, nu, bvel, src, visc) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, nothing)
 FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, nothing)
+FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy) =
+    FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy, nothing)
 
 # Arrays are separate kernel arguments: only the scalar closure description
 # crosses the device boundary as a struct. Number types come from signatures.
@@ -164,7 +169,8 @@ _fv_adapt_immersed(to, ::Nothing) = nothing
 _fv_adapt_immersed(to, b) = fv_adapt(to, b)
 
 fv_nunknowns(g::FVGrid2D) = _fv_nfields(g) * g.Nx * g.Ny
-fv_nunknowns(p::FVSteadyProblem2D) = fv_nunknowns(p.grid) + _fv_npairs(p.immersed)
+@inline _fv_extra_index(p::FVSteadyProblem2D, k) = fv_nunknowns(p.grid) + k
+fv_nunknowns(p::FVSteadyProblem2D) = _fv_extra_index(p, _fv_npairs(p.immersed) + (p.flowrate !== nothing))
 
 """
     fv_index(grid, i, j, comp) -> Int
@@ -393,6 +399,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
 @inline function fv_cell_residual(U, tag, nu, bvel, src, g, i, j,
                                   visc = FVNewtonianViscosity(),
                                   qcut = nothing, wvel = nothing, closure = nothing, face_pair = nothing)
+    visc = _fv_bind_viscosity(visc, U, g)
     uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)); vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)); pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
     h = g.h
     @inbounds nuP = nu[i, j]
@@ -538,6 +545,7 @@ function fv_residual!(R, U, prob::FVSteadyProblem2D; workgroup::Int = 64, sync::
             energy, energy_source; ndrange = (g.Nx, g.Ny))
     end
     mass_rows && _fv_mass_residual!(R, U, prob, backend, workgroup)
+    _fv_flow_residual!(R, U, prob, backend, workgroup; constraint=mass_rows)
     sync && KernelAbstractions.synchronize(backend)
     return R
 end
@@ -644,6 +652,11 @@ Build the host-side problem of the steady FV residual.
 - `energy`: `nothing` (default), or [`FVEnergy`](@ref) to activate the
   temperature equation. Thermal source data belongs to that model;
   `source` continues to prescribe the three flow equations.
+- `u_mean_target`: `nothing` (prescribed force, default), or a finite target
+  for the arithmetic mean of x velocity over fluid cells, including pressure
+  pins. Requires periodic x. The uniform x component of `source` becomes the
+  initial guess of a final global unknown Fx; y and mass sources stay fixed.
+  Use [`fv_flow_force`](@ref) to read the solved force.
 
 Pressure pins are set by [`fv_pressure_pins!`](@ref). Cell centres are at
 `((i - 1/2) h, (j - 1/2) h)`.
@@ -654,7 +667,7 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
                            solid = nothing, source = nothing, conv::Bool = true,
                            T::Type{<:Real} = Float64, rheology = nothing,
                            gnf_eps::Real = 0.0, immersed = nothing, wall_flux = nothing,
-                           viscosity = nothing, energy = nothing)
+                           viscosity = nothing, energy = nothing, u_mean_target = nothing)
     Nx = Int(Nx); Ny = Int(Ny)
     (_fv_bc_code(bc.W) == FV_BC_PERIODIC) == (_fv_bc_code(bc.E) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic W/E sides must be paired"))
@@ -732,7 +745,10 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
         (rheology === nothing ? FVNewtonianViscosity() : FVGNFViscosity(rheology, T(gnf_eps))) : viscosity
     _fv_validate_viscosity(visc, g, nuc)
     thermal = _fv_lower_energy(energy, g, tag, immersed, T)
-    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed, thermal)
+    _fv_has_state_temperature(visc) && thermal === nothing &&
+        throw(ArgumentError("state-temperature viscosity requires an active energy model"))
+    flowrate = _fv_lower_flowrate(u_mean_target, g, tag, srcv, T)
+    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed, thermal, flowrate)
 end
 
 """
@@ -743,14 +759,15 @@ or `Array` to come back to the host). The grid is passed through.
 """
 fv_adapt(to, p::FVSteadyProblem2D) =
     FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
-                      _fv_adapt_immersed(to, p.immersed), _fv_adapt_energy(to, p.energy))
+                      _fv_adapt_immersed(to, p.immersed), _fv_adapt_energy(to, p.energy), p.flowrate)
 
 """
     fv_state(prob, u, v, p) -> Vector
 
 Pack cell fields (`Nx × Ny` matrices, or `(x, y) -> value` functions evaluated
 at cell centres) into a host state vector in the unknown ordering.
-M3 lambda entries are initialized to zero.
+M3 lambda entries are initialized to zero; a controlled Fx starts at the
+uniform x source supplied when building the problem.
 """
 function fv_state(prob::FVSteadyProblem2D, u, v, p)
     g = prob.grid
@@ -763,6 +780,7 @@ function fv_state(prob::FVSteadyProblem2D, u, v, p)
         U[fv_index(g, i, j, _fv_velocity_slot(g.layout, 2))] = get(v, i, j)
         U[fv_index(g, i, j, _fv_pressure_slot(g.layout))] = get(p, i, j)
     end
+    _fv_initial_force!(U, prob)
     return U
 end
 
@@ -799,7 +817,7 @@ function _fv_with_layout(p::FVSteadyProblem2D, layout::FVFieldLayout)
         src[_fv_cell_index(g, cell, component)] = p.src[_fv_cell_index(old, cell, component)]
     end
     immersed = _fv_lower_mass(p.immersed, g, p.tag, nothing)
-    return FVSteadyProblem2D(g, p.tag, p.nu, p.bvel, src, p.visc, immersed, p.energy)
+    return FVSteadyProblem2D(g, p.tag, p.nu, p.bvel, src, p.visc, immersed, p.energy, p.flowrate)
 end
 
 # ------------------------------------------------------------------ platform

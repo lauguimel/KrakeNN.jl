@@ -18,7 +18,8 @@ first-order fallback when the upstream fluid cell is absent) or `:upwind`.
 Thermal convection uses the continuity Rhie--Chow flux even for Stokes flow.
 Heating uses the momentum Green--Gauss cell gradient and the existing cell
 viscosity law. Viscosity regularisation affects viscosity only, never `S:S`.
-Temperature does not feed back into the viscosity in this one-way model.
+Temperature feeds back into viscosity when the model explicitly selects
+[`FVStateTemperature`](@ref); prescribed viscosity inputs remain one-way.
 
 Only wall/periodic domains and voxel solids are supported. Each connected
 fluid component, including periodic connections, must touch a prescribed
@@ -162,6 +163,7 @@ end
     return 2 * sigma * nuc * I1 * h * h
 end
 @inline function _fv_energy_heating(U, tag, nu, bvel, g, i, j, visc, sigma)
+    visc = _fv_bind_viscosity(visc, U, g)
     @inbounds tag[i, j] == FV_CELL_SOLID && return zero(eltype(U))
     gP = _fv_cell_grad(U, tag, bvel, g, i, j)
     @inbounds return _fv_energy_heating_from_gradient(nu[i, j], visc, gP, i, j, sigma, g.h)
@@ -169,6 +171,7 @@ end
 
 """Integrated thermal row using exactly the continuity mass-flux expression."""
 @inline function _fv_energy_cell(U, tag, nu, bvel, g, i, j, visc, energy, source)
+    visc = _fv_bind_viscosity(visc, U, g)
     slot = _fv_scalar_slot(g.layout, 1)
     TP = _fv_val(U, g, i, j, slot)
     @inbounds nuP = nu[i, j]

@@ -1,12 +1,34 @@
 """
+    FVStateTemperature()
+
+Typed scalar-law input selecting the first scalar unknown (temperature).
+Pass it in the `fields` tuple of [`FVLawViscosity`](@ref); it requires an
+energy-active problem. Face inputs use the mean of the two fluid temperatures,
+and wall/heating inputs use the fluid-cell temperature.
+"""
+struct FVStateTemperature end
+
+_fv_law_input_backend(f::AbstractMatrix, theta) =
+    typeof(KernelAbstractions.get_backend(f)) === typeof(KernelAbstractions.get_backend(theta))
+_fv_law_input_backend(::FVStateTemperature, theta) = true
+_fv_law_input_shape(f::AbstractMatrix, shape) = size(f) == shape
+_fv_law_input_shape(::FVStateTemperature, shape) = true
+_fv_adapt_law_input(to, f::AbstractMatrix) = to(f)
+_fv_adapt_law_input(to, f::FVStateTemperature) = f
+_fv_law_input_eltype(::Type{FVStateTemperature}) = Bool
+_fv_law_input_eltype(::Type{F}) where {F<:AbstractMatrix} = eltype(F)
+
+"""
     FVLawViscosity(law::AbstractScalarLaw, theta, fields=(); eps=1e-3)
 
 Scalar constitutive law in the existing steady FV face-viscosity hook. Inputs
 are `(gamma, fields...)`, where `gamma = sqrt(2*(S:S + eps*eps/2))` uses the
 same invariant and floating-point operation order as [`FVGNFViscosity`](@ref).
 The law must be isbits; `theta` is a flat parameter vector and `fields` is a
-fixed tuple of prescribed cell matrices on the same backend. They are never
-state unknowns. Pass this model to `fv_steady_problem(...; viscosity=model)`.
+fixed tuple of prescribed cell matrices on the same backend or typed
+[`FVStateTemperature`](@ref) selectors. Prescribed matrices remain fixed;
+temperature selectors read the current state, including its dual derivatives.
+Pass this model to `fv_steady_problem(...; viscosity=model)`.
 
 Interior and periodic faces take each field's arithmetic mean at P and N.
 Domain walls, inlets, immersed nominal faces and reconstructed physical-cut
@@ -38,13 +60,13 @@ function FVLawViscosity(law::AbstractScalarLaw, theta::AbstractVector,
     length(theta) == law_nparams(law) ||
         throw(DimensionMismatch("theta must have $(law_nparams(law)) parameters"))
     length(fields) == law_ninputs(law)-1 ||
-        throw(ArgumentError("law requires $(law_ninputs(law)-1) prescribed fields, got $(length(fields))"))
-    all(f -> f isa AbstractMatrix, fields) ||
-        throw(ArgumentError("prescribed fields must be cell matrices"))
-    all(f -> typeof(KernelAbstractions.get_backend(f)) ===
-             typeof(KernelAbstractions.get_backend(theta)), fields) ||
+        throw(ArgumentError("law requires $(law_ninputs(law)-1) extra inputs, got $(length(fields))"))
+    all(f -> f isa Union{AbstractMatrix,FVStateTemperature}, fields) ||
+        throw(ArgumentError("law inputs must be cell matrices or FVStateTemperature selectors"))
+    all(f -> _fv_law_input_backend(f, theta), fields) ||
         throw(ArgumentError("theta and prescribed fields must use the same backend"))
-    isempty(fields) || all(f -> size(f) == size(first(fields)), fields) ||
+    matrices = filter(f -> f isa AbstractMatrix, fields)
+    isempty(matrices) || all(f -> size(f) == size(first(matrices)), matrices) ||
         throw(DimensionMismatch("prescribed fields must have the same cell shape"))
     isfinite(eps) && eps >= 0 || throw(ArgumentError("eps must be finite and nonnegative"))
     eps > 0 || _fv_law_regular_at_rest(law, theta) ||
@@ -61,11 +83,13 @@ function _fv_validate_viscosity(v::FVLawViscosity, g, nu)
     isfinite(v.eps) && v.eps >= 0 &&
         (v.eps > 0 || _fv_law_regular_at_rest(v.law, v.theta)) ||
         throw(ArgumentError("scalar law must be regular at rest: use eps > 0"))
-    size(nu) == (g.Nx, g.Ny) && all(f -> size(f) == size(nu), v.fields) ||
+    any(f -> f isa FVStateTemperature, v.fields) && _fv_nfields(g) < 4 &&
+        throw(ArgumentError("FVStateTemperature requires an active energy model"))
+    size(nu) == (g.Nx, g.Ny) && all(f -> _fv_law_input_shape(f, size(nu)), v.fields) ||
         throw(DimensionMismatch("prescribed fields must match the $(g.Nx) × $(g.Ny) grid"))
     backend = typeof(KernelAbstractions.get_backend(nu))
     typeof(KernelAbstractions.get_backend(v.theta)) === backend &&
-        all(f -> typeof(KernelAbstractions.get_backend(f)) === backend, v.fields) ||
+        all(f -> _fv_law_input_backend(f, v.theta), v.fields) ||
         throw(ArgumentError("law parameters and fields must use the problem backend"))
     return nothing
 end
@@ -73,7 +97,7 @@ end
 _fv_with_fields(v::FVLawViscosity, fields::Tuple) =
     FVLawViscosity(v.law, v.theta, fields; eps=v.eps)
 _fv_adapt_viscosity(to, v::FVLawViscosity) =
-    FVLawViscosity(v.law, to(v.theta), map(to, v.fields), v.eps)
+    FVLawViscosity(v.law, to(v.theta), map(f -> _fv_adapt_law_input(to, f), v.fields), v.eps)
 
 # KernelAbstractions already depends on Adapt. Its device argument conversion
 # recursively lowers only the arrays; no validation runs on device-array views.
@@ -92,7 +116,7 @@ end
 @inline _fv_law_number_type(::Type{T}) where {T} =
     promote_type(Bool, ntuple(i -> _fv_law_number_type(fieldtype(T, i)), Val(fieldcount(T)))...)
 @inline function _fv_visc_eltype(::FVLawViscosity{L,A,F,T}) where {L,A,F,T}
-    FT = ntuple(i -> eltype(fieldtype(F, i)), Val(fieldcount(F)))
+    FT = ntuple(i -> _fv_law_input_eltype(fieldtype(F, i)), Val(fieldcount(F)))
     return promote_type(T, eltype(A), _fv_law_number_type(L), FT...)
 end
 @inline _fv_visc_zero(v::FVLawViscosity) = zero(_fv_visc_eltype(v))

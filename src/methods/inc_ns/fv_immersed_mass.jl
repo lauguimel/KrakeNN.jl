@@ -253,7 +253,7 @@ end
         nlocal, @Const(rowptr), @Const(rowcol), @Const(rowval))
     q = @index(Global)
     @inbounds r = nzrow[q] - nlocal
-    if r > 0
+    if 0 < r < length(rowptr)
         @inbounds begin
             c = nzcol[q]; lo = rowptr[r]; hi = rowptr[r+1]-1
             while lo <= hi

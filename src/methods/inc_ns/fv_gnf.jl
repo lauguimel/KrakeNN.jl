@@ -17,7 +17,7 @@
 # rate (3 × 3 cell block for u and v; no radius-2 diamond).
 
 """
-    FVGNFViscosity(law, eps)
+    FVGNFViscosity(law, eps; temperature=nothing)
 
 Generalised-Newtonian viscosity model of an [`FVSteadyProblem2D`](@ref): the
 kinematic viscosity of a face is `gnf_viscosity(law, I1 + ε²/2)`, i.e.
@@ -25,7 +25,8 @@ kinematic viscosity of a face is `gnf_viscosity(law, I1 + ε²/2)`, i.e.
 velocity gradient (full strain-rate tensor). `law` is one of the
 `GeneralizedNewtonian` laws of `src/rheology/models.jl`, parameters in
 kinematic FV units (the same law objects as the LBM GNF drivers; their
-`thermal` coupling is not used here).
+`thermal` coupling is used only when `temperature=FVStateTemperature()` is
+explicitly selected; the default retains the isothermal evaluation).
 
 The regularisation `ε > 0` is a change of model, not a numerical device: it
 removes the infinite viscosity (shear-thinning) or the infinite derivative of
@@ -46,14 +47,15 @@ change).
 struct FVGNFViscosity{L<:GeneralizedNewtonian,T}
     law::L
     eps::T
-    function FVGNFViscosity(law::L, eps::T; warn::Bool = true) where {L<:GeneralizedNewtonian,T<:Real}
+    function FVGNFViscosity(law::L, eps::T; warn::Bool = true, temperature=nothing) where {L<:GeneralizedNewtonian,T<:Real}
         warn && _fv_gnf_warn_clamp(law)
         eps >= 0 || throw(ArgumentError("gnf_eps must be ≥ 0, got $eps"))
         if iszero(eps) && !_fv_gnf_regular_at_rest(law)
             throw(ArgumentError("$(nameof(L)) has an infinite derivative at zero shear: " *
                                 "set the regularisation gnf_eps > 0"))
         end
-        return new{L,T}(law, eps)
+        model = new{L,T}(law, eps)
+        return temperature === nothing ? model : _fv_thermal_gnf_viscosity(model, temperature)
     end
 end
 
@@ -138,7 +140,7 @@ function fv_with_gnf_parameters(p::_FVGNFProblem,
     T = promote_type(eltype(θ), typeof(eps))
     newlaw = typeof(law).name.wrapper(ntuple(k -> T(θ[k]), np)..., law.thermal)
     return FVSteadyProblem2D(p.grid, p.tag, p.nu, p.bvel, p.src,
-                            FVGNFViscosity(newlaw, T(eps); warn = false), p.immersed, p.energy)
+                            FVGNFViscosity(newlaw, T(eps); warn = false), p.immersed, p.energy, p.flowrate)
 end
 
 # ------------------------------------------------------------------ pattern
@@ -209,6 +211,12 @@ function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
                 row = fv_index(g, i, j, equation)
                 for c in cells
                     pushuv(row, c)
+                end
+                if _fv_has_state_temperature(prob.visc)
+                    push!(I, row); push!(J, fv_index(g, i, j, _fv_scalar_slot(g.layout, 1)))
+                    if kind == _FV_F_INT
+                        push!(I, row); push!(J, fv_index(g, ii, jj, _fv_scalar_slot(g.layout, 1)))
+                    end
                 end
             end
         end

@@ -94,3 +94,56 @@ end
                                    theta[5]; thermal=law.model.thermal)
     return effective_viscosity(model, x[1])
 end
+
+"""
+    E5ThermalLaw(theta_truth; T_wall, nu_ref, shear_scale=1)
+
+Eight-parameter E5 viscosity, with inputs `(gamma, temperature)` in solver
+shear units and kelvin. Parameters are
+`[eta0, lambda, beta, n0, slope, amplitude, Tc, width]` in physical units:
+`a = exp(-beta*(T-483.15))`, `n = clamp(n0+slope*(T-463.15),0.2,0.75)`,
+`C = 1+amplitude/(1+exp((T-Tc)/width))`, and
+`eta = eta0*a*C*(1+(lambda*a*shear_scale*gamma)^2)^((n-1)/2)`.
+The returned kinematic viscosity is `nu_ref*eta/eta_ref`.
+
+`eta_ref = eta(0,T_wall;theta_truth)` and `nu_ref` are frozen at construction;
+neither follows parameter changes or parameter differentiation. `shear_scale`
+converts solver shear rate to inverse seconds. The index clamps retain their
+existing piecewise derivative convention. `law_init` returns the reference
+parameters; callers own every subsequent parameter vector.
+"""
+struct E5ThermalLaw{T} <: AbstractScalarLaw
+    eta_ref::T
+    nu_ref::T
+    shear_scale::T
+    T_wall::T
+    theta_reference::NTuple{8,T}
+end
+
+@inline function _e5_dynamic_viscosity(gamma_squared, temperature, theta, shear_scale)
+    @inbounds eta0, lambda, beta, n0, slope, amplitude, Tc, width =
+        theta[1], theta[2], theta[3], theta[4], theta[5], theta[6], theta[7], theta[8]
+    C = typeof(shear_scale)
+    a = exp(-beta * (temperature - C(483.15)))
+    n = clamp(n0 + slope * (temperature - C(463.15)), C(0.2), C(0.75))
+    rise = 1 + amplitude / (1 + exp((temperature - Tc) / width))
+    return eta0 * a * rise * (1 + (lambda * a * shear_scale)^2 * gamma_squared)^((n - 1) / 2)
+end
+
+function E5ThermalLaw(theta_truth; T_wall::Real, nu_ref::Real, shear_scale::Real=one(nu_ref))
+    length(theta_truth) == 8 || throw(DimensionMismatch("E5 requires eight reference parameters"))
+    values = promote(float(T_wall), float(nu_ref), float(shear_scale), map(float, Tuple(theta_truth))...)
+    Tw, nr, ss = values[1], values[2], values[3]
+    theta = ntuple(i -> values[i+3], Val(8))
+    all(isfinite, values) && Tw > 0 && nr > 0 && ss > 0 && theta[1] > 0 &&
+        theta[2] >= 0 && theta[8] > 0 ||
+        throw(ArgumentError("E5 reference data must be finite with positive T_wall, nu_ref, shear_scale, eta0 and width, and nonnegative lambda"))
+    eta_ref = _e5_dynamic_viscosity(zero(Tw), Tw, theta, ss)
+    isfinite(eta_ref) && eta_ref > 0 || throw(ArgumentError("E5 reference viscosity must be positive and finite"))
+    return E5ThermalLaw(eta_ref, nr, ss, Tw, theta)
+end
+@inline law_ninputs(::E5ThermalLaw) = 2
+@inline law_nparams(::E5ThermalLaw) = 8
+law_init(law::E5ThermalLaw; rng=nothing) = collect(law.theta_reference)
+@inline law_value(law::E5ThermalLaw, x::Tuple, theta::AbstractVector) =
+    (law.nu_ref / law.eta_ref) * _e5_dynamic_viscosity(x[1] * x[1], x[2], theta, law.shear_scale)

@@ -179,8 +179,8 @@ _fv_param_buffers(::FVProblemMap, prob, ::Type{T}) where {T} =
     _FVParamBuffers(nothing, nothing, nothing, nothing)
 
 _fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc,
-          immersed = p.immersed, energy = p.energy) =
-    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy)
+          immersed = p.immersed, energy = p.energy, flowrate = p.flowrate) =
+    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy, flowrate)
 
 function _fv_check_nparams(m, prob, θ)
     length(θ) == fv_nparams(m, prob) ||

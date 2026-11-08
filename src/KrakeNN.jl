@@ -31,7 +31,7 @@ export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldPa
 export ParameterSpace, loss, fit, CalibResult
 export AbstractScalarLaw, ClassicalLaw, TinyMLP, LearnedViscosity
 export law_nparams, law_ninputs, law_value, law_pullback!, law_init
-export FVLawViscosity, FVLawParameters
+export FVLawViscosity, FVLawParameters, FVStateTemperature, E5ThermalLaw
 export AbstractSimulationState, StateSnapshot, CheckpointError
 export init_state, advance!, solution, restore_state
 export update_parameter!, updatable_parameters, export_state, check_compatible
@@ -135,6 +135,7 @@ include("methods/inc_ns/fv_immersed.jl")   # C5: analytic cut geometry and ghost
 include("methods/inc_ns/fv_immersed_surface.jl") # C5: local physical-cut reconstruction
 include("methods/inc_ns/fv_immersed_mass.jl") # C5: augmented body/region mass constraints
 include("methods/inc_ns/fv_newton.jl")   # C2: coloured dual Jacobian + Newton on the seam
+include("methods/inc_ns/fv_flowrate.jl") # Optional mean-flow constraint and force unknown
 include("methods/inc_ns/fv_gnf.jl")   # C3: generalised-Newtonian face viscosity + its Jacobian pattern
 include("methods/inc_ns/fv_adjoint.jl")   # C4: steady discrete adjoint on the Newton factors
 include("methods/inc_ns/fv_immersed_objectives.jl") # C5: residual and physical-cut force/torque
@@ -155,7 +156,7 @@ export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boun
 export fv_jacobian_pattern, fv_jacobian_coloring, FVJacobianTag, FVJacobianAssembler,
        fv_jacobian_assembler, fv_assemble_jacobian!, fv_jacobian_chunk,
        FVNewtonSolver, fv_newton_solver, fv_jacobian!, fv_newton!, fv_newton_finalize!,
-       solve_incns_fv_newton
+       solve_incns_fv_newton, fv_flow_force, fv_thermal_continuation
 # Generalised-Newtonian viscosity in the steady FV residual and Newton (C3)
 export FVNewtonianViscosity, FVGNFViscosity, fv_gnf_parameters, fv_gnf_parameter_names,
        fv_with_gnf_parameters
@@ -254,6 +255,8 @@ include("platform/calibration.jl")
 include("platform/closures/law.jl")
 include("platform/closures/tiny_mlp.jl")
 include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing FV/adjoint seam
+include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
+include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---
 include("curvilinear/mesh.jl")

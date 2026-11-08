@@ -13,8 +13,77 @@ const _FVE_REQUIRE_GPU=get(ENV,"KRAKEN_REQUIRE_GPU","0") in ("1","true")
 if _FVE_GPU_OK
     @eval _fve_gpu_allocated(f)=Main.CUDA.@allocated f()
 end
+
 _fve_gpu_host(J)=sparse(transpose(SparseMatrixCSC(size(J)...,
     Array(J.rowPtr),Array(J.colVal),Array(J.nzVal))))
+
+# T3 additions retain every T2 gate below. These exercise state-T inputs in
+# device residual/Jacobian traversal and the global fixed-flow border.
+@testset "FV two-way energy (T3, CUDA Float64)" begin
+    if !_FVE_GPU_OK
+        if _FVE_REQUIRE_GPU
+            @test _FVE_GPU_OK
+        else
+            @test_skip "T3 energy GPU contract requires CUDA.functional()"
+        end
+    else
+        CU=Main.CUDA
+        bc=(W=:periodic,E=:periodic,S=:wall,N=:wall)
+        solid=falses(7,5); solid[3:4,3].=true
+        truth=[2000.0,0.4,0.035,0.30,0.006,1.5,465.15,2.5]
+        e5=E5ThermalLaw(truth;T_wall=468.15,nu_ref=0.3,shear_scale=2.0)
+        learned=LearnedViscosity(TinyMLP{2,2,1}(;shift=(0.0,468.15),scale=(1.0,2.0));
+                                 nu_ref=0.3,monotone=false)
+        theta=[0.3,-0.2,0.4,-0.3,0.1,-0.15,0.2,-0.15,0.04]
+        models=((:e5,FVLawViscosity(e5,truth,(FVStateTemperature(),);eps=0)),
+            (:learned,FVLawViscosity(learned,theta,(FVStateTemperature(),);eps=0.02)),
+            (:classical,FVGNFViscosity(Newtonian(0.3;thermal=ArrheniusCoupling(10.0,468.15)),
+                                      0.0;temperature=FVStateTemperature())))
+        for (model,viscosity) in models, scheme in (:linear_upwind,:upwind), target in (nothing,0.1)
+            p=fv_steady_problem(7,5;solid,bc,viscosity,u_mean_target=target,
+                energy=FVEnergy(;alpha=0.2,sigma=0.1,bottom=468.15,scheme))
+            sc=fv_newton_solver(p)
+            sg=fv_newton_solver(p;to=CU.CuArray,linsolve=CUDABackendTag())
+            base=fv_state(p,(x,y)->0.2+0.03sin(3x+2y),(x,y)->0.04cos(x-y),
+                            (x,y)->0.02sin(x+y),(x,y)->468.15+0.2sin(x+3y))
+            for direction in (1.0,-1.0)
+                U=copy(base)
+                for j in 1:5,i in 1:7,k in 1:3
+                    U[fv_index(p.grid,i,j,k)]*=direction
+                end
+                target===nothing || (U[end]=direction*0.6)
+                Ug=CU.CuArray(U); Rc=fv_residual(U,p); Rg=similar(Ug)
+                fv_residual!(Rg,Ug,sg.prob)
+                @test norm(Array(Rg)-Rc,Inf)<=1e-12*max(norm(Rc,Inf),1.0)
+                Jc=fv_jacobian!(sc,U); Jg=_fve_gpu_host(fv_jacobian!(sg,Ug))
+                @test norm(Jc[1:4:140,4:4:140],Inf)>0
+                @test Jc.colptr==Jg.colptr && rowvals(Jc)==rowvals(Jg)
+                @test norm(nonzeros(Jg)-nonzeros(Jc),Inf)<=1e-12*max(norm(nonzeros(Jc),Inf),1.0)
+                # Both complete traversals are warmed before measuring device storage.
+                @test _fve_gpu_allocated(()->fv_residual!(sg.R,Ug,sg.prob))==0
+                @test _fve_gpu_allocated(()->fv_jacobian!(sg,Ug))==0
+            end
+        end
+
+        viscosity=FVGNFViscosity(Newtonian(0.3;thermal=ArrheniusCoupling(0.4,1.0)),
+                                 0.0;temperature=FVStateTemperature())
+        for target in (nothing,0.15)
+            p=fv_steady_problem(2,16;bc,viscosity,u_mean_target=target,
+                source=(x,y)->(0.6,0.0,0.0),energy=FVEnergy(;alpha=0.2,sigma=0.1,bottom=1.0))
+            U0=fv_state(p,(x,y)->0.0,(x,y)->0.0,(x,y)->0.0,1.0)
+            rc=solve_incns_fv_newton(;problem=p,U0,maxit=30)
+            sg=fv_newton_solver(p;to=CU.CuArray,linsolve=CUDABackendTag())
+            Ug=CU.CuArray(U0); result=fv_newton!(sg,Ug;maxit=30)
+            @test rc.converged && result.converged
+            @test norm(Array(Ug)-rc.U,Inf)<=1e-10
+            @test maximum(last(result.equation_inf))<=1e-10
+            @test last(result.temperature_increment)<=1e-10*result.thermal_scales.deltaT
+            # Reuse the symbolic and numeric factorization on a nearby state.
+            Ug .+= 1e-5
+            @test _fve_gpu_allocated(()->fv_newton!(sg,Ug;maxit=4))==0
+        end
+    end
+end
 
 @testset "FV one-way energy (T2, CUDA Float64)" begin
     if !_FVE_GPU_OK
