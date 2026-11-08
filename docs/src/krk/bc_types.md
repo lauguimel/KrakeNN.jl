@@ -66,7 +66,7 @@ Boundary west  velocity(ux = 0.1*(1 + 0.05*sin(2*pi*t/100)), uy = 0)
 
 ## `pressure`
 
-Zou–He pressure (density) boundary. Sets `rho` — Kraken LBM uses `rho`
+Zou–He pressure (density) boundary. Sets `rho` — KrakeNN LBM uses `rho`
 directly rather than `p` because pressure in LBM is just `p = rho/3` in
 lattice units.
 

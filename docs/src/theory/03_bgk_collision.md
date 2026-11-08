@@ -68,12 +68,12 @@ f_q(\mathbf{x} + \mathbf{e}_q, \, t+1)
 Because collision is purely local (no neighbour access), it maps perfectly
 to GPU threads -- each thread handles one lattice node.
 
-## Working with Kraken.jl
+## Working with KrakeNN
 
-Kraken.jl computes ``\omega`` from the viscosity stored in `LBMConfig`:
+KrakeNN computes ``\omega`` from the viscosity stored in `LBMConfig`:
 
 ```julia
-using Kraken
+using KrakeNN
 
 # Create a configuration for a lid-driven cavity
 config = LBMConfig(D2Q9(); Nx=64, Ny=64, ν=0.01, u_lid=0.1, max_steps=1000)

@@ -15,16 +15,16 @@
 # guard (1e-11 forward poisons the FD reference; 1e-13 recovers <1%) — documents
 # why fwd_tol=1e-13 is mandatory (the net d(Fx)/dR is a ~20× cancellation).
 
-using Test, Kraken, Enzyme
+using Test, KrakeNN, Enzyme
 
 module KrakenADVESensitivityTests
 
 using Test
-using Kraken
+using KrakeNN
 using Enzyme
 using LinearAlgebra
 
-const K = Kraken
+const K = KrakeNN
 
 _relerr(a, b) = abs(a - b) / max(abs(b), eps(Float64))
 
@@ -226,7 +226,7 @@ using .KrakenADVESensitivityTests: _run_c0, _run_c1, _run_c2, _run_antidrift,
                                    _run_krk, _run_c3_full, _run_tol_sweep
 
 @testset "AD VE shape-adjoint (polymer drag)" begin
-    @test Base.get_extension(Kraken, :KrakenADExt) !== nothing
+    @test Base.get_extension(KrakeNN, :KrakeNNADExt) !== nothing
 
     @testset "C0 coupled one-step VJP == JVPᵀ" begin
         elapsed = @elapsed c0 = _run_c0()

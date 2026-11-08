@@ -2,7 +2,7 @@
 # Regression test: run all examples/*.krk for a short number of steps,
 # report NaN/Inf/crashes. Skips refinement cases on CPU for speed.
 
-using Kraken
+using KrakeNN
 using Printf
 
 const EXAMPLES = filter(f -> endswith(f, ".krk"),

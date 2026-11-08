@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 # ---------------------------------------------------------------------
 # Phan-Thien–Tanner (PTT) 3D log-conformation CONSTITUTIVE canary.
@@ -55,13 +55,13 @@ using Kraken
     )
 
     psi_values = psi -> ntuple(c -> psi[c][1, 1, 1], 6)
-    conformation_from_psi = psi -> Kraken.mat_exp_sym3x3(psi_values(psi)...)
+    conformation_from_psi = psi -> KrakeNN.mat_exp_sym3x3(psi_values(psi)...)
 
     # One PTT RK2 constitutive step; returns the max-abs Ψ increment.
     apply_ptt_step! = function (psi, grad, lambda, dt, epsilon, n_sub; variant=:linear)
         before = psi_values(psi)
         out = ntuple(c -> similar(psi[c]), 6)
-        Kraken.logfv_constitutive_step_log_ptt_3d!(
+        KrakeNN.logfv_constitutive_step_log_ptt_3d!(
             out..., psi..., grad...,
             lambda, dt, epsilon, n_sub; variant=variant, sync=true,
         )
@@ -76,7 +76,7 @@ using Kraken
     apply_ob_step! = function (psi, grad, lambda, dt, n_sub)
         before = psi_values(psi)
         out = ntuple(c -> similar(psi[c]), 6)
-        Kraken.logfv_constitutive_step_log_3d!(
+        KrakeNN.logfv_constitutive_step_log_3d!(
             out..., psi..., grad...,
             lambda, dt, n_sub; sync=true,
         )
@@ -92,8 +92,8 @@ using Kraken
         gamma_dot = Wi / lambda
         psi = psi_state()
         grad = velocity_gradient(; duxdy=gamma_dot)
-        max_grad_norm = Kraken.logfv_max_grad_norm_3d(grad...)
-        n_sub = 8 * Kraken.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
+        max_grad_norm = KrakeNN.logfv_max_grad_norm_3d(grad...)
+        n_sub = 8 * KrakeNN.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
         max_steps = ceil(Int, 200lambda / dt)
         delta = Inf
         steps = 0
@@ -109,8 +109,8 @@ using Kraken
         gamma_dot = Wi / lambda
         psi = psi_state()
         grad = velocity_gradient(; duxdy=gamma_dot)
-        max_grad_norm = Kraken.logfv_max_grad_norm_3d(grad...)
-        n_sub = 8 * Kraken.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
+        max_grad_norm = KrakeNN.logfv_max_grad_norm_3d(grad...)
+        n_sub = 8 * KrakeNN.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
         max_steps = ceil(Int, 200lambda / dt)
         delta = Inf
         steps = 0

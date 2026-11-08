@@ -9,7 +9,7 @@ using LinearAlgebra
 using Printf
 using Random
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 const _GA_NU0 = 0.17
 const _GA_GSCALE = 0.3
@@ -544,7 +544,7 @@ function main(args)
                     foreach(l -> println("  ", l), first(prov.dirty, 20))
                 end
                 println("Julia=", VERSION, " platform=", Sys.KERNEL, " ", Sys.ARCH, " cpu=", Sys.CPU_NAME)
-                println("Kraken=", pkg_version("Kraken"), " KernelAbstractions=", pkg_version("KernelAbstractions"),
+                println("KrakeNN=", pkg_version("KrakeNN"), " KernelAbstractions=", pkg_version("KernelAbstractions"),
                         " CUDA.jl=", pkg_version("CUDA"), " ForwardDiff=", pkg_version("ForwardDiff"))
                 println("backend=", opts["backend"], " precision=Float64; Float32 operator=", opts["float32"])
                 println("options=", join(["$k=$(opts[k])" for k in sort(collect(keys(opts)))], ' '))

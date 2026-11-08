@@ -1,6 +1,6 @@
 # Moving wall departure-aware BB — ghost strategy comparison
 # Goal: achieve machine precision for Couette on oblique mesh
-using Kraken, LinearAlgebra, Printf
+using KrakeNN, LinearAlgebra, Printf
 
 const cx_ = [0,1,0,-1,0,1,-1,-1,1]
 const cy_ = [0,0,1,0,-1,1,1,-1,-1]
@@ -190,7 +190,7 @@ function test_moving_wall(angle; ghost_mode=:f_linear, steps=200, interp=:biquad
     end
     mesh = CurvilinearMesh(X, Y; periodic_ξ=false, periodic_η=false,
                            type=:curvilinear, dx_ref=1.0, skip_validate=true, FT=Float64)
-    mesh_ext = Kraken.extend_mesh_2d(mesh; n_ghost=ng)
+    mesh_ext = KrakeNN.extend_mesh_2d(mesh; n_ghost=ng)
     geom = build_slbm_geometry(mesh_ext; local_cfl=false, dx_ref=1.0)
     is_sol = zeros(Bool, Nxe, Nye)
     j_s = ng + 1; j_n = ng + Ny; ic = ng + div(Nx,2) + 1
@@ -222,8 +222,8 @@ function test_moving_wall(angle; ghost_mode=:f_linear, steps=200, interp=:biquad
     gfill!(f, Nxe, Nye, ng, Nx, Ny)
 
     interp_fn = interp == :biquadratic ?
-        (f_, id, jd, q_) -> Kraken.biquadratic_f(f_, is_sol, id, jd, q_, Nxe, Nye, false, false) :
-        (f_, id, jd, q_) -> Kraken.bilinear_f(f_, id, jd, q_, Nxe, Nye, false, false)
+        (f_, id, jd, q_) -> KrakeNN.biquadratic_f(f_, is_sol, id, jd, q_, Nxe, Nye, false, false) :
+        (f_, id, jd, q_) -> KrakeNN.bilinear_f(f_, id, jd, q_, Nxe, Nye, false, false)
 
     nan_step = 0
     for it in 1:steps
@@ -534,7 +534,7 @@ function _make_case(angle; Ny=5, ng=2, u_w=0.01, omega=1.0,
     end
     mesh = CurvilinearMesh(X, Y; periodic_ξ=false, periodic_η=false,
                            type=:curvilinear, dx_ref=1.0, skip_validate=true, FT=Float64)
-    mesh_ext = Kraken.extend_mesh_2d(mesh; n_ghost=ng)
+    mesh_ext = KrakeNN.extend_mesh_2d(mesh; n_ghost=ng)
     geom = build_slbm_geometry(mesh_ext; local_cfl=false, dx_ref=1.0)
     is_sol = zeros(Bool, Nxe, Nye)
     ic = ng + div(Nx, 2) + 1
@@ -630,10 +630,10 @@ end
 
 function _interp_f(f, c, i, j, q)
     if c.interp == :biquadratic
-        return Kraken.biquadratic_f(f, c.is_sol, c.geom.i_dep[i,j,q], c.geom.j_dep[i,j,q],
+        return KrakeNN.biquadratic_f(f, c.is_sol, c.geom.i_dep[i,j,q], c.geom.j_dep[i,j,q],
                                     q, c.Nxe, c.Nye, false, false)
     else
-        return Kraken.bilinear_f(f, c.geom.i_dep[i,j,q], c.geom.j_dep[i,j,q],
+        return KrakeNN.bilinear_f(f, c.geom.i_dep[i,j,q], c.geom.j_dep[i,j,q],
                                  q, c.Nxe, c.Nye, false, false)
     end
 end

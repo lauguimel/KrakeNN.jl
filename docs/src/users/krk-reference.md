@@ -1,6 +1,6 @@
 # KRK Reference
 
-The `.krk` file is Kraken's plain-text case format. One file fully describes a
+The `.krk` file is KrakeNN's plain-text case format. One file fully describes a
 simulation — geometry, physics, boundary conditions, run length and output — in a
 declarative, block-per-line syntax inspired by Gerris. You never write Julia to
 run a standard case: you write a `.krk` file and hand it to `run_simulation`.
@@ -32,7 +32,7 @@ Output vtk every 10000 [rho, ux, uy]
 Run it from Julia:
 
 ```julia
-using Kraken
+using KrakeNN
 run_simulation("mycase.krk")
 ```
 

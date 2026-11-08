@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 include(joinpath(@__DIR__, "..", "reference", "ehd_twin_reference.jl"))
 
@@ -62,9 +62,9 @@ function init_kraken_trace_from_twin(tw::EHDTwinState{T}) where {T}
                           zeros(T, tw.Nx, tw.Ny), zeros(T, tw.Nx, tw.Ny),
                           zeros(T, tw.Nx, tw.Ny), zeros(T, tw.Nx, tw.Ny),
                           similar(tw.phi), solid, zeros(T, 2))
-    Kraken.compute_ehd_scalar_2d!(st.phi, st.phi_f_in)
-    Kraken.compute_ehd_scalar_2d!(st.qfield, st.q_f_in)
-    Kraken.compute_electric_field_2d!(st.Ex, st.Ey, st.phi_f_in, st.p.tau_U)
+    KrakeNN.compute_ehd_scalar_2d!(st.phi, st.phi_f_in)
+    KrakeNN.compute_ehd_scalar_2d!(st.qfield, st.q_f_in)
+    KrakeNN.compute_electric_field_2d!(st.Ex, st.Ey, st.phi_f_in, st.p.tau_U)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     return st
 end
@@ -76,64 +76,64 @@ function kraken_step!(st::KrakenTraceState; phi_tol=1e-4, phi_max_iter=10000,
     phi_iter = 0
     for iter in 1:phi_max_iter
         copyto!(st.phi_prev, st.phi)
-        Kraken.collide_electric_potential_2d!(st.phi_f_in, st.qfield, st.p.eps, st.p.omega_U, st.p.nu_U)
-        Kraken.stream_wall_x_wall_y_2d!(st.phi_f_out, st.phi_f_in, st.Nx, st.Ny)
-        Kraken.compute_ehd_scalar_2d!(st.phi, st.phi_f_out)
-        Kraken.apply_phi_nee_box_2d!(st.phi_f_out, st.phi, one(eltype(st.phi)), zero(eltype(st.phi)), st.Nx, st.Ny)
-        Kraken.compute_ehd_scalar_2d!(st.phi, st.phi_f_out)
+        KrakeNN.collide_electric_potential_2d!(st.phi_f_in, st.qfield, st.p.eps, st.p.omega_U, st.p.nu_U)
+        KrakeNN.stream_wall_x_wall_y_2d!(st.phi_f_out, st.phi_f_in, st.Nx, st.Ny)
+        KrakeNN.compute_ehd_scalar_2d!(st.phi, st.phi_f_out)
+        KrakeNN.apply_phi_nee_box_2d!(st.phi_f_out, st.phi, one(eltype(st.phi)), zero(eltype(st.phi)), st.Nx, st.Ny)
+        KrakeNN.compute_ehd_scalar_2d!(st.phi, st.phi_f_out)
         st.phi_f_in, st.phi_f_out = st.phi_f_out, st.phi_f_in
         phi_iter = iter
         if iter % phi_check_every == 0 || iter == phi_max_iter
-            Kraken.ehd_rel_change_2d!(st.diag, st.phi, st.phi_prev, st.Nx, st.Ny)
+            KrakeNN.ehd_rel_change_2d!(st.diag, st.phi, st.phi_prev, st.Nx, st.Ny)
             KernelAbstractions.synchronize(KernelAbstractions.CPU())
             phi_rel = st.diag[1]
             phi_rel <= phi_tol && break
-            iter == phi_max_iter && error("Kraken phi solve failed; rel=$(phi_rel)")
+            iter == phi_max_iter && error("KrakeNN phi solve failed; rel=$(phi_rel)")
         end
     end
-    Kraken.compute_electric_field_2d!(st.Ex, st.Ey, st.phi_f_in, st.p.tau_U)
+    KrakeNN.compute_electric_field_2d!(st.Ex, st.Ey, st.phi_f_in, st.p.tau_U)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     record && (checkpoints["phi_after_solve"] = copy(st.phi);
                checkpoints["Ex"] = copy(st.Ex);
                checkpoints["Ey"] = copy(st.Ey))
 
-    Kraken.compute_macroscopic_guo_field_2d!(st.rho, st.ux, st.uy, st.f_in, st.Fx_prev, st.Fy_prev, st.Nx, st.Ny)
-    Kraken.enforce_free_side_macros_2d!(st.ux, st.uy, st.Nx, st.Ny)
+    KrakeNN.compute_macroscopic_guo_field_2d!(st.rho, st.ux, st.uy, st.f_in, st.Fx_prev, st.Fy_prev, st.Nx, st.Ny)
+    KrakeNN.enforce_free_side_macros_2d!(st.ux, st.uy, st.Nx, st.Ny)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     record && (checkpoints["macros_pre_charge.rho"] = copy(st.rho);
                checkpoints["macros_pre_charge.ux"] = copy(st.ux);
                checkpoints["macros_pre_charge.uy"] = copy(st.uy))
 
-    Kraken.collide_electric_charge_regularized_2d!(st.q_f_in, st.ux, st.uy, st.Ex, st.Ey, st.p.tau_q, st.p.K)
+    KrakeNN.collide_electric_charge_regularized_2d!(st.q_f_in, st.ux, st.uy, st.Ex, st.Ey, st.p.tau_q, st.p.K)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     record && (checkpoints["q_after_collide.f"] = copy(st.q_f_in))
-    Kraken.stream_wall_x_wall_y_2d!(st.q_f_out, st.q_f_in, st.Nx, st.Ny)
-    Kraken.compute_ehd_scalar_2d!(st.qfield, st.q_f_out)
-    Kraken.apply_charge_nee_box_2d!(st.q_f_out, st.qfield, st.ux, st.uy, st.Ex, st.Ey,
+    KrakeNN.stream_wall_x_wall_y_2d!(st.q_f_out, st.q_f_in, st.Nx, st.Ny)
+    KrakeNN.compute_ehd_scalar_2d!(st.qfield, st.q_f_out)
+    KrakeNN.apply_charge_nee_box_2d!(st.q_f_out, st.qfield, st.ux, st.uy, st.Ex, st.Ey,
                                     st.p.q_inj, zero(eltype(st.qfield)), st.p.K, st.Nx, st.Ny)
-    Kraken.compute_ehd_scalar_2d!(st.qfield, st.q_f_out)
+    KrakeNN.compute_ehd_scalar_2d!(st.qfield, st.q_f_out)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     st.q_f_in, st.q_f_out = st.q_f_out, st.q_f_in
     record && (checkpoints["q_after_stream_bc.f"] = copy(st.q_f_in);
                checkpoints["q_after_stream_bc.q"] = copy(st.qfield))
 
-    Kraken.compute_coulomb_force_2d!(st.Fx, st.Fy, st.qfield, st.Ex, st.Ey, st.Nx, st.Ny)
-    Kraken._project_coulomb_force_rows!(st.Fx, st.Fy, st.is_solid, force_projection)
+    KrakeNN.compute_coulomb_force_2d!(st.Fx, st.Fy, st.qfield, st.Ex, st.Ey, st.Nx, st.Ny)
+    KrakeNN._project_coulomb_force_rows!(st.Fx, st.Fy, st.is_solid, force_projection)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     record && (checkpoints["Fx"] = copy(st.Fx); checkpoints["Fy"] = copy(st.Fy))
 
-    Kraken.ehd_collide_mrt_2d!(st.f_in, st.Fx, st.Fy, st.is_solid, st.p.nu)
+    KrakeNN.ehd_collide_mrt_2d!(st.f_in, st.Fx, st.Fy, st.is_solid, st.p.nu)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     record && (checkpoints["f_after_ns_collide.f"] = copy(st.f_in))
-    Kraken.stream_wall_x_wall_y_2d!(st.f_out, st.f_in, st.Nx, st.Ny)
-    Kraken.apply_free_slip_sidewalls_2d!(st.f_out, st.Nx, st.Ny)
+    KrakeNN.stream_wall_x_wall_y_2d!(st.f_out, st.f_in, st.Nx, st.Ny)
+    KrakeNN.apply_free_slip_sidewalls_2d!(st.f_out, st.Nx, st.Ny)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     st.f_in, st.f_out = st.f_out, st.f_in
     record && (checkpoints["f_after_ns_stream_bc.f"] = copy(st.f_in))
 
-    Kraken.compute_macroscopic_guo_field_2d!(st.rho, st.ux, st.uy, st.f_in, st.Fx, st.Fy, st.Nx, st.Ny)
-    Kraken.enforce_free_side_macros_2d!(st.ux, st.uy, st.Nx, st.Ny)
-    Kraken.ehd_maxspeed_2d!(st.diag, st.ux, st.uy, st.Nx, st.Ny)
+    KrakeNN.compute_macroscopic_guo_field_2d!(st.rho, st.ux, st.uy, st.f_in, st.Fx, st.Fy, st.Nx, st.Ny)
+    KrakeNN.enforce_free_side_macros_2d!(st.ux, st.uy, st.Nx, st.Ny)
+    KrakeNN.ehd_maxspeed_2d!(st.diag, st.ux, st.uy, st.Nx, st.Ny)
     KernelAbstractions.synchronize(KernelAbstractions.CPU())
     umax = st.diag[1]
     record && (checkpoints["macros_post.rho"] = copy(st.rho);

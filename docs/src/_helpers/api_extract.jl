@@ -1,7 +1,7 @@
 """
     api_extract.jl
 
-JuliaSyntax-based extraction of exported symbols from `src/Kraken.jl`,
+JuliaSyntax-based extraction of exported symbols from `src/KrakeNN.jl`,
 plus rule-based categorization for the per-category API pages built in
 Phase 4.6.
 """

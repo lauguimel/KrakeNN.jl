@@ -97,7 +97,7 @@
 #
 # ## Simulation Code
 
-using Kraken
+using KrakeNN
 
 N     = 128
 Re    = 100

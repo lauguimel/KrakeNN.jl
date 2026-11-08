@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 @testset "3D Cavity Zou-He all faces" begin

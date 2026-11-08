@@ -1,6 +1,6 @@
 # Issue #23: potential convergence does not imply field-moment convergence.
 # The capacitor fixtures run the production adaptive solve
-# (`Kraken.ehd_phi_ddf_solve!`) at the drivers' check cadences; since the #23
+# (`KrakeNN.ehd_phi_ddf_solve!`) at the drivers' check cadences; since the #23
 # repair its stopping rule also checks the field, and the cold starts meet the
 # field gate. The same fixtures with `field_tol = Inf` (the pre-#23 rule) are the
 # negative control. The public-driver check at default settings remains broken
@@ -10,7 +10,7 @@
 module ES002FieldStoppingRegression
 
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 const CPU_BACKEND = KernelAbstractions.CPU()
@@ -21,8 +21,8 @@ const CY = (0, 0, 1, 0, -1, 1, 1, -1, -1)
 
 # The drivers' check cadences: every 8 iterations in the EC box (:neumann),
 # every iteration in the hydrostatic driver (:periodic).
-check_every(xbc) = xbc === :neumann ? Kraken.EHD_EC_PHI_CHECK_EVERY :
-                                      Kraken.EHD_HYDROSTATIC_PHI_CHECK_EVERY
+check_every(xbc) = xbc === :neumann ? KrakeNN.EHD_EC_PHI_CHECK_EVERY :
+                                      KrakeNN.EHD_HYDROSTATIC_PHI_CHECK_EVERY
 
 function capacitor(xbc, tau, initialization; field_tol=1e-10)
     nx = xbc === :neumann ? 11 : 10
@@ -30,7 +30,7 @@ function capacitor(xbc, tau, initialization; field_tol=1e-10)
     reference = [1.0-(j-1)/H for i in 1:nx, j in 1:ny]
     f = zeros(nx, ny, 9)
     # Use the real driver initializer for the cold populations.
-    Kraken._fill_phi_populations!(f, vec(reference[1, :]), nx, ny, Float64)
+    KrakeNN._fill_phi_populations!(f, vec(reference[1, :]), nx, ny, Float64)
     if initialization === :consistent
         for k in 1:9
             f[:, :, k] .+= WEIGHTS[k] * tau * CY[k] / H
@@ -43,8 +43,8 @@ function capacitor(xbc, tau, initialization; field_tol=1e-10)
     # The production adaptive solve (the one both drivers call), with this
     # fixture's tolerance 1e-10 on both moments and its 128-iteration cap.
     p = (; eps=0.7, omega_U=inv(tau), nu_U=(tau-0.5)/3, tau_U=tau)
-    ws = Kraken.ehd_phi_ddf_workspace(phi)
-    f, g, st = Kraken.ehd_phi_ddf_solve!(f, g, phi, q, p, xbc, ws;
+    ws = KrakeNN.ehd_phi_ddf_workspace(phi)
+    f, g, st = KrakeNN.ehd_phi_ddf_solve!(f, g, phi, q, p, xbc, ws;
                                          phi_tol=1e-10, field_tol=field_tol, max_iter=128,
                                          check_every=check_every(xbc),
                                          phi_bottom=1.0, phi_top=0.0)
@@ -53,7 +53,7 @@ function capacitor(xbc, tau, initialization; field_tol=1e-10)
     n = st.iters
     relative_change = st.phi_rel
     # Independent reconstruction of E from the returned populations.
-    Kraken.compute_electric_field_2d!(ex, ey, f, tau)
+    KrakeNN.compute_electric_field_2d!(ex, ey, f, tau)
     KernelAbstractions.synchronize(CPU_BACKEND)
     ex .*= H
     ey .*= H
@@ -113,9 +113,9 @@ field_difference(a, b) = H * max(maximum(abs.(a.Ex .- b.Ex)),
                       Ma_E=0.01, alpha=1e-4, gamma=0.5, max_cycles=1,
                       perturb_amplitude=0.0, phi_scheme=:lbm,
                       backend=CPU_BACKEND, FT=Float64)
-        adaptive = Kraken.run_electroconvection_2d(; parameters..., phi_tol=1e-4)
-        fixed = Kraken.run_electroconvection_2d(; parameters..., phi_substeps=1024)
-        reference = Kraken.run_electroconvection_2d(; parameters..., phi_substeps=2048)
+        adaptive = KrakeNN.run_electroconvection_2d(; parameters..., phi_tol=1e-4)
+        fixed = KrakeNN.run_electroconvection_2d(; parameters..., phi_substeps=1024)
+        reference = KrakeNN.run_electroconvection_2d(; parameters..., phi_substeps=2048)
         # Fixed sweeps are a test-only iterative reference, NOT the proposed
         # production repair. Doubling must leave E* unchanged to 1e-8, two
         # orders tighter than the 1e-6 stopping-accuracy gate (set 2026-09-16).

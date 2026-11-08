@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using Statistics: mean
 
 # ===========================================================================
@@ -73,7 +73,7 @@ end
         f_out = similar(f_in)
         ρ = ones(Nξ, Nη); ux = zeros(Nξ, Nη); uy = zeros(Nξ, Nη)
         for j in 1:Nη, i in 1:Nξ, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
         end
 
         ν = 0.1

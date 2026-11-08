@@ -527,7 +527,7 @@ Likely modified files:
   single-patch adapters;
 - `src/refinement/conservative_tree_streaming_2d.jl` only for compatibility
   wrappers, not as the multilevel core;
-- `src/Kraken.jl` exports;
+- `src/KrakeNN.jl` exports;
 - tests under `test/test_conservative_tree_*`.
 
 ## What Not To Do

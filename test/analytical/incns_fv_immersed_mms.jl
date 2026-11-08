@@ -4,7 +4,7 @@
 # choices use this contract; previous gate evidence remains reproducible.
 # Every 16/32/64/128 pair and all six angles remain in every contract.
 # No result here validates a closed domain, an integrated force or a GPU run.
-using Test, LinearAlgebra, ForwardDiff, Kraken
+using Test, LinearAlgebra, ForwardDiff, KrakeNN
 include(joinpath(@__DIR__,"incns_fv_immersed_mms_helpers.jl"))
 
 # Roundoff budget for O(100) stencil operations with coefficients O(1/q),
@@ -69,7 +69,7 @@ end
     G = _c5m_gradient(xw,yw,3)
     dt = (-ny*G[1]+nx*G[2],-ny*G[3]+nx*G[4])
     physical_nu = _c5m_nu(xw,yw)
-    wall(U) = Kraken._fv_surface_reconstruction(U,f.p,i,j,d,f.normal,dt,physical_nu)
+    wall(U) = KrakeNN._fv_surface_reconstruction(U,f.p,i,j,d,f.normal,dt,physical_nu)
     s = @inferred wall(f.U)
     @test s.viscosity == physical_nu
     @test s.viscosity != f.p.nu[i,j]
@@ -82,10 +82,10 @@ end
     # -a_e*q*(q+1)*h^2. Nonzero error probes pressure at qh, not nominal h/2.
     ae = d <= 2 ? 0.2 : 0.25
     @test s.pressure-_c5m_fields(xw,yw,3)[3] ≈ -ae*q*(q+1)*h^2 atol=16eps()
-    @test_throws ArgumentError Kraken._fv_surface_reconstruction(f.U,f.p,i,j,d,f.normal,dt,physical_nu;min_transversality=0)
+    @test_throws ArgumentError KrakeNN._fv_surface_reconstruction(f.U,f.p,i,j,d,f.normal,dt,physical_nu;min_transversality=0)
     tangent = d <= 2 ? (1e-10,sqrt(1-1e-20)) : (sqrt(1-1e-20),1e-10)
     message = try
-        Kraken._fv_surface_reconstruction(f.U,f.p,i,j,d,tangent,dt,physical_nu)
+        KrakeNN._fv_surface_reconstruction(f.U,f.p,i,j,d,tangent,dt,physical_nu)
         ""
     catch e
         e isa ArgumentError || rethrow()
@@ -95,7 +95,7 @@ end
     # A GNF wall law reads the reconstructed physical strain, not physical_nu.
     pg = FVSteadyProblem2D(f.p.grid,f.p.tag,f.p.nu,f.p.bvel,f.p.src,
         FVGNFViscosity(Newtonian(0.2),0.0),f.p.immersed)
-    sg = Kraken._fv_surface_reconstruction(f.U,pg,i,j,d,f.normal,dt,100.0)
+    sg = KrakeNN._fv_surface_reconstruction(f.U,pg,i,j,d,f.normal,dt,100.0)
     @test sg.viscosity == 0.2
 end
 

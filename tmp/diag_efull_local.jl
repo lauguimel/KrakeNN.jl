@@ -1,5 +1,5 @@
 # Reproduce E-full locally CPU F64 to find when NaN appears
-using Kraken, Gmsh, KernelAbstractions
+using KrakeNN, Gmsh, KernelAbstractions
 
 include(joinpath(@__DIR__, "gen_ogrid_rect_8block.jl"))
 
@@ -67,7 +67,7 @@ mktempdir() do dir
         solid_int = @view solid_ext[k][(ngk+1):(ngk+Nξk), (ngk+1):(ngk+Nηk)]
         for j in 1:Nηk, i in 1:Nξk, q in 1:9
             u = solid_int[i, j] ? zero(T) : T(u_max)
-            f_int[i, j, q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+            f_int[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
         end
         int_view = interior_f(states[k]); int_view .= f_int
     end

@@ -102,9 +102,9 @@ Public type or module in the kernel-level LBM operation.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.CutLinkList3D
+KrakeNN.CutLinkList3D
 ```
 """
 struct CutLinkList3D{IT<:AbstractVector{Int32}, WT<:AbstractVector}
@@ -180,9 +180,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.build_cut_link_list_3d)
+methods(KrakeNN.build_cut_link_list_3d)
 ```
 """
 function build_cut_link_list_3d(q_wall_h::AbstractArray{T,4}; backend=CPU()) where {T}

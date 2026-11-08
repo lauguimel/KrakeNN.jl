@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Conservative tree adaptation plan 2D" begin
     @testset "policy pads clamps and limits growth" begin

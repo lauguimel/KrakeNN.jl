@@ -1,6 +1,6 @@
 # Poiseuille flow convergence study
 # Verifies 2nd-order spatial accuracy of the LBM BGK solver
-using Kraken
+using KrakeNN
 using Printf
 
 function run_poiseuille_convergence()

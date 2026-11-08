@@ -61,7 +61,7 @@
 #
 # ## Code
 
-using Kraken
+using KrakeNN
 
 result = run_spinodal_2d(;
     N         = 128,

@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 # H2-004 — west/east pressure-driven channel through the public `.krk` runner.
 #

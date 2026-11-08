@@ -6,8 +6,8 @@
 # the only way to prove "same numbers as before" is to keep the old body verbatim.
 # Do not edit the body; do not call it from `src/`.
 #
-# The body uses unexported Kraken internals, so the file must be evaluated inside
-# the package module:  Base.include(Kraken, joinpath(@__DIR__, "ehd_ec_legacy.jl"))
+# The body uses unexported KrakeNN internals, so the file must be evaluated inside
+# the package module:  Base.include(KrakeNN, joinpath(@__DIR__, "ehd_ec_legacy.jl"))
 
 function _legacy_run_electroconvection_2d(; Nx=60, Ny=96, C=10.0, M=10.0, T=175.0,
                                     Ma_E=1e-2, alpha=1e-4, delta_U=1.0,

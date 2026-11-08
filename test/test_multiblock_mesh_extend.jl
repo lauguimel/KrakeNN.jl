@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # =====================================================================
 # v0.3 Phase B.2.3 — extended-grid mesh for multi-block SLBM.

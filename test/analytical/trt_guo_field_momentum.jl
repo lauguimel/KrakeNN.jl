@@ -50,7 +50,7 @@
 # Float32, with gates scaled by eps(Float32)/eps(Float64).
 
 using Test
-using Kraken
+using KrakeNN
 
 const _GUO_GATE = 1e-9
 const _GUO_PI_GATE = 1e-8
@@ -77,7 +77,7 @@ function _guo_ratio_trt_3d(nu; Λ=nothing, u0=(0.02, -0.01, 0.005), F=(1e-4, -5e
     N = 5
     f_in = zeros(Float64, N, N, N, 19)
     for k in 1:N, j in 1:N, i in 1:N, q in 1:19
-        f_in[i, j, k, q] = Kraken.equilibrium(D3Q19(), 1.0, u0[1], u0[2], u0[3], q)
+        f_in[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), 1.0, u0[1], u0[2], u0[3], q)
     end
     f_out = zeros(Float64, N, N, N, 19)
     rho = ones(N, N, N); ux = zeros(N, N, N); uy = zeros(N, N, N); uz = zeros(N, N, N)
@@ -86,10 +86,10 @@ function _guo_ratio_trt_3d(nu; Λ=nothing, u0=(0.02, -0.01, 0.005), F=(1e-4, -5e
     uwx = zeros(N, N, N, 19); uwy = zeros(N, N, N, 19); uwz = zeros(N, N, N, 19)
     Fx = fill(F[1], N, N, N); Fy = fill(F[2], N, N, N); Fz = fill(F[3], N, N, N)
     kw = Λ === nothing ? (;) : (; Λ)
-    Kraken.fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz, is_solid,
+    KrakeNN.fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz, is_solid,
         q_wall, uwx, uwy, uwz, Fx, Fy, Fz, N, N, N, nu; periodic_z=true, kw...)
-    cx = Kraken.velocities_x(D3Q19()); cy = Kraken.velocities_y(D3Q19())
-    cz = Kraken.velocities_z(D3Q19())
+    cx = KrakeNN.velocities_x(D3Q19()); cy = KrakeNN.velocities_y(D3Q19())
+    cz = KrakeNN.velocities_z(D3Q19())
     c = 3
     fpre = f_in[c, c, c, :]; fpost = f_out[c, c, c, :]
     dj = (sum(cx[q] * (fpost[q] - fpre[q]) for q in 1:19),
@@ -104,14 +104,14 @@ function _guo_ratio_bgk_3d(nu; u0=(0.02, -0.01, 0.005), F=(1e-4, -5e-5, 2e-5))
     N = 5
     f = zeros(Float64, N, N, N, 19)
     for k in 1:N, j in 1:N, i in 1:N, q in 1:19
-        f[i, j, k, q] = Kraken.equilibrium(D3Q19(), 1.0, u0[1], u0[2], u0[3], q)
+        f[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), 1.0, u0[1], u0[2], u0[3], q)
     end
     f0 = copy(f)
     is_solid = zeros(Bool, N, N, N)
     Fx = fill(F[1], N, N, N); Fy = fill(F[2], N, N, N); Fz = fill(F[3], N, N, N)
-    Kraken.collide_guo_field_3d!(f, is_solid, Fx, Fy, Fz, 1 / (3nu + 0.5))
-    cx = Kraken.velocities_x(D3Q19()); cy = Kraken.velocities_y(D3Q19())
-    cz = Kraken.velocities_z(D3Q19())
+    KrakeNN.collide_guo_field_3d!(f, is_solid, Fx, Fy, Fz, 1 / (3nu + 0.5))
+    cx = KrakeNN.velocities_x(D3Q19()); cy = KrakeNN.velocities_y(D3Q19())
+    cz = KrakeNN.velocities_z(D3Q19())
     c = 3
     dj = (sum(cx[q] * (f[c, c, c, q] - f0[c, c, c, q]) for q in 1:19),
           sum(cy[q] * (f[c, c, c, q] - f0[c, c, c, q]) for q in 1:19),
@@ -123,16 +123,16 @@ function _guo_ratio_trt_2d(nu; u0=(0.02, -0.01), F=(1e-4, -5e-5))
     N = 5
     f_in = zeros(Float64, N, N, 9)
     for j in 1:N, i in 1:N, q in 1:9
-        f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, u0[1], u0[2], q)
+        f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, u0[1], u0[2], q)
     end
     f_out = zeros(Float64, N, N, 9)
     rho = ones(N, N); ux = zeros(N, N); uy = zeros(N, N)
     is_solid = zeros(Bool, N, N)
     q_wall = zeros(N, N, 9); uwx = zeros(N, N, 9); uwy = zeros(N, N, 9)
     Fx = fill(F[1], N, N); Fy = fill(F[2], N, N)
-    Kraken.fused_trt_libb_v2_guo_field_step!(f_out, f_in, rho, ux, uy, is_solid,
+    KrakeNN.fused_trt_libb_v2_guo_field_step!(f_out, f_in, rho, ux, uy, is_solid,
         q_wall, uwx, uwy, Fx, Fy, N, N, nu)
-    cx = Kraken.velocities_x(D2Q9()); cy = Kraken.velocities_y(D2Q9())
+    cx = KrakeNN.velocities_x(D2Q9()); cy = KrakeNN.velocities_y(D2Q9())
     c = 3
     fpre = f_in[c, c, :]; fpost = f_out[c, c, :]
     dj = (sum(cx[q] * (fpost[q] - fpre[q]) for q in 1:9),
@@ -152,20 +152,20 @@ end
 # depend on it.
 function _guo_ratio_ad_2d(nu; Fb=1e-2)
     Nx, Ny = 24, 16
-    sp, sm = Kraken.ad_ve_trt_rates(nu)
-    p = Kraken.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4, 0.04, nu, Fb, sp, sm)
-    geom = Kraken.ad_ve_build_geom(Nx, Ny, 5.35, 8.15, 1.6; samples=8, u_mean=0.0)
+    sp, sm = KrakeNN.ad_ve_trt_rates(nu)
+    p = KrakeNN.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4, 0.04, nu, Fb, sp, sm)
+    geom = KrakeNN.ad_ve_build_geom(Nx, Ny, 5.35, 8.15, 1.6; samples=8, u_mean=0.0)
     n = Nx * Ny
     w_in = zeros(Float64, 12n)
     for j in 1:Ny, i in 1:Nx, q in 1:9
-        w_in[Kraken.ad_ve_fpop(i, j, q, Nx, Ny)] = Kraken.AD_VE_W[q]
+        w_in[KrakeNN.ad_ve_fpop(i, j, q, Nx, Ny)] = KrakeNN.AD_VE_W[q]
     end
     w_out = zeros(Float64, 12n)
-    Kraken.ad_ve_coupled_step!(w_out, w_in, geom.g, geom.q_wall, p, geom.u_profile)
+    KrakeNN.ad_ve_coupled_step!(w_out, w_in, geom.g, geom.q_wall, p, geom.u_profile)
     cx = (0, 1, 0, -1, 0, 1, -1, -1, 1)
     cy = (0, 0, 1, 0, -1, 1, 1, -1, -1)
-    fpre = [w_in[Kraken.ad_ve_fpop(18, 8, q, Nx, Ny)] for q in 1:9]
-    fpost = [w_out[Kraken.ad_ve_fpop(18, 8, q, Nx, Ny)] for q in 1:9]
+    fpre = [w_in[KrakeNN.ad_ve_fpop(18, 8, q, Nx, Ny)] for q in 1:9]
+    fpost = [w_out[KrakeNN.ad_ve_fpop(18, 8, q, Nx, Ny)] for q in 1:9]
     jx = sum(cx[q] * (fpost[q] - fpre[q]) for q in 1:9)
     pi_res = _guo_pi_residual(fpre, fpost, (cx, cy), (Fb / 2, 0.0), (Fb, 0.0), sp)
     return jx / Fb, pi_res
@@ -215,7 +215,7 @@ end
 # brick puts in the equilibrium), the reference TRT relaxation is
 #     R_q = f_pre_q - a (f_pre_q - feq_q(u*)) - b (f_pre_qbar - feq_qbar(u*)),
 #     a = (s+ + s-)/2, b = (s+ - s-)/2,
-# with feq written out below (not taken from Kraken). The source the brick added
+# with feq written out below (not taken from KrakeNN). The source the brick added
 # is src_q = f_post_q - R_q, split into S+_q = (src_q + src_qbar)/2 (even) and
 # S-_q = (src_q - src_qbar)/2 (odd). The fix requires, for ANY (s+, s-):
 #     S+_q = (1 - s+/2) w_q [9 (c_q.u*)(c_q.F) - 3 u*.F],
@@ -256,13 +256,13 @@ _guo_split_gate(::Type{T}) where {T} = 1e-12 * eps(T) / eps(Float64)
 # Lattice tables as Float64 (C is D x Q).
 function _guo_lattice_tables(lat)
     rows = lat isa D3Q19 ?
-        (Kraken.velocities_x(lat), Kraken.velocities_y(lat), Kraken.velocities_z(lat)) :
-        (Kraken.velocities_x(lat), Kraken.velocities_y(lat))
+        (KrakeNN.velocities_x(lat), KrakeNN.velocities_y(lat), KrakeNN.velocities_z(lat)) :
+        (KrakeNN.velocities_x(lat), KrakeNN.velocities_y(lat))
     C = Float64[r[q] for r in rows, q in 1:length(rows[1])]
-    return C, Float64.(collect(Kraken.weights(lat))), Int.(collect(Kraken.opposite(lat)))
+    return C, Float64.(collect(KrakeNN.weights(lat))), Int.(collect(KrakeNN.opposite(lat)))
 end
 
-# Second-order equilibrium written out (the reference does not call Kraken's).
+# Second-order equilibrium written out (the reference does not call KrakeNN's).
 function _guo_feq_ref(C, w, rho, u)
     D, Q = size(C)
     usq = sum(u[a]^2 for a in 1:D)
@@ -290,7 +290,7 @@ function _guo_brick_2d(::Type{T}, f0, F, nu, Λ) where {T}
     is_solid = zeros(Bool, N, N)
     q_wall = zeros(T, N, N, 9); uwx = zeros(T, N, N, 9); uwy = zeros(T, N, N, 9)
     Fx = fill(T(F[1]), N, N); Fy = fill(T(F[2]), N, N)
-    Kraken.fused_trt_libb_v2_guo_field_step!(f_out, f_in, rho, ux, uy, is_solid,
+    KrakeNN.fused_trt_libb_v2_guo_field_step!(f_out, f_in, rho, ux, uy, is_solid,
         q_wall, uwx, uwy, Fx, Fy, N, N, nu; Λ=Λ)
     return Float64.(f_in[2, 2, :]), Float64.(f_out[2, 2, :])
 end
@@ -310,7 +310,7 @@ function _guo_brick_3d(::Type{T}, f0, F, nu, Λ) where {T}
     q_wall = zeros(T, N, N, N, 19)
     uwx = zeros(T, N, N, N, 19); uwy = zeros(T, N, N, N, 19); uwz = zeros(T, N, N, N, 19)
     Fx = fill(T(F[1]), N, N, N); Fy = fill(T(F[2]), N, N, N); Fz = fill(T(F[3]), N, N, N)
-    Kraken.fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz, is_solid,
+    KrakeNN.fused_trt_libb_v2_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz, is_solid,
         q_wall, uwx, uwy, uwz, Fx, Fy, Fz, N, N, N, nu; Λ=Λ)
     return Float64.(f_in[2, 2, 2, :]), Float64.(f_out[2, 2, 2, :])
 end
@@ -352,7 +352,7 @@ function _guo_split_case(lat, ::Type{T}, nu, Λ; rho0, u0, F, neq) where {T}
     C, w, opp = _guo_lattice_tables(lat)
     f0 = _guo_uniform_state(C, w, rho0, collect(u0), neq)
     fpre, fpost = lat isa D3Q19 ? _guo_brick_3d(T, f0, F, nu, Λ) : _guo_brick_2d(T, f0, F, nu, Λ)
-    sp, sm = Kraken.trt_rates(nu; Λ=Λ)
+    sp, sm = KrakeNN.trt_rates(nu; Λ=Λ)
     return _guo_split_residuals(C, w, opp, fpre, fpost, collect(Float64.(T.(F))),
                                 Float64(T(sp)), Float64(T(sm)))
 end
@@ -401,7 +401,7 @@ function _guo_bgk_2d(::Type{T}, f0, F, ω) where {T}
     for j in 1:N, i in 1:N, q in 1:9
         f[i, j, q] = T(f0[q])
     end
-    Kraken.collide_guo_field_2d!(f, zeros(Bool, N, N), fill(T(F[1]), N, N),
+    KrakeNN.collide_guo_field_2d!(f, zeros(Bool, N, N), fill(T(F[1]), N, N),
                                  fill(T(F[2]), N, N), T(ω))
     return Float64.(f[2, 2, :])
 end
@@ -412,7 +412,7 @@ function _guo_bgk_3d(::Type{T}, f0, F, ω) where {T}
     for k in 1:N, j in 1:N, i in 1:N, q in 1:19
         f[i, j, k, q] = T(f0[q])
     end
-    Kraken.collide_guo_field_3d!(f, zeros(Bool, N, N, N), fill(T(F[1]), N, N, N),
+    KrakeNN.collide_guo_field_3d!(f, zeros(Bool, N, N, N), fill(T(F[1]), N, N, N),
                                  fill(T(F[2]), N, N, N), fill(T(F[3]), N, N, N), T(ω))
     return Float64.(f[2, 2, 2, :])
 end
@@ -424,7 +424,7 @@ end
         F = D == 3 ? (0.03, -0.02, 0.01) : (0.03, -0.02)
         u0 = D == 3 ? [0.08, -0.05, 0.03] : [0.08, -0.05]
         f0 = _guo_uniform_state(C, w, 1.03, u0, 0.02)
-        sp, sm = Kraken.trt_rates(nu; Λ=Λ)
+        sp, sm = KrakeNN.trt_rates(nu; Λ=Λ)
         @assert abs(sp - sm) <= 2 * eps(sp) "pair ($nu, $Λ) is not an SRT pair: $sp vs $sm"
         _, f_trt = D == 3 ? _guo_brick_3d(T, f0, F, nu, Λ) : _guo_brick_2d(T, f0, F, nu, Λ)
         f_bgk = D == 3 ? _guo_bgk_3d(T, f0, F, sp) : _guo_bgk_2d(T, f0, F, sp)
@@ -463,7 +463,7 @@ function _guo_ad_state(Nx, Ny, rng)
         u = 0.06 .* (2 .* rand(rng, 2) .- 1)
         feq = _guo_feq_ref(C, wq, rho, u)
         for q in 1:9
-            w_in[Kraken.ad_ve_fpop(i, j, q, Nx, Ny)] = feq[q] * (1 + 0.02 * (2rand(rng) - 1))
+            w_in[KrakeNN.ad_ve_fpop(i, j, q, Nx, Ny)] = feq[q] * (1 + 0.02 * (2rand(rng) - 1))
         end
     end
     w_in[9n+1:12n] .= 0.2 .* (2 .* rand(rng, 3n) .- 1)
@@ -472,10 +472,10 @@ end
 
 @testset "TRT Guo source: AD mirror equals the 2D brick" begin
     Nx, Ny = 24, 16
-    geom = Kraken.ad_ve_build_geom(Nx, Ny, 5.35, 8.15, 1.6; samples=8, u_mean=0.0)
+    geom = KrakeNN.ad_ve_build_geom(Nx, Ny, 5.35, 8.15, 1.6; samples=8, u_mean=0.0)
     w_in = _guo_ad_state(Nx, Ny, MersenneTwister(20261008))
     Fb = 4e-3
-    adp(sp, sm) = Kraken.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4, 0.08, 0.1, Fb, sp, sm)
+    adp(sp, sm) = KrakeNN.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4, 0.08, 0.1, Fb, sp, sm)
     probes = ((12, 4), (15, 12), (19, 7), (10, 13))
     for (i, j) in probes, di in -1:1, dj in -1:1
         @assert !geom.g.is_solid[i+di, j+dj]
@@ -483,13 +483,13 @@ end
     for (i, j) in probes
         @assert all(iszero, geom.q_wall[i, j, :])
     end
-    cx = Kraken.velocities_x(D2Q9()); cy = Kraken.velocities_y(D2Q9())
-    pulled(i, j) = [w_in[Kraken.ad_ve_fpop(i - cx[q], j - cy[q], q, Nx, Ny)] for q in 1:9]
-    out_at(w, i, j) = [w[Kraken.ad_ve_fpop(i, j, q, Nx, Ny)] for q in 1:9]
+    cx = KrakeNN.velocities_x(D2Q9()); cy = KrakeNN.velocities_y(D2Q9())
+    pulled(i, j) = [w_in[KrakeNN.ad_ve_fpop(i - cx[q], j - cy[q], q, Nx, Ny)] for q in 1:9]
+    out_at(w, i, j) = [w[KrakeNN.ad_ve_fpop(i, j, q, Nx, Ny)] for q in 1:9]
 
     # Force read-back at s+ = s- = 1.
     w1 = zeros(Float64, length(w_in))
-    Kraken.ad_ve_coupled_step!(w1, w_in, geom.g, geom.q_wall, adp(1.0, 1.0), geom.u_profile)
+    KrakeNN.ad_ve_coupled_step!(w1, w_in, geom.g, geom.q_wall, adp(1.0, 1.0), geom.u_profile)
     Fcell = Dict(p => [sum(c[q] * (out_at(w1, p...)[q] - pulled(p...)[q]) for q in 1:9)
                        for c in (cx, cy)] for p in probes)
     println("AD mirror probe forces: ", Fcell)
@@ -499,10 +499,10 @@ end
     function brick_at(i, j, F, nu, Λ)
         f_in = zeros(Float64, 3, 3, 9)
         for jj in 1:3, ii in 1:3, q in 1:9
-            f_in[ii, jj, q] = w_in[Kraken.ad_ve_fpop(i + ii - 2, j + jj - 2, q, Nx, Ny)]
+            f_in[ii, jj, q] = w_in[KrakeNN.ad_ve_fpop(i + ii - 2, j + jj - 2, q, Nx, Ny)]
         end
         f_out = zeros(Float64, 3, 3, 9)
-        Kraken.fused_trt_libb_v2_guo_field_step!(f_out, f_in,
+        KrakeNN.fused_trt_libb_v2_guo_field_step!(f_out, f_in,
             ones(3, 3), zeros(3, 3), zeros(3, 3), zeros(Bool, 3, 3),
             zeros(3, 3, 9), zeros(3, 3, 9), zeros(3, 3, 9),
             fill(F[1], 3, 3), fill(F[2], 3, 3), 3, 3, nu; Λ=Λ)
@@ -511,9 +511,9 @@ end
 
     gate = 64 * eps(Float64)
     for (nu, Λ) in ((1 / 6, 1 / 4), (0.10, 3 / 16), (1 / 6, 3 / 16), (0.04, 1 / 12))
-        sp, sm = Kraken.trt_rates(nu; Λ=Λ)
+        sp, sm = KrakeNN.trt_rates(nu; Λ=Λ)
         w_out = zeros(Float64, length(w_in))
-        Kraken.ad_ve_coupled_step!(w_out, w_in, geom.g, geom.q_wall, adp(sp, sm), geom.u_profile)
+        KrakeNN.ad_ve_coupled_step!(w_out, w_in, geom.g, geom.q_wall, adp(sp, sm), geom.u_profile)
         for p in probes
             d = maximum(abs, out_at(w_out, p...) .- brick_at(p..., Fcell[p], nu, Λ))
             println("AD mirror vs 2D brick: s+=$(sp) s-=$(sm) cell=$(p) max|df| = ", d,

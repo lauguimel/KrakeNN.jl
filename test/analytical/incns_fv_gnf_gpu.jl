@@ -15,8 +15,8 @@ using Test
 using LinearAlgebra
 using Random
 using ForwardDiff
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 
 if !isdefined(@__MODULE__, :_fvc2_ghia_error)
     include(joinpath(@__DIR__, "fv_newton_helpers.jl"))

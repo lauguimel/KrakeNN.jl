@@ -4,7 +4,7 @@
 #   julia --project benchmarks/validate_thermal_ref_3d_gpu.jl                         # Metal, N = 16, Float32
 #   julia --project benchmarks/validate_thermal_ref_3d_gpu.jl --backend=cuda --FT=Float64
 #   julia --project benchmarks/validate_thermal_ref_3d_gpu.jl --backend=cpu --N=12
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 

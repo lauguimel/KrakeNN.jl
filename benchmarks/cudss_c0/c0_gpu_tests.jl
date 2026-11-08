@@ -1,18 +1,18 @@
 # C0 GPU receipts: the existing cuDSS / EHD GPU test files plus the new C0
-# contract, run in a GPU environment (Kraken dev'd by path + CUDA + CUDSS +
-# KernelAbstractions + Test). CUDA and CUDSS are loaded BEFORE Kraken so the
+# contract, run in a GPU environment (KrakeNN dev'd by path + CUDA + CUDSS +
+# KernelAbstractions + Test). CUDA and CUDSS are loaded BEFORE KrakeNN so the
 # extension triggers (Julia 1.12, see benchmarks/results/ehd/README.md).
 #
 #   KRAKEN_REQUIRE_GPU=1 KRAKEN_TEST_EHD_SIDEWALLS_CUDA=true \
 #   KRAKEN_TEST_EC_RESTART_CUDA=true julia --project=<env> benchmarks/cudss_c0/c0_gpu_tests.jl
 using CUDA, CUDSS
 using Test, KernelAbstractions, LinearAlgebra
-using Kraken
+using KrakeNN
 
 CUDA.functional() || error("CUDA not functional")
-Base.get_extension(Kraken, :KrakenCUDSSExt) === nothing && error("KrakenCUDSSExt not loaded")
+Base.get_extension(KrakeNN, :KrakeNNCUDSSExt) === nothing && error("KrakeNNCUDSSExt not loaded")
 println("GPU: ", CUDA.name(CUDA.device()), "  CUDA.jl ", pkgversion(CUDA),
-        "  CUDSS.jl ", pkgversion(CUDSS), "  Kraken ", pkgversion(Kraken))
+        "  CUDSS.jl ", pkgversion(CUDSS), "  KrakeNN ", pkgversion(KrakeNN))
 const TA = joinpath(@__DIR__, "..", "..", "test", "analytical")
 
 @testset "C0 GPU receipts" begin

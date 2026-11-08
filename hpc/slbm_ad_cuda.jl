@@ -1,4 +1,4 @@
-using Kraken, Enzyme
+using KrakeNN, Enzyme
 
 # ===========================================================================
 # SLBM AD proof-of-concept on Aqua (CPU only — Enzyme GPU is experimental).
@@ -25,7 +25,7 @@ function forward_ke(ν_val::Float64; Nx=40, Ny=30, steps=200)
         u0 = 0.01 * sin(2π*x) * cos(2π*y)
         v0 = -0.01 * cos(2π*x) * sin(2π*y)
         for q in 1:9
-            f_in[i,j,q] = Kraken.equilibrium(D2Q9(), 1.0, u0, v0, q)
+            f_in[i,j,q] = KrakeNN.equilibrium(D2Q9(), 1.0, u0, v0, q)
         end
     end
 
@@ -76,7 +76,7 @@ function forward_drag(R_val::Float64; Nx=120, Ny=40, steps=10_000)
     ρ = ones(Nx, Ny); ux = zeros(Nx, Ny); uy = zeros(Nx, Ny)
     for j in 1:Ny, i in 1:Nx, q in 1:9
         u_prof = 4*u_in*(j-1)*(Ny-j)/(Ny-1)^2
-        f_in[i,j,q] = Kraken.equilibrium(D2Q9(), 1.0, u_prof, 0.0, q)
+        f_in[i,j,q] = KrakeNN.equilibrium(D2Q9(), 1.0, u_prof, 0.0, q)
     end
 
     for step in 1:steps
@@ -84,7 +84,7 @@ function forward_drag(R_val::Float64; Nx=120, Ny=40, steps=10_000)
         for j in 2:Ny-1
             u_j = 4*u_in*(j-1)*(Ny-j)/(Ny-1)^2
             for q in 1:9
-                f_out[1,j,q] = Kraken.equilibrium(D2Q9(), 1.0, u_j, 0.0, q)
+                f_out[1,j,q] = KrakeNN.equilibrium(D2Q9(), 1.0, u_j, 0.0, q)
             end
         end
         f_in, f_out = f_out, f_in
@@ -92,7 +92,7 @@ function forward_drag(R_val::Float64; Nx=120, Ny=40, steps=10_000)
 
     # Simple MEA drag
     Fx = 0.0
-    cxs = Kraken.velocities_x(D2Q9())
+    cxs = KrakeNN.velocities_x(D2Q9())
     for j in 1:Ny, i in 1:Nx
         is_solid[i,j] && continue
         for q in 2:9

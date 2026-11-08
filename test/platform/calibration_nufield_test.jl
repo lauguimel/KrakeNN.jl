@@ -1,18 +1,18 @@
 using Test
-using Kraken
+using KrakeNN
 using Random
 using LinearAlgebra
 
 const _NUFIELD_ENZYME_OK = try
     @eval Main using Enzyme
-    Base.get_extension(Kraken, :KrakenADExt) !== nothing
+    Base.get_extension(KrakeNN, :KrakeNNADExt) !== nothing
 catch
     false
 end
 
 const _NUFIELD_OPTIM_OK = try
     @eval Main using Optim
-    Base.get_extension(Kraken, :KrakenOptimExt) !== nothing
+    Base.get_extension(KrakeNN, :KrakeNNOptimExt) !== nothing
 catch
     false
 end
@@ -29,15 +29,15 @@ const _NF_GEOM = (Nx=_NF_NX, Ny=_NF_NY, cx=4.0, cy=4.0,
     @testset "_reg_loss: known values" begin
         nu = [0.03, 0.05, 0.07]
         # diff = [0.02, 0.02]; sum(abs2) = 2*0.0004 = 0.0008; *(0.5*1.0) = 0.0004
-        @test Kraken._reg_loss(nu, 1.0) ≈ 0.0004
-        @test Kraken._reg_loss(nu, 0.0) == 0.0
-        @test Kraken._reg_loss([0.05], 1.0) == 0.0
-        @test Kraken._reg_loss(Float64[], 1.0) == 0.0
+        @test KrakeNN._reg_loss(nu, 1.0) ≈ 0.0004
+        @test KrakeNN._reg_loss(nu, 0.0) == 0.0
+        @test KrakeNN._reg_loss([0.05], 1.0) == 0.0
+        @test KrakeNN._reg_loss(Float64[], 1.0) == 0.0
     end
 
     @testset "_reg_grad: known analytic values" begin
         nu = [0.03, 0.05, 0.07]
-        g  = Kraken._reg_grad(nu, 1.0)
+        g  = KrakeNN._reg_grad(nu, 1.0)
         # j=1 (endpoint): nu[1] - nu[2] = 0.03 - 0.05 = -0.02
         # j=2 (interior): 2*nu[2] - nu[1] - nu[3] = 0.10 - 0.10 = 0.0
         # j=3 (endpoint): nu[3] - nu[2] = 0.07 - 0.05 = 0.02
@@ -45,20 +45,20 @@ const _NF_GEOM = (Nx=_NF_NX, Ny=_NF_NY, cx=4.0, cy=4.0,
         @test g[2] ≈  0.0 atol=1e-15
         @test g[3] ≈  0.02
         # alpha=0 -> zeros
-        @test all(Kraken._reg_grad(nu, 0.0) .== 0.0)
+        @test all(KrakeNN._reg_grad(nu, 0.0) .== 0.0)
     end
 
     @testset "_reg_grad vs central FD (random nu, random alpha)" begin
         rng   = Random.MersenneTwister(11)
         nu    = 0.03 .+ 0.04 .* rand(rng, _NF_NY)
         alpha = 0.1 + rand(rng)
-        g_ana = Kraken._reg_grad(nu, alpha)
+        g_ana = KrakeNN._reg_grad(nu, alpha)
         h     = 1e-6
         g_fd  = similar(g_ana)
         for j in eachindex(nu)
             nu_p = copy(nu); nu_p[j] += h
             nu_m = copy(nu); nu_m[j] -= h
-            g_fd[j] = (Kraken._reg_loss(nu_p, alpha) - Kraken._reg_loss(nu_m, alpha)) / (2h)
+            g_fd[j] = (KrakeNN._reg_loss(nu_p, alpha) - KrakeNN._reg_loss(nu_m, alpha)) / (2h)
         end
         @test maximum(abs.(g_ana .- g_fd)) < 1e-10
     end
@@ -67,11 +67,11 @@ const _NF_GEOM = (Nx=_NF_NX, Ny=_NF_NY, cx=4.0, cy=4.0,
         Ny     = _NF_NY
         names  = [Symbol("ν_$i") for i in 1:Ny]
         ps_fld = ParameterSpace(names, fill(0.01, Ny), fill(0.5, Ny))
-        @test Kraken._is_nufield_pspace(ps_fld) == true
+        @test KrakeNN._is_nufield_pspace(ps_fld) == true
         ps_sc  = ParameterSpace([:ν], [0.01], [0.5])
-        @test Kraken._is_nufield_pspace(ps_sc)  == false
+        @test KrakeNN._is_nufield_pspace(ps_sc)  == false
         ps_r   = ParameterSpace([:radius], [0.5], [5.0])
-        @test Kraken._is_nufield_pspace(ps_r)   == false
+        @test KrakeNN._is_nufield_pspace(ps_r)   == false
     end
 
     @testset "ParameterSpace nufield log-scale round-trip (Ny=8)" begin
@@ -80,9 +80,9 @@ const _NF_GEOM = (Nx=_NF_NX, Ny=_NF_NY, cx=4.0, cy=4.0,
         ps     = ParameterSpace(names, fill(1e-3, Ny), fill(0.5, Ny); log_scale=trues(Ny))
         nu_vec = [0.03 + 0.04*sin(π*(j-1)/(Ny-1)) for j in 1:Ny]
         p0     = NamedTuple{Tuple(names)}(Tuple(nu_vec))
-        x      = Kraken.to_flat(ps, p0)
+        x      = KrakeNN.to_flat(ps, p0)
         @test x ≈ log.(nu_vec)
-        p_rt   = Kraken.from_flat(ps, x, p0)
+        p_rt   = KrakeNN.from_flat(ps, x, p0)
         @test all(abs(p_rt[names[j]] - nu_vec[j]) < 1e-14 for j in 1:Ny)
     end
 
@@ -109,10 +109,10 @@ const _NF_GEOM = (Nx=_NF_NX, Ny=_NF_NY, cx=4.0, cy=4.0,
                                       observables=[obs], method=:foobar)
     end
 
-    @testset "OPTIM_FREE_OK: KrakenOptimExt not loaded without Optim" begin
-        @test isdefined(Kraken, :fit)
-        @test isdefined(Kraken, :ParameterSpace)
-        @test isdefined(Kraken, :LBMFieldParams)
+    @testset "OPTIM_FREE_OK: KrakeNNOptimExt not loaded without Optim" begin
+        @test isdefined(KrakeNN, :fit)
+        @test isdefined(KrakeNN, :ParameterSpace)
+        @test isdefined(KrakeNN, :LBMFieldParams)
         println("OPTIM_FREE_OK: fit/ParameterSpace/LBMFieldParams defined without Optim")
     end
 
@@ -139,7 +139,7 @@ if _NUFIELD_ENZYME_OK
             ν_true   = 0.05
             ν0       = 0.07
             σ        = 5e-4
-            fwd_true = Kraken.ad_forward_solve(; _NF_GEOM..., nu=ν_true,
+            fwd_true = KrakeNN.ad_forward_solve(; _NF_GEOM..., nu=ν_true,
                                                 tol=1e-12, max_steps=200_000)
             @test fwd_true.converged
             x_obs    = _NF_NX ÷ 2
@@ -159,19 +159,19 @@ if _NUFIELD_ENZYME_OK
         end
 
         @testset "C-2c: Enzyme-free load intact (LBMFieldParams + ParameterSpace{ν_i})" begin
-            @test isdefined(Kraken, :LBMFieldParams)
+            @test isdefined(KrakeNN, :LBMFieldParams)
             Ny    = 4
             names = [Symbol("ν_$i") for i in 1:Ny]
             ps    = ParameterSpace(names, fill(0.01, Ny), fill(0.5, Ny))
             p0    = NamedTuple{Tuple(names)}(Tuple(fill(0.05, Ny)))
-            @test Kraken.n_free(ps) == Ny
+            @test KrakeNN.n_free(ps) == Ny
             println("C-2c Enzyme-free load: LBMFieldParams + ParameterSpace{ν_i} OK")
         end
 
     end # Enzyme-gated testset
 
 else
-    @info "Skipping M-P2c-2 Enzyme-gated calibration nufield tests (KrakenADExt not loaded)"
+    @info "Skipping M-P2c-2 Enzyme-gated calibration nufield tests (KrakeNNADExt not loaded)"
 end
 
 # ---- Enzyme + Optim gated (field twin experiment C-2a) ----
@@ -199,7 +199,7 @@ if _NUFIELD_ENZYME_OK && _NUFIELD_OPTIM_OK
             σ      = 5e-4
 
             # Generate reference data with true ν field
-            fwd_true = Kraken.ad_forward_solve_nufield(; _NF_GEOM...,
+            fwd_true = KrakeNN.ad_forward_solve_nufield(; _NF_GEOM...,
                                                         nu_field=ν_true,
                                                         tol=1e-12,
                                                         max_steps=200_000)
@@ -242,5 +242,5 @@ if _NUFIELD_ENZYME_OK && _NUFIELD_OPTIM_OK
     end # Optim-gated testset
 
 elseif _NUFIELD_ENZYME_OK && !_NUFIELD_OPTIM_OK
-    @info "Skipping M-P2c-2 Optim-gated field twin experiment (KrakenOptimExt not loaded)"
+    @info "Skipping M-P2c-2 Optim-gated field twin experiment (KrakeNNOptimExt not loaded)"
 end

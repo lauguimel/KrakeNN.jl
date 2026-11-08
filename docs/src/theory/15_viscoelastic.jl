@@ -123,7 +123,7 @@
 #
 # The log-conformation formulation requires efficient 2×2 symmetric matrix
 # operations (eigendecomposition, exp, log) at every lattice node.
-# Kraken provides GPU-optimized, branchless implementations:
+# KrakeNN provides GPU-optimized, branchless implementations:
 #
 # ```julia
 # eigen_sym2x2(a11, a12, a22)       # → (λ1, λ2, e1x, e1y, e2x, e2y)

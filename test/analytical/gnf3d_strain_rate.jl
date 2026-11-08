@@ -1,7 +1,7 @@
 using Test
 using Random
 using LinearAlgebra
-using Kraken
+using KrakeNN
 
 # Frozen Float64 gates derive from the D3Q19 fourth-order isotropy identity:
 # sum_q w_q c_a c_b c_c c_d = (delta_ab delta_cd + delta_ac delta_bd +
@@ -10,15 +10,15 @@ using Kraken
 # Relative tolerance 1e-12 allows only floating-point summation/subtraction error.
 function _gnf3d_strain_lattice()
     lattice = D3Q19()
-    return (Kraken.velocities_x(lattice), Kraken.velocities_y(lattice),
-            Kraken.velocities_z(lattice)), Kraken.weights(lattice)
+    return (KrakeNN.velocities_x(lattice), KrakeNN.velocities_y(lattice),
+            KrakeNN.velocities_z(lattice)), KrakeNN.weights(lattice)
 end
 
 @testset "GNF model conversion before kernel launch" begin
     models = (Newtonian(0.08), PowerLaw(0.08, 0.7; nu_min=0.01, nu_max=0.4),
               CarreauYasuda(0.3, 0.01, 12.0, 2.0, 0.6), Cross(0.3, 0.01, 12.0, 0.6))
     for FT in (Float32, Float64), model in models
-        converted = Kraken._gnf3d_rheology(FT, model)
+        converted = KrakeNN._gnf3d_rheology(FT, model)
         @test isbitstype(typeof(converted))
         @test converted.thermal isa IsothermalCoupling
         for name in fieldnames(typeof(model))
@@ -32,7 +32,7 @@ end
     for model in (Newtonian(0.08; thermal), PowerLaw(0.08, 0.7; thermal),
                   CarreauYasuda(0.3, 0.01, 12.0, 2.0, 0.6; thermal),
                   Cross(0.3, 0.01, 12.0, 0.6; thermal), Bingham(0.01, 0.08))
-        @test_throws ArgumentError Kraken._gnf3d_rheology(Float32, model)
+        @test_throws ArgumentError KrakeNN._gnf3d_rheology(Float32, model)
     end
 end
 
@@ -58,7 +58,7 @@ function _gnf3d_strain_moments(fneq)
 end
 
 function _gnf3d_strain_from_tensor(Pi, rho, tau)
-    return Kraken.strain_rate_from_pi_3d(
+    return KrakeNN.strain_rate_from_pi_3d(
         Pi[1,1], Pi[2,2], Pi[3,3], Pi[1,2], Pi[1,3], Pi[2,3], rho, tau)
 end
 

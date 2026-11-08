@@ -115,8 +115,8 @@ This is one of the TWO functions of the backend-parametric factorize-once seam
 Measured win (issue #8, Aqua A100): the factorize-once cuDSS pressure solve runs
 ~30x faster than CPU CHOLMOD at 1M DOF, with the amortized back-substitution at
 4.7 ms/solve (`benchmarks/krk/inc_ns/poisson_gpu_bench.jl`). Registered in
-`src/Kraken.jl` THROUGH `solve/poisson.jl` (which tail-includes this file —
-never include it directly there); exported by `using Kraken`.
+`src/KrakeNN.jl` THROUGH `solve/poisson.jl` (which tail-includes this file —
+never include it directly there); exported by `using KrakeNN`.
 """
 function lin_factorize(A::SparseMatrixCSC{Float64,Int};
                        backend::LinearSolveBackend = CPUBackendTag(),
@@ -280,7 +280,7 @@ function _cudss_check_transpose(ver::VersionNumber)
     _cudss_transpose_supported(ver) && return nothing
     error("transposed cuDSS solve requires CUDSS.jl >= $(CUDSS_TRANSPOSE_MIN_VERSION) " *
           "(loaded: $ver). Older CUDSS.jl/libcudss ignore solve_mode='T' and " *
-          "return the solution of A x = b, so Kraken refuses instead. Upgrade to " *
+          "return the solution of A x = b, so KrakeNN refuses instead. Upgrade to " *
           "CUDA.jl 6 + CUDSS.jl 1, or factorize transpose(A) as a separate cache.")
 end
 

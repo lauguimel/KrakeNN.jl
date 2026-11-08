@@ -1,7 +1,7 @@
 # Level 6 1-step bit-exact check: do 1-block and 3-block give SAME f_out
 # after 1 step at E3 setup (uniform inlet, Re=100, D=20)?
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const T = Float64
 const backend = KernelAbstractions.CPU()
@@ -72,7 +72,7 @@ function setup_and_step(mbm, label)
         solid_int = @view is_solid_ext[k][(ng_+1):(ng_+Nxk), (ng_+1):(ng_+Nyk)]
         for j in 1:Nyk, i in 1:Nxk, q in 1:9
             u = solid_int[i, j] ? zero(T) : T(u_max)
-            f_int[i, j, q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+            f_int[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
         end
         int_view = interior_f(states[k])
         int_view .= f_int

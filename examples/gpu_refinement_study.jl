@@ -5,7 +5,7 @@ Runs GPU (Metal/Float32) first, then CPU (Float64) in a separate pass
 to avoid Metal/CPU backend conflict.
 """
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 

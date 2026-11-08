@@ -17,7 +17,7 @@ operators + the factorize-once CHOLMOD seam; host loops (NOT KA kernels) for the
 per-iteration physics. It establishes the SIMPLE structure (direct momentum
 predictor -> Rhie-Chow faces -> pressure correction -> compact-gradient
 correction) that `incns-cavity-mg` re-implements backend-parametrically.
-**Registered in `src/Kraken.jl`** and exported (`solve_incns_simple`); also
+**Registered in `src/KrakeNN.jl`** and exported (`solve_incns_simple`); also
 reachable through the platform contract as `solve(params, IncNS(:simple))`
 (`src/methods/inc_ns/method.jl`). Include guards keep the file
 standalone-include-able.

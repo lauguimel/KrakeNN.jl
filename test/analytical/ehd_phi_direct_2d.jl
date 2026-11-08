@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 function _frozen_phi_lbm_box(q_cpu, analytic_phi, p; phi_tol=1e-6, phi_max_iter=30000)
     Nx, Ny = size(q_cpu)
@@ -13,21 +13,21 @@ function _frozen_phi_lbm_box(q_cpu, analytic_phi, p; phi_tol=1e-6, phi_max_iter=
     diag = KernelAbstractions.zeros(backend, Float64, 2)
     diag_host = Vector{Float64}(undef, 2)
 
-    phi_init = Kraken._fill_phi_populations!(zeros(Float64, Nx, Ny, 9), analytic_phi, Nx, Ny, Float64)
+    phi_init = KrakeNN._fill_phi_populations!(zeros(Float64, Nx, Ny, 9), analytic_phi, Nx, Ny, Float64)
     copyto!(phi_f_in, phi_init)
     copyto!(phi_f_out, phi_init)
     copyto!(qfield, q_cpu)
-    Kraken.compute_ehd_scalar_2d!(phi, phi_f_in)
+    KrakeNN.compute_ehd_scalar_2d!(phi, phi_f_in)
 
     phi_rel = Inf
     for iter in 1:phi_max_iter
         copyto!(phi_prev, phi)
-        Kraken.collide_electric_potential_2d!(phi_f_in, qfield, p.eps, p.omega_U, p.nu_U)
-        Kraken.stream_wall_x_wall_y_2d!(phi_f_out, phi_f_in, Nx, Ny)
-        Kraken.compute_ehd_scalar_2d!(phi, phi_f_out)
-        Kraken.apply_phi_nee_box_2d!(phi_f_out, phi, 1.0, 0.0, Nx, Ny)
-        Kraken.compute_ehd_scalar_2d!(phi, phi_f_out)
-        Kraken.ehd_rel_change_2d!(diag, phi, phi_prev, Nx, Ny)
+        KrakeNN.collide_electric_potential_2d!(phi_f_in, qfield, p.eps, p.omega_U, p.nu_U)
+        KrakeNN.stream_wall_x_wall_y_2d!(phi_f_out, phi_f_in, Nx, Ny)
+        KrakeNN.compute_ehd_scalar_2d!(phi, phi_f_out)
+        KrakeNN.apply_phi_nee_box_2d!(phi_f_out, phi, 1.0, 0.0, Nx, Ny)
+        KrakeNN.compute_ehd_scalar_2d!(phi, phi_f_out)
+        KrakeNN.ehd_rel_change_2d!(diag, phi, phi_prev, Nx, Ny)
         copyto!(diag_host, diag)
         phi_rel = diag_host[1]
         phi_f_in, phi_f_out = phi_f_out, phi_f_in
@@ -37,7 +37,7 @@ function _frozen_phi_lbm_box(q_cpu, analytic_phi, p; phi_tol=1e-6, phi_max_iter=
 end
 
 @testset "EHD direct phi hydrostatic base state" begin
-    result = Kraken.run_ehd_hydrostatic_2d(;
+    result = KrakeNN.run_ehd_hydrostatic_2d(;
         Nx=8,
         Ny=96,
         C=10.0,
@@ -60,8 +60,8 @@ end
 @testset "EHD direct phi frozen-charge consistency" begin
     Nx, Ny = 31, 48
     C = 10.0
-    p = Kraken._ehd_ec_lattice_params(Ny, C, 10.0, 175.0, 1e-2, 1e-4, 1.0, 0.3; FT=Float64)
-    analytic = Kraken.ehd_hydrostatic_profiles(C, Ny; FT=Float64)
+    p = KrakeNN._ehd_ec_lattice_params(Ny, C, 10.0, 175.0, 1e-2, 1e-4, 1.0, 0.3; FT=Float64)
+    analytic = KrakeNN.ehd_hydrostatic_profiles(C, Ny; FT=Float64)
     q_profile = p.q_inj .* analytic.q_star
     q_cpu = zeros(Float64, Nx, Ny)
     for j in 1:Ny
@@ -72,8 +72,8 @@ end
     qfield = KernelAbstractions.zeros(KernelAbstractions.CPU(), Float64, Nx, Ny)
     phi_direct = KernelAbstractions.zeros(KernelAbstractions.CPU(), Float64, Nx, Ny)
     copyto!(qfield, q_cpu)
-    setup = Kraken.ehd_poisson_setup(Nx, Ny, p.eps; xbc=:neumann)
-    Kraken.ehd_poisson_solve!(phi_direct, setup, qfield)
+    setup = KrakeNN.ehd_poisson_setup(Nx, Ny, p.eps; xbc=:neumann)
+    KrakeNN.ehd_poisson_solve!(phi_direct, setup, qfield)
 
     phi_lbm, phi_rel, phi_iters = _frozen_phi_lbm_box(q_cpu, analytic.phi, p)
     linf = maximum(abs.(Array(phi_direct) .- phi_lbm)) /
@@ -90,8 +90,8 @@ end
               charge_scheme=:regularized, ns_scheme=:mrt, force_projection=:none,
               perturb_amplitude=1e-4, backend=KernelAbstractions.CPU(), FT=Float64)
 
-    sup = Kraken.run_electroconvection_2d(; common..., T=220.0)
-    sub = Kraken.run_electroconvection_2d(; common..., T=150.0)
+    sup = KrakeNN.run_electroconvection_2d(; common..., T=220.0)
+    sub = KrakeNN.run_electroconvection_2d(; common..., T=150.0)
 
     sup_final = last(sup.umax_history)
     sub_peak = maximum(sub.umax_history)

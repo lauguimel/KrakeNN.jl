@@ -1,9 +1,9 @@
 using Test
-using Kraken
+using KrakeNN
 
 # A method that declares nothing → exercises the default (fail-safe) capabilities().
 # (structs are top-level only in Julia, so it lives outside the @testset.)
-struct _DummyMethod <: Kraken.AbstractMethod end
+struct _DummyMethod <: KrakeNN.AbstractMethod end
 
 @testset "platform contract (Phase 0/0b)" begin
 

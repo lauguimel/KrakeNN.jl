@@ -29,7 +29,7 @@
 # In practice, this means the lattice velocity `u_lid`, `u_max`, or any
 # characteristic velocity must remain well below ``0.1``:
 
-using Kraken
+using KrakeNN
 
 lattice = D2Q9()
 cs = sqrt(cs2(lattice))

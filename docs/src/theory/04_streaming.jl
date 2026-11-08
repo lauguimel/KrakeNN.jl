@@ -17,7 +17,7 @@
 #   neighbours: ``f_q(\mathbf{x}) \leftarrow f_q^{\star}(\mathbf{x} - \mathbf{e}_q)``.
 #
 # !!! tip "Pull scheme on GPUs"
-#     Kraken.jl uses the **pull scheme**. It is preferred on GPUs because each
+#     KrakeNN uses the **pull scheme**. It is preferred on GPUs because each
 #     thread writes to a single known memory location, avoiding write conflicts
 #     and enabling coalesced memory access.
 #
@@ -57,7 +57,7 @@
 # - **Wall boundaries**: unknown incoming populations are set by bounce-back
 #   or Zou--He conditions (see the Boundary Conditions chapter).
 #
-# In Kraken.jl, different streaming kernels handle different boundary
+# In KrakeNN, different streaming kernels handle different boundary
 # configurations:
 #
 # | Kernel | Walls | Periodic |
@@ -91,7 +91,7 @@
 #
 # This avoids explicit ghost layers and is very efficient on GPUs.
 
-using Kraken
+using KrakeNN
 
 lattice = D2Q9()
 
@@ -106,7 +106,7 @@ end
 # ## Double buffering
 #
 # Because a node may be both a source and a destination during the same
-# streaming step, Kraken.jl uses **two separate arrays** (`f_in` and `f_out`).
+# streaming step, KrakeNN uses **two separate arrays** (`f_in` and `f_out`).
 # After streaming, the roles are swapped for the next time step:
 #
 # ```

@@ -4,7 +4,7 @@
 #   2. If we feed the SAME q_w to both kernels, does the gap persist?
 # Run on Metal D=40 (faster than D=80 but still in the converged regime).
 
-using Kraken, Metal, KernelAbstractions, Gmsh
+using KrakeNN, Metal, KernelAbstractions, Gmsh
 
 const Lx, Ly = 2.2f0, 0.41f0
 const cx_p, cy_p, R_p = 0.2f0, 0.2f0, 0.05f0

@@ -10,13 +10,13 @@ macro-flow.
 ## Current Validation Commands
 
 ```bash
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_streaming_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_open_boundary_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_gpu_pack_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_subcycling_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_adaptation_2d.jl"); include("test/test_conservative_tree_multipatch_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_topology_2d.jl"); include("test/test_conservative_tree_2d.jl")'
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_3d.jl"); include("test/test_conservative_tree_topology_3d.jl"); include("test/test_conservative_tree_streaming_3d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_streaming_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_open_boundary_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_gpu_pack_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_subcycling_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_adaptation_2d.jl"); include("test/test_conservative_tree_multipatch_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_topology_2d.jl"); include("test/test_conservative_tree_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_3d.jl"); include("test/test_conservative_tree_topology_3d.jl"); include("test/test_conservative_tree_streaming_3d.jl")'
 ```
 
 ## 1. Streaming Composite Natif 2D

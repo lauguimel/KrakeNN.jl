@@ -1,6 +1,6 @@
 # Getting started
 
-This page walks you through your first Kraken.jl simulation end-to-end:
+This page walks you through your first KrakeNN simulation end-to-end:
 installing the package, running the classic 2D lid-driven cavity, looking
 at the result, and then pointing you to the parts of the documentation
 that match your interests.
@@ -9,7 +9,7 @@ If you already know Julia but have never run a Lattice Boltzmann
 simulation — the method this walkthrough uses — this is the right place
 to start.
 
-## 1. Install Kraken.jl
+## 1. Install KrakeNN
 
 From a Julia REPL (Julia 1.10 or later):
 
@@ -22,7 +22,7 @@ Or, if you have cloned the repository and want a development checkout:
 
 ```julia
 using Pkg
-Pkg.activate("/path/to/Kraken.jl")
+Pkg.activate("/path/to/KrakeNN")
 Pkg.instantiate()
 ```
 
@@ -31,12 +31,12 @@ Silicon, CUDA on NVIDIA).
 
 ## 2. Your first simulation
 
-Kraken.jl uses a small DSL called `.krk` to describe cases. The
+KrakeNN uses a small DSL called `.krk` to describe cases. The
 repository ships with a ready-to-run lid-driven cavity at
 `examples/cavity.krk`. Load it, inspect the parsed setup, then run it:
 
 ```julia
-using Kraken
+using KrakeNN
 
 # Parse the .krk file into a SimulationSetup
 setup = load_kraken("examples/cavity.krk")
@@ -79,12 +79,12 @@ are velocity magnitude and pressure.
 
 ![Cavity centerline profiles](assets/figures/cavity_centerlines.png)
 
-The figure above compares Kraken.jl's centerline velocity profiles
+The figure above compares KrakeNN's centerline velocity profiles
 against the reference data of Ghia et al. (1982).
 
 ## 4. What just happened?
 
-Under the hood, this case ran with Kraken's Lattice Boltzmann method. At
+Under the hood, this case ran with KrakeNN's Lattice Boltzmann method. At
 every time step the solver does three things, in order:
 
 1. **Collision** — at each lattice node, the distribution functions

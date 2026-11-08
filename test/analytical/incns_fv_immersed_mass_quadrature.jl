@@ -2,7 +2,7 @@
 # an explicitly prescribed physical target supersedes the numerical estimate.
 # Harmonic 128 aliases to a constant on 128 angular samples and integrates
 # to roundoff on 256 samples, giving a nonzero error estimate of 2pi*radius.
-using Test, Kraken
+using Test, KrakeNN
 
 @testset "M3 inherited physical flux retains quadrature uncertainty" begin
     cx, cy, radius = 6.13, 5.87, 2.21

@@ -1,7 +1,7 @@
 # Incompressible steady Navier–Stokes (FVFD/SIMPLE)
 
 A steady, laminar, Newtonian, **incompressible** Navier–Stokes solver built on
-Kraken's FVFD (finite-volume/finite-difference) operators, with **SIMPLE**
+KrakeNN's FVFD (finite-volume/finite-difference) operators, with **SIMPLE**
 pressure–velocity coupling on a collocated grid (Rhie–Chow face interpolation,
 checkerboard-free pressure). The discretization is **cut-cell-ready**: the
 pressure-Poisson seam is the same one validated on a tilted embedded wall in the
@@ -26,7 +26,7 @@ per-kernel GPU throughput, where LBM's single fused local kernel is unbeatable �
 is this solver's real advantage for steady cases.
 
 Conversely, for **genuinely unsteady / transient flows** the time steps are not
-overhead but the answer itself, and LBM remains the right tool in Kraken.
+overhead but the answer itself, and LBM remains the right tool in KrakeNN.
 
 | Problem | Use |
 |---|---|
@@ -35,7 +35,7 @@ overhead but the answer itself, and LBM remains the right tool in Kraken.
 
 ## How to run
 
-The solver stack is **registered in the package API**: `using Kraken` exports
+The solver stack is **registered in the package API**: `using KrakeNN` exports
 the drivers (`solve_incns_simple`, `solve_incns_cavity`, `solve_incns_cavity_mg`,
 `solve_incns_projection`, `solve_incns_manifold`) plus the platform contract
 `IncNS <: AbstractMethod` — the same call is reachable as
@@ -48,7 +48,7 @@ factorize-once linear solves):
 
 ```julia
 # julia --project=.
-using Kraken
+using KrakeNN
 
 res = solve_incns_simple(; nx=8, ny=64, H=1.0, mu=1.0, G=1.0,
                          relax=(u=0.7, p=0.3), tol=1e-10, maxiter=300)
@@ -61,7 +61,7 @@ and the pressure correction), CPU:
 
 ```julia
 # julia --project=.
-using Kraken
+using KrakeNN
 
 res = solve_incns_cavity_mg(; nx=128, ny=128, U_lid=1.0, Re=100.0,
                             relax=(u=0.7, p=0.3), tol=1e-7, vel_tol=1e-6,
@@ -72,7 +72,7 @@ res.converged, res.iters    # (true, ~3.2e3 outer iterations)
 The same call on an NVIDIA GPU — same source, two keyword changes:
 
 ```julia
-using Kraken, CUDA
+using KrakeNN, CUDA
 res = solve_incns_cavity_mg(; nx=512, ny=512, U_lid=1.0, Re=1000.0,
                             relax=(u=0.5, p=0.2), tol=1e-7, vel_tol=1e-6,
                             maxiter=60000,

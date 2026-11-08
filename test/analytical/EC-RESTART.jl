@@ -1,4 +1,4 @@
-using Test, Kraken
+using Test, KrakeNN
 using KernelAbstractions
 
 if !isdefined(@__MODULE__, :run_state_contract_suite)

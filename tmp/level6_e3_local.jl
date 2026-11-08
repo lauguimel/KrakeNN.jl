@@ -4,7 +4,7 @@
 # With this fix, Cd should at least be sensible (1–5 range typical for
 # Re=100 blocked cylinder).
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const T = Float64
 const backend = KernelAbstractions.CPU()
@@ -102,7 +102,7 @@ function run_E3_local(mbm, label)
         solid_int = @view is_solid_ext[k][(ng_+1):(ng_+Nxk), (ng_+1):(ng_+Nyk)]
         for j in 1:Nyk, i in 1:Nxk, q in 1:9
             u = solid_int[i, j] ? zero(T) : T(u_max)
-            f_int[i, j, q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+            f_int[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
         end
         int_view = interior_f(states[k])
         int_view .= f_int

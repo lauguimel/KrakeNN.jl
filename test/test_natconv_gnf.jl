@@ -1,4 +1,4 @@
-using Test, Kraken
+using Test, KrakeNN
 
 @testset "GNF natural convection CPU Float64" begin
     started = time()
@@ -26,7 +26,7 @@ using Test, Kraken
         # CPU Float64: gap 0 (Nu = 1.11754 both; 1.11851 before v0.7).
         @test gap < 1e-6
         # De Vahl Davis (1983), DOI 10.1002/fld.1650030305, cavity-average Nu=1.118
-        # (hot-wall Nu0 = 1.117; Kraken computes the hot-wall mean, gate unchanged);
+        # (hot-wall Nu0 = 1.117; KrakeNN computes the hot-wall mean, gate unchanged);
         # same frozen 0.5% N64 gate as test_thermal.jl (docs/refs.bib: devahldavis1983).
         @test abs(result.Nu - 1.118) / 1.118 < 0.005
         @test all(isfinite, result.Temp)
@@ -107,14 +107,14 @@ using Test, Kraken
         @info "GNF Turan point Ra=1e4" Nu_32=coarse.Nu Nu_48=fine.Nu Nu_ext steps=(coarse.steps, fine.steps)
 
         # Ra = 1e3 against Fig. 9a (p. 1059), Nu = 2.07 +/- 0.07 (axis 0-40).
-        # Kraken was grid-converged here before v0.7 (N = 48/64/96:
+        # KrakeNN was grid-converged here before v0.7 (N = 48/64/96:
         # 1.9933/1.9931/1.9923; nu0 = 0.1 at N = 64: 1.9914), 3.7% below that
         # reading, just outside its +/-0.07 band, while the same driver is
         # within 0.5% of the Ra = 1e4 point above. With v0.7 (all rows, specular
         # adiabatic walls) N = 48 gives 1.98434, 4.1% below. The gap is
         # documented, not gated (see
         # docs/src/users/benchmarks/gnf-natural-convection.md). Frozen regression
-        # gate on Kraken's own value instead: measured 2026-11-04, Apple-silicon
+        # gate on KrakeNN's own value instead: measured 2026-11-04, Apple-silicon
         # Mac, CPU Float64, N = 48: Nu = 1.98434; 0.1% covers the stopping rule.
         # (Before v0.7: 1.99332; the baseline moved with the Nusselt average
         # and the adiabatic walls, the tolerance did not.)

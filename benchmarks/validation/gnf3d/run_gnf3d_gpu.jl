@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 using Dates

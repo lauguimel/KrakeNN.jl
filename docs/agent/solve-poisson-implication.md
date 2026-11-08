@@ -14,7 +14,7 @@ The assembled CPU **reference** Poisson service of the IncNS solver stack (issue
 5-point `-∇²` on the unit square, cell-centred `N x N` grid, sparse assembly +
 direct solve. It is the convention anchor — `poisson_mg.jl` (matrix-free GPU path)
 and the embedded variants must match its Dirichlet/Neumann boundary conventions
-exactly. **Registered in `src/Kraken.jl`** — included FIRST in the IncNS solve
+exactly. **Registered in `src/KrakeNN.jl`** — included FIRST in the IncNS solve
 block (its tail-include loads `linear_solve.jl`); `solve_poisson_dirichlet`,
 `solve_poisson_neumann` and `pin_reference_dof` exported. The `isdefined`
 guards keep every `src/solve/` file standalone-include-able.

@@ -100,7 +100,7 @@
 # point (``x = N_x/2``) every 5 steps, building the amplitude time series
 # for comparison with the analytical solution.
 
-using Kraken
+using KrakeNN
 
 Nx = 128
 Ny = 256

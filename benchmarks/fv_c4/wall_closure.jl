@@ -24,7 +24,7 @@
 # This study uses Newtonian cell viscosities, not a GNF law.
 #
 #   julia --project benchmarks/fv_c4/wall_closure.jl [Nmax]   (default 128)
-using Kraken, LinearAlgebra, Printf
+using KrakeNN, LinearAlgebra, Printf
 
 const NMAX = length(ARGS) >= 1 ? parse(Int, ARGS[1]) : 128
 φ(x, y) = sinpi(x / 4) * (1 + y)
@@ -74,7 +74,7 @@ function run(N, θ0; check_fd = false)
         end
     end
     # pressure part of the drag (ν = 0 in the force evaluation), for diagnosis
-    p0 = Kraken._fv_with(s.prob; nu = zero(s.prob.nu))
+    p0 = KrakeNN._fv_with(s.prob; nu = zero(s.prob.nu))
     jp = fv_objective(FVWallForce(1; region = :solid, pressure = :cell), U, p0)
     return out, jp, t
 end

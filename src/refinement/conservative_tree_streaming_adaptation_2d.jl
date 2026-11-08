@@ -117,9 +117,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_composite_routes_zou_he_x_wall_y_F_2d!)
+methods(KrakeNN.stream_composite_routes_zou_he_x_wall_y_F_2d!)
 ```
 """
 function stream_composite_routes_zou_he_x_wall_y_F_2d!(
@@ -156,9 +156,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_composite_routes_zou_he_x_wall_y_solid_F_2d!)
+methods(KrakeNN.stream_composite_routes_zou_he_x_wall_y_solid_F_2d!)
 ```
 """
 function stream_composite_routes_zou_he_x_wall_y_solid_F_2d!(
@@ -198,9 +198,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_composite_routes_periodic_x_wall_y_solid_F_2d!)
+methods(KrakeNN.stream_composite_routes_periodic_x_wall_y_solid_F_2d!)
 ```
 """
 function stream_composite_routes_periodic_x_wall_y_solid_F_2d!(
@@ -226,9 +226,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_Guo_composite_solid_F_2d!)
+methods(KrakeNN.collide_Guo_composite_solid_F_2d!)
 ```
 """
 function collide_Guo_composite_solid_F_2d!(
@@ -264,9 +264,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.regrid_conservative_tree_patch_F_2d!)
+methods(KrakeNN.regrid_conservative_tree_patch_F_2d!)
 ```
 """
 function regrid_conservative_tree_patch_F_2d!(
@@ -308,9 +308,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.regrid_conservative_tree_patch_direct_F_2d!)
+methods(KrakeNN.regrid_conservative_tree_patch_direct_F_2d!)
 ```
 """
 function regrid_conservative_tree_patch_direct_F_2d!(
@@ -351,9 +351,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_solid_mask_patch_range_2d)
+methods(KrakeNN.conservative_tree_solid_mask_patch_range_2d)
 ```
 """
 function conservative_tree_solid_mask_patch_range_2d(
@@ -395,9 +395,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_indicator_patch_range_2d)
+methods(KrakeNN.conservative_tree_indicator_patch_range_2d)
 ```
 """
 function conservative_tree_indicator_patch_range_2d(
@@ -443,9 +443,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_gradient_indicator_2d)
+methods(KrakeNN.conservative_tree_gradient_indicator_2d)
 ```
 """
 function conservative_tree_gradient_indicator_2d(field::AbstractArray{<:Real,2})
@@ -488,9 +488,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_hysteresis_patch_range_2d)
+methods(KrakeNN.conservative_tree_hysteresis_patch_range_2d)
 ```
 """
 function conservative_tree_hysteresis_patch_range_2d(
@@ -535,9 +535,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_velocity_gradient_patch_range_2d)
+methods(KrakeNN.conservative_tree_velocity_gradient_patch_range_2d)
 ```
 """
 function conservative_tree_velocity_gradient_patch_range_2d(
@@ -578,9 +578,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.adapt_conservative_tree_patch_to_velocity_gradient_2d)
+methods(KrakeNN.adapt_conservative_tree_patch_to_velocity_gradient_2d)
 ```
 """
 function adapt_conservative_tree_patch_to_velocity_gradient_2d(
@@ -611,9 +611,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.adapt_conservative_tree_patch_to_solid_mask_2d)
+methods(KrakeNN.adapt_conservative_tree_patch_to_solid_mask_2d)
 ```
 """
 function adapt_conservative_tree_patch_to_solid_mask_2d(
@@ -639,9 +639,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.vertical_facing_step_solid_mask_leaf_2d)
+methods(KrakeNN.vertical_facing_step_solid_mask_leaf_2d)
 ```
 """
 function vertical_facing_step_solid_mask_leaf_2d(

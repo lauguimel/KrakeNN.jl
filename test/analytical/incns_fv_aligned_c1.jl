@@ -1,7 +1,7 @@
 # Standalone A0 decision evidence, CPU Float64, local linear MMS only.
 # No convergence gate is imposed: report every refinement pair and stop.
 module C5AlignedC1Reference
-using Test, LinearAlgebra, Kraken
+using Test, LinearAlgebra, KrakeNN
 include(joinpath(@__DIR__, "incns_fv_aligned_c1_helpers.jl"))
 
 const route = Ref{NamedTuple}()
@@ -9,7 +9,7 @@ const route = Ref{NamedTuple}()
     f = _c5a_patch(8,true)
     p,g = f.p,f.p.grid
     @test p.immersed === nothing
-    @test Kraken._fv_immersed_args(p.immersed) === (nothing,nothing,nothing)
+    @test KrakeNN._fv_immersed_args(p.immersed) === (nothing,nothing,nothing)
     @test KernelAbstractions.get_backend(f.U) == KernelAbstractions.CPU()
     @test eltype(f.U) === Float64
     @test g.Nx*g.h-_C5M_HALO*g.h == 0.5
@@ -19,12 +19,12 @@ const route = Ref{NamedTuple}()
         x,y = f.xy(i,j)
         exact = _c5m_fields(0.5,y,3,true)[1:2]
         @test x+g.h/2 == 0.5
-        @test Kraken._fv_face_kind(g,p.tag,i,j,d)[1] == Kraken._FV_F_DIRICHLET
-        @test Kraken._fv_dirichlet_velocity(g,p.bvel,i,j,d) == exact
+        @test KrakeNN._fv_face_kind(g,p.tag,i,j,d)[1] == KrakeNN._FV_F_DIRICHLET
+        @test KrakeNN._fv_dirichlet_velocity(g,p.bvel,i,j,d) == exact
         # Tagged internal faces hard-code no-slip without immersed data.
-        @test Kraken._fv_dirichlet_velocity(pe.grid,pe.bvel,i,j,d) == (0.0,0.0)
-        @test Kraken._fv_wall_data(f.U,p.bvel,g,i,j,d,nothing,nothing,nothing) ==
-            Kraken._fv_wall_data(Ue,pe.bvel,pe.grid,i,j,d,
+        @test KrakeNN._fv_dirichlet_velocity(pe.grid,pe.bvel,i,j,d) == (0.0,0.0)
+        @test KrakeNN._fv_wall_data(f.U,p.bvel,g,i,j,d,nothing,nothing,nothing) ==
+            KrakeNN._fv_wall_data(Ue,pe.bvel,pe.grid,i,j,d,
                 pe.immersed.qcut,pe.immersed.wvel,pe.immersed.closure)
     end
     calls = _c5a_trace(f)

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 

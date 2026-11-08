@@ -1,6 +1,6 @@
 # Open-channel C5 references: identical physical geometry and sampled inflow
 # for M1/M3. All fluxes are outward from the fluid; inlet flux is negative.
-using Kraken, Test, LinearAlgebra
+using KrakeNN, Test, LinearAlgebra
 
 function _c5channel_problem(N,mass)
     h,Nx,flow = 1/N,2N,0.1

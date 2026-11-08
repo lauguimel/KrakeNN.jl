@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Poiseuille 2D body force" begin
     Nx, Ny = 4, 32

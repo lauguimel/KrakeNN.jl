@@ -1,7 +1,7 @@
 # M3 test-only references. Flux sums below independently expand the L/Q ghost;
 # they do not call the production wall-flux or pair-row implementations.
-using Test, Kraken, ForwardDiff, LinearAlgebra, Random
-using Kraken.SparseArrays: nnz
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random
+using KrakeNN.SparseArrays: nnz
 
 function _c5m3_problem(shape; closure=:quadratic, conv=false, radial=false, mass=:M3)
     velocity(k,x,y) = radial ? (0.17*(x-10.13)/((x-10.13)^2+(y-9.87)^2),

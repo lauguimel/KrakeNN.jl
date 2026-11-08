@@ -11,7 +11,7 @@ using KernelAbstractions
 # Component dispatch via integer kwarg `component`:
 #   1=xx, 2=xy, 3=xz, 4=yy, 5=yz, 6=zz
 #
-# D3Q19 indexing (Kraken convention from src/lattice/d3q19.jl, 1-indexed):
+# D3Q19 indexing (KrakeNN convention from src/lattice/d3q19.jl, 1-indexed):
 #   1 : rest          (0, 0, 0)        opp = 1
 #   2 : +x            (+1, 0, 0)       opp = 3
 #   3 : −x            (−1, 0, 0)       opp = 2

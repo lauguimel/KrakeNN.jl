@@ -31,6 +31,6 @@ the method explicitly (no automatic selection). Phase 0: `LBM` forwards verbatim
 `solve(problem, method, p)` form driven by a `ParameterSpace` arrives in Phase 2.
 
 (When SciML enters in Phase 4, `solve` will be switched to extend `CommonSolve.solve`;
-today it is Kraken's own generic function — no such dependency yet.)
+today it is KrakeNN's own generic function — no such dependency yet.)
 """
 solve(problem, ::LBM; kwargs...) = LBMSolution(run_simulation(problem; kwargs...))

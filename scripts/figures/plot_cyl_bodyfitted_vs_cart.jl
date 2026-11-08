@@ -1,15 +1,15 @@
 #!/usr/bin/env julia --project=docs
 # Cylinder in cross-flow: compare three structured-mesh topologies.
 #   (1) Uniform Cartesian — reference, no body-fitting.
-#   (2) Kraken cylinder_focused_mesh — tanh cluster around the cylinder
+#   (2) KrakeNN cylinder_focused_mesh — tanh cluster around the cylinder
 #       centre (Bump-like, DOES NOT wrap around the cylinder).
-#   (3) Kraken polar_mesh — body-fitted O-grid, cells wrap around the
+#   (3) KrakeNN polar_mesh — body-fitted O-grid, cells wrap around the
 #       cylinder wall. Outer boundary is a CIRCLE, not a rectangle.
 #
 # This figure highlights what's currently achievable in pure Julia
 # without gmsh multi-block support.
 using CairoMakie
-using Kraken
+using KrakeNN
 
 const cx_p, cy_p = 0.5, 0.25
 const R_p = 0.025
@@ -79,7 +79,7 @@ end
 
 fig = Figure(; size=(1500, 820), fontsize=13)
 
-Label(fig[0, :], "Cylinder Re = 100 — topologies structurées disponibles dans Kraken";
+Label(fig[0, :], "Cylinder Re = 100 — topologies structurées disponibles dans KrakeNN";
       fontsize=16, font=:bold, tellwidth=false)
 
 zoom_half = 3 * R_p

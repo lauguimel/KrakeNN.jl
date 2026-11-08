@@ -1,7 +1,7 @@
 # MLUPS performance scaling benchmark
 # Measures throughput on CPU and GPU (if available)
 # Usage: julia --project benchmarks/perf_mlups.jl [--gpu]
-using Kraken
+using KrakeNN
 using Printf
 using KernelAbstractions
 

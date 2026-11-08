@@ -1,7 +1,7 @@
 # Compare q_wall values between 1-block and 3-block C setups to see
 # if precompute_q_wall_cylinder produces identical cut-link patterns.
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const T = Float64
 const Lx = 1.0; const Ly = 0.5

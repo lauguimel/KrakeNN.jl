@@ -1,6 +1,6 @@
 using Test
 
-# Use Kraken if available, otherwise include directly for standalone testing
+# Use KrakeNN if available, otherwise include directly for standalone testing
 if !isdefined(@__MODULE__, :KrakenExpr)
     include(joinpath(@__DIR__, "..", "src", "io", "expression.jl"))
 end

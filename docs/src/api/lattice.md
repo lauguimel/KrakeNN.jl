@@ -1,7 +1,7 @@
 # Lattice
 
 The `lattice` module defines the discrete-velocity sets used throughout
-Kraken — `D2Q9` for 2D flows and `D3Q19` for 3D flows — together with
+KrakeNN — `D2Q9` for 2D flows and `D3Q19` for 3D flows — together with
 their weights, opposite-direction tables, and the equilibrium
 distribution `f_i^eq(ρ, u)`. Everything downstream (collision,
 streaming, boundary conditions) is written in terms of these small

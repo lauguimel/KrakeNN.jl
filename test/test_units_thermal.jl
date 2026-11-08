@@ -1,7 +1,7 @@
 using Test
-using Kraken
+using KrakeNN
 
-const UTHERM = Kraken.Units
+const UTHERM = KrakeNN.Units
 
 _thermal_geom() = (type=:channel, blockage=0.0, L_up=15.0, L_down=15.0)
 

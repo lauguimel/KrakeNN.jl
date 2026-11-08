@@ -1,8 +1,8 @@
 #!/usr/bin/env julia
 # =====================================================================
 # make_crossslot_csv.jl — PLANAR STAGNATION-POINT (cross-slot core)
-# comparison of the 4 Kraken viscoelastic constitutive models
-# (Oldroyd-B, FENE-P, Giesekus, PTT) using the REAL Kraken FVFD
+# comparison of the 4 KrakeNN viscoelastic constitutive models
+# (Oldroyd-B, FENE-P, Giesekus, PTT) using the REAL KrakeNN FVFD
 # log-conformation solver.
 #
 #   Page : docs/src/users/benchmarks/ve-constitutive-models.md
@@ -35,7 +35,7 @@
 #   julia --project=. benchmarks/results/repro/ve-constitutive-models/make_crossslot_csv.jl
 # CPU Float64, no GPU; CI-reproducible (~a few minutes at N=32, λε̇=0.35).
 # =====================================================================
-using Kraken
+using KrakeNN
 using Printf
 
 const HERE = @__DIR__
@@ -68,7 +68,7 @@ models = [
 ]
 
 # Default backend is KernelAbstractions.CPU() → CPU Float64, no GPU.
-run_crossslot(model) = Kraken.run_viscoelastic_fvfd_extensional_3d(;
+run_crossslot(model) = KrakeNN.run_viscoelastic_fvfd_extensional_3d(;
     Nx=NX, Ny=NY, Nz=NZ, epsilon_dot=EPS_DOT,
     ν_s=NU_S, ν_p=nothing, lambda=LAMBDA, polymer_model=model,
     max_steps=MAX_STEPS, FT=FT, velocity_mode=:imposed,
@@ -114,7 +114,7 @@ end
 # stagnation point (x = i − IC, y = j − JC) so the figure is centred.
 out = joinpath(HERE, "ve_crossslot_fields.csv")
 open(out, "w") do io
-    println(io, "# Kraken viscoelastic constitutive models — PLANAR STAGNATION-POINT (cross-slot core)")
+    println(io, "# KrakeNN viscoelastic constitutive models — PLANAR STAGNATION-POINT (cross-slot core)")
     @printf(io, "# Nx=%d Ny=%d Nz=%d epsilon_dot=%g lambda_edot=%g beta=%g lambda=%g steps=%d (z-mid plane k=%d)\n",
             NX, NY, NZ, EPS_DOT, LE, BETA, LAMBDA, MAX_STEPS, KZ)
     println(io, "# imposed u=(edot*x,-edot*y,0): outflow along x, inflow along y, stagnation at centre")

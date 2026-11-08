@@ -1,20 +1,20 @@
-module KrakenADExt
+module KrakeNNADExt
 
-using Kraken
+using KrakeNN
 using Enzyme
 
-import Kraken: _ad_dJdf, _ad_vjp_GtT, _ad_dqwall_terms
-import Kraken: _ad_dNudw, _ad_thermal_vjp_GtT, _ad_thermal_dqwall_terms
-import Kraken: _ad_ve_dJdw, _ad_ve_vjp_GtT, _ad_ve_dGdR_jvp
-import Kraken: _ad_pvjp_nu, ad_step_nu!
-import Kraken: _ad_pvjp_nufield, _ad_vjp_GtT_nufield, ad_step_nufield!
+import KrakeNN: _ad_dJdf, _ad_vjp_GtT, _ad_dqwall_terms
+import KrakeNN: _ad_dNudw, _ad_thermal_vjp_GtT, _ad_thermal_dqwall_terms
+import KrakeNN: _ad_ve_dJdw, _ad_ve_vjp_GtT, _ad_ve_dGdR_jvp
+import KrakeNN: _ad_pvjp_nu, ad_step_nu!
+import KrakeNN: _ad_pvjp_nufield, _ad_vjp_GtT_nufield, ad_step_nufield!
 
 _short_error(err) = first(sprint(showerror, err), min(360, lastindex(sprint(showerror, err))))
 _short_string(msg) = first(msg, min(360, lastindex(msg)))
 
 function _ad_dJdf(f, q_wall, u_ref, D, Nx::Int, Ny::Int)
     djdf = zeros(Float64, size(f))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.cd_pure, Enzyme.Active,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.cd_pure, Enzyme.Active,
                     Enzyme.Duplicated(copy(f), djdf),
                     Enzyme.Const(q_wall), Enzyme.Const(u_ref),
                     Enzyme.Const(D), Enzyme.Const(Nx), Enzyme.Const(Ny))
@@ -26,7 +26,7 @@ function _ad_vjp_GtT(f_star, v, q_wall, is_solid, u_profile, rho_out,
     out = zeros(Float64, size(f_star))
     dout = copy(v)
     df = zeros(Float64, size(f_star))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_step!,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_step!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Duplicated(copy(f_star), df),
                     Enzyme.Const(q_wall), Enzyme.Const(is_solid),
@@ -38,7 +38,7 @@ end
 
 function _dCd_dqwall_taped(f, q_wall, u_ref, D, Nx::Int, Ny::Int)
     dqw = zeros(Float64, size(q_wall))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.cd_pure, Enzyme.Active,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.cd_pure, Enzyme.Active,
                     Enzyme.Const(f), Enzyme.Duplicated(copy(q_wall), dqw),
                     Enzyme.Const(u_ref), Enzyme.Const(D),
                     Enzyme.Const(Nx), Enzyme.Const(Ny))
@@ -51,7 +51,7 @@ function _lambda_dot_dG_dqwall_with_mode(mode, f_star, lambda, q_wall,
     out = zeros(Float64, size(f_star))
     dout = copy(lambda)
     dqw = zeros(Float64, size(q_wall))
-    Enzyme.autodiff(mode, Kraken.ad_step!,
+    Enzyme.autodiff(mode, KrakeNN.ad_step!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Const(f_star),
                     Enzyme.Duplicated(copy(q_wall), dqw),
@@ -64,14 +64,14 @@ end
 function _dCd_dqwall(f, q_wall, u_ref, D, Nx::Int, Ny::Int)
     try
         dqw = _dCd_dqwall_taped(f, q_wall, u_ref, D, Nx, Ny)
-        if all(isfinite, dqw) && Kraken.cut_cotangent_norm(dqw, q_wall) > 0.0
+        if all(isfinite, dqw) && KrakeNN.cut_cotangent_norm(dqw, q_wall) > 0.0
             return (; dqw=dqw, path="taped", error="")
         end
-        return (; dqw=Kraken.fd_dCd_dqwall(f, q_wall, u_ref, D, Nx, Ny),
+        return (; dqw=KrakeNN.fd_dCd_dqwall(f, q_wall, u_ref, D, Nx, Ny),
                 path="Fallback A (FD-on-q_wall)",
                 error="taped explicit Cd/q_wall returned nonfinite or zero cut-link cotangent")
     catch err
-        return (; dqw=Kraken.fd_dCd_dqwall(f, q_wall, u_ref, D, Nx, Ny),
+        return (; dqw=KrakeNN.fd_dCd_dqwall(f, q_wall, u_ref, D, Nx, Ny),
                 path="Fallback A (FD-on-q_wall)", error=_short_error(err))
     end
 end
@@ -84,7 +84,7 @@ function _lambda_dot_dG_dqwall(f_star, lambda, q_wall, is_solid, u_profile,
         dqw = _lambda_dot_dG_dqwall_with_mode(Enzyme.Reverse, f_star, lambda,
                                               q_wall, is_solid, u_profile,
                                               rho_out, s_plus, s_minus, Nx, Ny)
-        if all(isfinite, dqw) && Kraken.cut_cotangent_norm(dqw, q_wall) > 0.0
+        if all(isfinite, dqw) && KrakeNN.cut_cotangent_norm(dqw, q_wall) > 0.0
             return (; dqw=dqw, path="taped", error="")
         end
         plain_err = "plain Reverse returned nonfinite or zero cut-link cotangent"
@@ -100,7 +100,7 @@ function _lambda_dot_dG_dqwall(f_star, lambda, q_wall, is_solid, u_profile,
         dqw = _lambda_dot_dG_dqwall_with_mode(mode, f_star, lambda,
                                               q_wall, is_solid, u_profile,
                                               rho_out, s_plus, s_minus, Nx, Ny)
-        if all(isfinite, dqw) && Kraken.cut_cotangent_norm(dqw, q_wall) > 0.0
+        if all(isfinite, dqw) && KrakeNN.cut_cotangent_norm(dqw, q_wall) > 0.0
             return (; dqw=dqw, path="runtime-activity", error=plain_err)
         end
         runtime_err = "runtime-activity returned nonfinite or zero cut-link cotangent"
@@ -108,7 +108,7 @@ function _lambda_dot_dG_dqwall(f_star, lambda, q_wall, is_solid, u_profile,
         runtime_err = sprint(showerror, err)
     end
 
-    dqw = Kraken.fd_lambda_dot_dG_dqwall(f_star, lambda, q_wall, is_solid,
+    dqw = KrakeNN.fd_lambda_dot_dG_dqwall(f_star, lambda, q_wall, is_solid,
                                          u_profile, rho_out, s_plus, s_minus,
                                          Nx, Ny)
     msg = "plain Reverse: " * _short_string(plain_err) *
@@ -124,12 +124,12 @@ function _ad_dqwall_terms(f_star, lambda, q_wall, is_solid, u_profile,
                                      u_profile, rho_out, s_plus, s_minus,
                                      Nx, Ny)
 
-    explicit_q_R = Kraken.ad_dot_arrays(explicit.dqw, dq_dR)
-    explicit_dirfd = Kraken.directional_fd_Cd_qwall(f_star, q_wall, dq_dR,
+    explicit_q_R = KrakeNN.ad_dot_arrays(explicit.dqw, dq_dR)
+    explicit_dirfd = KrakeNN.directional_fd_Cd_qwall(f_star, q_wall, dq_dR,
                                                     u_ref, D, Nx, Ny)
-    explicit_rel = Kraken.ad_rel_delta(explicit_q_R, explicit_dirfd)
+    explicit_rel = KrakeNN.ad_rel_delta(explicit_q_R, explicit_dirfd)
     if explicit_rel > 1e-5
-        explicit = (; dqw=Kraken.fd_dCd_dqwall(f_star, q_wall, u_ref, D, Nx, Ny),
+        explicit = (; dqw=KrakeNN.fd_dCd_dqwall(f_star, q_wall, u_ref, D, Nx, Ny),
                     path="Fallback A (FD-on-q_wall after directional mismatch)",
                     error="directional contraction mismatch",
                     directional_fd=explicit_dirfd,
@@ -139,15 +139,15 @@ function _ad_dqwall_terms(f_star, lambda, q_wall, is_solid, u_profile,
                     directional_rel=explicit_rel)
     end
 
-    implicit_R = Kraken.ad_dot_arrays(implicit.dqw, dq_dR)
-    implicit_dirfd = Kraken.directional_fd_lambdaG_qwall(f_star, lambda,
+    implicit_R = KrakeNN.ad_dot_arrays(implicit.dqw, dq_dR)
+    implicit_dirfd = KrakeNN.directional_fd_lambdaG_qwall(f_star, lambda,
                                                          q_wall, dq_dR,
                                                          is_solid, u_profile,
                                                          rho_out, s_plus,
                                                          s_minus, Nx, Ny)
-    implicit_rel = Kraken.ad_rel_delta(implicit_R, implicit_dirfd)
+    implicit_rel = KrakeNN.ad_rel_delta(implicit_R, implicit_dirfd)
     if implicit_rel > 1e-5
-        implicit = (; dqw=Kraken.fd_lambda_dot_dG_dqwall(f_star, lambda,
+        implicit = (; dqw=KrakeNN.fd_lambda_dot_dG_dqwall(f_star, lambda,
                                                          q_wall, is_solid,
                                                          u_profile, rho_out,
                                                          s_plus, s_minus,
@@ -166,7 +166,7 @@ end
 
 function _ad_dNudw(w_star, q_wall, p)
     dwd = zeros(Float64, length(w_star))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.nu_pure, Enzyme.Active,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.nu_pure, Enzyme.Active,
                     Enzyme.Duplicated(copy(w_star), dwd),
                     Enzyme.Const(q_wall),
                     Enzyme.Const(p))
@@ -177,7 +177,7 @@ function _ad_thermal_vjp_GtT(w_star, v, q_flow, q_therm, p)
     out = zeros(Float64, length(w_star))
     dout = copy(v)
     dw = zeros(Float64, length(w_star))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_thermal_cut_step!,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_thermal_cut_step!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Duplicated(copy(w_star), dw),
                     Enzyme.Const(q_flow),
@@ -188,7 +188,7 @@ end
 
 function _ad_dNu_dqwall(w_star, q_wall, p)
     dqw = zeros(Float64, size(q_wall))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.nu_pure, Enzyme.Active,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.nu_pure, Enzyme.Active,
                     Enzyme.Const(w_star),
                     Enzyme.Duplicated(copy(q_wall), dqw),
                     Enzyme.Const(p))
@@ -200,7 +200,7 @@ function _lambda_dot_thermal_dG_dqwalls(w_star, lambda, q_flow, q_therm, p)
     dout = copy(lambda)
     dqw_flow = zeros(Float64, size(q_flow))
     dqw_therm = zeros(Float64, size(q_therm))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_thermal_cut_step!,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_thermal_cut_step!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Const(w_star),
                     Enzyme.Duplicated(copy(q_flow), dqw_flow),
@@ -212,12 +212,12 @@ end
 function _ad_thermal_dqwall_terms(w_star, lambda, q_flow, q_therm, p, dq_dL)
     explicit = _ad_dNu_dqwall(w_star, q_therm, p)
     implicit = _lambda_dot_thermal_dG_dqwalls(w_star, lambda, q_flow, q_therm, p)
-    implicit_L = Kraken.ad_dot_arrays(implicit.flow, dq_dL) +
-                 Kraken.ad_dot_arrays(implicit.thermal, dq_dL)
-    dirfd = Kraken.directional_fd_thermal_lambdaG_qwalls(w_star, lambda,
+    implicit_L = KrakeNN.ad_dot_arrays(implicit.flow, dq_dL) +
+                 KrakeNN.ad_dot_arrays(implicit.thermal, dq_dL)
+    dirfd = KrakeNN.directional_fd_thermal_lambdaG_qwalls(w_star, lambda,
                                                          q_flow, q_therm,
                                                          dq_dL, p)
-    rel = Kraken.ad_rel_delta(implicit_L, dirfd)
+    rel = KrakeNN.ad_rel_delta(implicit_L, dirfd)
     return (; explicit=explicit,
             implicit=(; implicit..., directional_fd=dirfd,
                       directional_rel=rel))
@@ -227,7 +227,7 @@ end
 # Viscoelastic (Cd_polymer) shape-adjoint seams. Mirror of the validated scratch
 # chain (ve_ad_c1.jl dJ_dw_enzyme, ve_ad_c3_matched.jl c3m_vjp, ve_ad_c3_analytic.jl
 # dGdR_analytic_jvp). The tapeable plain-Julia operators live in src/ad/ad_ve_*.jl;
-# `using Kraken` stays Enzyme-free. `ADVECoupledParams`, `ADVEEmbeddedGeom`,
+# `using KrakeNN` stays Enzyme-free. `ADVECoupledParams`, `ADVEEmbeddedGeom`,
 # `ADVEWallPoint` are Const (the EmbeddedGeom struct of arrays / params never carry
 # a state cotangent here). The geometry forward-JVP seeds the EmbeddedGeom shadow
 # (`Duplicated(g, dg)`) + the q_wall shadow (`Duplicated(q_wall, dq_wall)`).
@@ -237,7 +237,7 @@ end
 # f-block cotangent is structurally zero since J reads only the psi block).
 function _ad_ve_dJdw(w_star, pts, g, p)
     djdw = zeros(Float64, length(w_star))
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_ve_J_fx, Enzyme.Active,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_ve_J_fx, Enzyme.Active,
                     Enzyme.Duplicated(copy(w_star), djdw),
                     Enzyme.Const(pts), Enzyme.Const(g), Enzyme.Const(p))
     return djdw
@@ -252,7 +252,7 @@ function _ad_ve_vjp_GtT(w_star, v, g, q_wall, u_profile, p)
     dw = zeros(Float64, length(w_star))
     mode = isdefined(Enzyme, :set_runtime_activity) ?
            Enzyme.set_runtime_activity(Enzyme.Reverse) : Enzyme.Reverse
-    Enzyme.autodiff(mode, Kraken.ad_ve_coupled_step!,
+    Enzyme.autodiff(mode, KrakeNN.ad_ve_coupled_step!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Duplicated(copy(w_star), dw),
                     Enzyme.Const(g), Enzyme.Const(q_wall),
@@ -269,7 +269,7 @@ function _ad_ve_dGdR_jvp(w_star, g, dg, q_wall, dq_wall, u_profile, p)
     dw = zeros(Float64, length(w_star))          # geometry-only JVP: no state seed
     mode = isdefined(Enzyme, :set_runtime_activity) ?
            Enzyme.set_runtime_activity(Enzyme.Forward) : Enzyme.Forward
-    Enzyme.autodiff(mode, Kraken.ad_ve_coupled_step!,
+    Enzyme.autodiff(mode, KrakeNN.ad_ve_coupled_step!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Duplicated(copy(w_star), dw),
                     Enzyme.Duplicated(g, dg),
@@ -286,11 +286,11 @@ Compute dL/dν = λᵀ (∂G/∂ν) via Enzyme Reverse over `ad_step_nu!` with `
 Strategy B: differentiate the ν → (s_plus, s_minus) → G chain in one Enzyme call.
 Returns a scalar — the cotangent of the loss wrt the free viscosity.
 """
-function _ad_pvjp_nu(f_star, lambda, p::Kraken.LBMScalarParams)
+function _ad_pvjp_nu(f_star, lambda, p::KrakeNN.LBMScalarParams)
     out = zeros(Float64, size(f_star))
     dout = copy(lambda)
     df = zeros(Float64, size(f_star))
-    ret = Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_step_nu!,
+    ret = Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_step_nu!,
                           Enzyme.Duplicated(out, dout),
                           Enzyme.Duplicated(copy(f_star), df),
                           Enzyme.Const(p.q_wall),
@@ -322,7 +322,7 @@ function _ad_pvjp_nufield(f_star, lambda, nu_field::Vector{Float64},
     df   = zeros(Float64, size(f_star))
     dnu  = zeros(Float64, length(nu_field))
 
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_step_nufield!,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_step_nufield!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Duplicated(copy(f_star), df),
                     Enzyme.Const(q_wall),
@@ -348,7 +348,7 @@ function _ad_vjp_GtT_nufield(f_star, v, q_wall, is_solid, u_profile, rho_out,
     dout = copy(v)
     df   = zeros(Float64, size(f_star))
 
-    Enzyme.autodiff(Enzyme.Reverse, Kraken.ad_step_nufield!,
+    Enzyme.autodiff(Enzyme.Reverse, KrakeNN.ad_step_nufield!,
                     Enzyme.Duplicated(out, dout),
                     Enzyme.Duplicated(copy(f_star), df),
                     Enzyme.Const(q_wall),
@@ -360,4 +360,4 @@ function _ad_vjp_GtT_nufield(f_star, v, q_wall, is_solid, u_profile, rho_out,
     return df
 end
 
-end # module KrakenADExt
+end # module KrakeNNADExt

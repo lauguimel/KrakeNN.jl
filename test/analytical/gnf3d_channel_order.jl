@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 isdefined(@__MODULE__, :_gnf3d_reference) || include("gnf3d_reference.jl")
@@ -34,7 +34,7 @@ isdefined(@__MODULE__, :_gnf3d_reference) || include("gnf3d_reference.jl")
                 # One rest start checks convergence independently of a good
                 # velocity guess; other cases start from the exact profile.
                 rest_start = law === :carreau && q_w == 0.5 && N == 16
-                seconds = @elapsed out = Kraken.run_gnf_channel_3d(;
+                seconds = @elapsed out = KrakeNN.run_gnf_channel_3d(;
                     rheology=ref.rheology, N, q_w, F=ref.F,
                     nu_init=ref.nu, u_init=rest_start ? 0.0 : ref.u,
                     max_steps=60_000, tol_ss=1e-9, check_every=200,

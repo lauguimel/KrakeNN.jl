@@ -13,7 +13,7 @@ using Test
 using LinearAlgebra
 using Random
 using ForwardDiff
-using Kraken
+using KrakeNN
 
 const _FVC1_GPU_OK = (try
     @eval Main using CUDA

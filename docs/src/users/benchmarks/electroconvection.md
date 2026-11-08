@@ -24,7 +24,7 @@ Three fields are coupled:
 - **Electric potential** — a Poisson equation `∇²φ = −q/ε` sourced by the local
   charge density, closing the loop through `E = −∇φ`.
 
-Kraken solves all three with D2Q9 lattice-Boltzmann populations: one for the
+KrakeNN solves all three with D2Q9 lattice-Boltzmann populations: one for the
 flow, one carrying the charge density (drift-diffusion), and one carrying the
 electric potential (pseudo-time Poisson relaxation), or — in the validated
 configuration used here — a direct GPU solve for the potential in place of the
@@ -126,7 +126,7 @@ analysis predicts.
 ## Figure
 
 Late-window growth rate `sigma` vs `T`, symlog scale, with the reference
-threshold (`T_c = 163.5`, dashed) and the Kraken sign-change bracket
+threshold (`T_c = 163.5`, dashed) and the KrakeNN sign-change bracket
 (`T_c ~ 166.5`, dotted) marked. `sigma` is the trailing-40%-window
 least-squares slope of `log(max|u|)`, **not** the cumulative
 `log(|u|/|u|_0)/t` diagnostic also present in the raw sweep CSVs (that column
@@ -153,7 +153,7 @@ The Julia driver, called directly with the validated configuration (MRT
 collision, regularized charge, direct Poisson, `xy` force projection):
 
 ```julia
-using Kraken
+using KrakeNN
 
 result = run_electroconvection_2d(;
     Nx=197, Ny=321,

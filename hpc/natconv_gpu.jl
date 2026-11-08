@@ -7,7 +7,7 @@ Properly scaled steps: dt ~ dx² → steps ~ N².
 Also runs CPU comparison for N=128 to measure GPU speedup.
 """
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using CUDA
 using Printf
@@ -22,7 +22,7 @@ function nsteps(N, Ra)
 end
 
 function run_study()
-    println("\n  Kraken.jl — Natural Convection GPU Benchmark (CUDA)\n")
+    println("\n  KrakeNN — Natural Convection GPU Benchmark (CUDA)\n")
     println("  GPU: ", CUDA.name(CUDA.device()))
     println()
 

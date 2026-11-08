@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ==========================================================================
@@ -70,7 +70,7 @@ using KernelAbstractions
     max_steps = 40_000
 
     # --- Units sanity: stability + steady-state-time estimate -------------
-    plan = Kraken.Units.compile(; physics = :viscoelastic,
+    plan = KrakeNN.Units.compile(; physics = :viscoelastic,
                                   geometry = (; type = :poiseuille, blockage = 0.0),
                                   bc = (; wall_bc = :halfwayBB),
                                   Re = (Fx * Ny^2 / (8 * ν_total)) * Ny / ν_total,
@@ -80,10 +80,10 @@ using KernelAbstractions
                                   strict = false)
     @test plan.units.tau_hydro > 0.55
     @test plan.units.Ma < 0.05
-    est = Kraken.Units.estimate_steady_state(plan)
+    est = KrakeNN.Units.estimate_steady_state(plan)
     @test est.exists                      # Poiseuille admits a steady state
     @test est.t_diff > 0 && isfinite(est.t_diff)
-    @test isempty(Kraken.Units.blocking_issues(plan.warnings))
+    @test isempty(KrakeNN.Units.blocking_issues(plan.warnings))
 
     res = run_conformation_poiseuille_libb_3d(; Nx = Nx, Ny = Ny, Nz = Nz,
                                                 Fx = Fx, ν_s = ν_s, ν_p = ν_p,
@@ -138,7 +138,7 @@ using KernelAbstractions
         is_solid_c = falses(Nxc, Nyc, Nzc)
         f_in_c = zeros(FT, Nxc, Nyc, Nzc, 19); f_out_c = similar(f_in_c)
         for kk in 1:Nzc, jj in 1:Nyc, ii in 1:Nxc, q in 1:19
-            f_in_c[ii, jj, kk, q] = Kraken.equilibrium(D3Q19(), one(FT),
+            f_in_c[ii, jj, kk, q] = KrakeNN.equilibrium(D3Q19(), one(FT),
                                                         zero(FT), zero(FT), zero(FT), q)
         end
         ρc = ones(FT, Nxc, Nyc, Nzc)

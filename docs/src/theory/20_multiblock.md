@@ -1,6 +1,6 @@
 # Multi-block structured meshes (v0.3)
 
-Kraken's v0.3 milestone is a **multi-block structured LBM solver**: a
+KrakeNN's v0.3 milestone is a **multi-block structured LBM solver**: a
 collection of logically-rectangular blocks stitched together at
 interfaces, each block running its own curvilinear LBM step on the
 GPU. The design target is to handle CFD-grade complex geometries —
@@ -39,7 +39,7 @@ Runtime state for one block lives in
   D3Q19 equivalents). The physical interior occupies indices
   `(Ng + 1 .. Ng + Nξ, Ng + 1 .. Ng + Nη)`.
 - **`allocate_block_state_2d(block; n_ghost=1, backend)`** — allocates
-  the extended arrays on any Kraken-supported backend (CPU / CUDA /
+  the extended arrays on any KrakeNN-supported backend (CPU / CUDA /
   Metal) and initialises `ρ ≡ 1`, `ux = uy ≡ 0`, `f = 0`.
 - **`interior_f(state)`** — `SubArray` view of the physical interior
   populations for user-facing initialisation, BC application, and

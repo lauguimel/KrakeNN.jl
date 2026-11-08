@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 function _cell_rho_ux_2d(Fcell, volume)
     rho = mass_F(Fcell) / volume
@@ -172,9 +172,9 @@ end
     end
 
     @testset "open channel local patch mass ledger exposes coarse fine drift" begin
-        local_patch = Kraken.run_conservative_tree_open_channel_mass_ledger_2d(
+        local_patch = KrakeNN.run_conservative_tree_open_channel_mass_ledger_2d(
             ; steps=160)
-        full_patch = Kraken.run_conservative_tree_open_channel_mass_ledger_2d(
+        full_patch = KrakeNN.run_conservative_tree_open_channel_mass_ledger_2d(
             ; patch_i_range=1:18, patch_j_range=1:10, steps=160)
 
         local_rel = abs(local_patch.mass_drift) / local_patch.mass_initial
@@ -190,9 +190,9 @@ end
     end
 
     @testset "open channel rest state survives local leaf-equivalent interface" begin
-        local_patch = Kraken.run_conservative_tree_open_channel_mass_ledger_2d(
+        local_patch = KrakeNN.run_conservative_tree_open_channel_mass_ledger_2d(
             ; u_in=0.0, steps=160)
-        full_patch = Kraken.run_conservative_tree_open_channel_mass_ledger_2d(
+        full_patch = KrakeNN.run_conservative_tree_open_channel_mass_ledger_2d(
             ; u_in=0.0, patch_i_range=1:18, patch_j_range=1:10, steps=160)
 
         local_rel = abs(local_patch.mass_drift) / local_patch.mass_initial

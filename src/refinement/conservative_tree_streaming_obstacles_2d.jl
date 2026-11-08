@@ -5,9 +5,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.validate_conservative_tree_route_native_phase_p_2d)
+methods(KrakeNN.validate_conservative_tree_route_native_phase_p_2d)
 ```
 """
 function validate_conservative_tree_route_native_phase_p_2d(;
@@ -58,9 +58,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_square_obstacle_route_native_2d)
+methods(KrakeNN.run_conservative_tree_square_obstacle_route_native_2d)
 ```
 """
 function run_conservative_tree_square_obstacle_route_native_2d(;
@@ -129,9 +129,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_cylinder_obstacle_route_native_2d)
+methods(KrakeNN.run_conservative_tree_cylinder_obstacle_route_native_2d)
 ```
 """
 function run_conservative_tree_cylinder_obstacle_route_native_2d(;
@@ -223,9 +223,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeBenchmarkRow2D
+KrakeNN.ConservativeTreeBenchmarkRow2D
 ```
 """
 struct ConservativeTreeBenchmarkRow2D
@@ -264,9 +264,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.benchmark_conservative_tree_cartesian_vs_amr_2d)
+methods(KrakeNN.benchmark_conservative_tree_cartesian_vs_amr_2d)
 ```
 """
 function benchmark_conservative_tree_cartesian_vs_amr_2d(;
@@ -323,9 +323,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeConvergenceRow2D
+KrakeNN.ConservativeTreeConvergenceRow2D
 ```
 """
 struct ConservativeTreeConvergenceRow2D
@@ -435,9 +435,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.convergence_conservative_tree_obstacles_2d)
+methods(KrakeNN.convergence_conservative_tree_obstacles_2d)
 ```
 """
 function convergence_conservative_tree_obstacles_2d(;

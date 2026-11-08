@@ -37,7 +37,7 @@ and performs one bounded coupled pilot. No static ladder or long T190 rerun.
 ## Frozen evidence and resources
 
 Freeze source commit, harness, project/manifest, reference arrays and all inputs;
-check pathof(Kraken) and SHA. Julia1.11.9/CUDA5.11.3/CUDSS0.6.5, H100,
+check pathof(KrakeNN) and SHA. Julia1.11.9/CUDA5.11.3/CUDSS0.6.5, H100,
 2CPU/3GB/20min. Previous admission used ~1.01GiB/2m05s; pilot D2Q9 and sparse
 factorisation are small relative to 3GB. Phase caps:300s/600s/220s below wall limit.
 No dependency updates during job. CPU checks bounded, long loops GPU only.

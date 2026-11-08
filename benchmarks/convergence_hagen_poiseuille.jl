@@ -1,6 +1,6 @@
 # Hagen-Poiseuille (axisymmetric) convergence study
 # Verifies 2nd-order spatial accuracy of the axisymmetric LBM solver
-using Kraken
+using KrakeNN
 using Printf
 
 function run_hagen_poiseuille_convergence()

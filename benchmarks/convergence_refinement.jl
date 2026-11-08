@@ -1,7 +1,7 @@
 # Grid refinement convergence benchmarks
 # 1) Natural convection: Nu vs De Vahl Davis — uniform vs refined
 # 2) Cylinder in channel: Cd (uniform) + flow stability (refined)
-using Kraken
+using KrakeNN
 using Printf
 
 const NU_REF_RA1E3 = 1.118   # De Vahl Davis (1983)
@@ -84,7 +84,7 @@ function run_cylinder_convergence(; Nys=[40, 80], u_in=0.05)
         R_phys = Float64(R); cx = 0.2*Lx; cy = 0.5*Ly
         margin = 3.0*R_phys
 
-        setup = Kraken.parse_kraken("""
+        setup = KrakeNN.parse_kraken("""
         Simulation cyl_ref D2Q9
         Domain L = $Lx x $Ly  N = $Nx x $Ny
         Define R = $R_phys

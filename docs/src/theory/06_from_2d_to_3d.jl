@@ -78,9 +78,9 @@
 # For large 3D problems, Float32 can halve the memory cost with minimal
 # accuracy loss (LBM is already a second-order method).
 #
-# ## Kraken.jl D3Q19 interface
+# ## KrakeNN D3Q19 interface
 
-using Kraken
+using KrakeNN
 
 lattice3d = D3Q19()
 

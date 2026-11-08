@@ -143,9 +143,9 @@ Public type or module in the .krk parsing and I/O API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.RefineSetup
+KrakeNN.RefineSetup
 ```
 """
 struct RefineSetup

@@ -18,7 +18,7 @@ const REGISTERED_WEAKDEP_UUIDS = Dict(
 )
 
 @testset "Project.toml weakdeps match General registry UUIDs" begin
-    proj = TOML.parsefile(joinpath(pkgdir(Kraken), "Project.toml"))
+    proj = TOML.parsefile(joinpath(pkgdir(KrakeNN), "Project.toml"))
     weak = proj["weakdeps"]
     for (name, uuid) in weak
         @test haskey(REGISTERED_WEAKDEP_UUIDS, name)  # new weakdep: add it to the table

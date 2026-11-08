@@ -119,9 +119,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_composite_periodic_x_wall_y_leaf_F_2d!)
+methods(KrakeNN.stream_composite_periodic_x_wall_y_leaf_F_2d!)
 ```
 """
 function stream_composite_periodic_x_wall_y_leaf_F_2d!(
@@ -146,9 +146,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_composite_periodic_x_moving_wall_y_leaf_F_2d!)
+methods(KrakeNN.stream_composite_periodic_x_moving_wall_y_leaf_F_2d!)
 ```
 """
 function stream_composite_periodic_x_moving_wall_y_leaf_F_2d!(
@@ -202,9 +202,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_Guo_composite_F_2d!)
+methods(KrakeNN.collide_Guo_composite_F_2d!)
 ```
 """
 function collide_Guo_composite_F_2d!(coarse_F::AbstractArray{<:Any,3},
@@ -234,9 +234,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeMacroFlow2D
+KrakeNN.ConservativeTreeMacroFlow2D
 ```
 """
 struct ConservativeTreeMacroFlow2D{T}
@@ -260,9 +260,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeCylinderResult2D
+KrakeNN.ConservativeTreeCylinderResult2D
 ```
 """
 struct ConservativeTreeCylinderResult2D{T}
@@ -287,9 +287,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeCylinderChannelResult2D
+KrakeNN.ConservativeTreeCylinderChannelResult2D
 ```
 """
 struct ConservativeTreeCylinderChannelResult2D{T}
@@ -316,9 +316,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeSolidFlowResult2D
+KrakeNN.ConservativeTreeSolidFlowResult2D
 ```
 """
 struct ConservativeTreeSolidFlowResult2D{T}
@@ -341,9 +341,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.composite_leaf_mean_ux_profile)
+methods(KrakeNN.composite_leaf_mean_ux_profile)
 ```
 """
 function composite_leaf_mean_ux_profile(coarse_F::AbstractArray{T,3},
@@ -373,9 +373,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.composite_leaf_velocity_field_2d)
+methods(KrakeNN.composite_leaf_velocity_field_2d)
 ```
 """
 function composite_leaf_velocity_field_2d(coarse_F::AbstractArray{T,3},
@@ -406,9 +406,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.couette_analytic_profile_2d)
+methods(KrakeNN.couette_analytic_profile_2d)
 ```
 """
 function couette_analytic_profile_2d(ny::Int, U)
@@ -424,9 +424,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.poiseuille_analytic_profile_2d)
+methods(KrakeNN.poiseuille_analytic_profile_2d)
 ```
 """
 function poiseuille_analytic_profile_2d(ny::Int, Fx, omega; rho=1)
@@ -509,8 +509,8 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_couette_macroflow_2d)
+methods(KrakeNN.run_conservative_tree_couette_macroflow_2d)
 ```
 """

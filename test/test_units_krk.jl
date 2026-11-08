@@ -1,7 +1,7 @@
 using Test
-using Kraken
+using KrakeNN
 
-const U = Kraken.Units
+const U = KrakeNN.Units
 
 function _assert_same_plan_units(a, b)
     @test a.units.tau_hydro ≈ b.units.tau_hydro atol=1e-12 rtol=0

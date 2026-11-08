@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Couette 2D" begin
     Nx, Ny = 4, 32

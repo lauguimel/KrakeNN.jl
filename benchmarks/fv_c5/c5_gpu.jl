@@ -1,11 +1,11 @@
 # Prepared only: CUDA/cuDSS M3 contract, then M1/M3 immersed Stokes timings.
 # Run from ~/kraken_c5 with --project=env and KRAKEN_REQUIRE_GPU=1.
 # There is deliberately no CPU timing mode for 256^2 or 512^2.
-using CUDA, CUDSS, Test, LinearAlgebra, Statistics, Printf, Kraken
+using CUDA, CUDSS, Test, LinearAlgebra, Statistics, Printf, KrakeNN
 CUDA.functional() || error("C5 GPU validation requires functional CUDA")
 CUDA.allowscalar(false)
 println("GPU: ", CUDA.name(CUDA.device()), " CUDA ", pkgversion(CUDA),
-        " CUDSS ", pkgversion(CUDSS), " Kraken ", pkgversion(Kraken))
+        " CUDSS ", pkgversion(CUDSS), " KrakeNN ", pkgversion(KrakeNN))
 flush(stdout)
 
 const C5_TEST_DIR = joinpath(@__DIR__, "..", "..", "test", "analytical")
@@ -34,7 +34,7 @@ function c5_gpu_timing(N, mass)
     CUDA.synchronize(); CUDA.reclaim()
     free_unfactored = Int(CUDA.free_memory())
     first_factor_seconds = @elapsed begin
-        Kraken._fv_factor!(s)
+        KrakeNN._fv_factor!(s)
         CUDA.synchronize()
     end
     CUDA.reclaim()

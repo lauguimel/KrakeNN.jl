@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ==========================================================================
@@ -19,7 +19,7 @@ using KernelAbstractions
 function _init_equilibrium_2d(Nx, Ny, FT; ρ=1.0, ux=0.0, uy=0.0)
     f = zeros(FT, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
-        f[i, j, q] = Kraken.equilibrium(D2Q9(), FT(ρ), FT(ux), FT(uy), q)
+        f[i, j, q] = KrakeNN.equilibrium(D2Q9(), FT(ρ), FT(ux), FT(uy), q)
     end
     return f
 end
@@ -30,15 +30,15 @@ end
     # 1. Skeleton sanity
     # ------------------------------------------------------------
     @testset "skeleton — pull + write bit-exact" begin
-        spec = Kraken.LBMSpec(Kraken.PullHalfwayBB(), Kraken.WriteF())
-        @test Kraken.spec_args(spec) == [:f_out, :f_in, :Nx, :Ny]
+        spec = KrakeNN.LBMSpec(KrakeNN.PullHalfwayBB(), KrakeNN.WriteF())
+        @test KrakeNN.spec_args(spec) == [:f_out, :f_in, :Nx, :Ny]
 
         Nx, Ny = 6, 5
         f_in = _init_equilibrium_2d(Nx, Ny, Float64; ρ=1.0, ux=0.01)
         f_out_dsl = similar(f_in)
         f_out_ref = similar(f_in)
 
-        kernel! = Kraken.build_lbm_kernel(CPU(), spec)
+        kernel! = KrakeNN.build_lbm_kernel(CPU(), spec)
         kernel!(f_out_dsl, f_in, Nx, Ny; ndrange=(Nx, Ny))
         KernelAbstractions.synchronize(CPU())
 
@@ -57,9 +57,9 @@ end
     end
 
     @testset "cache: same spec returns identical compiled kernel" begin
-        spec = Kraken.LBMSpec(Kraken.PullHalfwayBB(), Kraken.WriteF())
-        k1 = Kraken.build_lbm_kernel(CPU(), spec)
-        k2 = Kraken.build_lbm_kernel(CPU(), spec)
+        spec = KrakeNN.LBMSpec(KrakeNN.PullHalfwayBB(), KrakeNN.WriteF())
+        k1 = KrakeNN.build_lbm_kernel(CPU(), spec)
+        k2 = KrakeNN.build_lbm_kernel(CPU(), spec)
         @test k1 === k2
     end
 
@@ -94,19 +94,19 @@ end
         KernelAbstractions.synchronize(CPU())
 
         # DSL
-        spec = Kraken.LBMSpec(Kraken.PullHalfwayBB(), Kraken.SolidSwapBB(),
-                              Kraken.Moments(), Kraken.CollideBGKDirect(),
-                              Kraken.WriteMoments())
+        spec = KrakeNN.LBMSpec(KrakeNN.PullHalfwayBB(), KrakeNN.SolidSwapBB(),
+                              KrakeNN.Moments(), KrakeNN.CollideBGKDirect(),
+                              KrakeNN.WriteMoments())
         f_dsl  = similar(f_in); ρ_dsl = ones(FT, Nx, Ny)
         ux_dsl = zeros(FT, Nx, Ny); uy_dsl = zeros(FT, Nx, Ny)
-        kernel! = Kraken.build_lbm_kernel(CPU(), spec)
+        kernel! = KrakeNN.build_lbm_kernel(CPU(), spec)
         # spec_args canonical order:
         #   f_out, ρ_out, ux_out, uy_out, f_in, is_solid, Nx, Ny, ω
         kernel!(f_dsl, ρ_dsl, ux_dsl, uy_dsl, f_in, is_solid,
                 Nx, Ny, ω; ndrange=(Nx, Ny))
         KernelAbstractions.synchronize(CPU())
 
-        @test Kraken.spec_args(spec) ==
+        @test KrakeNN.spec_args(spec) ==
             [:f_out, :ρ_out, :ux_out, :uy_out, :f_in, :is_solid, :Nx, :Ny, :ω]
         @test all(f_dsl .== f_ref)
         @test all(ρ_dsl .== ρ_ref)
@@ -120,7 +120,7 @@ end
     @testset "oracle fused_trt — bit-exact" begin
         f_in, is_solid = make_test_state()
         ν = 0.1
-        s_plus, s_minus = Kraken.trt_rates(ν)
+        s_plus, s_minus = KrakeNN.trt_rates(ν)
         sp = FT(s_plus); sm = FT(s_minus)
 
         f_ref  = similar(f_in); ρ_ref = ones(FT, Nx, Ny)
@@ -129,12 +129,12 @@ end
                         is_solid, Nx, Ny, ν)
         KernelAbstractions.synchronize(CPU())
 
-        spec = Kraken.LBMSpec(Kraken.PullHalfwayBB(), Kraken.SolidSwapBB(),
-                              Kraken.Moments(), Kraken.CollideTRTDirect(),
-                              Kraken.WriteMoments())
+        spec = KrakeNN.LBMSpec(KrakeNN.PullHalfwayBB(), KrakeNN.SolidSwapBB(),
+                              KrakeNN.Moments(), KrakeNN.CollideTRTDirect(),
+                              KrakeNN.WriteMoments())
         f_dsl  = similar(f_in); ρ_dsl = ones(FT, Nx, Ny)
         ux_dsl = zeros(FT, Nx, Ny); uy_dsl = zeros(FT, Nx, Ny)
-        kernel! = Kraken.build_lbm_kernel(CPU(), spec)
+        kernel! = KrakeNN.build_lbm_kernel(CPU(), spec)
         kernel!(f_dsl, ρ_dsl, ux_dsl, uy_dsl, f_in, is_solid,
                 Nx, Ny, sp, sm; ndrange=(Nx, Ny))
         KernelAbstractions.synchronize(CPU())
@@ -159,7 +159,7 @@ end
         uw_y    = zeros(FT, Nx, Ny, 9)
         q_wall[6, 6, 2] = FT(0.3)   # east link out of (6,6) cut at 0.3
         uw_x[6, 6, 2]   = FT(0.01)
-        s_plus, s_minus = Kraken.trt_rates(ν)
+        s_plus, s_minus = KrakeNN.trt_rates(ν)
         sp = FT(s_plus); sm = FT(s_minus)
 
         f_ref  = similar(f_in); ρ_ref = ones(FT, Nx, Ny)
@@ -168,18 +168,18 @@ end
                               is_solid, q_wall, uw_x, uw_y, Nx, Ny, ν)
         KernelAbstractions.synchronize(CPU())
 
-        spec = Kraken.LBMSpec(Kraken.PullHalfwayBB(), Kraken.SolidSwapBB(),
-                              Kraken.Moments(), Kraken.CollideTRT(),
-                              Kraken.ApplyLiBB(),
-                              Kraken.WriteFLiBB(), Kraken.WriteMoments())
+        spec = KrakeNN.LBMSpec(KrakeNN.PullHalfwayBB(), KrakeNN.SolidSwapBB(),
+                              KrakeNN.Moments(), KrakeNN.CollideTRT(),
+                              KrakeNN.ApplyLiBB(),
+                              KrakeNN.WriteFLiBB(), KrakeNN.WriteMoments())
         f_dsl  = similar(f_in); ρ_dsl = ones(FT, Nx, Ny)
         ux_dsl = zeros(FT, Nx, Ny); uy_dsl = zeros(FT, Nx, Ny)
-        kernel! = Kraken.build_lbm_kernel(CPU(), spec)
+        kernel! = KrakeNN.build_lbm_kernel(CPU(), spec)
         kernel!(f_dsl, ρ_dsl, ux_dsl, uy_dsl, f_in, is_solid,
                 q_wall, uw_x, uw_y, Nx, Ny, sp, sm; ndrange=(Nx, Ny))
         KernelAbstractions.synchronize(CPU())
 
-        @test Kraken.spec_args(spec) ==
+        @test KrakeNN.spec_args(spec) ==
             [:f_out, :ρ_out, :ux_out, :uy_out,
              :f_in, :is_solid, :q_wall, :uw_link_x, :uw_link_y,
              :Nx, :Ny, :s_plus, :s_minus]

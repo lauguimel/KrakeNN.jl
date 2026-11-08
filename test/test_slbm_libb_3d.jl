@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ===========================================================================
@@ -60,7 +60,7 @@ using KernelAbstractions
 
         f_h = zeros(T, Nx, Ny, Nz, 19)
         for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
-            f_h[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(T), u0, v0, w0, q)
+            f_h[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(T), u0, v0, w0, q)
         end
         fa = KernelAbstractions.allocate(backend, T, Nx, Ny, Nz, 19); copyto!(fa, f_h)
         fb = KernelAbstractions.allocate(backend, T, Nx, Ny, Nz, 19); fill!(fb, zero(T))
@@ -114,7 +114,7 @@ using KernelAbstractions
             ux0 = T(0.04) * sin(2π * (i - 1) / Nx)
             uy0 = T(0.02) * cos(2π * (j - 1) / Ny)
             uz0 = T(0.01) * sin(2π * (k - 1) / Nz)
-            f0[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(T), ux0, uy0, uz0, q)
+            f0[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(T), ux0, uy0, uz0, q)
         end
 
         # Path A: SLBM
@@ -202,7 +202,7 @@ using KernelAbstractions
         # Initial state matches the inlet profile (no transient at i=1).
         f_h = zeros(T, Nx, Ny, Nz, 19)
         for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
-            f_h[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(T),
+            f_h[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(T),
                                                   u_profile_h[j, k],
                                                   zero(T), zero(T), q)
         end
@@ -251,7 +251,7 @@ using KernelAbstractions
                                    Nx=Nx, Ny=Ny, Nz=Nz, FT=T)
         ν = T(0.05)
         sp, sm = compute_local_omega_3d(mesh; ν=ν, scaling=:quadratic)
-        sp_ref, sm_ref = Kraken.trt_rates(ν; Λ=3/16)
+        sp_ref, sm_ref = KrakeNN.trt_rates(ν; Λ=3/16)
         @test maximum(abs.(sp .- T(sp_ref))) < 1e-10
         @test maximum(abs.(sm .- T(sm_ref))) < 1e-10
     end
@@ -275,7 +275,7 @@ using KernelAbstractions
         f0 = zeros(T, Nx, Ny, Nz, 19)
         for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
             ux0 = T(0.03) * sin(2π * (i - 1) / Nx)
-            f0[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(T), ux0, zero(T), zero(T), q)
+            f0[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(T), ux0, zero(T), zero(T), q)
         end
 
         sp_h, sm_h = compute_local_omega_3d(mesh; ν=ν, scaling=:quadratic)

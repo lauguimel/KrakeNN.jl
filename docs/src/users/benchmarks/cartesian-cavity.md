@@ -1,10 +1,10 @@
 # Lid-Driven Cavity (Cartesian)
 
-Steady 2D lid-driven cavity at Re = 100, 400, 1000. Kraken (D2Q9 BGK) matches the
+Steady 2D lid-driven cavity at Re = 100, 400, 1000. KrakeNN (D2Q9 BGK) matches the
 canonical **Ghia, Ghia & Shin (1982)** centreline data to **rel-L2 < 1 %** on the
 u-centreline at every Re, cross-checked against OpenFOAM `icoFoam`.
 
-Kraken (solid), icoFoam (dashed), Ghia 1982 (markers); `u(y)` left, `v(x)` right.
+KrakeNN (solid), icoFoam (dashed), Ghia 1982 (markers); `u(y)` left, `v(x)` right.
 
 ![Cavity Re=100](cartesian-cavity-re100.png)
 
@@ -16,14 +16,14 @@ Kraken (solid), icoFoam (dashed), Ghia 1982 (markers); `u(y)` left, `v(x)` right
 
 The strict **< 1 % relative-L2** gate on the u-centreline vs Ghia is met:
 
-| Re   | Kraken (BGK) rel-L2 | icoFoam rel-L2 |
+| Re   | KrakeNN (BGK) rel-L2 | icoFoam rel-L2 |
 |------|---------------------|----------------|
 | 100  | **0.47 %**          | 0.49 %         |
 | 400  | **0.41 %**          | 0.23 %         |
 | 1000 | **1.05 %**          | 0.46 %         |
 
 `icoFoam` clears < 1 % at every Re, which validates the Ghia reference and the
-comparison pipeline independently of Kraken. The hundredth of a percent over the
+comparison pipeline independently of KrakeNN. The hundredth of a percent over the
 gate at Re = 1000 is the genuine first-order resolution floor of D2Q9 at 256²: a
 Couette test (exact linear solution, identical BC mix) is exact to machine zero,
 so collision order is not the error (TRT ≡ BGK here).
@@ -40,7 +40,7 @@ Full machine-readable data: `benchmarks/results/rheotool_compare/newtonian/error
 
 ## Methodology
 
-**Kraken (LBM, D2Q9 BGK).** Top-lid Zou–He velocity BC, no-slip halfway bounce-back
+**KrakeNN (LBM, D2Q9 BGK).** Top-lid Zou–He velocity BC, no-slip halfway bounce-back
 on the three remaining walls. Diffusive scaling with `u_lid = 0.1` (lattice units),
 `ν = u_lid · N / Re`, iterated to `max|Δu_centreline| / max|u| < 1e-5`. Backend Metal
 Float32 (M3 Max); the Re = 1000 case re-run on CPU Float64 matched to < 0.01 %, so the
@@ -56,11 +56,11 @@ J. Comput. Phys. 48, 387–411 — Tables I (u along x = 0.5) and II (v along y 
 ## Caveats
 
 - **v-profile at Re = 400.** The relative L2/L∞ of the v-centreline vs Ghia is large
-  (~15 % / ~33 %) for **both** Kraken **and** icoFoam, and the two codes agree with
+  (~15 % / ~33 %) for **both** KrakeNN **and** icoFoam, and the two codes agree with
   each other to 0.68 %. This is an interpolation artifact onto Ghia's sparse 17-point
   table across the steep v-extremum near x ≈ 0.8–0.9, not a solver discrepancy — the
   plotted full-resolution profiles overlay the Ghia markers cleanly.
-- **Mesh mismatch (Kraken vs icoFoam).** Kraken ran Re = 400/1000 at 256² while
+- **Mesh mismatch (KrakeNN vs icoFoam).** KrakeNN ran Re = 400/1000 at 256² while
   icoFoam used 128², so that column is a secondary consistency check; the primary
   acceptance is each code independently against Ghia (Re = 100 used 128² for both).
 - **3D cavity.** With the corrected D3Q19 top-lid Zou–He correction (the earlier

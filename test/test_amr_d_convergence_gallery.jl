@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 include(joinpath(dirname(@__DIR__), "benchmarks", "amr_d_convergence_gallery_2d.jl"))
 

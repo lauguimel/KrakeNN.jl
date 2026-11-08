@@ -32,9 +32,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.create_thermal_patch_arrays_3d)
+methods(KrakeNN.create_thermal_patch_arrays_3d)
 ```
 """
 function create_thermal_patch_arrays_3d(patch::RefinementPatch3D{T},
@@ -131,9 +131,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.fill_thermal_ghost_3d!)
+methods(KrakeNN.fill_thermal_ghost_3d!)
 ```
 """
 function fill_thermal_ghost_3d!(patch::RefinementPatch3D{T},
@@ -156,9 +156,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.fill_thermal_full_3d!)
+methods(KrakeNN.fill_thermal_full_3d!)
 ```
 """
 function fill_thermal_full_3d!(patch::RefinementPatch3D{T},
@@ -182,9 +182,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.restrict_thermal_to_coarse_3d!)
+methods(KrakeNN.restrict_thermal_to_coarse_3d!)
 ```
 """
 function restrict_thermal_to_coarse_3d!(patch::RefinementPatch3D{T},
@@ -210,9 +210,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.advance_thermal_refined_step_3d!)
+methods(KrakeNN.advance_thermal_refined_step_3d!)
 ```
 """
 function advance_thermal_refined_step_3d!(domain::RefinedDomain3D{T},
@@ -371,9 +371,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.build_patch_flow_bcs_3d)
+methods(KrakeNN.build_patch_flow_bcs_3d)
 ```
 """
 function build_patch_flow_bcs_3d(patches::Vector{RefinementPatch3D{T}},

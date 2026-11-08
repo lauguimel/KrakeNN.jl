@@ -1,6 +1,6 @@
 # Doc helpers (Phase 4.1A)
 
-Internal helpers used by the Kraken.jl "living documentation" build.
+Internal helpers used by the KrakeNN "living documentation" build.
 These files are **not** served as public doc pages; they are `include`d
 from `docs/make.jl` so Literate pages built in Phases 4.2–4.6 can embed
 real source code from `src/`.
@@ -17,7 +17,7 @@ real source code from `src/`.
   embed inside a Literate page.
 
 - `api_extract.jl` — `extract_exports`, `categorize_exports`,
-  `api_page_data`. Parses `src/Kraken.jl`, groups exported symbols into
+  `api_page_data`. Parses `src/KrakeNN.jl`, groups exported symbols into
   categories (collision, streaming, boundary, refinement, io,
   postprocess, drivers, view, lattice, rheology, multiphase, …), and
   resolves each symbol to its on-disk source excerpt. Out-of-scope
@@ -34,7 +34,7 @@ real source code from `src/`.
 # In a Literate page:
 src_md = include_function("src/drivers/basic.jl", :run_cavity_2d)
 badge  = krk_download("examples/cavity.krk")
-data   = api_page_data("src/Kraken.jl")
+data   = api_page_data("src/KrakeNN.jl")
 ```
 
 The helpers use JuliaSyntax (not regex) so multi-line signatures,

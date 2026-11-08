@@ -43,7 +43,7 @@ Run 10000 steps
 ## Run and post-process
 
 ```julia
-using Kraken
+using KrakeNN
 using CairoMakie
 
 krk = joinpath(@__DIR__, "..", "..", "..", "examples", "couette.krk")

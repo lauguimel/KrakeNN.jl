@@ -364,7 +364,7 @@ function run_natural_convection_refined_2d(; N=128, Ra=1e4, Pr=0.71, Rc=1.0,
     compute_macroscopic_2d!(ρ, ux, uy, f_in)
     compute_temperature_2d!(Temp, g_in)
     for (pidx, patch) in enumerate(domain.patches)
-        Kraken.prolongate_f_rescaled_full_2d!(
+        KrakeNN.prolongate_f_rescaled_full_2d!(
             patch.f_in, f_in, ρ, ux, uy,
             patch.ratio, patch.Nx_inner, patch.Ny_inner,
             patch.n_ghost, first(patch.parent_i_range), first(patch.parent_j_range),

@@ -106,9 +106,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_composite_zou_he_west_F_2d!)
+methods(KrakeNN.apply_composite_zou_he_west_F_2d!)
 ```
 """
 function apply_composite_zou_he_west_F_2d!(
@@ -142,9 +142,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_composite_zou_he_pressure_east_F_2d!)
+methods(KrakeNN.apply_composite_zou_he_pressure_east_F_2d!)
 ```
 """
 function apply_composite_zou_he_pressure_east_F_2d!(
@@ -325,9 +325,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.active_moments_F)
+methods(KrakeNN.active_moments_F)
 ```
 """
 function active_moments_F(coarse_F::AbstractArray{<:Any,3},

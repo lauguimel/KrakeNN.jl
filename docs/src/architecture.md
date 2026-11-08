@@ -1,6 +1,6 @@
 # Architecture
 
-Kraken is a **GPU-first, method-agnostic PDE framework** written in Julia. The
+KrakeNN is a **GPU-first, method-agnostic PDE framework** written in Julia. The
 discretization method is a *pluggable backend* selected in the `.krk` case file,
 not a hard-wired property of the solver. Every method is meant to share the same
 **problem / solution / observable** contract, so the case description — geometry,

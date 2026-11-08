@@ -3,7 +3,7 @@
 # SLBM mesh (right), full domain + zoom near the cylinder so the
 # stretching is directly visible at the wall.
 using CairoMakie
-using Kraken, Gmsh
+using KrakeNN, Gmsh
 
 const Lx, Ly = 1.0, 0.5
 const cx_p, cy_p, R_p = 0.5, 0.25, 0.025

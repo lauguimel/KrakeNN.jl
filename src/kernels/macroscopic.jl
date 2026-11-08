@@ -24,9 +24,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_macroscopic_2d!)
+methods(KrakeNN.compute_macroscopic_2d!)
 ```
 """
 function compute_macroscopic_2d!(ρ, ux, uy, f; sync=false)
@@ -67,9 +67,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_macroscopic_3d!)
+methods(KrakeNN.compute_macroscopic_3d!)
 ```
 """
 function compute_macroscopic_3d!(ρ, ux, uy, uz, f)
@@ -104,9 +104,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_macroscopic_forced_2d!)
+methods(KrakeNN.compute_macroscopic_forced_2d!)
 ```
 """
 function compute_macroscopic_forced_2d!(ρ, ux, uy, f, Fx, Fy)
@@ -147,9 +147,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_macroscopic_forced_3d!)
+methods(KrakeNN.compute_macroscopic_forced_3d!)
 ```
 """
 function compute_macroscopic_forced_3d!(ρ, ux, uy, uz, f, Fx, Fy, Fz)

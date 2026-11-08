@@ -1,6 +1,6 @@
 # Shape derivatives of off-grid Taylor-Couette flow, CPU Float64 Stokes.
 # All geometry constructors enforce the C5 resolution contract unchanged.
-using Test, Kraken, ForwardDiff, LinearAlgebra
+using Test, KrakeNN, ForwardDiff, LinearAlgebra
 
 const _C5SHAPE_GRIDS = (24,40,48,64)
 const _C5SHAPE_STEPS = (1e-5,2e-6,4e-7)

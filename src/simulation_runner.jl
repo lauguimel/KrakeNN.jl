@@ -98,7 +98,7 @@ Resolve a `.krk` `Backend <name>` directive (`sym ∈ (:cpu, :cuda, :metal)`,
 already validated by `_parse_backend` at parse time) to a concrete
 KernelAbstractions backend object.
 
-CUDA/Metal are declared package dependencies of Kraken but are deliberately
+CUDA/Metal are declared package dependencies of KrakeNN but are deliberately
 NOT `using`'d eagerly at module load (that stays a separate question — see
 the mission notes on the CUDA/Metal hard-dependency). Instead this function
 lazily loads the requested package and checks `<Package>.functional()`
@@ -128,7 +128,7 @@ function _require_functional_gpu_backend(name::Symbol, pkgid::Base.PkgId, backen
         throw(ArgumentError(
             "Backend '$name' requested via .krk 'Backend' directive, but the " *
             "$(pkgid.name) package could not be loaded ($(sprint(showerror, err))). " *
-            "$(pkgid.name) is already a Kraken dependency, but its runtime/driver " *
+            "$(pkgid.name) is already a KrakeNN dependency, but its runtime/driver " *
             "must be available to actually use it. Use `Backend cpu` (or pass " *
             "backend=KernelAbstractions.CPU() explicitly) instead."))
     end

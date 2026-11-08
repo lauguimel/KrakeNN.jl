@@ -4,7 +4,7 @@ using DocumenterVitepress
 using Literate
 using NodeJS_20_jll
 using PlutoStaticHTML
-using Kraken
+using KrakeNN
 
 const DOCS_LINKCHECK = lowercase(get(ENV, "DOCUMENTER_LINKCHECK", "false")) in ("1", "true", "yes")
 
@@ -140,8 +140,8 @@ bib = CitationBibliography(joinpath(@__DIR__, "refs.bib"); style=:numeric)
 # Workaround: run from a temp directory with remotes=nothing, or use CI.
 
 makedocs(;
-    sitename = "Kraken.jl",
-    modules = [Kraken],
+    sitename = "KrakeNN",
+    modules = [KrakeNN],
     plugins = [bib],
     format = DocumenterVitepress.MarkdownVitepress(
         repo = "github.com/lauguimel/Kraken.jl",

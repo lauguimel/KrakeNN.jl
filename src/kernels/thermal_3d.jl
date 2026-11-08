@@ -111,9 +111,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_thermal_3d!)
+methods(KrakeNN.collide_thermal_3d!)
 ```
 """
 function collide_thermal_3d!(g, ux, uy, uz, ω_T)
@@ -142,9 +142,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_temperature_3d!)
+methods(KrakeNN.compute_temperature_3d!)
 ```
 """
 function compute_temperature_3d!(Temp, g)
@@ -278,9 +278,9 @@ undoes the first). For Dirichlet temperatures on two faces that share an edge,
 use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_temp_west_3d!)
+methods(KrakeNN.apply_fixed_temp_west_3d!)
 ```
 """
 function apply_fixed_temp_west_3d!(g, T_wall, Ny, Nz)
@@ -326,9 +326,9 @@ undoes the first). For Dirichlet temperatures on two faces that share an edge,
 use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_temp_east_3d!)
+methods(KrakeNN.apply_fixed_temp_east_3d!)
 ```
 """
 function apply_fixed_temp_east_3d!(g, T_wall, Nx, Ny, Nz)
@@ -374,9 +374,9 @@ undoes the first). For Dirichlet temperatures on two faces that share an edge,
 use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_temp_south_3d!)
+methods(KrakeNN.apply_fixed_temp_south_3d!)
 ```
 """
 function apply_fixed_temp_south_3d!(g, T_wall, Nx, Nz)
@@ -422,9 +422,9 @@ undoes the first). For Dirichlet temperatures on two faces that share an edge,
 use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_temp_north_3d!)
+methods(KrakeNN.apply_fixed_temp_north_3d!)
 ```
 """
 function apply_fixed_temp_north_3d!(g, T_wall, Nx, Ny, Nz)
@@ -470,9 +470,9 @@ undoes the first). For Dirichlet temperatures on two faces that share an edge,
 use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_temp_bottom_3d!)
+methods(KrakeNN.apply_fixed_temp_bottom_3d!)
 ```
 """
 function apply_fixed_temp_bottom_3d!(g, T_wall, Nx, Ny)
@@ -518,9 +518,9 @@ undoes the first). For Dirichlet temperatures on two faces that share an edge,
 use `apply_fixed_temp_3d!`, which flips each edge slot once.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_fixed_temp_top_3d!)
+methods(KrakeNN.apply_fixed_temp_top_3d!)
 ```
 """
 function apply_fixed_temp_top_3d!(g, T_wall, Nx, Ny, Nz)
@@ -599,7 +599,7 @@ function. `g` must be the post-stream array of `stream_3d!`; call once per
 step, after streaming and before collision.
 
 ```julia
-using Kraken
+using KrakeNN
 
 g = zeros(Float64, 6, 6, 6, 19)
 apply_fixed_temp_3d!(g, 6, 6, 6; west=1.0, south=1.0, east=0.0, north=0.0)
@@ -780,9 +780,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_boussinesq_3d!)
+methods(KrakeNN.collide_boussinesq_3d!)
 ```
 """
 function collide_boussinesq_3d!(f, Temp, is_solid, ω, β_g, T_ref)

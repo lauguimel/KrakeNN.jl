@@ -32,7 +32,7 @@ corners retain their existing treatment in both modes.
 
 Potential solve (`phi_scheme = :lbm`, `phi_substeps = nothing`): each cycle
 iterates the DDF until a check accepts, or raises after `phi_max_iter` iterations.
-Checks run every `Kraken.EHD_EC_PHI_CHECK_EVERY = 8` iterations. A check accepts
+Checks run every `KrakeNN.EHD_EC_PHI_CHECK_EVERY = 8` iterations. A check accepts
 when the potential changed by at most `phi_tol` (relative, over the last
 iteration) and the field by at most `field_tol`. The field change is the change
 of `E` since the previous check, relative to `max(max|E|, E_ref)`, with

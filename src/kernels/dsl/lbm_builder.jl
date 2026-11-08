@@ -16,8 +16,8 @@ using KernelAbstractions
 # spec × backend pair compiles once; subsequent calls return the
 # cached kernel function.
 #
-# Generated kernel names are `gensym`'d into the `Kraken` module
-# (i.e. `@__MODULE__` when this file is included from Kraken.jl). They
+# Generated kernel names are `gensym`'d into the `KrakeNN` module
+# (i.e. `@__MODULE__` when this file is included from KrakeNN.jl). They
 # pollute the module namespace but are unreachable by name from user
 # code. Acceptable cost for robust interop with `@kernel`.
 # =====================================================================

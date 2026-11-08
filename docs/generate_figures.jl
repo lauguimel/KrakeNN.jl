@@ -2,7 +2,7 @@
 # Generate all PNG figures for docs/src/assets/figures/
 # Run with: julia --project=docs docs/generate_figures.jl
 
-using Kraken
+using KrakeNN
 using CairoMakie
 using Printf
 
@@ -19,7 +19,7 @@ CairoMakie.activate!()
 # diverging map for signed fields (vorticity). Mirrors assets/krakendark.py.
 # ============================================================================
 const DARK    = "#1b1b1f"      # Vitepress default dark page background
-const ACCENT  = "#ff6b6b"      # Kraken highlight / warm pole / analytical
+const ACCENT  = "#ff6b6b"      # KrakeNN highlight / warm pole / analytical
 const COOL    = "#4ea1d3"      # cool pole / LBM series
 const TEXTCOL = RGBf(0.92, 0.92, 0.92)
 const TICKCOL = RGBf(0.85, 0.85, 0.85)

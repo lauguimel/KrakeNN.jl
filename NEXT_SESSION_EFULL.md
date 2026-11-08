@@ -83,7 +83,7 @@ mesh_ext, geom = build_block_slbm_geometry_extended(blk;
 | `src/multiblock/wall_ghost.jl` | `fill_slbm_wall_ghost_2d!` + kernels `_copy_col/row_kernel_2d!` |
 | `src/curvilinear/slbm.jl` | `dx_ref` kwarg dans `build_slbm_geometry` |
 | `src/multiblock/mesh_extend.jl` | `dx_ref` kwarg dans `build_block_slbm_geometry_extended` |
-| `src/Kraken.jl` | Export `fill_slbm_wall_ghost_2d!` |
+| `src/KrakeNN.jl` | Export `fill_slbm_wall_ghost_2d!` |
 
 ## Scripts diagnostiques (tmp/)
 

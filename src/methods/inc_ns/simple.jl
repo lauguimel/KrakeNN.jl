@@ -6,7 +6,7 @@
 #
 # Reuses the matrix-free KA grad/div/laplacian operators and the sparse
 # Poisson service (CHOLMOD). KA + stdlib only, CPU by default. Registered in
-# `src/Kraken.jl` (exported driver; the platform wrapper IncNS(:simple) in
+# `src/KrakeNN.jl` (exported driver; the platform wrapper IncNS(:simple) in
 # method.jl forwards here). Include guards keep it standalone-include-able.
 #
 # Public entry point:
@@ -273,7 +273,7 @@ solvers; this fully-developed Poiseuille rung has no nonlinear convection term.
 Validated against the analytic Poiseuille parabola at 0.033% L2 error
 (`test/analytical/incns_poiseuille.jl`). The MG/GPU sibling exercising the full
 pressure-velocity coupling is [`solve_incns_cavity_mg`](@ref). Registered in
-`src/Kraken.jl` and exported; also reachable as `solve(params, IncNS(:simple))`.
+`src/KrakeNN.jl` and exported; also reachable as `solve(params, IncNS(:simple))`.
 """
 function solve_incns_simple(; nx::Integer, ny::Integer, H::Real, mu::Real, G::Real,
                             relax=(u = 0.7, p = 0.3),

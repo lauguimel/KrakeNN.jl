@@ -10,7 +10,7 @@
 # Part D — 3D refinement: lid-driven cavity with center patch (stability)
 # ==========================================================================
 
-using Kraken
+using KrakeNN
 using Printf
 
 const NU_REF_2D = 1.118     # De Vahl Davis Ra=1e3
@@ -68,7 +68,7 @@ function validate_natconv_2d(; Ns=[32, 64, 128])
     @printf("  %5s  %8s  %8s  %7s  %12s\n", "N_base", "steps", "Nu", "err%", "T_range")
     for N in Ns[1:min(2, end)]
         steps = nsteps_natconv(N)
-        setup = Kraken.parse_kraken("""
+        setup = KrakeNN.parse_kraken("""
         Simulation natconv_generic D2Q9
         Module thermal
         Domain L = 1.0 x 1.0  N = $N x $N
@@ -145,7 +145,7 @@ function validate_cylinder_2d(; Nys=[40, 80], u_in=0.05)
         R_phys = Float64(R); cx = 0.2 * Lx; cy = 0.5 * Ly
         margin = 3.0 * R_phys
 
-        setup = Kraken.parse_kraken("""
+        setup = KrakeNN.parse_kraken("""
         Simulation cyl_refined D2Q9
         Domain L = $Lx x $Ly  N = $Nx x $Ny
         Define R = $R_phys
@@ -450,7 +450,7 @@ end
 # ==========================================================================
 
 function run_validation(; quick=false)
-    println("Kraken.jl — Validation: 3D thermal + refinement")
+    println("KrakeNN — Validation: 3D thermal + refinement")
     println("CPU-only, Float64\n")
 
     if quick

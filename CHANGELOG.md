@@ -156,6 +156,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   residual-flux one.
 
 ### Changed
+- The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code.
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
   declares `SteadyResidual`; the other drivers declare `ForwardSolve` only, and
   `residual(prob, IncNS(:simple), U)` raises an `ArgumentError`.

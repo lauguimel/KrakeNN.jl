@@ -17,7 +17,7 @@ quand ils sont mis à jour *après* la PR au lieu de *dans* la PR. Tout le modè
 
 | Choke file | Pourquoi | Mitigation |
 |------------|----------|------------|
-| `src/Kraken.jl` | exports | n'ajouter qu'**une ligne d'export** par brique ; sérialiser |
+| `src/KrakeNN.jl` | exports | n'ajouter qu'**une ligne d'export** par brique ; sérialiser |
 | `simulation_runner.jl` (~1843 LOC) | dispatch par matching de chaîne | **casser en registre typé tôt** (plan 02) → disparaît comme choke file |
 | `io/kraken_parser.jl` (~2010 LOC) | parser DSL | reloger sous `io/krk/` + dispatch par directive |
 | `Project.toml` | deps | une mission « deps » sérialisée, pas dans chaque PR brique |

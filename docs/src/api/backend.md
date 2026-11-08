@@ -3,7 +3,7 @@
 Backend APIs document the KernelAbstractions-facing execution helpers, fused kernels, runtime kernel DSL, persistent-kernel entry points, and GPU route-packing utilities that support CPU/GPU portability.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "kernels/dsl/lbm_spec.jl",
     "kernels/dsl/bricks.jl",

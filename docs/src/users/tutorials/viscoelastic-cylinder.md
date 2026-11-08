@@ -1,6 +1,6 @@
 # Viscoelastic Cylinder Tutorial
 
-This tutorial covers Kraken's **viscoelastic** validation case: Oldroyd-B flow past
+This tutorial covers KrakeNN's **viscoelastic** validation case: Oldroyd-B flow past
 a confined cylinder, the standard benchmark for non-Newtonian LBM solvers. It
 reports the validated drag results honestly, including where the solver is proven
 and where it is not.
@@ -47,12 +47,12 @@ fine-mesh **rheoTool** (OpenFOAM-based, Oldroyd-B log-conformation) reference ru
 ### Drag at `Re = 1`, the production resolution `R = 50`
 
 This is the benchmark gate. At cylinder resolution `R = 50` (the production mesh),
-Kraken's drag matches the rheoTool fine-mesh references to **≤ 1 %** across the
+KrakeNN's drag matches the rheoTool fine-mesh references to **≤ 1 %** across the
 validated Weissenberg range (`β = 0.59`), with the default wall treatment (half-way
 bounce-back on the channel walls, interpolated bounce-back on the cylinder), in Float64 (values re-measured on 2026-10-14 after the TRT Guo forcing fix,
 #67; see the [Viscoelastic cylinder benchmark](../benchmarks/viscoelastic-cylinder.md)):
 
-| Wi  | rheoTool fine-mesh `C_d` | Kraken `C_d` vs reference |
+| Wi  | rheoTool fine-mesh `C_d` | KrakeNN `C_d` vs reference |
 |-----|--------------------------|---------------------------|
 | 0.1 | 130.43                   | −0.37 %                   |
 | 0.5 | 119.71                   | −0.66 %                   |
@@ -64,15 +64,15 @@ this benchmark.
 
 ### Viscosity-ratio (`β`) cross-validation
 
-At `β = 0.3` (`R = 50`) Kraken's `C_d` is −1.33 % from rheoTool at `Wi = 0.5` and
+At `β = 0.3` (`R = 50`) KrakeNN's `C_d` is −1.33 % from rheoTool at `Wi = 0.5` and
 +1.24 % at `Wi = 1`, outside the 1 % band that holds at `β = 0.59`. The rheoTool
 `β = 0.3`, `Wi = 1` reference is not steady at `t = 20` (`C_d` 109.7 → 106.8 → 107.3
-over `t = 15–20`), so that cell is not a validation point. At `β ≤ 0.1` Kraken returns
-NaN and rheoTool aborts, a regime neither code handles, not a Kraken-specific defect.
+over `t = 15–20`), so that cell is not a validation point. At `β ≤ 0.1` KrakeNN returns
+NaN and rheoTool aborts, a regime neither code handles, not a KrakeNN-specific defect.
 
 ### Stability is not the same as convergence
 
-Kraken's cylinder (interpolated bounce-back wall) is **NaN-free up to `Wi = 10`** at both
+KrakeNN's cylinder (interpolated bounce-back wall) is **NaN-free up to `Wi = 10`** at both
 `R = 30` and `R = 50` — well past the `Wi ≈ 1` ceiling typical of the
 LBM-viscoelastic literature, and without the High-Weissenberg-Number-Problem
 blow-up that limits many solvers.
@@ -89,7 +89,7 @@ blow-up that limits many solvers.
 
 ### First normal-stress difference `N1` — an open gap
 
-Kraken logs the maximum first normal-stress difference `N1_max` along the wake (for
+KrakeNN logs the maximum first normal-stress difference `N1_max` along the wake (for
 example `N1_max = 8.4e-4` at `R = 50`, `Wi = 1`), and the `N1` trend is concordant
 with rheoTool (it grows with `Wi` and as `β` decreases in both codes). **However, no
 rheoTool `N1` reference value was extracted**, so a quantitative `N1` comparison is
@@ -111,7 +111,7 @@ Rheology oldroyd_b { nu_s = ...  lambda = Wi*R/u_mean }
 Run the shipped smoke directly on this branch:
 
 ```julia
-using Kraken
+using KrakeNN
 result = run_simulation("benchmarks/results/rheotool_compare/viscoelastic/cylinder_oldroyd_b.krk")
 @show result.Cd   # coarse smoke (240×32, R = 8, 20 steps) — NOT the R = 50 table value
 ```
@@ -130,7 +130,7 @@ CI-reproducible — they require an A100-class run.
 - **Stable (NaN-free) to `Wi = 10`**, but high-Wi `C_d` is resolution-divergent and
   unconverged — validated only for `Wi ≤ 1` (the qualitative min+upturn is
   reproduced).
-- **`N1` gap:** Kraken logs `N1_max` and the trend agrees with rheoTool, but no
+- **`N1` gap:** KrakeNN logs `N1_max` and the trend agrees with rheoTool, but no
   rheoTool `N1` reference was extracted, so the absolute `N1` match is unverified.
 - **Solver runs on this branch.** The `_logfv` cut-link driver is shipped and
   dispatched via the `viscoelastic` module; the included `.krk` runs as a coarse

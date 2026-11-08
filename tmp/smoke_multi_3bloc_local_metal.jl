@@ -2,13 +2,13 @@
 # cylinder. Validates the end-to-end step pipeline (extended arrays +
 # exchange + wall-ghost + per-block kernel + per-block BC apply +
 # drag on interior view). Metal FP32 is numerically unstable at low
-# lattice resolutions for cylinder+LI-BB (known Kraken pitfall, see
+# lattice resolutions for cylinder+LI-BB (known KrakeNN pitfall, see
 # memory project_wp_mesh_6_bump), so this smoke only verifies that
 # the DATA FLOW is wired correctly (no NaN within the first few steps,
 # interior shapes compile, SubArray BC kernels launch). Accuracy comes
 # from the Aqua F64 run.
 
-using Kraken, KernelAbstractions, Metal
+using KrakeNN, KernelAbstractions, Metal
 
 T = Float32
 backend = MetalBackend()
@@ -102,7 +102,7 @@ function init_f_int(Nx, solid_h)
     f = zeros(T, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
         u = solid_h[i, j] ? T(0) : T(u_max)
-        f[i, j, q] = T(Kraken.equilibrium(D2Q9(), one(T), u, zero(T), q))
+        f[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), one(T), u, zero(T), q))
     end
     return f
 end

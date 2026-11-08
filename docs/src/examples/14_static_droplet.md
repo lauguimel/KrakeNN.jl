@@ -48,7 +48,7 @@ current magnitude.  It is a standard Gerris/Basilisk validation case
 
 ### VOF curvature vs CLSVOF curvature
 
-Two curvature computation strategies are available in Kraken.jl:
+Two curvature computation strategies are available in KrakeNN:
 
 - **VOF with height-function (HF) curvature**: the height function is
   computed by summing ``C`` values along columns perpendicular to the
@@ -99,7 +99,7 @@ Every run below uses a uniform grid. Grid refinement (patch and conservative AMR
 ## Code
 
 ```julia
-using Kraken
+using KrakeNN
 
 N = 128
 R = N ÷ 4

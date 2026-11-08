@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 # ---------------------------------------------------------------------
 # FENE-P (Peterlin) 3D log-conformation CONSTITUTIVE canary.
@@ -36,12 +36,12 @@ function velocity_gradient(;
 end
 
 psi_values(psi) = ntuple(c -> psi[c][1, 1, 1], 6)
-conformation_from_psi(psi) = Kraken.mat_exp_sym3x3(psi_values(psi)...)
+conformation_from_psi(psi) = KrakeNN.mat_exp_sym3x3(psi_values(psi)...)
 
 function apply_fenep_step!(psi, grad, lambda, dt, L2_fene, n_sub)
     before = psi_values(psi)
     out = ntuple(c -> similar(psi[c]), 6)
-    Kraken.logfv_constitutive_step_log_fenep_3d!(
+    KrakeNN.logfv_constitutive_step_log_fenep_3d!(
         out...,
         psi...,
         grad...,
@@ -60,10 +60,10 @@ function run_fenep_uniform_shear(Wi, L2_fene; lambda=1.0, dt=0.02)
     gamma_dot = Wi / lambda
     psi = psi_state()
     grad = velocity_gradient(duxdy=gamma_dot)
-    max_grad_norm = Kraken.logfv_max_grad_norm_3d(grad...)
+    max_grad_norm = KrakeNN.logfv_max_grad_norm_3d(grad...)
     # Stronger FENE-P relaxation near the wall → use a generous substep
     # count (OB estimator + headroom) so the RK2 step stays accurate.
-    n_sub = 8 * Kraken.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
+    n_sub = 8 * KrakeNN.logfv_recommended_oldroydb_substeps_3d(max_grad_norm, lambda, dt)
     max_steps = ceil(Int, 200lambda / dt)
     t = 0.0
     delta = Inf

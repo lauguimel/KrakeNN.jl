@@ -18,7 +18,7 @@ using LinearAlgebra
 using Printf
 using Random
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 const GC_NU0 = 0.17
 const GC_GSTAR_REF = 5.0                # G* of the adjoint check before its scale factor
@@ -261,7 +261,7 @@ function gc_print_provenance(prov, script; backend_name, T, extra=Pair{String,An
     end
     println("Julia=", VERSION, " os=", Sys.KERNEL, " arch=", Sys.ARCH, " cpu=", Sys.CPU_NAME,
             " Julia_threads=", Threads.nthreads(), " BLAS_threads=", BLAS.get_num_threads())
-    println("Kraken=", gc_pkg_version("Kraken"), " KernelAbstractions=", gc_pkg_version("KernelAbstractions"),
+    println("KrakeNN=", gc_pkg_version("KrakeNN"), " KernelAbstractions=", gc_pkg_version("KernelAbstractions"),
             " CUDA.jl=", gc_pkg_version("CUDA"), " ForwardDiff=", gc_pkg_version("ForwardDiff"))
     println("backend=", backend_name, " precision=", T)
     if backend_name == "cuda"

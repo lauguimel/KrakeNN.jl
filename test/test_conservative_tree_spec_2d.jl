@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using Random
 
 @testset "Conservative tree nested spec 2D" begin

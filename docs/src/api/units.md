@@ -1,9 +1,9 @@
 # Units API
 
-The `Kraken.Units` submodule converts nondimensional problem specifications into lattice-unit simulation plans, audits stability and boundary-condition compatibility, and exposes helper reports for driver integration.
+The `KrakeNN.Units` submodule converts nondimensional problem specifications into lattice-unit simulation plans, audits stability and boundary-condition compatibility, and exposes helper reports for driver integration.
 
 ```@autodocs
-Modules = [Kraken.Units]
+Modules = [KrakeNN.Units]
 Pages = [
     "units/Units.jl",
     "units/audit_trail.jl",

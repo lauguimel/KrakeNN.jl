@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 const CELL_3D = (1, 1, 1)
 
@@ -30,13 +30,13 @@ function psi_values(psi)
 end
 
 function conformation_from_psi(psi)
-    return Kraken.mat_exp_sym3x3(psi_values(psi)...)
+    return KrakeNN.mat_exp_sym3x3(psi_values(psi)...)
 end
 
 function apply_constitutive_step!(psi, grad, lambda, dt, n_sub)
     before = psi_values(psi)
     out = ntuple(c -> similar(psi[c]), 6)
-    Kraken.logfv_constitutive_step_log_3d!(
+    KrakeNN.logfv_constitutive_step_log_3d!(
         out...,
         psi...,
         grad...,
@@ -54,8 +54,8 @@ function run_uniform_shear_fixed_point(Wi; lambda=1.0, dt=0.05)
     gamma_dot = Wi / lambda
     psi = psi_state()
     grad = velocity_gradient(duxdy=gamma_dot)
-    max_grad_norm = Kraken.logfv_max_grad_norm_3d(grad...)
-    estimate = Kraken.logfv_oldroydb_subcycle_estimate_3d(max_grad_norm, lambda, dt)
+    max_grad_norm = KrakeNN.logfv_max_grad_norm_3d(grad...)
+    estimate = KrakeNN.logfv_oldroydb_subcycle_estimate_3d(max_grad_norm, lambda, dt)
     n_sub = estimate.recommended
     max_steps = ceil(Int, 30lambda / dt)
     t = 0.0
@@ -74,7 +74,7 @@ end
 function run_relaxation_decay(; lambda=1.0, dt=0.005, t_final=5.0)
     psi = psi_state(xx=log(2.0))
     grad = velocity_gradient()
-    estimate = Kraken.logfv_oldroydb_subcycle_estimate_3d(0.0, lambda, dt)
+    estimate = KrakeNN.logfv_oldroydb_subcycle_estimate_3d(0.0, lambda, dt)
     n_sub = estimate.recommended
     n_steps = ceil(Int, t_final / dt)
     max_error = 0.0

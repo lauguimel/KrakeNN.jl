@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Rheology models" begin
 
@@ -143,7 +143,7 @@ using Kraken
         # Arrhenius: absolute temperatures only, refused at set-up time.
         arr = ArrheniusCoupling(300.0, 10.0)
         @test thermal_shift_factor(arr, 300.0) == 1.0
-        check = Kraken._check_arrhenius_temperatures
+        check = KrakeNN._check_arrhenius_temperatures
         @test check(arr, 290.0, 310.0) === nothing
         @test_throws ArgumentError check(arr, 0.0)
         @test_throws ArgumentError check(arr, 300.0, -1.0)
@@ -161,16 +161,16 @@ using Kraken
         @test all(isfinite, ok.Temp)
 
         # .krk loader entry point.
-        bad = Kraken.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5, :E_a => 5.0, :T_ref => 0.0))
+        bad = KrakeNN.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5, :E_a => 5.0, :T_ref => 0.0))
         @test_throws ArgumentError build_rheology_model(bad)
-        good = Kraken.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5, :E_a => 5.0, :T_ref => 300.0))
+        good = KrakeNN.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5, :E_a => 5.0, :T_ref => 300.0))
         @test build_rheology_model(good).thermal isa ArrheniusCoupling
 
         # Isothermal .krk route: thermal keys are ignored, one warning names them.
-        @test_logs (:warn, r"E_a, T_ref.*ignored") Kraken._warn_ignored_thermal_keys(good)
-        wlf = Kraken.RheologySetup(:default, :carreau, Dict(:C1 => 8.86, :C2 => 101.6))
-        @test_logs (:warn, r"C1, C2.*ignored") Kraken._warn_ignored_thermal_keys(wlf)
-        plain = Kraken.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5))
-        @test_logs Kraken._warn_ignored_thermal_keys(plain)
+        @test_logs (:warn, r"E_a, T_ref.*ignored") KrakeNN._warn_ignored_thermal_keys(good)
+        wlf = KrakeNN.RheologySetup(:default, :carreau, Dict(:C1 => 8.86, :C2 => 101.6))
+        @test_logs (:warn, r"C1, C2.*ignored") KrakeNN._warn_ignored_thermal_keys(wlf)
+        plain = KrakeNN.RheologySetup(:default, :power_law, Dict(:K => 0.1, :n => 0.5))
+        @test_logs KrakeNN._warn_ignored_thermal_keys(plain)
     end
 end

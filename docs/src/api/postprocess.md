@@ -192,8 +192,8 @@ end
 """
     compare_interfaces(kraken_pts, basilisk_contour, R0_lb)
 
-Compare Kraken interface points with Basilisk contour.
-Kraken points are in lattice units; Basilisk in physical units (R₀=1).
+Compare KrakeNN interface points with Basilisk contour.
+KrakeNN points are in lattice units; Basilisk in physical units (R₀=1).
 
 Returns (z_krak, r_krak, z_bas, r_bas) all in physical units (normalized by R₀).
 """

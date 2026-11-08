@@ -7,7 +7,7 @@
 #
 # Run: julia --project=docs docs/export_downloads_poiseuille_rheology.jl
 
-using Kraken
+using KrakeNN
 
 const OUTDIR = joinpath(@__DIR__, "src", "public", "downloads", "poiseuille_rheology")
 mkpath(OUTDIR)
@@ -27,7 +27,7 @@ is_solid = falses(Nx, Ny)
 tau_field = fill(3.0 * K + 0.5, Nx, Ny)
 
 for j in 1:Ny, i in 1:Nx, q in 1:9
-    f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+    f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
 end
 copy!(f_out, f_in)
 

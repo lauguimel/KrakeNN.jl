@@ -1,7 +1,7 @@
 # Thermal LBM convergence study
 # 1) Heat conduction: grid convergence with linear T profile
 # 2) Natural convection: Nu(Ra) vs De Vahl Davis reference
-using Kraken
+using KrakeNN
 using Printf
 
 function run_thermal_convergence()
@@ -22,21 +22,21 @@ function run_thermal_convergence()
         ux    = zeros(Float64, Nx, Ny)
         uy    = zeros(Float64, Nx, Ny)
 
-        w = Kraken.weights(D2Q9())
+        w = KrakeNN.weights(D2Q9())
         for j in 1:Ny, i in 1:Nx, q in 1:9
             g_in[i, j, q] = w[q] * 0.5
         end
         copy!(g_out, g_in)
 
         for step in 1:max_steps
-            Kraken.stream_periodic_x_wall_y_2d!(g_out, g_in, Nx, Ny)
-            Kraken.apply_fixed_temp_south_2d!(g_out, T_hot, Nx)
-            Kraken.apply_fixed_temp_north_2d!(g_out, T_cold, Nx, Ny)
-            Kraken.collide_thermal_2d!(g_out, ux, uy, omega_T)
+            KrakeNN.stream_periodic_x_wall_y_2d!(g_out, g_in, Nx, Ny)
+            KrakeNN.apply_fixed_temp_south_2d!(g_out, T_hot, Nx)
+            KrakeNN.apply_fixed_temp_north_2d!(g_out, T_cold, Nx, Ny)
+            KrakeNN.collide_thermal_2d!(g_out, ux, uy, omega_T)
             g_in, g_out = g_out, g_in
         end
 
-        Kraken.compute_temperature_2d!(Temp, g_in)
+        KrakeNN.compute_temperature_2d!(Temp, g_in)
         T_profile = Temp[2, :]
 
         # Analytical: linear from T_hot at wall (y=0.5) to T_cold at wall (y=Ny+0.5)

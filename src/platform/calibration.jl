@@ -345,7 +345,7 @@ function fit(problem, ::LBM, data, p0::NamedTuple,
 
     is_field = _is_nufield_pspace(pspace)
 
-    # Route to L-BFGS if requested (requires KrakenOptimExt / Optim loaded)
+    # Route to L-BFGS if requested (requires KrakeNNOptimExt / Optim loaded)
     if method === :lbfgs
         return _fit_lbfgs(problem, LBM(), data, p0, pspace;
                           observables=observables,

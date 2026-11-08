@@ -3,7 +3,7 @@
 The LBM API documents the core lattice traits, equilibrium helpers, collision and streaming wrappers, macroscopic reconstruction, forcing, MRT/TRT variants, and runtime kernel-building utilities.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "lattice/lattice.jl",
     "lattice/d2q9.jl",

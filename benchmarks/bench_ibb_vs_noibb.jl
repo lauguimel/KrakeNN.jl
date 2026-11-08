@@ -10,8 +10,8 @@
 # =============================================================================
 
 using Pkg; Pkg.activate(dirname(@__DIR__))
-using Kraken
-using Kraken: fused_trt_libb_v2_step_3d!, D3Q19, precompute_q_wall_sphere_3d,
+using KrakeNN
+using KrakeNN: fused_trt_libb_v2_step_3d!, D3Q19, precompute_q_wall_sphere_3d,
               rebuild_inlet_outlet_libb_3d!,
               stream_3d!, collide_3d!
 using Metal, KernelAbstractions
@@ -44,7 +44,7 @@ function _noibb_sphere_3d(; Nx, Ny, Nz, radius, cx, cy, cz, u_in, ν,
     # init at uniform inflow equilibrium
     f_in_h = zeros(T, Nx, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
-        f_in_h[i,j,k,q] = Kraken.equilibrium(D3Q19(), one(T), T(u_in),
+        f_in_h[i,j,k,q] = KrakeNN.equilibrium(D3Q19(), one(T), T(u_in),
                                               zero(T), zero(T), q)
     end
     copyto!(f_in, f_in_h); fill!(f_out, zero(T))
@@ -52,7 +52,7 @@ function _noibb_sphere_3d(; Nx, Ny, Nz, radius, cx, cy, cz, u_in, ν,
     # Inlet slab: equilibrium at (ρ=1, u=(u_in, 0, 0))
     f_inlet_h = zeros(T, Ny, Nz, 19)
     for k in 1:Nz, j in 1:Ny, q in 1:19
-        f_inlet_h[j,k,q] = Kraken.equilibrium(D3Q19(), one(T), T(u_in),
+        f_inlet_h[j,k,q] = KrakeNN.equilibrium(D3Q19(), one(T), T(u_in),
                                                 zero(T), zero(T), q)
     end
     f_inlet = KernelAbstractions.allocate(backend, T, Ny, Nz, 19)

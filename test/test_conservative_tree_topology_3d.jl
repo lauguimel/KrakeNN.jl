@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 function _topology_cell_id_3d(topology, level, i, j, k)
     for (id, cell) in pairs(topology.cells)

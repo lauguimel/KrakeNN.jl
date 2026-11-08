@@ -2,7 +2,7 @@
 
 using Dates
 using KernelAbstractions
-using Kraken
+using KrakeNN
 using Printf
 
 const REQUESTED_BACKEND = lowercase(get(ENV, "KRK_AMR_D_BACKEND", "cpu"))

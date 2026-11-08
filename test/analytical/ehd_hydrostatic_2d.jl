@@ -1,9 +1,9 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 @testset "EHD hydrostatic D2Q9 base state" begin
-    result = Kraken.run_ehd_hydrostatic_2d(;
+    result = KrakeNN.run_ehd_hydrostatic_2d(;
         Nx=8,
         Ny=96,
         C=10.0,

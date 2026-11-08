@@ -13,25 +13,25 @@
 # non-symmetric because of the identity plate rows) and a non-symmetric
 # upwind convection-diffusion (Aᵀ ≠ A, so a silently ignored transpose shows).
 #
-#   julia --project=<env with Kraken, CUDA, CUDSS> benchmarks/cudss_c0/c0_cudss_bench.jl
+#   julia --project=<env with KrakeNN, CUDA, CUDSS> benchmarks/cudss_c0/c0_cudss_bench.jl
 # Env: C0_SIZES (default "512,1024"), C0_OPS (default "ehd,convdiff").
 using CUDA, CUDSS
-using Kraken
+using KrakeNN
 using LinearAlgebra, Printf, Statistics
-using Kraken.SparseArrays
+using KrakeNN.SparseArrays
 
 include(joinpath(@__DIR__, "..", "..", "test", "analytical", "linear_solve_c0_helpers.jl"))
 
 CUDA.functional() || error("CUDA not functional")
 const SIZES = parse.(Int, split(get(ENV, "C0_SIZES", "512,1024"), ","))
 const OPS = Symbol.(split(get(ENV, "C0_OPS", "ehd,convdiff"), ","))
-const ext = Base.get_extension(Kraken, :KrakenCUDSSExt)
-ext === nothing && error("KrakenCUDSSExt not loaded")
-const HAS_T = Kraken._cudss_transpose_supported(pkgversion(CUDSS))
+const ext = Base.get_extension(KrakeNN, :KrakeNNCUDSSExt)
+ext === nothing && error("KrakeNNCUDSSExt not loaded")
+const HAS_T = KrakeNN._cudss_transpose_supported(pkgversion(CUDSS))
 
 println("GPU: ", CUDA.name(CUDA.device()))
 println("CUDA.jl ", pkgversion(CUDA), "  CUDSS.jl ", pkgversion(CUDSS),
-        "  Kraken ", pkgversion(Kraken), "  native transpose: ", HAS_T)
+        "  KrakeNN ", pkgversion(KrakeNN), "  native transpose: ", HAS_T)
 flush(stdout)
 
 timed(f) = (CUDA.synchronize(); t = time(); f(); CUDA.synchronize(); time() - t)
@@ -44,7 +44,7 @@ verdict_ref(e, eref) = verdict(e, max(10eref, 1e-12))
 refstep(F, M, x, b) = norm(F \ (b - M * x)) / norm(x)
 
 function build(op::Symbol, N::Int)
-    op === :ehd && return Kraken._ehd_poisson_matrix(N, N, :neumann)
+    op === :ehd && return KrakeNN._ehd_poisson_matrix(N, N, :neumann)
     op === :convdiff && return _c0_convdiff(N)
     error("unknown operator $op")
 end
@@ -81,7 +81,7 @@ function run_case(op::Symbol, N::Int)
     GC.gc(); CUDA.reclaim()
     @printf("  cuDSS raw phases: analysis %.2f s  factorization %.3f s\n", t_an, t_fa)
 
-    # Kraken seam
+    # KrakeNN seam
     CUDA.synchronize()
     t_fac = @elapsed begin
         cache = lin_factorize(A; backend = CUDABackendTag(), spd = false)

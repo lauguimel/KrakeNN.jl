@@ -358,7 +358,7 @@ julia --project=. tmp/paper_bodyfit_run/paper_cylinder2d_focused_roi_model.jl
 julia --project=. tmp/paper_bodyfit_run/paper_cylinder2d_drag_probe.jl
 julia --project=. tmp/paper_bodyfit_run/paper_cylinder2d_convergence_compare.jl
 julia --project=. tmp/paper_bodyfit_run/paper_make_ogrid_msh.jl
-julia --project=. -e 'using Kraken; res = run_simulation("tmp/paper_bodyfit_run/krk/cylinder_ogrid_msh_drag.krk"); @show res.Cd res.Cl res.D_eff'
+julia --project=. -e 'using KrakeNN; res = run_simulation("tmp/paper_bodyfit_run/krk/cylinder_ogrid_msh_drag.krk"); @show res.Cd res.Cl res.D_eff'
 KRK_KRK_MSH_STEPS=20 KRK_KRK_MSH_TAG=local_smoke julia --project=. tmp/paper_bodyfit_run/paper_krk_msh_drag.jl
 ssh aqua 'cd /home/maitreje/Kraken.jl && qsub tmp/paper_bodyfit_run/pbs/paper_krk_msh_drag_h100.pbs'
 ssh aqua 'cd /home/maitreje/Kraken.jl && qsub tmp/paper_bodyfit_run/pbs/paper_cylinder2d_convergence_h100.pbs'
@@ -387,7 +387,7 @@ julia --project=. test/test_krk_gmsh_drag.jl
 Targeted multiblock subset:
 
 ```bash
-julia --project=. -e 'using Test; using Kraken; @testset "multiblock paper subset" begin include("test/test_gmsh_loader.jl"); include("test/test_multiblock_topology.jl"); include("test/test_multiblock_exchange.jl"); include("test/test_multiblock_exchange_shared.jl"); include("test/test_multiblock_reorient.jl"); include("test/test_multiblock_mesh_extend.jl"); include("test/test_multiblock_gmsh.jl"); include("test/test_multiblock_gmsh_bodyfit_workflow.jl"); include("test/test_multiblock_gmsh_departure_geometry.jl"); include("test/test_multiblock_gmsh_slbm_one_step.jl"); include("test/test_multiblock_gmsh_forced_poiseuille.jl"); include("test/test_multiblock_gmsh_forced_poiseuille_physical_bc.jl"); include("test/test_multiblock_gmsh_boundary_rebuild_unit.jl"); include("test/test_multiblock_gmsh_cartesian_poiseuille_bc.jl"); include("test/test_multiblock_gmsh_bc_semantics.jl"); include("test/test_multiblock_gmsh_physical_normal_bc_unit.jl"); include("test/test_multiblock_gmsh_physical_normal_bc_tags.jl"); include("test/test_multiblock_canal.jl"); end'
+julia --project=. -e 'using Test; using KrakeNN; @testset "multiblock paper subset" begin include("test/test_gmsh_loader.jl"); include("test/test_multiblock_topology.jl"); include("test/test_multiblock_exchange.jl"); include("test/test_multiblock_exchange_shared.jl"); include("test/test_multiblock_reorient.jl"); include("test/test_multiblock_mesh_extend.jl"); include("test/test_multiblock_gmsh.jl"); include("test/test_multiblock_gmsh_bodyfit_workflow.jl"); include("test/test_multiblock_gmsh_departure_geometry.jl"); include("test/test_multiblock_gmsh_slbm_one_step.jl"); include("test/test_multiblock_gmsh_forced_poiseuille.jl"); include("test/test_multiblock_gmsh_forced_poiseuille_physical_bc.jl"); include("test/test_multiblock_gmsh_boundary_rebuild_unit.jl"); include("test/test_multiblock_gmsh_cartesian_poiseuille_bc.jl"); include("test/test_multiblock_gmsh_bc_semantics.jl"); include("test/test_multiblock_gmsh_physical_normal_bc_unit.jl"); include("test/test_multiblock_gmsh_physical_normal_bc_tags.jl"); include("test/test_multiblock_canal.jl"); end'
 ```
 
 Result: `1461 / 1461` tests pass.

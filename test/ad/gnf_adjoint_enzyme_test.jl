@@ -3,7 +3,7 @@ using LinearAlgebra
 using Printf
 using Random
 using KernelAbstractions
-using Kraken
+using KrakeNN
 using Enzyme
 
 # T4: the hand-written VJP of the GNF step (gnf_vjp!, local
@@ -23,11 +23,11 @@ function _gae_step_plain!(fo, to, fi, ti, solid, closure, Fx)
     @inbounds for j in 1:Ny, i in 1:Nx
         if solid[i, j]
             for q in 1:9
-                fo[i, j, _GAE_OPP[q]] = fi[Kraken._spxwy_src(i, j, q, Nx, Ny)]
+                fo[i, j, _GAE_OPP[q]] = fi[KrakeNN._spxwy_src(i, j, q, Nx, Ny)]
             end
             to[i, j] = ti[i, j]
         else
-            fp = Kraken.SVector{9,Float64}(ntuple(q -> fi[Kraken._spxwy_src(i, j, q, Nx, Ny)], Val(9)))
+            fp = KrakeNN.SVector{9,Float64}(ntuple(q -> fi[KrakeNN._spxwy_src(i, j, q, Nx, Ny)], Val(9)))
             fout, τn, _, _ = gnf_cell_update(fp, ti[i, j], Fx, 0.0, closure)
             for q in 1:9
                 fo[i, j, q] = fout[q]

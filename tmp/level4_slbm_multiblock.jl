@@ -4,7 +4,7 @@
 # BGK/TRT on the same Cartesian mesh. If multi-block SLBM == single-block
 # SLBM bit-exact, then the per-block extended geometry pipeline is OK.
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const T = Float64
 const Lx = 1.0
@@ -33,7 +33,7 @@ function init_parabolic!(state, u_prof_h, T)
     fill!(state.f, zero(T))
     @inbounds for j in 1:Nηp, i in 1:Nξp, q in 1:9
         u = u_prof_h[j]
-        feq = Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q)
+        feq = KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q)
         state.f[i + ng, j + ng, q] = T(feq)
     end
 end

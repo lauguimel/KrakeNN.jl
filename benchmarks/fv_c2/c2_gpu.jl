@@ -4,7 +4,7 @@
 #
 #   KRAKEN_REQUIRE_GPU=1 julia --project=<env> benchmarks/fv_c2/c2_gpu.jl
 #
-# <env> holds Kraken (dev'd by path), CUDA 6, CUDSS 1, ForwardDiff,
+# <env> holds KrakeNN (dev'd by path), CUDA 6, CUDSS 1, ForwardDiff,
 # KernelAbstractions, Test. Per Newton iteration it reports the split
 # assembly / (re)factorization / solve / line search, the residual history and
 # Ghia profile errors; once per case the pattern + colouring set-up time, the
@@ -17,10 +17,10 @@ println("CUDA.functional() = ", CUDA.functional()); flush(stdout)
 CUDA.functional() || error("CUDA not functional")
 using CUDSS
 using Test, LinearAlgebra, Random, Printf, Statistics
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 println("GPU: ", CUDA.name(CUDA.device()), "  CUDA.jl ", pkgversion(CUDA), "  CUDSS.jl ",
-        pkgversion(CUDSS), "  Kraken ", pkgversion(Kraken), "  threads ", Threads.nthreads())
+        pkgversion(CUDSS), "  KrakeNN ", pkgversion(KrakeNN), "  threads ", Threads.nthreads())
 const TA = joinpath(@__DIR__, "..", "..", "test", "analytical")
 include(joinpath(TA, "fv_newton_helpers.jl"))
 
@@ -99,7 +99,7 @@ function bench(N, Re)
         a1 = CUDA.@allocated fv_jacobian!(s, U)
         a2 = CUDA.@allocated lin_refactorize!(s.cache)
         a3 = CUDA.@allocated (lin_solve!(dU, s.cache, R); CUDA.synchronize())
-        a4 = CUDA.@allocated (fv_residual!(R, U, s.prob); Kraken._fv_norms(s.norms, R))
+        a4 = CUDA.@allocated (fv_residual!(R, U, s.prob); KrakeNN._fv_norms(s.norms, R))
         push!(frees, CUDA.free_memory())
         @printf("    %2d | %d | %d | %d | %d | %.3f\n", it, a1, a2, a3, a4, gib(frees[end]))
     end

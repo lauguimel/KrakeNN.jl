@@ -1,14 +1,14 @@
 """
-    Kraken
+    KrakeNN
 
 GPU-native Lattice Boltzmann Method (LBM) framework in Julia.
 
 Supports 2D (D2Q9) and 3D (D3Q19) simulations with automatic GPU
 acceleration via KernelAbstractions.jl.
 """
-module Kraken
+module KrakeNN
 
-# PNG/GIF output hooks — populated by KrakenMakieExt when CairoMakie is loaded
+# PNG/GIF output hooks — populated by KrakeNNMakieExt when CairoMakie is loaded
 const _png_saver = Ref{Any}(nothing)
 const _gif_saver = Ref{Any}(nothing)
 
@@ -32,8 +32,8 @@ export ParameterSpace, loss, fit, CalibResult
 export AbstractSimulationState, StateSnapshot, CheckpointError
 export init_state, advance!, solution, restore_state
 export update_parameter!, updatable_parameters, export_state, check_compatible
-# Client hooks stay unexported (extend as Kraken.snapshot, Kraken.validate_snapshot,
-# Kraken.at_boundary, Kraken.check_updatable, Kraken.migrate).
+# Client hooks stay unexported (extend as KrakeNN.snapshot, KrakeNN.validate_snapshot,
+# KrakeNN.at_boundary, KrakeNN.check_updatable, KrakeNN.migrate).
 export CHECKPOINT_CONTAINER_VERSION, write_checkpoint, read_checkpoint, checkpoint_info
 export save_checkpoint, load_checkpoint
 
@@ -113,12 +113,12 @@ include("solve/poisson_embedded.jl")
 include("solve/poisson_embedded_fvfd.jl")
 include("solve/poisson_mg.jl")
 # LinearSolve.jl / cuDSS front-end tags + assembled-direct driver; the backend
-# methods live in ext/KrakenLinearSolveExt.jl and ext/KrakenCUDSSExt.jl
-# ([weakdeps] — `using Kraken` stays backend-free).
+# methods live in ext/KrakeNNLinearSolveExt.jl and ext/KrakeNNCUDSSExt.jl
+# ([weakdeps] — `using KrakeNN` stays backend-free).
 include("solve/linear_solve_frontend.jl")
 # NOT included: solve/linear_solve_cuda.jl and methods/inc_ns/cavity_mg_cuda.jl
 # (CUDSS is not a package dependency; they stay manual-load inside GPU jobs.
-#  Package users get the same cuDSS seam via ext/KrakenCUDSSExt.jl instead).
+#  Package users get the same cuDSS seam via ext/KrakeNNCUDSSExt.jl instead).
 include("methods/inc_ns/simple.jl")
 include("methods/inc_ns/cavity.jl")
 include("methods/inc_ns/cavity_mg.jl")
@@ -790,4 +790,4 @@ export apply_zou_he_north_spatial_2d!, apply_zou_he_south_spatial_2d!
 export apply_zou_he_west_spatial_2d!, apply_zou_he_pressure_east_spatial_2d!
 export apply_zou_he_pressure_inlet_west_2d!
 
-end # module Kraken
+end # module KrakeNN

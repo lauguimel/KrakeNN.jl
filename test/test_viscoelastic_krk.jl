@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using Test
 
 @testset "Viscoelastic .krk (FVFD log-conformation)" begin

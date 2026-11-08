@@ -64,7 +64,7 @@ One structured block in a multi-block mesh. Wraps:
                        interface declarations and diagnostics. The
                        sanity check rejects duplicates.
 - `mesh::CurvilinearMesh{T, AT}` — the logical `Nξ × Nη` grid and its
-                       metric. Any Kraken-compatible curvilinear mesh
+                       metric. Any KrakeNN-compatible curvilinear mesh
                        works (uniform Cartesian, polar, gmsh-imported).
 - `boundary_tags::NamedTuple` — four keys `(:west, :east, :south, :north)`,
                        each mapped to a `Symbol` that is either a

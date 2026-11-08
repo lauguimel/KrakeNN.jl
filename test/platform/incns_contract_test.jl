@@ -5,7 +5,7 @@
 # sample is a faithful pass-through on the wrapped NamedTuple.
 
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 @testset "IncNS platform contract" begin

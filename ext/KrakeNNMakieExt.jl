@@ -1,6 +1,6 @@
-module KrakenMakieExt
+module KrakeNNMakieExt
 
-using Kraken
+using KrakeNN
 using CairoMakie
 
 """
@@ -50,8 +50,8 @@ end
 
 # Register hooks on module load
 function __init__()
-    Kraken._png_saver[] = save_snapshot_png
-    Kraken._gif_saver[] = save_animation_gif
+    KrakeNN._png_saver[] = save_snapshot_png
+    KrakeNN._gif_saver[] = save_animation_gif
 end
 
-end # module KrakenMakieExt
+end # module KrakeNNMakieExt

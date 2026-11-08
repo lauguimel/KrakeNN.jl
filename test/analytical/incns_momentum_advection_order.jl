@@ -18,7 +18,7 @@ function _incns_order_symbol(name::Symbol)
     if isdefined(@__MODULE__, name)
         return getfield(@__MODULE__, name)
     end
-    return getfield(Kraken, name)
+    return getfield(KrakeNN, name)
 end
 
 function momentum_advection_order_case(nx::Integer;

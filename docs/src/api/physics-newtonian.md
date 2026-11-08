@@ -3,7 +3,7 @@
 Newtonian physics APIs include the standard BGK/MRT/TRT flow drivers, Li/Bouzidi boundary precomputation, Shan-Chen and VOF/phase-field multiphase helpers, species transport, and generalized-Newtonian model entry points.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "drivers/basic.jl",
     "drivers/cylinder_libb.jl",

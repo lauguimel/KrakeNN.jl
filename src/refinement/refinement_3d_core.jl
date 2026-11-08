@@ -12,9 +12,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.RefinementPatch3D
+KrakeNN.RefinementPatch3D
 ```
 
 Grid refinement is under development and not validated.
@@ -55,9 +55,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.RefinedDomain3D
+KrakeNN.RefinedDomain3D
 ```
 
 Grid refinement is under development and not validated.
@@ -76,9 +76,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.create_patch_3d)
+methods(KrakeNN.create_patch_3d)
 ```
 
 Grid refinement is under development and not validated.
@@ -166,9 +166,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.create_refined_domain_3d)
+methods(KrakeNN.create_refined_domain_3d)
 ```
 
 Grid refinement is under development and not validated.
@@ -238,9 +238,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.advance_refined_step_3d!)
+methods(KrakeNN.advance_refined_step_3d!)
 ```
 """
 function advance_refined_step_3d!(domain::RefinedDomain3D{T},

@@ -103,7 +103,7 @@ causes the vortex to slow down, stop, and reverse at ``t = T/2 = 512``.
 ## Code
 
 ```julia
-using Kraken
+using KrakeNN
 
 N = 128
 R = 0.15 * N

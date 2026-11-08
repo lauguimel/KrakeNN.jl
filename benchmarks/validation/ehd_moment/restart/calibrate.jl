@@ -7,7 +7,7 @@ for closure in (:nee, :moment)
     traces = Any[]
     for repeat in 1:8
         s = fresh(closure)
-        save_bin("raw/identity_$(closure)_$(repeat).bin", Kraken.export_state(s))
+        save_bin("raw/identity_$(closure)_$(repeat).bin", KrakeNN.export_state(s))
         trace = trajectory(s,20)
         save_bin("raw/calibration_$(closure)_$(repeat).bin",trace)
         push!(traces,trace)
@@ -34,7 +34,7 @@ for closure in (:nee, :moment)
     tol[string(closure)] = limits
     GC.gc(); CUDA.reclaim()
 end
-@assert !Kraken._EHD_CUDSS_FALLBACK_WARNED[]
+@assert !KrakeNN._EHD_CUDSS_FALLBACK_WARNED[]
 save_toml("raw/calibration_by_cycle.toml",allcycles)
 save_toml("raw/tolerances.toml",tol)
 open("raw/tolerances.sha256","w") do io

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ---------------------------------------------------------------------
@@ -33,7 +33,7 @@ const GAMMA_WALL = FX / (2 * NU_TOTAL) * (NY - 1)
 const LAMBDA = 1.0 / GAMMA_WALL        # Wi_wall ≈ 1
 const MAX_STEPS = 10_000
 
-run_poiseuille(model) = Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+run_poiseuille(model) = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
     Nx=NX, Ny=NY, Nz=NZ, Fx=FX, ν_s=NU_S, ν_p=nothing, lambda=LAMBDA,
     polymer_model=model, max_steps=MAX_STEPS, backend=BACKEND, FT=FT,
     advection_scheme=:muscl_superbee,

@@ -8,7 +8,7 @@
 # and the 1-norm condition number (dense, small grids) measure the effect.
 #
 #   julia --project benchmarks/fv_c2/pin_scaling.jl
-using Kraken, LinearAlgebra, SparseArrays, Printf, Statistics
+using KrakeNN, LinearAlgebra, SparseArrays, Printf, Statistics
 
 lid(s, x, y) = s === :N ? (1.0, 0.0) : (0.0, 0.0)
 

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # KRAKEN_SKIP_AD=true drops every Enzyme-driven tier: the AD sensitivity tests
 # and the calibration twin experiments. Measured on 2026-09-15 (CI, Julia 1.11,
@@ -165,7 +165,7 @@ end
 # Package metadata (offline, no GPU): weakdep UUIDs vs General registry (#61).
 include("platform/weakdeps_metadata_test.jl")
 
-@testset "Kraken.jl LBM" begin
+@testset "KrakeNN LBM" begin
     include("platform/contract_parity_test.jl")
     include("platform/state_contract_test.jl")
     include("platform/residual_vjp_test.jl")
@@ -257,7 +257,7 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_sphere_libb.jl")
     include("test_sphere_stl_drag_krk.jl")
     include("test_slbm_libb_3d.jl")
-    # Gmsh is an optional mesh-import dependency, not a Kraken dep. Guard the LOAD
+    # Gmsh is an optional mesh-import dependency, not a KrakeNN dep. Guard the LOAD
     # (same pattern as the Enzyme block below) so its absence skips cleanly instead
     # of erroring the whole suite, while real loader failures still surface when it
     # IS installed.
@@ -369,7 +369,7 @@ include("platform/weakdeps_metadata_test.jl")
         @info "Skipping experimental test modules (set KRAKEN_TEST_EXPERIMENTAL=1 to run)"
     end
 
-    @testset "Kraken.Units" begin
+    @testset "KrakeNN.Units" begin
         include("test_units.jl")
         include("test_units_stability.jl")
         include("test_units_steady_state.jl")

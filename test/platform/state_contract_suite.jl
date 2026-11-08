@@ -16,9 +16,9 @@
 #         tmpdir         = mktempdir())
 
 using Test
-using Kraken
+using KrakeNN
 # Client hooks are deliberately unexported: name them explicitly.
-using Kraken: snapshot, validate_snapshot, at_boundary, check_updatable, migrate
+using KrakeNN: snapshot, validate_snapshot, at_boundary, check_updatable, migrate
 
 _bitwise_equal(a::Array, b::Array) =
     typeof(a) == typeof(b) && size(a) == size(b) && all(i -> a[i] === b[i], eachindex(a))

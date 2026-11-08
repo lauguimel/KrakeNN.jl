@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 
 """Prepared CUDA sweep; importing this file does not load CUDA or run a case."""
 function run_natconv_gnf_validation(; N=256, max_steps=2_000_000,

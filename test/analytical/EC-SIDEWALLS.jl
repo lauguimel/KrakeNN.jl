@@ -5,7 +5,7 @@ module ECSidewallTests
 using Test
 using LinearAlgebra
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 const CX = (0, 1, 0, -1, 0, 1, -1, -1, 1)
 const CY = (0, 0, 1, 0, -1, 1, 1, -1, -1)
@@ -28,7 +28,7 @@ function operators(backend, FT)
         end
     end
     f = on_backend(backend, original)
-    Kraken.apply_free_slip_sidewalls_2d!(f, Nx, Ny)
+    KrakeNN.apply_free_slip_sidewalls_2d!(f, Nx, Ny)
     KernelAbstractions.synchronize(backend)
     actual = Array(f)
     @test actual == expected # Includes untouched interior, plates and corners.
@@ -45,7 +45,7 @@ function operators(backend, FT)
         uye[i, j] = uy0[neighbour, j]
     end
     ux, uy = on_backend(backend, ux0), on_backend(backend, uy0)
-    Kraken.enforce_free_side_macros_2d!(ux, uy, Nx, Ny)
+    KrakeNN.enforce_free_side_macros_2d!(ux, uy, Nx, Ny)
     @test Array(ux) == uxe
     @test Array(uy) == uye
 
@@ -71,7 +71,7 @@ function operators(backend, FT)
                    original[i,j,opposite] + (2/3)*CX[axial]*Jx]
             expected[i,j,incoming] = A \ rhs
         end
-        Kraken.apply_no_slip_sidewalls_2d!(f, Fx, Fy, Nx, Ny)
+        KrakeNN.apply_no_slip_sidewalls_2d!(f, Fx, Fy, Nx, Ny)
         KernelAbstractions.synchronize(backend)
         actual = Array(f)
         # 64 ulps on O(1) populations covers sums and divisions in both types.
@@ -86,7 +86,7 @@ function operators(backend, FT)
         end
         # Verify the production Guo reconstruction WITHOUT a velocity override.
         rho = similar(ux)
-        Kraken.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
+        KrakeNN.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
         @test maximum(abs, Array(ux)[[1,Nx],2:Ny-1]) <= 64eps(FT)
         @test maximum(abs, Array(uy)[[1,Nx],2:Ny-1]) <= 64eps(FT)
         @test Array(Fx) == fx
@@ -117,21 +117,21 @@ function poiseuille(FT, scheme, L, viscosity=1/6)
     nsteps = ceil(Int, 2L^2/nu)
     for step in 1:nsteps
         if scheme === :bgk
-            Kraken.collide_guo_field_2d!(f, solid, Fx, Fy, inv(3nu+FT(0.5)))
+            KrakeNN.collide_guo_field_2d!(f, solid, Fx, Fy, inv(3nu+FT(0.5)))
         else
-            Kraken.ehd_collide_mrt_2d!(f, Fx, Fy, solid, nu)
+            KrakeNN.ehd_collide_mrt_2d!(f, Fx, Fy, solid, nu)
         end
-        Kraken.stream_fully_periodic_2d!(out, f, Nx, Ny)
-        Kraken.apply_no_slip_sidewalls_2d!(out, Fx, Fy, Nx, Ny)
+        KrakeNN.stream_fully_periodic_2d!(out, f, Nx, Ny)
+        KrakeNN.apply_no_slip_sidewalls_2d!(out, Fx, Fy, Nx, Ny)
         out[:,1,:] .= out[:,4,:]
         out[:,5,:] .= out[:,2,:]
         f, out = out, f
         if step == nsteps-100
-            Kraken.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
+            KrakeNN.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
             previous .= uy[:,3]
         end
     end
-    Kraken.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
+    KrakeNN.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
     x = FT.(0:L)
     reference = g .* x .* (FT(L) .- x) ./ (2nu)
     profile = uy[:,3]
@@ -180,24 +180,24 @@ function hydrostatic_sidewalls(FT, scheme, force_sign; backend=CPU())
     nsteps = ceil(Int, 4L^2/nu)
     for step in 1:nsteps
         if scheme === :bgk
-            Kraken.collide_guo_field_2d!(f, solid, Fx, Fy, inv(3nu+FT(0.5)))
+            KrakeNN.collide_guo_field_2d!(f, solid, Fx, Fy, inv(3nu+FT(0.5)))
         else
-            Kraken.ehd_collide_mrt_2d!(f, Fx, Fy, solid, nu)
+            KrakeNN.ehd_collide_mrt_2d!(f, Fx, Fy, solid, nu)
         end
-        Kraken.stream_fully_periodic_2d!(out, f, Nx, Ny)
-        Kraken.apply_no_slip_sidewalls_2d!(out, Fx, Fy, Nx, Ny)
+        KrakeNN.stream_fully_periodic_2d!(out, f, Nx, Ny)
+        KrakeNN.apply_no_slip_sidewalls_2d!(out, Fx, Fy, Nx, Ny)
         @views out[:,1,:] .= out[:,4,:]
         @views out[:,5,:] .= out[:,2,:]
         f, out = out, f
         if step == nsteps-100
-            Kraken.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
+            KrakeNN.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
             KernelAbstractions.synchronize(backend)
             previous_rho .= Array(rho)[:,2:4]
             previous_ux .= Array(ux)[:,2:4]
             previous_uy .= Array(uy)[:,2:4]
         end
     end
-    Kraken.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
+    KrakeNN.compute_macroscopic_guo_field_2d!(rho, ux, uy, f, Fx, Fy, Nx, Ny)
     # Assess in Float64 to avoid adding low-precision cancellation to the
     # measured error. Solver populations and arithmetic still use FT.
     KernelAbstractions.synchronize(backend)
@@ -253,9 +253,9 @@ function coupled(backend, FT)
               alpha=1e-4, max_cycles=4, phi_substeps=32,
               backend=backend, FT=FT)
     for scheme in (:bgk, :mrt)
-        default = Kraken.run_electroconvection_2d(; common..., ns_scheme=scheme)
-        free = Kraken.run_electroconvection_2d(; common..., ns_scheme=scheme, sidewall_bc=:free_slip)
-        rigid = Kraken.run_electroconvection_2d(; common..., ns_scheme=scheme, sidewall_bc=:no_slip)
+        default = KrakeNN.run_electroconvection_2d(; common..., ns_scheme=scheme)
+        free = KrakeNN.run_electroconvection_2d(; common..., ns_scheme=scheme, sidewall_bc=:free_slip)
+        rigid = KrakeNN.run_electroconvection_2d(; common..., ns_scheme=scheme, sidewall_bc=:no_slip)
         @test default.sidewall_bc === free.sidewall_bc === :free_slip_ported
         @test rigid.sidewall_bc === :no_slip
         for name in (:ux, :uy, :rho, :q, :phi, :Ex, :Ey, :Fx, :Fy)
@@ -287,8 +287,8 @@ function public_dispatch()
                              ("Boundary west symmetry\nBoundary east symmetry\n", :free_slip),
                              ("Boundary west wall\nBoundary east wall\n", :no_slip))
             write(fixture, base * decl)
-            actual = Kraken.run_simulation(fixture; backend=CPU(), T=Float64)
-            expected = Kraken.run_electroconvection_2d(Nx=9, Ny=17, C=0.1,
+            actual = KrakeNN.run_simulation(fixture; backend=CPU(), T=Float64)
+            expected = KrakeNN.run_electroconvection_2d(Nx=9, Ny=17, C=0.1,
                 M=10.0, T=175.0, Ma_E=0.01, alpha=1e-4, phi_scheme=:direct,
                 max_cycles=2, sidewall_bc=mode, backend=CPU(), FT=Float64)
             @test actual.sidewall_bc === expected.sidewall_bc
@@ -307,16 +307,16 @@ function public_dispatch()
                      "Boundary west pressure(rho=1)\nBoundary east wall\n",
                      "Boundary west wall(ux=0.1)\nBoundary east wall\n")
             write(fixture, base * decl)
-            @test_throws ArgumentError Kraken.run_simulation(fixture; backend=CPU(), T=Float64)
+            @test_throws ArgumentError KrakeNN.run_simulation(fixture; backend=CPU(), T=Float64)
         end
     end
     for mode in (:invalid, :free_slip_ported, "no_slip")
-        @test_throws ArgumentError Kraken.run_electroconvection_2d(Nx=9, Ny=17, sidewall_bc=mode)
+        @test_throws ArgumentError KrakeNN.run_electroconvection_2d(Nx=9, Ny=17, sidewall_bc=mode)
     end
 end
 
-if !isdefined(Kraken, :_legacy_run_electroconvection_2d)
-    Base.include(Kraken, joinpath(@__DIR__, "..", "reference", "ehd_ec_legacy.jl"))
+if !isdefined(KrakeNN, :_legacy_run_electroconvection_2d)
+    Base.include(KrakeNN, joinpath(@__DIR__, "..", "reference", "ehd_ec_legacy.jl"))
 end
 
 function state_segments(FT)
@@ -337,21 +337,21 @@ function state_segments(FT)
         advance!(split, 4; sample_final=true)
         @test split.cycle == 7
         @test split.cycle_history == [2, 4, 6, 7]
-        @test Kraken.at_boundary(split)
+        @test KrakeNN.at_boundary(split)
         for name in (:phi_f_in, :q_f_in, :f_in, :Fx_prev, :Fy_prev,
                      :phi, :qfield, :phi_iters_last, :phi_rel_last, :q_rel_last,
                      :cycle, :cycle_history, :umax_history)
             @test isequal(getproperty(whole, name), getproperty(split, name))
         end
         a, b = solution(whole).result, solution(split).result
-        wrapped = Kraken.run_electroconvection_2d(; common..., sidewall_bc=mode, max_cycles=7)
+        wrapped = KrakeNN.run_electroconvection_2d(; common..., sidewall_bc=mode, max_cycles=7)
         for name in keys(a)
             name === :loop_ms_per_step && continue
             @test isequal(a[name], b[name])
             @test isequal(a[name], wrapped[name])
         end
         if mode === :free_slip
-            legacy = Kraken._legacy_run_electroconvection_2d(; common..., max_cycles=7)
+            legacy = KrakeNN._legacy_run_electroconvection_2d(; common..., max_cycles=7)
             @test keys(a) == keys(legacy)
             for name in keys(a)
                 name === :loop_ms_per_step && continue
@@ -359,7 +359,7 @@ function state_segments(FT)
             end
         else
             # Check raw populations with carried force, not only solution fields.
-            Kraken.compute_macroscopic_guo_field_2d!(split.rho, split.ux, split.uy,
+            KrakeNN.compute_macroscopic_guo_field_2d!(split.rho, split.ux, split.uy,
                 split.f_in, split.Fx_prev, split.Fy_prev, 9, 17)
             @test maximum(abs, split.ux[[1,end],2:end-1]) <= 64eps(FT)
             @test maximum(abs, split.uy[[1,end],2:end-1]) <= 64eps(FT)
@@ -372,7 +372,7 @@ function state_segments(FT)
         @test_throws ArgumentError advance!(split, 1)
         @test_throws ArgumentError solution(split)
         @test split.cycle == 7
-        @test !Kraken.at_boundary(split)
+        @test !KrakeNN.at_boundary(split)
         for (name, before) in zip((:f_in, :q_f_in, :phi_f_in, :Fx_prev, :Fy_prev), saved)
             @test isequal(getproperty(split, name), before)
         end
@@ -415,7 +415,7 @@ if get(ENV, "KRAKEN_TEST_EHD_SIDEWALLS_CUDA", "false") == "true"
     @eval using CUDA
     CUDA.functional() || error("Requested EC sidewall CUDA tests, but CUDA is unavailable")
     CUDA.allowscalar(false)
-    @info "EC-SIDEWALLS CUDA identity" julia_version=VERSION kraken_path=pathof(Kraken) device=CUDA.device()
+    @info "EC-SIDEWALLS CUDA identity" julia_version=VERSION kraken_path=pathof(KrakeNN) device=CUDA.device()
     CUDA.versioninfo()
     @testset "EC-SIDEWALLS CUDA" for FT in (Float64, Float32)
         operators(CUDA.CUDABackend(), FT)

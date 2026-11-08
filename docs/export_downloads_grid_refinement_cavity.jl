@@ -9,7 +9,7 @@
 #
 # Run: julia --project=docs docs/export_downloads_grid_refinement_cavity.jl
 
-using Kraken
+using KrakeNN
 
 const OUTDIR = joinpath(@__DIR__, "src", "public", "downloads", "grid_refinement_cavity")
 mkpath(OUTDIR)

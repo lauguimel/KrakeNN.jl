@@ -1,6 +1,6 @@
 using Test
-using Kraken
-using Kraken: INTERFACE_TAG
+using KrakeNN
+using KrakeNN: INTERFACE_TAG
 
 # =====================================================================
 # v0.3 Phase B.2.2 — block reorientation + BFS autoreorient.

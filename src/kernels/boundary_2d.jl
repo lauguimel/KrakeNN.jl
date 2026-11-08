@@ -48,9 +48,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_north_2d!)
+methods(KrakeNN.apply_zou_he_north_2d!)
 ```
 """
 function apply_zou_he_north_2d!(f, u_wall_x, Nx, Ny)
@@ -155,9 +155,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_south_2d!)
+methods(KrakeNN.apply_zou_he_south_2d!)
 ```
 """
 function apply_zou_he_south_2d!(f, u_wall_x, Nx)
@@ -190,9 +190,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_west_2d!)
+methods(KrakeNN.apply_zou_he_west_2d!)
 ```
 """
 function apply_zou_he_west_2d!(f, u_in, Nx, Ny)
@@ -229,9 +229,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_pressure_east_2d!)
+methods(KrakeNN.apply_zou_he_pressure_east_2d!)
 ```
 """
 function apply_zou_he_pressure_east_2d!(f, Nx, Ny; ρ_out=1.0)
@@ -287,9 +287,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.apply_zou_he_pressure_west_2d!)
+methods(KrakeNN.apply_zou_he_pressure_west_2d!)
 ```
 """
 function apply_zou_he_pressure_west_2d!(f, Nx, Ny; ρ_in=1.0)

@@ -4,7 +4,7 @@
 # to fit 80 GB F64 (109M cells at Nx=384 would need ~99 GB) — noted in the CSV.
 # Appends to a SEPARATE CSV so the first run's results stay intact.
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 

@@ -44,7 +44,7 @@
 #
 # ### VOF curvature vs CLSVOF curvature
 #
-# Two curvature computation strategies are available in Kraken.jl:
+# Two curvature computation strategies are available in KrakeNN:
 #
 # - **VOF with height-function (HF) curvature**: the height function is
 #   computed by summing ``C`` values along columns perpendicular to the
@@ -94,7 +94,7 @@
 #
 # ## Code
 
-using Kraken
+using KrakeNN
 
 N = 128
 R = N ÷ 4

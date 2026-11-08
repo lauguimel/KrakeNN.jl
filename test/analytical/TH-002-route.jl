@@ -1,6 +1,6 @@
 using Test
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 # TH-002 — conduction `.krk` fallback: does it run the case the file describes?
 #

@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using Test
 
 @testset "Thermal 3D natural convection .krk" begin

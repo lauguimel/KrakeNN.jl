@@ -6,7 +6,7 @@ The resumable simulation-state contract (`AbstractSimulationState`,
 guide for a narrative introduction and worked examples.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "platform/state.jl",
     "io/checkpoint_hdf5.jl",
@@ -32,7 +32,7 @@ solve
 electroconvection driver split into `init_state`/`advance!`/`solution`.
 
 ```@autodocs
-Modules = [Kraken]
+Modules = [KrakeNN]
 Pages = [
     "drivers/ehd_ec_state.jl",
 ]

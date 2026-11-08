@@ -8,7 +8,7 @@
 1. Lire la mémoire `kraken-ns-solver-design.md` (point de reprise complet : décisions, résultats, recette Aqua, gotchas).
 2. Lire `docs/design/inc_ns_design_spike.md` (design + reframe GPU + analyse honnête elliptique/LBM/Fluent) et `benchmarks/results/{poisson_gpu_aqua_a100,poisson_mg_gpu_aqua_a100,cavity_gpu_aqua_a100}.md` (chiffres GPU).
 3. Charger les skills : `kraken-git-ops` (boucle issue + discipline), `kraken-codebase-map`, `orchestrator` (exécution déléguée), `kraken-doc` (doc humaine + LLM + figures dark), `sci-style` (figures publi), `pbs` + `hpc-watch` (Aqua).
-4. Workflow imposé : 1 seule validation humaine = LE PLAN ; ensuite autonome jusqu'au merge-on-green. **JAMAIS push.** Choke files (`src/Kraken.jl`, `Project.toml`, `io/`, `simulation_runner.jl`) sérialisés. **Missions solveur = Claude direct (PAS Codex `run-engineer.sh` : il a hangé).**
+4. Workflow imposé : 1 seule validation humaine = LE PLAN ; ensuite autonome jusqu'au merge-on-green. **JAMAIS push.** Choke files (`src/KrakeNN.jl`, `Project.toml`, `io/`, `simulation_runner.jl`) sérialisés. **Missions solveur = Claude direct (PAS Codex `run-engineer.sh` : il a hangé).**
 
 ## 1. État actuel (ce qui existe, validé, committé sur dev/platform)
 

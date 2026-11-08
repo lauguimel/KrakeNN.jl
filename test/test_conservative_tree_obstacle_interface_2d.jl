@@ -1,6 +1,6 @@
 using Test
 using Printf
-using Kraken
+using KrakeNN
 
 # Phase A diagnostic: obstacle + interface coarse/fine
 #
@@ -195,7 +195,7 @@ end
         patch_next = create_conservative_tree_patch_2d(patch_i_range, patch_j_range)
 
         # constraint must be satisfied
-        @test_nowarn Kraken._check_route_solid_mask_layout(
+        @test_nowarn KrakeNN._check_route_solid_mask_layout(
             topology, coarse, patch, is_solid)
 
         leaf0 = _composite_to_leaf(coarse, patch)
@@ -236,7 +236,7 @@ end
         coarse_next = similar(coarse)
         patch_next = create_conservative_tree_patch_2d(patch_i_range, patch_j_range)
 
-        @test_nowarn Kraken._check_route_solid_mask_layout(
+        @test_nowarn KrakeNN._check_route_solid_mask_layout(
             topology, coarse, patch, is_solid)
 
         leaf0 = _composite_to_leaf(coarse, patch)
@@ -279,7 +279,7 @@ end
         coarse_next = similar(coarse)
         patch_next = create_conservative_tree_patch_2d(patch_i_range, patch_j_range)
 
-        @test_nowarn Kraken._check_route_solid_mask_layout(
+        @test_nowarn KrakeNN._check_route_solid_mask_layout(
             topology, coarse, patch, is_solid)
 
         leaf0 = _composite_to_leaf(coarse, patch)
@@ -317,7 +317,7 @@ end
         coarse_next = similar(coarse)
         patch_next = create_conservative_tree_patch_2d(patch_i_range, patch_j_range)
 
-        @test_nowarn Kraken._check_route_solid_mask_layout(
+        @test_nowarn KrakeNN._check_route_solid_mask_layout(
             topology, coarse, patch, is_solid)
 
         leaf0 = _composite_to_leaf(coarse, patch)
@@ -446,7 +446,7 @@ end
         fill_equilibrium_integrated_D2Q9!(leaf, _VF, 1.0, 0.02, 0.0)
         leaf_post = copy(leaf)
         # Apply a single oracle leaf streaming step
-        Kraken.stream_periodic_x_wall_y_solid_F_2d!(leaf_post, leaf, is_solid)
+        KrakeNN.stream_periodic_x_wall_y_solid_F_2d!(leaf_post, leaf, is_solid)
 
         # Both calls operate on the SAME leaf arrays, so they MUST agree.
         d1 = compute_drag_mea_solid_F_2d(leaf, leaf_post, is_solid)

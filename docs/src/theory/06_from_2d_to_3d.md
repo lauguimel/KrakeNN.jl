@@ -82,10 +82,10 @@ This must fit in GPU memory along with macroscopic fields (``\rho, u_x, u_y, u_z
 For large 3D problems, Float32 can halve the memory cost with minimal
 accuracy loss (LBM is already a second-order method).
 
-## Kraken.jl D3Q19 interface
+## KrakeNN D3Q19 interface
 
 ```julia
-using Kraken
+using KrakeNN
 
 lattice3d = D3Q19()
 

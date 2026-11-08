@@ -15,7 +15,7 @@
 # Usage:
 #   julia --project benchmarks/convergence_natconv_refinement.jl
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 using Dates

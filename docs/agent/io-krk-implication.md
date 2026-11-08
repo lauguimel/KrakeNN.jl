@@ -27,7 +27,7 @@ source files are:
 - `src/io/krk/units_bridge.jl` — the physical-unit ↔ lattice-unit bridge for `Setup`-derived parameters.
 
 All are included at package top level (`Kraken.jl` lines 104–110) and export
-their public names directly into `Kraken` — there is no `Kraken.IO` submodule.
+their public names directly into `Kraken` — there is no `KrakeNN.IO` submodule.
 
 ## Public surface
 

@@ -1,7 +1,7 @@
 using KernelAbstractions
 
 # EHD-local D2Q9 MRT Navier-Stokes collision with spatial Guo forcing.
-# Moment order follows Jiachen's Lattice.m setMRT and Kraken's collide_mrt_2d:
+# Moment order follows Jiachen's Lattice.m setMRT and KrakeNN's collide_mrt_2d:
 # rho, e, eps, jx, qx, jy, qy, pxx, pxy.
 
 @kernel function ehd_collide_mrt_2d_kernel!(f, @Const(Fx), @Const(Fy), @Const(is_solid),

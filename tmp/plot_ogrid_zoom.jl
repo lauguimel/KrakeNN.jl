@@ -1,5 +1,5 @@
 # Zoom plot near cylinder + check SLBM departure geometry
-using Kraken, Gmsh, CairoMakie
+using KrakeNN, Gmsh, CairoMakie
 
 include(joinpath(@__DIR__, "gen_ogrid_rect_8block.jl"))
 

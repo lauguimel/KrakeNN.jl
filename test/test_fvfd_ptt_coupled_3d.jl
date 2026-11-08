@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # ---------------------------------------------------------------------
@@ -45,7 +45,7 @@ using KernelAbstractions
         max_steps = 10_000
         Gmod = FT(ν_p / λ)
 
-        run_p = model -> Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+        run_p = model -> KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
             Nx=Nx, Ny=Ny, Nz=Nz, Fx=Fx, ν_s=ν_s, ν_p=nothing, lambda=λ,
             polymer_model=model, max_steps=max_steps, backend=backend, FT=FT,
             advection_scheme=:muscl_superbee,
@@ -112,7 +112,7 @@ using KernelAbstractions
             all(isfinite, res.psi_xx) && all(isfinite, res.psi_yy) && all(isfinite, res.psi_zz) &&
             all(isfinite, res.tau_p_xx) && all(isfinite, res.tau_p_yy) && all(isfinite, res.tau_p_zz)
 
-        run_e = model -> Kraken.run_viscoelastic_fvfd_extensional_3d(;
+        run_e = model -> KrakeNN.run_viscoelastic_fvfd_extensional_3d(;
             Nx=Nx, Ny=Ny, Nz=Nz, epsilon_dot=ε̇,
             ν_s=ν_s, ν_p=nothing, lambda=λ,
             polymer_model=model, max_steps=max_steps, backend=backend, FT=FT,

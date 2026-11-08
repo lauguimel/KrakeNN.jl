@@ -129,14 +129,14 @@ end
     solver = fv_newton_solver(p)
     ncell = 3p.grid.Nx*p.grid.Ny
     U = zeros(fv_nunknowns(p))
-    before = Kraken._fv_state_sig(solver.norms,0.0,U)
+    before = KrakeNN._fv_state_sig(solver.norms,0.0,U)
     for pair in 1:3
         fill!(U,0)
         U[ncell+pair] = 2.0+pair
-        mom,cont,inf = Kraken._fv_norms(solver.norms,U)
+        mom,cont,inf = KrakeNN._fv_norms(solver.norms,U)
         @test mom == 0
         @test cont == 2.0+pair
         @test inf == 2.0+pair
-        @test Kraken._fv_state_sig(solver.norms,0.0,U) != before
+        @test KrakeNN._fv_state_sig(solver.norms,0.0,U) != before
     end
 end

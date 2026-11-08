@@ -7,9 +7,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeSpecMacroFlow2D
+KrakeNN.ConservativeTreeSpecMacroFlow2D
 ```
 """
 struct ConservativeTreeSpecMacroFlow2D{T}
@@ -59,9 +59,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_mass_roundoff_rtol_2d)
+methods(KrakeNN.conservative_tree_mass_roundoff_rtol_2d)
 ```
 """
 function conservative_tree_mass_roundoff_rtol_2d(::Type{T},
@@ -134,9 +134,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.create_conservative_tree_nested_channel_spec_2d)
+methods(KrakeNN.create_conservative_tree_nested_channel_spec_2d)
 ```
 """
 function create_conservative_tree_nested_channel_spec_2d(max_level::Integer;
@@ -155,9 +155,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.initialize_conservative_tree_equilibrium_F_2d!)
+methods(KrakeNN.initialize_conservative_tree_equilibrium_F_2d!)
 ```
 """
 function initialize_conservative_tree_equilibrium_F_2d!(
@@ -350,9 +350,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_leaf_mean_ux_profile_2d)
+methods(KrakeNN.conservative_tree_leaf_mean_ux_profile_2d)
 ```
 """
 function conservative_tree_leaf_mean_ux_profile_2d(

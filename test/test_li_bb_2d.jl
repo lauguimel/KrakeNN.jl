@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "LI-BB (interpolated bounce-back) + TRT" begin
 
@@ -48,7 +48,7 @@ using Kraken
 
         f_in = zeros(Float64, Nx, Ny, 9)
         for j in 1:Ny, i in 1:Nx, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
         end
         f_out = similar(f_in)
         ρ = ones(Nx, Ny); ux = zeros(Nx, Ny); uy = zeros(Nx, Ny)
@@ -80,7 +80,7 @@ using Kraken
 
         f_in = zeros(Float64, Nx, Ny, 9)
         for j in 1:Ny, i in 1:Nx, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
         end
         f_out = similar(f_in)
         ρ = ones(Nx, Ny); ux = zeros(Nx, Ny); uy = zeros(Nx, Ny)

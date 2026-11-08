@@ -1,6 +1,6 @@
 # Validate WP-MESH-2 (Phase A axis-aligned loader) on a Transfinite quad
 # block matching Schäfer-Turek 2D-1 background grid (no cylinder hole).
-using Kraken, Gmsh
+using KrakeNN, Gmsh
 
 # 1. Generate a structured Transfinite quad mesh from scratch (axis-aligned)
 mktemp() do path, _io

@@ -96,9 +96,9 @@ Public function in the high-level simulation driver API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_axisymmetric_2d!)
+methods(KrakeNN.collide_axisymmetric_2d!)
 ```
 """
 function collide_axisymmetric_2d!(f, is_solid, ω, Nx, Ny)
@@ -260,9 +260,9 @@ Public function in the high-level simulation driver API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_li_axisym_2d!)
+methods(KrakeNN.collide_li_axisym_2d!)
 ```
 """
 function collide_li_axisym_2d!(f, is_solid, τ, Nx, Ny; Fz_body=0.0)

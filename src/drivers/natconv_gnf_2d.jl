@@ -198,7 +198,7 @@ Returns:
 
 Examples:
 ```julia
-using Kraken
+using KrakeNN
 scales = gnf_reference_scales(; Ra=1e4, Pr=0.71, nu0=0.05, H=32.0,
                               T_hot=1.0, T_cold=0.0)
 model = cavity_powerlaw(0.8; nu0=0.05, alpha=scales.alpha, H=32)

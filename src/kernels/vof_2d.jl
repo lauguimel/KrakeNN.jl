@@ -48,9 +48,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_vof_normal_2d!)
+methods(KrakeNN.compute_vof_normal_2d!)
 ```
 """
 function compute_vof_normal_2d!(nx, ny, C, Nx, Ny)
@@ -469,9 +469,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.advect_vof_2d!)
+methods(KrakeNN.advect_vof_2d!)
 ```
 """
 function advect_vof_2d!(C_new, C, ux, uy, Nx, Ny)
@@ -560,9 +560,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_hf_curvature_2d!)
+methods(KrakeNN.compute_hf_curvature_2d!)
 ```
 """
 function compute_hf_curvature_2d!(κ, C, nx, ny, Nx, Ny)
@@ -625,9 +625,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.add_azimuthal_curvature_2d!)
+methods(KrakeNN.add_azimuthal_curvature_2d!)
 ```
 """
 function add_azimuthal_curvature_2d!(κ, C, ny_n, Ny)
@@ -644,9 +644,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.compute_surface_tension_2d!)
+methods(KrakeNN.compute_surface_tension_2d!)
 ```
 """
 function compute_surface_tension_2d!(Fx, Fy, κ, C, σ, Nx, Ny)
@@ -725,9 +725,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_twophase_2d!)
+methods(KrakeNN.collide_twophase_2d!)
 ```
 """
 function collide_twophase_2d!(f, C, Fx_st, Fy_st, is_solid; ρ_l=1.0, ρ_g=0.001, ν_l=0.1, ν_g=0.1)
@@ -794,9 +794,9 @@ Public function in the kernel-level LBM operation.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.set_vof_west_2d!)
+methods(KrakeNN.set_vof_west_2d!)
 ```
 """
 function set_vof_west_2d!(C, C_inlet)

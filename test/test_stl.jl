@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # --- Helper: generate a simple STL cube for testing ---
 

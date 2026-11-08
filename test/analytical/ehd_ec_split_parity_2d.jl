@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # Issue #26: `run_electroconvection_2d` is now init_state + advance! + solution on
 # the platform state contract. This file proves the split changed no number:
@@ -16,8 +16,8 @@ using Kraken
 # parity: its `phi_max_iter = 1` case fails on the potential under both rules, with
 # the same message.
 
-if !isdefined(Kraken, :_legacy_run_electroconvection_2d)
-    Base.include(Kraken, joinpath(@__DIR__, "..", "reference", "ehd_ec_legacy.jl"))
+if !isdefined(KrakeNN, :_legacy_run_electroconvection_2d)
+    Base.include(KrakeNN, joinpath(@__DIR__, "..", "reference", "ehd_ec_legacy.jl"))
 end
 
 const EC_SPLIT_TIMING_KEYS = (:loop_ms_per_step,)
@@ -90,7 +90,7 @@ end
                  history_interval=9))
 
         for FT in (Float64, Float32), (name, kwargs) in cases
-            legacy = Kraken._legacy_run_electroconvection_2d(; kwargs..., FT=FT)
+            legacy = KrakeNN._legacy_run_electroconvection_2d(; kwargs..., FT=FT)
             new = run_electroconvection_2d(; kwargs..., field_tol=Inf, FT=FT)
             @testset "$name $FT" begin
                 @test ec_results_identical(legacy, new)
@@ -112,14 +112,14 @@ end
                                                           FT in (Float64, Float32)
         kwargs = (; grid..., path..., history_interval=5, FT=FT)
         continuous = init_state(ECState; kwargs...)
-        @test Kraken.at_boundary(continuous)
+        @test KrakeNN.at_boundary(continuous)
         advance!(continuous, 20; sample_final=true)
-        @test Kraken.at_boundary(continuous)
+        @test KrakeNN.at_boundary(continuous)
         @test continuous.cycle == 20
         @test continuous.cycle_history == [5, 10, 15, 20]
         reference = solution(continuous)
         @test reference isa ECSolution
-        @test reference isa Kraken.AbstractSolution
+        @test reference isa KrakeNN.AbstractSolution
 
         for (a, b) in ((7, 13), (8, 12))
             s = init_state(ECState; kwargs...)
@@ -216,18 +216,18 @@ end
         err = ec_thrown(() -> advance!(s, 5; sample_final=true))
         @test err isa ErrorException
         @test occursin("Flow field became unstable at cycle 1", err.msg)
-        @test !Kraken.at_boundary(s)
+        @test !KrakeNN.at_boundary(s)
         @test s.cycle == 0
 
         s = init_state(ECState; grid..., phi_max_iter=1)
         @test_throws ErrorException advance!(s, 5)
-        @test !Kraken.at_boundary(s)
+        @test !KrakeNN.at_boundary(s)
 
         # Cycles completed before the failure stay counted; the broken one is not.
         s = init_state(ECState; grid..., phi_substeps=1, velocity_stop=1e-30, history_interval=4)
         @test_throws ErrorException advance!(s, 10)
         @test s.cycle == 3
-        @test !Kraken.at_boundary(s)
+        @test !KrakeNN.at_boundary(s)
 
         @test_throws ArgumentError advance!(init_state(ECState; grid...), -1)
     end
@@ -238,7 +238,7 @@ end
         # moved. A second advance! must not run on that half-advanced state.
         s = init_state(ECState; grid..., phi_substeps=1, history_interval=5, velocity_stop=1e-30)
         @test_throws ErrorException advance!(s, 1; sample_final=true)
-        @test !Kraken.at_boundary(s)
+        @test !KrakeNN.at_boundary(s)
         @test s.cycle == 0
         frozen = (f_in=Array(s.f_in), q_f_in=Array(s.q_f_in), phi_f_in=Array(s.phi_f_in),
                   Fx_prev=Array(s.Fx_prev), Fy_prev=Array(s.Fy_prev),
@@ -248,7 +248,7 @@ end
             err = ec_thrown(call)
             @test err isa ArgumentError
             @test occursin("not on a completed cycle boundary", err.msg)
-            @test !Kraken.at_boundary(s)
+            @test !KrakeNN.at_boundary(s)
             @test s.cycle == 0
         end
         @test isequal(Array(s.f_in), frozen.f_in)
@@ -262,7 +262,7 @@ end
         @test startswith(ec_thrown(() -> advance!(s, 1)).msg, "advance!:")
         @test startswith(ec_thrown(() -> solution(s)).msg, "solution:")
         fresh = init_state(ECState; grid..., phi_substeps=1, history_interval=5)
-        @test advance!(fresh, 1) === fresh && Kraken.at_boundary(fresh)
+        @test advance!(fresh, 1) === fresh && KrakeNN.at_boundary(fresh)
         @test solution(fresh) isa ECSolution
     end
 
@@ -280,7 +280,7 @@ end
                    # several faults at once: the first check must win in both
                    (; grid..., Nx=3, ns_scheme=:bogus, max_cycles=2.5))
         for kwargs in failing
-            legacy_err = ec_thrown(() -> Kraken._legacy_run_electroconvection_2d(; kwargs...))
+            legacy_err = ec_thrown(() -> KrakeNN._legacy_run_electroconvection_2d(; kwargs...))
             new_err = ec_thrown(() -> run_electroconvection_2d(; kwargs...))
             @test legacy_err !== nothing
             @test typeof(new_err) == typeof(legacy_err)

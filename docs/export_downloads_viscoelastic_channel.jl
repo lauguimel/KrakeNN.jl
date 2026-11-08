@@ -8,7 +8,7 @@
 #
 # Run: julia --project=docs docs/export_downloads_viscoelastic_channel.jl
 
-using Kraken
+using KrakeNN
 
 const OUTDIR = joinpath(@__DIR__, "src", "public", "downloads", "viscoelastic_channel")
 mkpath(OUTDIR)
@@ -33,7 +33,7 @@ uy = zeros(Float64, Nx, Ny)
 ρ  = ones(Float64, Nx, Ny)
 
 for j in 1:Ny, i in 1:Nx, q in 1:9
-    f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+    f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
 end
 copy!(f_out, f_in)
 

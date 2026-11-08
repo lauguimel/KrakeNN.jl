@@ -1,6 +1,6 @@
 using Printf
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 const FT = Float64
@@ -106,12 +106,12 @@ function run_payoff_case(; Ny::Int=32, max_steps::Int=40_000)
 
     println("M-VE3D-FVFD-M4 setup: Nx=$Nx Ny=$Ny Nz=$Nz Fx=$Fx nu_total=$nu_total beta=$beta lambda=$lambda Wi_wall=$Wi_wall_target steps=$max_steps")
 
-    fv = Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+    fv = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
         Nx, Ny, Nz, Fx, ν_s=nu_s, ν_p=nu_p, lambda,
         max_steps, backend, FT,
         advection_scheme=:muscl_superbee,
     )
-    lbm = Kraken.run_conformation_poiseuille_libb_3d(;
+    lbm = KrakeNN.run_conformation_poiseuille_libb_3d(;
         Nx, Ny, Nz, Fx, ν_s=nu_s, ν_p=nu_p, lambda,
         tau_plus=1.0, max_steps, backend, FT,
     )

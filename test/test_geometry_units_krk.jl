@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using Test
 
 @testset "Geometry: STL physical Units block lowers to raw LU at parse time" begin
@@ -10,7 +10,7 @@ using Test
     mask_of(setup) = begin
         dom = setup.domain
         mask = falses(dom.Nx, dom.Ny)
-        Kraken._apply_geometry!(mask, setup, dom.Lx / dom.Nx, dom.Ly / dom.Ny)
+        KrakeNN._apply_geometry!(mask, setup, dom.Lx / dom.Nx, dom.Ly / dom.Ny)
         mask
     end
 

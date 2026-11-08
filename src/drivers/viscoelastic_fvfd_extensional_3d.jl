@@ -92,7 +92,7 @@ function run_viscoelastic_fvfd_extensional_3d(;
         u0 = velocity_h.ux[i, j, k]
         v0 = velocity_h.uy[i, j, k]
         for q in 1:19
-            f_in_h[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(FT), u0, v0, zero(FT), q)
+            f_in_h[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(FT), u0, v0, zero(FT), q)
         end
     end
     copyto!(f_in, f_in_h)

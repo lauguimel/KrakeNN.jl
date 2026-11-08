@@ -2,7 +2,7 @@
 # each block's (Nξ, Nη) orientation and where the fold in extend_mesh_2d
 # happens.
 
-using Kraken, KernelAbstractions, Gmsh
+using KrakeNN, KernelAbstractions, Gmsh
 
 include(joinpath(@__DIR__, "gen_ogrid_rect_8block.jl"))
 

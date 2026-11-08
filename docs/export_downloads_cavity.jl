@@ -8,7 +8,7 @@
 #
 # Run: julia --project=docs docs/export_downloads_cavity.jl
 
-using Kraken
+using KrakeNN
 
 const OUTDIR = joinpath(@__DIR__, "src", "public", "downloads", "cavity")
 mkpath(OUTDIR)
@@ -32,7 +32,7 @@ mid = N ÷ 2 + 1
 ux_profile = [ux[mid, j] / u_lid for j in 1:N]
 y_norm     = [(j - 0.5) / N for j in 1:N]
 
-# One tidy CSV: the Kraken curve is N rows; the 17 Ghia points are written into
+# One tidy CSV: the KrakeNN curve is N rows; the 17 Ghia points are written into
 # the same file's first 17 rows so the plot script can scatter them. Rows beyond
 # the Ghia count leave those two columns empty.
 csv = joinpath(OUTDIR, "cavity.csv")

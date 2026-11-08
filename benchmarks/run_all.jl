@@ -1,4 +1,4 @@
-# Kraken.jl benchmark suite — single entry point.
+# KrakeNN benchmark suite — single entry point.
 #
 # Runs the v0.1.0 in-scope benchmarks (single-phase + thermal + grid
 # refinement) and writes structured CSV results to benchmarks/results/.
@@ -26,7 +26,7 @@ include("utils.jl")
 opts = parse_args()
 
 println("=" ^ 64)
-println("  Kraken.jl benchmark suite")
+println("  KrakeNN benchmark suite")
 println("  hardware-id : ", opts.hardware_id)
 println("  mode        : ", opts.quick ? "quick (< 5 min CPU)" : "full")
 println("  gpu         : ", opts.gpu ? "enabled" : "disabled")

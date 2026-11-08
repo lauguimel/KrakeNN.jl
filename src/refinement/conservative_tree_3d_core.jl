@@ -21,9 +21,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.d3q19_cx)
+methods(KrakeNN.d3q19_cx)
 ```
 """
 @inline function d3q19_cx(q::Integer)
@@ -38,9 +38,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.d3q19_cy)
+methods(KrakeNN.d3q19_cy)
 ```
 """
 @inline function d3q19_cy(q::Integer)
@@ -55,9 +55,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.d3q19_cz)
+methods(KrakeNN.d3q19_cz)
 ```
 """
 @inline function d3q19_cz(q::Integer)
@@ -72,9 +72,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.d3q19_opposite)
+methods(KrakeNN.d3q19_opposite)
 ```
 """
 @inline function d3q19_opposite(q::Integer)
@@ -138,9 +138,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.mass_F_3d)
+methods(KrakeNN.mass_F_3d)
 ```
 """
 function mass_F_3d(F::AbstractVector)
@@ -155,9 +155,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.momentum_F_3d)
+methods(KrakeNN.momentum_F_3d)
 ```
 """
 function momentum_F_3d(F::AbstractVector)
@@ -182,9 +182,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.moments_F_3d)
+methods(KrakeNN.moments_F_3d)
 ```
 """
 function moments_F_3d(F::AbstractVector)
@@ -233,9 +233,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.fill_equilibrium_integrated_D3Q19!)
+methods(KrakeNN.fill_equilibrium_integrated_D3Q19!)
 ```
 """
 function fill_equilibrium_integrated_D3Q19!(Fcell::AbstractVector,
@@ -335,9 +335,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.coalesce_patch_to_shadow_F_3d!)
+methods(KrakeNN.coalesce_patch_to_shadow_F_3d!)
 ```
 """
 function coalesce_patch_to_shadow_F_3d!(patch::ConservativeTreePatch3D)
@@ -364,9 +364,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.explode_shadow_to_patch_uniform_F_3d!)
+methods(KrakeNN.explode_shadow_to_patch_uniform_F_3d!)
 ```
 """
 function explode_shadow_to_patch_uniform_F_3d!(patch::ConservativeTreePatch3D)
@@ -465,9 +465,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.active_mass_F_3d)
+methods(KrakeNN.active_mass_F_3d)
 ```
 """
 function active_mass_F_3d(coarse_F::AbstractArray{<:Any,4},
@@ -493,9 +493,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.active_population_sums_F_3d)
+methods(KrakeNN.active_population_sums_F_3d)
 ```
 """
 function active_population_sums_F_3d(coarse_F::AbstractArray{<:Any,4},
@@ -523,9 +523,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.active_momentum_F_3d)
+methods(KrakeNN.active_momentum_F_3d)
 ```
 """
 function active_momentum_F_3d(coarse_F::AbstractArray{<:Any,4},
@@ -564,9 +564,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.active_moments_F_3d)
+methods(KrakeNN.active_moments_F_3d)
 ```
 """
 function active_moments_F_3d(coarse_F::AbstractArray{<:Any,4},
@@ -583,8 +583,8 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.collide_BGK_integrated_D3Q19!)
+methods(KrakeNN.collide_BGK_integrated_D3Q19!)
 ```
 """

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Prescribed-velocity VOF advection" begin
 

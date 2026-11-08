@@ -4,18 +4,18 @@
 # ---------------
 # The seam in linear_solve.jl has two built-in backends: CPU CHOLMOD/UMFPACK
 # (here) and the manual-load cuDSS file for GPU jobs. Issue #8 adds two
-# PACKAGE-EXTENSION backends behind [weakdeps] so `using Kraken` stays free of
-# any solver-backend dependency (ADR rule; precedent: KrakenOptimExt):
+# PACKAGE-EXTENSION backends behind [weakdeps] so `using KrakeNN` stays free of
+# any solver-backend dependency (ADR rule; precedent: KrakeNNOptimExt):
 #
 #   * `PoissonLinearSolve` — a new `LinearSolveBackend` tag that routes
 #     `lin_factorize` / `lin_solve!` through LinearSolve.jl. Methods live in
-#     `ext/KrakenLinearSolveExt.jl`, loaded by `using LinearSolve`.
+#     `ext/KrakeNNLinearSolveExt.jl`, loaded by `using LinearSolve`.
 #   * `CUDABackendTag` host-matrix entry + CuSparse methods via cuDSS. Methods
-#     live in `ext/KrakenCUDSSExt.jl`, loaded by `using CUDSS` (CUDA is already
+#     live in `ext/KrakeNNCUDSSExt.jl`, loaded by `using CUDSS` (CUDA is already
 #     a strong dep, listed as an extra trigger).
 #
 # This file is CPU-only and dependency-free: it defines the tag, the
-# ext-indirection stubs (the KrakenOptimExt `_fit_lbfgs` pattern: the stub
+# ext-indirection stubs (the KrakeNNOptimExt `_fit_lbfgs` pattern: the stub
 # errors with a load hint, the ext adds the typed method — no method
 # overwriting), and the assembled-direct driver `solve_poisson_direct` that is
 # the drop-in alternative to `solve_poisson_mg` on the SAME discretization
@@ -34,7 +34,7 @@ end
 
 Backend tag routing the factorize-once seam ([`lin_factorize`](@ref) /
 [`lin_solve!`](@ref)) through LinearSolve.jl. Requires `using LinearSolve`
-(weakdep — activates `ext/KrakenLinearSolveExt.jl`); without it the seam
+(weakdep — activates `ext/KrakeNNLinearSolveExt.jl`); without it the seam
 methods raise a documented load-hint error.
 
   * `alg`     a LinearSolve.jl algorithm instance (e.g. `KLUFactorization()`),
@@ -62,11 +62,11 @@ const _LINEARSOLVE_LOAD_ERROR =
 const _CUDSS_LOAD_ERROR =
     "Load CUDA and CUDSS to enable the GPU direct backend: `using " * "CUDA, CUDSS`"
 
-# Ext-indirection stubs (KrakenOptimExt pattern): ext/KrakenLinearSolveExt.jl
+# Ext-indirection stubs (KrakeNNOptimExt pattern): ext/KrakeNNLinearSolveExt.jl
 # adds the typed methods; these fallbacks raise the load hint.
 _ls_factorize(args...; kwargs...) = error(_LINEARSOLVE_LOAD_ERROR)
 _ls_solve!(args...; kwargs...) = error(_LINEARSOLVE_LOAD_ERROR)
-# ext/KrakenCUDSSExt.jl adds the host-matrix CUDA method of this stub.
+# ext/KrakeNNCUDSSExt.jl adds the host-matrix CUDA method of this stub.
 _cudss_factorize(args...; kwargs...) = error(_CUDSS_LOAD_ERROR)
 
 # Seam methods for the LinearSolve tag: pure delegation to the ext stubs.
@@ -78,7 +78,7 @@ lin_solve!(tag::PoissonLinearSolve, cache::LinearSolveCache, b::AbstractVector) 
     _ls_solve!(tag, cache, b)
 
 # Host-matrix entry for the CUDA tag (pin on CPU, upload, cuDSS-factorize).
-# The CuSparseMatrixCSR methods live entirely in ext/KrakenCUDSSExt.jl.
+# The CuSparseMatrixCSR methods live entirely in ext/KrakeNNCUDSSExt.jl.
 function lin_factorize(tag::CUDABackendTag, A::SparseMatrixCSC{Float64,Int};
                        spd::Bool = true, pin_k0::Int = 0)
     return _cudss_factorize(tag, A; spd = spd, pin_k0 = pin_k0)
@@ -120,7 +120,7 @@ Routes through the factorize-once seam and consumes the cache immediately
 (single-RHS convenience, like [`solve_poisson`](@ref)); loops that reuse the
 operator should call `lin_factorize` once and `lin_solve!` per RHS. The result
 is always gathered to a host `Matrix{Float64}` (layout `u[i, j]`,
-`k = i + (j-1)N`). Registered in `src/Kraken.jl` (exported by `using Kraken`).
+`k = i + (j-1)N`). Registered in `src/KrakeNN.jl` (exported by `using KrakeNN`).
 Receipts: `test/analytical/poisson_linearsolve_mms.jl` (CPU) and
 `test/analytical/poisson_cudss_gpu.jl` (GPU, gated on `CUDA.functional()`).
 """

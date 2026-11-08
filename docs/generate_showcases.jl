@@ -9,7 +9,7 @@ Produces GIF files in docs/src/assets/showcases/
 """
 
 using Metal
-using Kraken
+using KrakeNN
 using CairoMakie
 using KernelAbstractions
 

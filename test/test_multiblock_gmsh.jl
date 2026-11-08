@@ -1,6 +1,6 @@
 using Test
-using Kraken
-using Kraken: INTERFACE_TAG, edge_coords
+using KrakeNN
+using KrakeNN: INTERFACE_TAG, edge_coords
 
 # =====================================================================
 # v0.3 Phase B.1 — gmsh multi-surface loader.

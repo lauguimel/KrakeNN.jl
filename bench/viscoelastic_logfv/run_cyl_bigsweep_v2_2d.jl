@@ -18,7 +18,7 @@
 #   KRAKEN_FT               "float64" | "float32"
 #   KRAKEN_OUTPUT_DIR       "results/viscoelastic_logfv/cyl_bigsweep_<jobid>"
 
-using Kraken
+using KrakeNN
 using Printf
 using Dates
 using KernelAbstractions
@@ -127,7 +127,7 @@ const JOB_ID          = get(ENV, "PBS_JOBID", "manual")
 const OUTPUT_DIR      = get(ENV, "KRAKEN_OUTPUT_DIR",
                             "results/viscoelastic_logfv/cyl_bigsweep_v2_$(JOB_ID)")
 # M29-tau-compare: optional per-case field snapshot (.jls) for field-level
-# rheoTool vs Kraken diagnostics. Defaults OFF — adds ~5 MB per case at R=30.
+# rheoTool vs KrakeNN diagnostics. Defaults OFF — adds ~5 MB per case at R=30.
 const SAVE_FIELDS     = lowercase(get(ENV, "KRAKEN_SAVE_FIELDS", "0")) in
                         ("1", "true", "yes", "on")
 const NAN_PROBE        = haskey(ENV, "KRAKEN_NAN_PROBE")
@@ -321,7 +321,7 @@ function nan_probe_snapshot(step, fields)
 end
 
 function nan_probe_first_nonfinite(fields)
-    return Kraken._logfv_first_nonfinite_field_2d(
+    return KrakeNN._logfv_first_nonfinite_field_2d(
         fields.is_solid_h,
         :rho => fields.rho,
         :ux => fields.ux,
@@ -428,7 +428,7 @@ function c_n1_stats(psixx, psixy, psiyy, tauxx, tauyy, is_solid)
     try
         for idx in CartesianIndices(is_solid)
             is_solid[idx] && continue
-            cxx, cxy, cyy = Kraken.logfv_exp_sym2_2d(
+            cxx, cxy, cyy = KrakeNN.logfv_exp_sym2_2d(
                 psixx[idx], psixy[idx], psiyy[idx])
             tr_c = Float64(cxx) + Float64(cyy)
             det_c = Float64(cxx) * Float64(cyy) - Float64(cxy)^2
@@ -481,7 +481,7 @@ function run_case(beta, wi, re_target, R, bsd, domain_cfg, embedded_cfg, summary
     geom_y_center = Float64((Ny - 1) / 2)
     max_polymer_substeps = 64
     max_grad_norm_estimate = 4.0 * abs(U_MEAN) / Float64(H)
-    subcycle_estimate = Kraken.logfv_oldroydb_subcycle_estimate(
+    subcycle_estimate = KrakeNN.logfv_oldroydb_subcycle_estimate(
         max_grad_norm_estimate,
         Float64(lambda),
         1.0;
@@ -556,7 +556,7 @@ function run_case(beta, wi, re_target, R, bsd, domain_cfg, embedded_cfg, summary
     status = :ok
     result = nothing
     try
-        result = Kraken.run_viscoelastic_logfv_cylinder_coupled_2d(;
+        result = KrakeNN.run_viscoelastic_logfv_cylinder_coupled_2d(;
             radius=R, H=H, L_up=L_up, L_down=L_down,
             nu_s=FT(nu_s), nu_p=FT(nu_p), lambda=FT(lambda),
             polymer_model=:oldroydb, L_max=FT(10.0),

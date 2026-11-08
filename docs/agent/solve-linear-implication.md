@@ -1,6 +1,6 @@
 ---
 module: solve-linear
-path: src/solve/linear_solve.jl; src/solve/linear_solve_cuda.jl; src/solve/linear_solve_frontend.jl; ext/KrakenLinearSolveExt.jl; ext/KrakenCUDSSExt.jl
+path: src/solve/linear_solve.jl; src/solve/linear_solve_cuda.jl; src/solve/linear_solve_frontend.jl; ext/KrakeNNLinearSolveExt.jl; ext/KrakeNNCUDSSExt.jl
 owner_concern: backend-dispatch
 status: implemented
 last_verified: 2026-11-02
@@ -17,24 +17,24 @@ ONCE and the factorization reused per RHS. Two functions are the ENTIRE
 contract; dispatch is keyed on a backend singleton tag. The CPU file is
 CUDA-free; the CUDA methods live in the companion `linear_solve_cuda.jl`,
 loaded ONLY inside a job that already did `using CUDA, CUDSS`. **Registered in
-`src/Kraken.jl` THROUGH the tail-include in `solve/poisson.jl`** (the file has
+`src/KrakeNN.jl` THROUGH the tail-include in `solve/poisson.jl`** (the file has
 NO self-guard — never include it directly in `Kraken.jl`); seam names exported
 (`lin_factorize`, `lin_solve!`, `LinearSolveCache`, backend tags).
 `linear_solve_cuda.jl` stays manual-load (bench scripts); package users get the
-SAME cuDSS seam through the `KrakenCUDSSExt` package extension instead.
+SAME cuDSS seam through the `KrakeNNCUDSSExt` package extension instead.
 
-Activation requirement (#61): `KrakenCUDSSExt` loads only when `CUDSS` is loaded
-in the same session as `Kraken` (`using CUDA, CUDSS, Kraken`, in any order), AND the
+Activation requirement (#61): `KrakeNNCUDSSExt` loads only when `CUDSS` is loaded
+in the same session as `Kraken` (`using CUDA, CUDSS, KrakeNN`, in any order), AND the
 `CUDSS` weakdep UUID in `Project.toml` equals the registered one
 (`45b445bb-4962-46a0-9369-b4df9d0f772e`). From v0.3.0 until the fix the UUID was
 wrong, so the extension could not activate. Check with
-`Base.get_extension(Kraken, :KrakenCUDSSExt) !== nothing`; `test/platform/weakdeps_metadata_test.jl`
+`Base.get_extension(KrakeNN, :KrakeNNCUDSSExt) !== nothing`; `test/platform/weakdeps_metadata_test.jl`
 guards the UUIDs offline and `test/analytical/poisson_cudss_gpu.jl` checks activation on GPU.
 
 Issue #8 adds two [weakdeps] package-extension backends behind the seam
-(ADR rule: no solver-backend dependency under plain `using Kraken`; precedent
-KrakenOptimExt): `KrakenLinearSolveExt` (trigger `LinearSolve`) backs the new
-`PoissonLinearSolve` tag, and `KrakenCUDSSExt` (triggers `CUDSS` + `CUDA`;
+(ADR rule: no solver-backend dependency under plain `using KrakeNN`; precedent
+KrakeNNOptimExt): `KrakeNNLinearSolveExt` (trigger `LinearSolve`) backs the new
+`PoissonLinearSolve` tag, and `KrakeNNCUDSSExt` (triggers `CUDSS` + `CUDA`;
 CUDA is a strong dep listed as an extra trigger so the ext may `using CUDA`)
 backs `CUDABackendTag` for package users. The exts are INDEPENDENT — cuDSS is
 reached through Kraken's own seam, NOT through LinearSolve's CUDSS bindings,
@@ -72,7 +72,7 @@ discretization.
   `LinearSolveBackend`: `PoissonLinearSolve()` (needs `using LinearSolve`),
   `CPUBackendTag()` (built-in CHOLMOD), `CUDABackendTag()` (needs
   `using CUDA, CUDSS`; result gathered back to host).
-- `KrakenCUDSSExt` additions: host-matrix `lin_factorize(A_csc;
+- `KrakeNNCUDSSExt` additions: host-matrix `lin_factorize(A_csc;
   backend=CUDABackendTag(), pin_k0)` (pins on CPU, uploads BOTH matrices,
   cuDSS-factorizes) and a `CuSparseMatrixCSR` generic keyword entry — plus the
   same `CUDABackendTag` seam methods as the manual-load file (which attaches
@@ -155,7 +155,7 @@ matrix, so it is overwritten too, as with `lu!`). No solve mutates `b`.
   `linear_solve_frontend.jl`). A `MethodError` instead of these hints means a
   call bypassed the documented entries.
 - **Weakdeps gotcha**: after adding/altering [weakdeps], run `Pkg.resolve()`
-  before `Pkg.precompile()` (same as the KrakenOptimExt rollout) or the ext
+  before `Pkg.precompile()` (same as the KrakeNNOptimExt rollout) or the ext
   will silently not load.
 
 - **cuDSS transposed solve needs CUDSS.jl >= 1.0**: CUDSS.jl 0.6.5 (libcudss
@@ -181,7 +181,7 @@ matrix, so it is overwritten too, as with `lu!`). No solve mutates `b`.
    (`_incns_factorise`/`_incns_solve!`), `benchmarks/krk/inc_ns/poisson_gpu_bench.jl`.
 5. `src/solve/linear_solve_frontend.jl` — tag/stub/driver layer
    (`PoissonLinearSolve`, `solve_poisson_direct`, ext indirection).
-6. `ext/KrakenLinearSolveExt.jl` / `ext/KrakenCUDSSExt.jl` — ext-backend
+6. `ext/KrakeNNLinearSolveExt.jl` / `ext/KrakeNNCUDSSExt.jl` — ext-backend
    failures (LinearSolve API drift, cuDSS upload/pinning). Receipts:
    `test/analytical/poisson_linearsolve_mms.jl` (CPU MMS + parity vs CHOLMOD
    and MG + cache reuse), `test/analytical/poisson_cudss_gpu.jl` (GPU parity,
@@ -190,15 +190,15 @@ matrix, so it is overwritten too, as with `lu!`). No solve mutates `b`.
 
 ## GPU validation + Julia 1.12 packaging landmine (2026-07-22)
 
-- KrakenCUDSSExt validated on RTX A6000 (driver 535, CUDA 12.2 pin): Poisson MMS parity
+- KrakeNNCUDSSExt validated on RTX A6000 (driver 535, CUDA 12.2 pin): Poisson MMS parity
   Linf 3.9e-14 (Dirichlet) / 1.6e-12 (Neumann pinned), 3/3 tests.
   **Correction (2026-10, #61):** the loading path of this run was not recorded. With the
   wrong CUDSS UUID declared until 0.5.1, plain `using CUDSS` could not activate the
   extension, so these numbers may come from a manual include. Extension-path evidence:
   Aqua job 26559033 (reported 2026-10-10), H100, 41/41 GPU assertions, no CPU fallback
   (see the 0.5.1 changelog entry).
-- **Landmine (Julia 1.12.6, empirically bisected)**: KrakenCUDSSExt fails to precompile with
+- **Landmine (Julia 1.12.6, empirically bisected)**: KrakeNNCUDSSExt fails to precompile with
   "Package CUDSS … does not seem to be installed" whenever a SIBLING declared weakdep
-  (Enzyme/CairoMakie/Optim) is NOT installed in the environment. KrakenLinearSolveExt is immune.
+  (Enzyme/CairoMakie/Optim) is NOT installed in the environment. KrakeNNLinearSolveExt is immune.
   Workaround: co-install the sibling weakdeps (installing Enzyme fixed it); do NOT list CUDA
   (strong dep) in [weakdeps] — extensions may use parent strong deps directly since Julia 1.11.

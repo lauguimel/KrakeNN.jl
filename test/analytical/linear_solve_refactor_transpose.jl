@@ -7,8 +7,8 @@
 
 using Test
 using LinearAlgebra
-# SparseArrays through Kraken (not in test/Project.toml, see linear_solve_nonsym.jl).
-using Kraken.SparseArrays
+# SparseArrays through KrakeNN (not in test/Project.toml, see linear_solve_nonsym.jl).
+using KrakeNN.SparseArrays
 
 if !isdefined(@__MODULE__, :_c0_convdiff)
     include(joinpath(@__DIR__, "linear_solve_c0_helpers.jl"))
@@ -16,8 +16,8 @@ end
 
 # A minimal backend with only the allocating vector solve (no refactorization,
 # no transpose): exercises the generic fallbacks and their errors.
-struct _C0DummyBackend <: Kraken.LinearSolveBackend end
-Kraken.lin_solve!(::_C0DummyBackend, cache::LinearSolveCache, b::AbstractVector) =
+struct _C0DummyBackend <: KrakeNN.LinearSolveBackend end
+KrakeNN.lin_solve!(::_C0DummyBackend, cache::LinearSolveCache, b::AbstractVector) =
     cache.factor \ Vector{Float64}(b)
 
 @testset "linear-solve seam C0 (CPU): refactorize / transpose / multi-RHS" begin
@@ -121,12 +121,12 @@ Kraken.lin_solve!(::_C0DummyBackend, cache::LinearSolveCache, b::AbstractVector)
 
     @testset "explicit errors and the cuDSS transpose gate" begin
         # cuDSS: CUDSS.jl < 1.0 silently ignores solve_mode='T' -> refuse.
-        @test Kraken.CUDSS_TRANSPOSE_MIN_VERSION == v"1.0.0"
-        @test !Kraken._cudss_transpose_supported(v"0.6.5")
-        @test Kraken._cudss_transpose_supported(v"1.0.0")
-        @test Kraken._cudss_check_transpose(v"1.2.0") === nothing
+        @test KrakeNN.CUDSS_TRANSPOSE_MIN_VERSION == v"1.0.0"
+        @test !KrakeNN._cudss_transpose_supported(v"0.6.5")
+        @test KrakeNN._cudss_transpose_supported(v"1.0.0")
+        @test KrakeNN._cudss_check_transpose(v"1.2.0") === nothing
         err = try
-            Kraken._cudss_check_transpose(v"0.6.5"); nothing
+            KrakeNN._cudss_check_transpose(v"0.6.5"); nothing
         catch e
             e
         end

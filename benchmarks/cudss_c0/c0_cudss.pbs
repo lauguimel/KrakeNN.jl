@@ -38,7 +38,7 @@ STATUS=0
 
 for E in env6 env5 env5_base; do
     stage "precompile $E"
-    julia --project=$E -e 'using Pkg; Pkg.precompile(); using CUDA, CUDSS, Kraken; println(pkgversion(CUDA), " ", pkgversion(CUDSS))' 2>&1 || STATUS=1
+    julia --project=$E -e 'using Pkg; Pkg.precompile(); using CUDA, CUDSS, KrakeNN; println(pkgversion(CUDA), " ", pkgversion(CUDSS))' 2>&1 || STATUS=1
 done
 
 for E in env6 env5; do

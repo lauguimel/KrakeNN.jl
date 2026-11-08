@@ -1,6 +1,6 @@
 using Test
 using Printf
-using Kraken
+using KrakeNN
 
 const G1_TOL = 1.0e-13
 const G2_TOL = 1.0e-12
@@ -22,7 +22,7 @@ function velocity_faces_3d(ux, uy, uz, is_solid, bc)
     uy_face = zeros(eltype(ux), Nx, Ny + 1, Nz)
     uz_face = zeros(eltype(ux), Nx, Ny, Nz + 1)
     vbcs = boundary_arrays_3d(Nx, Ny, Nz; T=eltype(ux))
-    Kraken.fvfd_cell_velocity_to_faces_3d!(
+    KrakeNN.fvfd_cell_velocity_to_faces_3d!(
         ux_face, uy_face, uz_face, ux, uy, uz, is_solid, vbcs..., bc...,
     )
     return ux_face, uy_face, uz_face
@@ -31,7 +31,7 @@ end
 function advect3!(out, phi, faces, is_solid, dx, dy, dz, bc, dt, scheme)
     Nx, Ny, Nz = size(phi)
     sbcs = boundary_arrays_3d(Nx, Ny, Nz; T=eltype(phi))
-    Kraken.fvfd_advect_upwind_3d!(
+    KrakeNN.fvfd_advect_upwind_3d!(
         out, phi, sbcs..., faces..., is_solid, dx, dy, dz, bc..., dt;
         advection_scheme=scheme,
     )
@@ -78,7 +78,7 @@ function velocity_faces_2d(ux, uy, is_solid, bc)
     Nx, Ny = size(ux)
     ux_face = zeros(eltype(ux), Nx + 1, Ny)
     uy_face = zeros(eltype(ux), Nx, Ny + 1)
-    Kraken.fvfd_cell_velocity_to_faces_2d!(
+    KrakeNN.fvfd_cell_velocity_to_faces_2d!(
         ux_face, uy_face, ux, uy, is_solid,
         zeros(eltype(ux), Ny), zeros(eltype(ux), Ny),
         zeros(eltype(ux), Nx), zeros(eltype(ux), Nx),
@@ -89,11 +89,11 @@ end
 
 function advect2!(out, phi, faces, is_solid, dx, dy, bc, dt, scheme)
     Nx, Ny = size(phi)
-    phi_bc = Kraken.FVFDFieldBC2D(
+    phi_bc = KrakeNN.FVFDFieldBC2D(
         zeros(eltype(phi), Ny), zeros(eltype(phi), Ny),
         zeros(eltype(phi), Nx), zeros(eltype(phi), Nx),
     )
-    Kraken.fvfd_advect_upwind_2d!(
+    KrakeNN.fvfd_advect_upwind_2d!(
         out, phi, phi_bc, faces..., is_solid, dx, dy, bc, dt;
         advection_scheme=scheme,
     )
@@ -164,7 +164,7 @@ g4_retention = Dict{Symbol,Float64}()
         is_solid2 = falses(Nx, Ny)
         is_solid3 = falses(Nx, Ny, Nz)
         phi2, ux2, uy2, phi3, ux3, uy3, uz3 = z_slab_fields(Nx, Ny, Nz)
-        bc2 = Kraken.FVFDDomainBC2D(; west=:periodic, east=:periodic, south=:wall, north=:wall)
+        bc2 = KrakeNN.FVFDDomainBC2D(; west=:periodic, east=:periodic, south=:wall, north=:wall)
         faces2 = velocity_faces_2d(ux2, uy2, is_solid2, bc2)
         faces3 = velocity_faces_3d(ux3, uy3, uz3, is_solid3, CHANNEL3_BC)
         out2 = similar(phi2)
@@ -206,7 +206,7 @@ g4_retention = Dict{Symbol,Float64}()
         fields = ntuple(n -> fill(Float64(n), Nx, Ny, Nz), 6)
         outs = ntuple(_ -> zeros(Float64, Nx, Ny, Nz), 6)
         bcs = ntuple(_ -> boundary_arrays_3d(Nx, Ny, Nz), 6)
-        Kraken.fvfd_sym3_advect_upwind_3d!(
+        KrakeNN.fvfd_sym3_advect_upwind_3d!(
             outs..., fields..., bcs..., faces..., is_solid,
             1.0, 1.0, 1.0, CHANNEL3_BC..., 0.05;
             advection_scheme=:muscl_superbee,

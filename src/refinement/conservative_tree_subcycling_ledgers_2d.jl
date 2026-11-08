@@ -11,9 +11,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeSubcycleLedger2D
+KrakeNN.ConservativeTreeSubcycleLedger2D
 ```
 """
 struct ConservativeTreeSubcycleLedger2D{T}
@@ -74,9 +74,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.create_conservative_tree_subcycle_ledger_2d)
+methods(KrakeNN.create_conservative_tree_subcycle_ledger_2d)
 ```
 """
 function create_conservative_tree_subcycle_ledger_2d(;

@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Benchmark" begin
     @testset "MLUPs CPU" begin

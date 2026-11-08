@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using CUDA
 using KernelAbstractions
 using Printf

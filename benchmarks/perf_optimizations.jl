@@ -4,7 +4,7 @@
 # Usage:
 #   julia --project benchmarks/perf_optimizations.jl           # CPU only
 #   julia --project benchmarks/perf_optimizations.jl --gpu     # GPU (auto-detect)
-using Kraken
+using KrakeNN
 using Printf
 using KernelAbstractions
 

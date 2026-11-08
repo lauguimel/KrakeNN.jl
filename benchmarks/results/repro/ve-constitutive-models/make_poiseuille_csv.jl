@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 # =====================================================================
-# make_poiseuille_csv.jl — IN-FLOW comparison of the 4 Kraken
+# make_poiseuille_csv.jl — IN-FLOW comparison of the 4 KrakeNN
 # viscoelastic constitutive models (Oldroyd-B, FENE-P, Giesekus, PTT)
 # in a fully COUPLED planar Poiseuille channel.
 #
@@ -29,7 +29,7 @@
 #   julia --project=. benchmarks/results/repro/ve-constitutive-models/make_poiseuille_csv.jl
 # CPU Float64, no GPU; CI-reproducible (~1-2 min at Ny=32).
 # =====================================================================
-using Kraken
+using KrakeNN
 using Printf
 
 const HERE = @__DIR__
@@ -57,7 +57,7 @@ models = [
 ]
 
 # Default backend is KernelAbstractions.CPU() → CPU Float64, no GPU.
-run_poiseuille(model) = Kraken.run_viscoelastic_fvfd_poiseuille_3d(;
+run_poiseuille(model) = KrakeNN.run_viscoelastic_fvfd_poiseuille_3d(;
     Nx=NX, Ny=NY, Nz=NZ, Fx=FX, ν_s=NU_S, ν_p=nothing, lambda=LAMBDA,
     polymer_model=model, max_steps=MAX_STEPS,
     FT=FT, advection_scheme=:muscl_superbee)
@@ -105,7 +105,7 @@ end
 # --- write CSV --------------------------------------------------------
 out = joinpath(HERE, "ve_poiseuille_profiles.csv")
 open(out, "w") do io
-    println(io, "# Kraken viscoelastic constitutive models — COUPLED planar Poiseuille y-profiles")
+    println(io, "# KrakeNN viscoelastic constitutive models — COUPLED planar Poiseuille y-profiles")
     @printf(io, "# Nx=%d Ny=%d Nz=%d Fx=%g nu_total=%g beta=%g lambda=%g Wi_wall=%.4f steps=%d\n",
             NX, NY, NZ, FX, NU_TOTAL, BETA, LAMBDA, LAMBDA * GAMMA_WALL, MAX_STEPS)
     println(io, "# models: oldroydb, fenep(L2=50), giesekus(alpha=0.2), ptt(eps=0.25,linear)")

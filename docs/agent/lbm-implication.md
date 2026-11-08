@@ -23,7 +23,7 @@ constants and the Newtonian BGK/TRT/SLBM/LI-BB operator core only.
 
 ## Public surface
 
-Exported into `Kraken` (see the `export` blocks in `src/Kraken.jl`):
+Exported into `Kraken` (see the `export` blocks in `src/KrakeNN.jl`):
 
 - Lattice types: `AbstractLattice{D,Q}`, `D2Q9 <: AbstractLattice{2,9}`,
   `D3Q19 <: AbstractLattice{3,19}`.
@@ -51,7 +51,7 @@ Exported into `Kraken` (see the `export` blocks in `src/Kraken.jl`):
   `CollideBGKDirect`, `CollideTRTDirect`, `CollideTRT`,
   `CollideTRTLocalGuoDirect`, `CollideRegularizedTRTLocal`, `ApplyLiBB`,
   `ApplyLiBBPrePhase`, `ApplyHalfwayBBPrePhase`, `WriteF`, `WriteFLiBB`,
-  `WriteMoments`, plus the `_3D` siblings) is `Kraken.`-accessible but unexported.
+  `WriteMoments`, plus the `_3D` siblings) is `KrakeNN.`-accessible but unexported.
 - Integrated-frame moment/equilibrium helpers (refinement-side, exported):
   `d2q9_cx`, `d2q9_cy`, `d2q9_opposite`, `d3q19_cx`, `d3q19_cy`, `d3q19_cz`,
   `d3q19_opposite`, `mass_F`, `momentum_F`, `moments_F`,

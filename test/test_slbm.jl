@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions: @index, @Const, @kernel, get_backend
 
 # ===========================================================================
@@ -27,8 +27,8 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         @test mesh.dx_ref ≈ 1.0
         geom = build_slbm_geometry(mesh)
 
-        cx = Kraken.velocities_x(D2Q9())
-        cy = Kraken.velocities_y(D2Q9())
+        cx = KrakeNN.velocities_x(D2Q9())
+        cy = KrakeNN.velocities_y(D2Q9())
         for j in 2:Ny-1, i in 2:Nx-1
             for q in 1:9
                 @test geom.i_dep[i, j, q] ≈ Float64(i - cx[q]) atol=1e-12
@@ -45,7 +45,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
             f[i, j, q] = 100.0 * q + i + 0.1 * j
         end
         for j in 4:Ny-3, i in 4:Nx-3, q in 1:9
-            @test Kraken.bilinear_f(f, Float64(i), Float64(j), q,
+            @test KrakeNN.bilinear_f(f, Float64(i), Float64(j), q,
                                      Nx, Ny, false, false) ≈ f[i, j, q]
         end
     end
@@ -62,7 +62,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
             ifl = Float64(i) + 0.3
             jfl = Float64(j) + 0.7
             expected = 0.5 * ifl + 0.25 * jfl + q
-            @test Kraken.bilinear_f(f, ifl, jfl, q, Nx, Ny, false, false) ≈ expected
+            @test KrakeNN.bilinear_f(f, ifl, jfl, q, Nx, Ny, false, false) ≈ expected
         end
     end
 
@@ -81,7 +81,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         uy = zeros(Float64, Nx, Ny)
         is_solid = zeros(Bool, Nx, Ny)
         for j in 1:Ny, i in 1:Nx, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
         end
         f0 = copy(f_in)
 
@@ -119,7 +119,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         for j in 1:Ny, i in 1:Nx
             ρ_ij = 1.0 + 0.05 * exp(-((i - cx0)^2 + (j - cy0)^2) / 8.0)
             for q in 1:9
-                feq = Kraken.equilibrium(D2Q9(), ρ_ij, 0.0, 0.0, q)
+                feq = KrakeNN.equilibrium(D2Q9(), ρ_ij, 0.0, 0.0, q)
                 f_slbm[i, j, q] = feq
                 f_ref[i, j, q]  = feq
             end
@@ -145,7 +145,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         # to machine precision even near the seams.
         Nx, Ny = 16, 16
         # Build a periodic Cartesian mesh manually via build_mesh
-        mesh = Kraken.build_mesh((ξ, η) -> (ξ * Nx, η * Ny);
+        mesh = KrakeNN.build_mesh((ξ, η) -> (ξ * Nx, η * Ny);
                                   Nξ=Nx, Nη=Ny,
                                   periodic_ξ=true, periodic_η=true,
                                   type=:custom)
@@ -157,7 +157,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         for j in 1:Ny, i in 1:Nx
             ρ0 = 1.0 + 0.1 * sin(2π * (i - 1) / Nx) * cos(2π * (j - 1) / Ny)
             for q in 1:9
-                f_in[i, j, q] = Kraken.equilibrium(D2Q9(), ρ0, 0.0, 0.0, q)
+                f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), ρ0, 0.0, 0.0, q)
             end
         end
 
@@ -186,7 +186,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         ρ = ones(Nx, Ny); ux = zeros(Nx, Ny); uy = zeros(Nx, Ny)
         is_solid = zeros(Bool, Nx, Ny)
         for j in 1:Ny, i in 1:Nx, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
         end
         f0 = copy(f_in)
 
@@ -204,7 +204,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
 
     @testset "SLBM + MRT periodic — mass conservation" begin
         Nx, Ny = 16, 16
-        mesh = Kraken.build_mesh((ξ, η) -> (ξ * Nx, η * Ny);
+        mesh = KrakeNN.build_mesh((ξ, η) -> (ξ * Nx, η * Ny);
                                   Nξ=Nx, Nη=Ny,
                                   periodic_ξ=true, periodic_η=true)
         geom = build_slbm_geometry(mesh)
@@ -213,7 +213,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         for j in 1:Ny, i in 1:Nx
             ρ0 = 1.0 + 0.1 * sin(2π * (i - 1) / Nx) * cos(2π * (j - 1) / Ny)
             for q in 1:9
-                f_in[i, j, q] = Kraken.equilibrium(D2Q9(), ρ0, 0.0, 0.0, q)
+                f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), ρ0, 0.0, 0.0, q)
             end
         end
         f_out = similar(f_in)
@@ -242,7 +242,7 @@ using KernelAbstractions: @index, @Const, @kernel, get_backend
         ρ = ones(Float32, Nx, Ny); ux = zeros(Float32, Nx, Ny); uy = zeros(Float32, Nx, Ny)
         is_solid = zeros(Bool, Nx, Ny)
         for j in 1:Ny, i in 1:Nx, q in 1:9
-            f_in[i, j, q] = Kraken.equilibrium(D2Q9(), 1.0f0, 0.0f0, 0.0f0, q)
+            f_in[i, j, q] = KrakeNN.equilibrium(D2Q9(), 1.0f0, 0.0f0, 0.0f0, q)
         end
 
         slbm_bgk_step!(f_out, f_in, ρ, ux, uy, is_solid, geom, 1.0f0)

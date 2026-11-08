@@ -5,9 +5,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_vfs_route_native_2d)
+methods(KrakeNN.run_conservative_tree_vfs_route_native_2d)
 ```
 """
 function run_conservative_tree_vfs_route_native_2d(;
@@ -74,9 +74,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_vfs_mask_adaptive_route_native_2d)
+methods(KrakeNN.run_conservative_tree_vfs_mask_adaptive_route_native_2d)
 ```
 """
 function run_conservative_tree_vfs_mask_adaptive_route_native_2d(;

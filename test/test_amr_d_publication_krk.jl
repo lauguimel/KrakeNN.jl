@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "AMR D publication .krk cases" begin
     case_dir = joinpath(dirname(@__DIR__), "benchmarks", "krk", "amr_d_publication_2d")

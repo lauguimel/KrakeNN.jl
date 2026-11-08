@@ -19,8 +19,8 @@
 # =============================================================================
 
 using Pkg; Pkg.activate(dirname(@__DIR__))
-using Kraken
-using Kraken: fused_trt_libb_v2_step!, compute_drag_libb_mei_2d,
+using KrakeNN
+using KrakeNN: fused_trt_libb_v2_step!, compute_drag_libb_mei_2d,
               precompute_q_wall_cylinder, D2Q9,
               apply_bc_rebuild_2d!, BCSpec2D, ZouHeVelocity, NeqExtrapolationPressure
 using Metal, KernelAbstractions
@@ -73,7 +73,7 @@ fill!(uw_x, zero(T)); fill!(uw_y, zero(T))
 copyto!(u_prof, u_prof_h)
 f_in_h = zeros(T, Nx, Ny, 9)
 for j in 1:Ny, i in 1:Nx, q in 1:9
-    f_in_h[i,j,q] = Kraken.equilibrium(D2Q9(), one(T), u_prof_h[j], zero(T), q)
+    f_in_h[i,j,q] = KrakeNN.equilibrium(D2Q9(), one(T), u_prof_h[j], zero(T), q)
 end
 copyto!(f_in, f_in_h); fill!(f_out, zero(T))
 fill!(ρ, one(T)); fill!(ux, zero(T)); fill!(uy, zero(T))

@@ -222,9 +222,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.reset_conservative_tree_subcycle_ledger_2d!)
+methods(KrakeNN.reset_conservative_tree_subcycle_ledger_2d!)
 ```
 """
 function reset_conservative_tree_subcycle_ledger_2d!(
@@ -241,9 +241,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_subcycle_weights_2d)
+methods(KrakeNN.conservative_tree_subcycle_weights_2d)
 ```
 """
 function conservative_tree_subcycle_weights_2d(ledger::ConservativeTreeSubcycleLedger2D{T}) where T
@@ -267,9 +267,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_subcycle_deposit_coarse_to_fine_face_2d!)
+methods(KrakeNN.conservative_tree_subcycle_deposit_coarse_to_fine_face_2d!)
 ```
 """
 function conservative_tree_subcycle_deposit_coarse_to_fine_face_2d!(
@@ -294,9 +294,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_subcycle_deposit_coarse_to_fine_corner_2d!)
+methods(KrakeNN.conservative_tree_subcycle_deposit_coarse_to_fine_corner_2d!)
 ```
 """
 function conservative_tree_subcycle_deposit_coarse_to_fine_corner_2d!(
@@ -321,9 +321,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_subcycle_accumulate_fine_to_coarse_face_2d!)
+methods(KrakeNN.conservative_tree_subcycle_accumulate_fine_to_coarse_face_2d!)
 ```
 """
 function conservative_tree_subcycle_accumulate_fine_to_coarse_face_2d!(
@@ -347,9 +347,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_subcycle_accumulate_fine_to_coarse_corner_2d!)
+methods(KrakeNN.conservative_tree_subcycle_accumulate_fine_to_coarse_corner_2d!)
 ```
 """
 function conservative_tree_subcycle_accumulate_fine_to_coarse_corner_2d!(
@@ -373,9 +373,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_subcycle_orientation_sums_2d)
+methods(KrakeNN.conservative_tree_subcycle_orientation_sums_2d)
 ```
 """
 function conservative_tree_subcycle_orientation_sums_2d(
@@ -398,9 +398,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_subcycle_total_sums_2d)
+methods(KrakeNN.conservative_tree_subcycle_total_sums_2d)
 ```
 """
 function conservative_tree_subcycle_total_sums_2d(

@@ -3,7 +3,7 @@ using LinearAlgebra
 using Printf
 using Random
 using KernelAbstractions
-using Kraken
+using KrakeNN
 
 # Steady GNF adjoint, CPU
 # KernelAbstractions backend (the kernels are the GPU ones):
@@ -392,8 +392,8 @@ _ga_relerr(a, b) = norm(a .- b) / max(norm(b), 1e-300)
         @test J1 == J0
         @test gnf_velocity_rhs(lin0, gux, guy) == bh
         gu3 = cat(gux, guy; dims=3)
-        @test Kraken._gnf_split_gu(gu3) == (gux, guy)
-        @test Kraken._gnf_split_gu((; ux=gux, uy=guy)) == (gux, guy)
+        @test KrakeNN._gnf_split_gu(gu3) == (gux, guy)
+        @test KrakeNN._gnf_split_gu((; ux=gux, uy=guy)) == (gux, guy)
         gsx = copy(gux); gsy = copy(guy)
         gsx[c4.solid] .= 1.0; gsy[c4.solid] .= -1.0
         @test gnf_velocity_rhs(lin0, gsx, gsy) == bh          # g_u ignored at solid nodes

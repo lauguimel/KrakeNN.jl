@@ -46,7 +46,7 @@ modest number of LBM steps (the Wi = 1 transient is what L2 will cover).
 
 ## Driver
 
-Uses the public API `Kraken.run_viscoelastic_logfv_poiseuille_coupled_2d`
+Uses the public API `KrakeNN.run_viscoelastic_logfv_poiseuille_coupled_2d`
 (`src/drivers/viscoelastic_logfv_2d.jl` line 2287). This is the
 production code path for body-force Poiseuille with full pipeline; the run
 returns `ux`, `uy`, `rho`, `ψxx/ψxy/ψyy` (log-conformation), and

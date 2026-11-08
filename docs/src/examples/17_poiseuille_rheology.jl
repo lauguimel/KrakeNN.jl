@@ -71,7 +71,7 @@
 # is passed as a Julia struct; the compiler specialises the kernel for each
 # concrete type.
 
-using Kraken
+using KrakeNN
 
 Nx, Ny = 4, 32
 K   = 0.1
@@ -88,7 +88,7 @@ is_solid = falses(Nx, Ny)
 tau_field = fill(3.0 * K + 0.5, Nx, Ny)   # initial guess for τ
 
 for j in 1:Ny, i in 1:Nx, q in 1:9
-    f_in[i,j,q] = Kraken.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
+    f_in[i,j,q] = KrakeNN.equilibrium(D2Q9(), 1.0, 0.0, 0.0, q)
 end
 copy!(f_out, f_in)
 

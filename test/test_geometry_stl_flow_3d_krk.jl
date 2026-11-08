@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using Test
 
 @testset "Geometry: 3D STL LI-BB flow units twin" begin

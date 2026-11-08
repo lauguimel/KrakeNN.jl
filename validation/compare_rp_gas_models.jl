@@ -11,7 +11,7 @@
 # Usage:
 #   julia --gcthreads=1 --project=. validation/compare_rp_gas_models.jl
 
-using Kraken
+using KrakeNN
 using Printf
 
 # --- Modified Bessel functions I₀, I₁ (polynomial approximation, Abramowitz & Stegun) ---

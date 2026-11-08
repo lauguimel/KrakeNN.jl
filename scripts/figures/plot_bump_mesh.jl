@@ -5,7 +5,7 @@
 # non-regular: same logical (Nξ, Nη), but cell sizes shrink toward
 # the centre of the domain where the cylinder sits.
 using CairoMakie
-using Kraken, Gmsh
+using KrakeNN, Gmsh
 
 const Lx, Ly = 1.0, 0.5
 const cx_p, cy_p, R_p = 0.5, 0.25, 0.025

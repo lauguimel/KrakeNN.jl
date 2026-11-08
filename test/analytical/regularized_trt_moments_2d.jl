@@ -42,7 +42,7 @@
 
 using Test
 using Random
-using Kraken
+using KrakeNN
 
 const _REGTRT_GATE = 1e-13
 const _REGTRT_PARITY_GATE = 1e-14
@@ -54,7 +54,7 @@ _regtrt_m2(f, a, b) = sum(a[q] * b[q] * f[q] for q in 1:9)
 
 function _regtrt_feq(ρ, ux, uy)
     usq = ux * ux + uy * uy
-    return ntuple(q -> Kraken.feq_2d(Val(q), ρ, ux, uy, usq), 9)
+    return ntuple(q -> KrakeNN.feq_2d(Val(q), ρ, ux, uy, usq), 9)
 end
 
 # Equilibrium at a random (ρ, u) plus a random perturbation of every population
@@ -104,7 +104,7 @@ end
     for T in (Float64, Float32)
         gate = _REGTRT_GATE * eps(T) / eps(Float64)
         @testset "_trt_collide_local $T" begin
-            r = _regtrt_residuals(Kraken._trt_collide_local, T)
+            r = _regtrt_residuals(KrakeNN._trt_collide_local, T)
             @test r[:neq_mass] <= gate
             @test r[:neq_mom] <= gate
             @test r[:neq_pi] <= gate
@@ -115,8 +115,8 @@ end
         end
     end
 
-    for (name, collide) in (("ad_trt_regularized_local", Kraken.ad_trt_regularized_local),
-                            ("ad_ve_trt_collide_local", Kraken.ad_ve_trt_collide_local))
+    for (name, collide) in (("ad_trt_regularized_local", KrakeNN.ad_trt_regularized_local),
+                            ("ad_ve_trt_collide_local", KrakeNN.ad_ve_trt_collide_local))
         @testset "$name Float64" begin
             r = _regtrt_residuals(collide, Float64)
             @test r[:neq_mass] <= _REGTRT_GATE
@@ -131,7 +131,7 @@ end
             for _ in 1:500
                 f = _regtrt_state(rng, Float64)
                 s_p = 0.2 + 1.7 * rand(rng); s_m = 0.2 + 1.7 * rand(rng)
-                Fp = Kraken._trt_collide_local(f..., s_p, s_m)
+                Fp = KrakeNN._trt_collide_local(f..., s_p, s_m)
                 Fa = collide(f..., s_p, s_m)
                 worst = max(worst, maximum(abs.(Fa .- Fp)))
             end
@@ -163,7 +163,7 @@ end
     worst = 0.0
     for j in 2:Ny-1, i in 2:Nx-1
         fp = ntuple(q -> f_in[i - _REGTRT_CX[q], j - _REGTRT_CY[q], q], 9)
-        F = Kraken._trt_collide_local(fp..., sp[i, j], sm[i, j])
+        F = KrakeNN._trt_collide_local(fp..., sp[i, j], sm[i, j])
         worst = max(worst, maximum(abs(f_out[i, j, q] - F[q]) for q in 1:9))
     end
     @test worst <= _REGTRT_PARITY_GATE

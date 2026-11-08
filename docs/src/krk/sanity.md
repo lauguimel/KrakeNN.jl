@@ -44,7 +44,7 @@ Reynolds number and refine the grid (higher `N` → larger `L_ref` → larger
 
 The textbook LBM compressibility bound is `U_ref ≤ 0.1` in lattice units
 (Krüger et al. 2017). In Mach-number space this is
-`Ma = U_ref / cs ≤ 0.1·√3 ≈ 0.173`, **not** `Ma ≤ 0.1`. Kraken compares
+`Ma = U_ref / cs ≤ 0.1·√3 ≈ 0.173`, **not** `Ma ≤ 0.1`. KrakeNN compares
 `U_ref` against `0.1` directly to avoid a false-positive that would fire on
 every default case where `U_ref` falls back to exactly `0.1`.
 

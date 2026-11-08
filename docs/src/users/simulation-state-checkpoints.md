@@ -1,6 +1,6 @@
 # Simulation state and checkpoints
 
-Kraken has a **solver-agnostic contract for resumable simulation state**: a
+KrakeNN has a **solver-agnostic contract for resumable simulation state**: a
 common way, shared by every solver that adopts it, to carry a run forward in
 memory, save it to a file, and load it back. This page explains what that
 contract is for, what it lets you do today, and what it does not do yet.
@@ -57,14 +57,14 @@ field value. The contract has a dedicated verb for this,
 
 - **Saving or restoring the electroconvection state to a file, or changing a
   parameter on a restored `ECState`.** The client hooks a solver must add to
-  support this — `Kraken.snapshot`, `restore_state`, `update_parameter!` — are
+  support this — `KrakeNN.snapshot`, `restore_state`, `update_parameter!` — are
   not implemented for `ECState` yet.
   Calling [`export_state`](@ref) or [`save_checkpoint`](@ref) on an `ECState`
   throws.
 - **Restarting a run from a `.krk` configuration file.** The `.krk` runner does
   not know about checkpoints yet; resuming is only reachable from Julia code
   today.
-- **Any solver other than electroconvection.** No other Kraken solver
+- **Any solver other than electroconvection.** No other KrakeNN solver
   implements the state contract yet.
 - **Restoring a checkpoint onto a different grid, a different floating-point
   precision, or a different backend (CPU ↔ GPU) than the one it was written
@@ -79,7 +79,7 @@ every 3rd cycle; the split point (cycle 4) is deliberately **not** a multiple
 of 3, to make the point below concrete.
 
 ```julia
-using Kraken
+using KrakeNN
 
 cfg = (Nx=8, Ny=12, T=175.0, C=10.0, M=10.0, Ma_E=1e-2, alpha=1e-4,
        history_interval=3)
@@ -162,11 +162,11 @@ stores bumps the second.
 ### Inspect a file
 
 [`checkpoint_info`](@ref) reads the root attributes only — solver name,
-schema and container versions, cycle, the Kraken and Julia versions that wrote
+schema and container versions, cycle, the KrakeNN and Julia versions that wrote
 the file, and the write timestamp — without touching any array:
 
 ```julia
-using Kraken
+using KrakeNN
 
 snap = StateSnapshot(
     solver="toy_doc_example", schema_version=1, cycle=42,
@@ -192,7 +192,7 @@ which prints:
 
 ### Read it from Python
 
-`h5py` opens a Kraken checkpoint directly — no Kraken or Julia installation
+`h5py` opens a KrakeNN checkpoint directly — no KrakeNN or Julia installation
 needed. Two things differ from what a Julia array of the same shape shows:
 
 - **Index order is reversed.** Julia stores arrays column-major (the first
@@ -277,20 +277,20 @@ worked example of every one of them — read it alongside this checklist.
    the same histories as running it continuously.
 3. **`solution(state)`** — return the queryable result as an
    `AbstractSolution`, without mutating `state`.
-4. **`Kraken.snapshot(state)`** — copy everything needed to resume into a
+4. **`KrakeNN.snapshot(state)`** — copy everything needed to resume into a
    `StateSnapshot`, sorting your state into `fields`, `series`, `scalars`,
    and the three configuration classes `identity`/`run_control`/`parameters`.
 5. **`restore_state(::Type{YourState}, snap; backend, kwargs...)`** — rebuild
    a state from a snapshot. Call `check_compatible` and (if you wrote one)
-   `Kraken.validate_snapshot` **before allocating anything**, so a refused
+   `KrakeNN.validate_snapshot` **before allocating anything**, so a refused
    snapshot costs nothing.
-6. **`Kraken.at_boundary(state)`** — override this only if `advance!` can be
+6. **`KrakeNN.at_boundary(state)`** — override this only if `advance!` can be
    interrupted mid-cycle (e.g. by a caught exception): return `true` exactly
    when `state` sits between two cycles. [`export_state`](@ref) refuses to
    checkpoint a state that is not at a boundary, so a checkpoint is never
    written from a half-finished cycle. Your `advance!` (even for `n == 0`)
    and `solution` must refuse such a state too, by calling
-   `Kraken.require_boundary(state, "advance!")` / `Kraken.require_boundary(state, "solution")`
+   `KrakeNN.require_boundary(state, "advance!")` / `KrakeNN.require_boundary(state, "solution")`
    as their first statement: it throws an `ArgumentError` and leaves the
    state untouched, so the only way forward is a fresh state or a restore
    from a known-good checkpoint. The default is `true`, which is
@@ -299,7 +299,7 @@ worked example of every one of them — read it alongside this checklist.
    run, declare them with **`updatable_parameters(::Type{YourState})`**
    (a `ParameterSpace`, the same object `fit` consumes) and implement
    **`update_parameter!(state, name, value)`**, starting with
-   `Kraken.check_updatable`.
+   `KrakeNN.check_updatable`.
 
 Once these are in place, the rule is: **your client must pass
 `run_state_contract_suite`** (`test/platform/state_contract_suite.jl`). It

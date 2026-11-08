@@ -26,13 +26,13 @@
 module KrakenADOutletFDCheck
 
 using Test
-using Kraken
+using KrakeNN
 using Enzyme
 using Random
 using LinearAlgebra
 using KernelAbstractions: CPU
 
-const K = Kraken
+const K = KrakeNN
 
 function _case()
     Nx, Ny = 28, 12

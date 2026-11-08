@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 using Statistics
@@ -225,7 +225,7 @@ function run_cartesian_libb_case(cfg, backend_info, deff_target)
     f_h = zeros(T, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
         u = is_solid_h[i, j] ? zero(T) : profile_h[j]
-        f_h[i, j, q] = T(Kraken.equilibrium(D2Q9(), one(T), u, zero(T), q))
+        f_h[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), one(T), u, zero(T), q))
     end
 
     q_wall = allocate_copy(backend, T, q_wall_h)
@@ -444,7 +444,7 @@ function write_summary_md(path, rows, cfg)
             println(io, "| $(r.method) | $(r.resolution) | $(fmt4(r.D_eff)) | $(r.nodes) | $(fmt6(r.Cd)) | $(fmt6(r.Cd_abs_error)) | $(fmt6(r.Cl)) | $(fmt6(r.Cl_abs_error)) | $(fmt4(r.rho_min))-$(fmt4(r.rho_max)) | $(fmt3(r.elapsed_s))s |")
         end
         println(io)
-        println(io, "For lift, `Cl_abs_error_flipped` is also written in the CSV to detect a force-sign convention mismatch; the Markdown table reports the native Kraken sign.")
+        println(io, "For lift, `Cl_abs_error_flipped` is also written in the CSV to detect a force-sign convention mismatch; the Markdown table reports the native KrakeNN sign.")
         println(io)
         println(io, "This table is useful only if the force histories are temporally settled over the averaging window. Check the companion history CSV before using the errors as paper numbers.")
     end

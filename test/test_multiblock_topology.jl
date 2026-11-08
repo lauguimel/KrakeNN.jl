@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Multi-block topology (v0.3 Phase A.1)" begin
 

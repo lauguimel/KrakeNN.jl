@@ -125,7 +125,7 @@ the faithful wall-node NEE charge update matches the diffusion-free base state.
 
 Potential solve (`phi_scheme = :lbm`): each step iterates the DDF until a check
 accepts, or raises after `phi_max_iter` iterations. The check runs after every
-iteration (`Kraken.EHD_HYDROSTATIC_PHI_CHECK_EVERY = 1`) and accepts when the
+iteration (`KrakeNN.EHD_HYDROSTATIC_PHI_CHECK_EVERY = 1`) and accepts when the
 potential changed by at most `phi_tol` (relative, over the last iteration) and the
 field by at most `field_tol`. The field change is the change of `E` since the
 previous check, relative to `max(max|E|, E_ref)`, with

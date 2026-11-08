@@ -8,7 +8,7 @@
 #
 # Run: julia --project=docs docs/export_downloads_reversed_vortex.jl
 
-using Kraken
+using KrakeNN
 
 const OUTDIR = joinpath(@__DIR__, "src", "public", "downloads", "reversed_vortex")
 mkpath(OUTDIR)

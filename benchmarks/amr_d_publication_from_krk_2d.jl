@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 
 using Dates
-using Kraken
+using KrakeNN
 using Printf
 
 struct AMRDKrkRow2D

@@ -55,7 +55,7 @@ f_q(\mathbf{x} + \mathbf{e}_q \Delta t, \, t + \Delta t)
 !!! note "Key insight"
     Collision is purely local (each node updates independently) and streaming
     is a simple memory shift. Both operations parallelise trivially on GPUs,
-    which is why Kraken.jl builds on LBM.
+    which is why KrakeNN builds on LBM.
 
 ## Chapman--Enskog analysis
 
@@ -84,12 +84,12 @@ the BGK collision chapter).
 For a comprehensive textbook treatment, see
 [Kruger et al. (2017)](@cite kruger2017lattice).
 
-## Quick look at Kraken.jl
+## Quick look at KrakeNN
 
-Kraken.jl exposes lattice metadata through simple queries:
+KrakeNN exposes lattice metadata through simple queries:
 
 ```julia
-using Kraken
+using KrakeNN
 
 lattice = D2Q9()
 

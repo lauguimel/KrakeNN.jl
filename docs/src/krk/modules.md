@@ -1,6 +1,6 @@
 # Modules
 
-A `Module <name>` directive toggles an optional physics add-on. Kraken's
+A `Module <name>` directive toggles an optional physics add-on. KrakeNN's
 v0.1.0 DSL recognizes two modules:
 
 - `thermal` — couple the LBM to a thermal DDF (double-distribution function).

@@ -1,4 +1,4 @@
-using Kraken, CUDA, KernelAbstractions
+using KrakeNN, CUDA, KernelAbstractions
 
 # ===========================================================================
 # WP-3D-3 — sphere drag in a duct via SLBM 3D on Aqua H100 (CUDA Float64).
@@ -111,9 +111,9 @@ function run_sphere_3d_slbm(; Nx, Ny, Nz, D, x_str=0.0, label,
     f_init = zeros(FT, Nx, Ny, Nz, 19)
     @inbounds for k in 1:Nz, j in 1:Ny, i in 1:Nx, q in 1:19
         if is_solid_h[i,j,k]
-            f_init[i,j,k,q] = FT(Kraken.equilibrium(D3Q19(), 1.0, 0.0, 0.0, 0.0, q))
+            f_init[i,j,k,q] = FT(KrakeNN.equilibrium(D3Q19(), 1.0, 0.0, 0.0, 0.0, q))
         else
-            f_init[i,j,k,q] = FT(Kraken.equilibrium(D3Q19(), 1.0,
+            f_init[i,j,k,q] = FT(KrakeNN.equilibrium(D3Q19(), 1.0,
                                                      Float64(u_prof_h[j,k]),
                                                      0.0, 0.0, q))
         end

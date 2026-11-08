@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "Guo convention pairs (isothermal 2D)" begin
     # Periodic-box analytical: u_phys(N) = gx * N from rest.

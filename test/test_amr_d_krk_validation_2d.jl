@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 @testset "AMR D .krk validation helpers" begin
     convergence_dir = joinpath(dirname(@__DIR__), "benchmarks", "krk",

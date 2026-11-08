@@ -5,14 +5,14 @@
 #
 #   KRAKEN_REQUIRE_GPU=1 julia --project=<env> benchmarks/fv_c1/c1_gpu.jl
 #
-# <env> holds Kraken (dev'd by path), CUDA, ForwardDiff, KernelAbstractions, Test.
+# <env> holds KrakeNN (dev'd by path), CUDA, ForwardDiff, KernelAbstractions, Test.
 using CUDA
 using Test, LinearAlgebra, Random, Printf, ForwardDiff
-using Kraken
+using KrakeNN
 
 println("CUDA.functional() = ", CUDA.functional())
 CUDA.functional() || error("CUDA not functional")
-println("GPU: ", CUDA.name(CUDA.device()), "  CUDA.jl ", pkgversion(CUDA), "  Kraken ", pkgversion(Kraken))
+println("GPU: ", CUDA.name(CUDA.device()), "  CUDA.jl ", pkgversion(CUDA), "  KrakeNN ", pkgversion(KrakeNN))
 const TA = joinpath(@__DIR__, "..", "..", "test", "analytical")
 
 @testset "C1 GPU receipts" begin

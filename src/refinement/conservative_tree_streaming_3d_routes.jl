@@ -392,9 +392,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_composite_routes_periodic_x_F_3d!)
+methods(KrakeNN.stream_composite_routes_periodic_x_F_3d!)
 ```
 """
 function stream_composite_routes_periodic_x_F_3d!(
@@ -416,9 +416,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations. The bang suffix indicates that one or more array arguments are updated in-place.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.stream_composite_routes_periodic_x_wall_yz_F_3d!)
+methods(KrakeNN.stream_composite_routes_periodic_x_wall_yz_F_3d!)
 ```
 """
 function stream_composite_routes_periodic_x_wall_yz_F_3d!(

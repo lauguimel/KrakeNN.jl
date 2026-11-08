@@ -2,7 +2,7 @@
 
 using CairoMakie
 using Dates
-using Kraken
+using KrakeNN
 using Printf
 
 include(joinpath(@__DIR__, "amr_d_quicklook_from_krk_2d.jl"))

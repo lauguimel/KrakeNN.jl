@@ -21,7 +21,7 @@
 # modified Bessel functions of the first kind.  Maximum growth occurs at
 # ``kR_0 \approx 0.697``, corresponding to ``\lambda \approx 9.01\, R_0``.
 #
-# This is the most physically complex test in the Kraken.jl validation suite:
+# This is the most physically complex test in the KrakeNN validation suite:
 # it combines **axisymmetric LBM**, **CLSVOF interface tracking**, and
 # **surface tension with azimuthal curvature** --- all in a single 2D
 # simulation.
@@ -67,7 +67,7 @@
 #
 # ### CLSVOF hybrid force
 #
-# For this test, Kraken.jl uses the **CLSVOF hybrid force** model, which
+# For this test, KrakeNN uses the **CLSVOF hybrid force** model, which
 # combines the best aspects of both interface representations:
 #
 # - **Level-set curvature** ``\kappa = \nabla \cdot (\nabla\phi / |\nabla\phi|)``
@@ -106,7 +106,7 @@
 # VOF advection with LS redistanciation, hybrid surface tension force with
 # azimuthal curvature, and Li *et al.* (2010) axisymmetric collision.
 
-using Kraken
+using KrakeNN
 
 R0 = 20
 λ_ratio = 4.5

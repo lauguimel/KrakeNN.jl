@@ -135,7 +135,7 @@ validation. No globals.
 ## Touch order
 
 1. `src/methods/inc_ns/fv_adjoint.jl` — maps, objectives, kernels, drivers.
-2. `src/Kraken.jl` (exports), `src/platform/contract.jl` (`AssembledJacobian`),
+2. `src/KrakeNN.jl` (exports), `src/platform/contract.jl` (`AssembledJacobian`),
    `src/methods/inc_ns/method.jl` (capabilities).
 3. `test/analytical/incns_fv_adjoint.jl` — dense-dual parity, Taylor FD,
    tangent, factor reuse, Stokes identities, GNF preservation and gradients,

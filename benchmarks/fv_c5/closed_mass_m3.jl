@@ -6,7 +6,7 @@
 # Measured baseline: 2026-11-05, macOS arm64, Julia 1.12.5, CPU Float64.
 # CSV files are generated beside this script. Historical M1 is closed_mass.csv
 # (regenerate with KRAKEN_WRITE_C5_MASS_EVIDENCE=true and the M1 test file).
-using Test, Kraken
+using Test, KrakeNN
 ENV["KRAKEN_WRITE_C5_M3_EVIDENCE"] = "true"
 root = normpath(joinpath(@__DIR__,"..",".."))
 for stage in ("algebra","adjoint","convergence")

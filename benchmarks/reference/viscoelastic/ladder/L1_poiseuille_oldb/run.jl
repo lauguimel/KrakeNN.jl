@@ -17,7 +17,7 @@ using KernelAbstractions
 using Printf
 using CairoMakie
 
-using Kraken
+using KrakeNN
 
 const HERE = @__DIR__
 
@@ -191,7 +191,7 @@ function tau_from_psi_cpu(psixx, psixy, psiyy, prefactor)
     tau_xy = similar(psixy)
     tau_yy = similar(psiyy)
     for j in 1:Ny, i in 1:Nx
-        cxx, cxy, cyy = Kraken.logfv_exp_sym2_2d(psixx[i, j], psixy[i, j], psiyy[i, j])
+        cxx, cxy, cyy = KrakeNN.logfv_exp_sym2_2d(psixx[i, j], psixy[i, j], psiyy[i, j])
         tau_xx[i, j] = prefactor * (cxx - one(eltype(psixx)))
         tau_xy[i, j] = prefactor * cxy
         tau_yy[i, j] = prefactor * (cyy - one(eltype(psixx)))
@@ -244,7 +244,7 @@ function make_diagnostic_plots(out_dir, cfg, result, ana,
 
     # 2. Quiver of velocity field
     fig2 = Figure(size=(800, 500))
-    ax2 = Axis(fig2[1, 1]; title="velocity field (Kraken, scaled)",
+    ax2 = Axis(fig2[1, 1]; title="velocity field (KrakeNN, scaled)",
                xlabel="i (LU)", ylabel="j (LU)")
     # subsample to keep arrows readable
     step_i = max(1, Nx ÷ 8)
@@ -267,10 +267,10 @@ function make_diagnostic_plots(out_dir, cfg, result, ana,
 
     # 3. u(y) centerline profile with analytic overlay
     fig3 = Figure(size=(700, 500))
-    ax3 = Axis(fig3[1, 1]; title="u_x(y): Kraken vs Bird-AH analytic Oldroyd-B",
+    ax3 = Axis(fig3[1, 1]; title="u_x(y): KrakeNN vs Bird-AH analytic Oldroyd-B",
                xlabel="j (LU)", ylabel="u_x (LU)")
     lines!(ax3, j_axis, ana.u_x; color=:black, linestyle=:dash, linewidth=2, label="analytic (BAH §3.4)")
-    scatter!(ax3, j_axis, u_profile; color=:firebrick, markersize=8, label="Kraken (y-averaged)")
+    scatter!(ax3, j_axis, u_profile; color=:firebrick, markersize=8, label="KrakeNN (y-averaged)")
     axislegend(ax3; position=:rb)
     save(joinpath(out_dir, "03_u_profile.png"), fig3)
 
@@ -285,21 +285,21 @@ function make_diagnostic_plots(out_dir, cfg, result, ana,
     axislegend(ax4; position=:rt)
     save(joinpath(out_dir, "04_rho.png"), fig4)
 
-    # 5. tau_xy(y) Kraken vs analytic
+    # 5. tau_xy(y) KrakeNN vs analytic
     fig5 = Figure(size=(700, 500))
-    ax5 = Axis(fig5[1, 1]; title="tau_xy(y): Kraken vs analytic (linear in y)",
+    ax5 = Axis(fig5[1, 1]; title="tau_xy(y): KrakeNN vs analytic (linear in y)",
                xlabel="j (LU)", ylabel="tau_xy (LU)")
     lines!(ax5, j_axis, ana.tau_xy; color=:black, linestyle=:dash, linewidth=2, label="analytic")
-    scatter!(ax5, j_axis, tau_xy_profile; color=:firebrick, markersize=8, label="Kraken (y-averaged)")
+    scatter!(ax5, j_axis, tau_xy_profile; color=:firebrick, markersize=8, label="KrakeNN (y-averaged)")
     axislegend(ax5; position=:rb)
     save(joinpath(out_dir, "05_tau_xy.png"), fig5)
 
-    # 6. tau_xx(y) Kraken vs analytic (first normal stress)
+    # 6. tau_xx(y) KrakeNN vs analytic (first normal stress)
     fig6 = Figure(size=(700, 500))
-    ax6 = Axis(fig6[1, 1]; title="tau_xx(y): Kraken vs analytic N1 = 2 lambda nu_p gamma_dot^2",
+    ax6 = Axis(fig6[1, 1]; title="tau_xx(y): KrakeNN vs analytic N1 = 2 lambda nu_p gamma_dot^2",
                xlabel="j (LU)", ylabel="tau_xx (LU)")
     lines!(ax6, j_axis, ana.tau_xx; color=:black, linestyle=:dash, linewidth=2, label="analytic")
-    scatter!(ax6, j_axis, tau_xx_profile; color=:firebrick, markersize=8, label="Kraken (y-averaged)")
+    scatter!(ax6, j_axis, tau_xx_profile; color=:firebrick, markersize=8, label="KrakeNN (y-averaged)")
     axislegend(ax6; position=:rt)
     save(joinpath(out_dir, "06_tau_xx.png"), fig6)
 
@@ -316,7 +316,7 @@ function main()
 
     @info "L1 Poiseuille Oldroyd-B starting" cfg.Nx cfg.Ny cfg.nu_s cfg.nu_p cfg.lambda cfg.Fx_body cfg.max_steps tag
     t0 = time()
-    result = Kraken.run_viscoelastic_logfv_poiseuille_coupled_2d(;
+    result = KrakeNN.run_viscoelastic_logfv_poiseuille_coupled_2d(;
         Nx=cfg.Nx,
         Ny=cfg.Ny,
         nu_s=cfg.nu_s,

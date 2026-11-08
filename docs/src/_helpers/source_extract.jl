@@ -1,7 +1,7 @@
 """
     source_extract.jl
 
-JuliaSyntax-based source code extraction helpers for the Kraken.jl
+JuliaSyntax-based source code extraction helpers for the KrakeNN
 living documentation. Used by Phases 4.2-4.6 to embed real source code
 from `src/` into Literate.jl pages, keeping theory/code synchronized.
 """

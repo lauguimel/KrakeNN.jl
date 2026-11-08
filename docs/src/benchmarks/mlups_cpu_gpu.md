@@ -4,7 +4,7 @@ EditURL = "mlups_cpu_gpu.jl"
 
 # Performance benchmark: MLUPs
 
-This page measures the throughput of Kraken's 2D lid-driven cavity solver in
+This page measures the throughput of KrakeNN's 2D lid-driven cavity solver in
 **Mega Lattice Updates Per Second** (MLUPs), the standard metric for LBM codes.
 
 ```math
@@ -17,7 +17,7 @@ Metal or CUDA backend is available.
 ## Setup
 
 ```julia
-using Kraken
+using KrakeNN
 using CairoMakie
 using Printf
 ```
@@ -88,7 +88,7 @@ end
 
 ## GPU benchmark (optional)
 
-Kraken uses KernelAbstractions.jl, so the same `run_cavity_2d` works on
+KrakeNN uses KernelAbstractions.jl, so the same `run_cavity_2d` works on
 Metal (Apple Silicon) or CUDA (NVIDIA) backends.  If neither is available
 the GPU section is silently skipped.
 
@@ -144,7 +144,7 @@ end
 ```julia
 fig = Figure(size=(700, 400))
 ax  = Axis(fig[1, 1];
-    title  = "Kraken.jl — LBM throughput (D2Q9 lid-driven cavity)",
+    title  = "KrakeNN — LBM throughput (D2Q9 lid-driven cavity)",
     xlabel = "Grid size N×N",
     ylabel = "MLUPs",
     xticks = (1:length(grid_sizes), string.(grid_sizes)),

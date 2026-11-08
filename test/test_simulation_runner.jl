@@ -1,13 +1,13 @@
 using Test
 using Logging
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 
 """Best-effort local CUDA functional check for the Backend-directive tests
 below — mirrors what `_backend_from_krk_symbol` does, without depending on
-CUDA being `using`'d in this test file (it is a Kraken dependency but not
+CUDA being `using`'d in this test file (it is a KrakeNN dependency but not
 eagerly loaded)."""
 function CUDA_functional_here()
     try
@@ -258,8 +258,8 @@ end
             Run 10 steps
         """)
         # Promote to D3Q19 with a small 3D domain.
-        dom3 = Kraken.DomainSetup(8, 8, 8, 1.0, 1.0, 1.0)
-        setup_3d = Kraken.SimulationSetup(
+        dom3 = KrakeNN.DomainSetup(8, 8, 8, 1.0, 1.0, 1.0)
+        setup_3d = KrakeNN.SimulationSetup(
             "cavity_3d", :D3Q19, dom3, setup_2d.physics,
             setup_2d.user_vars, setup_2d.regions, setup_2d.boundaries,
             setup_2d.initial, setup_2d.modules, 10,
@@ -284,10 +284,10 @@ end
             Run 50 steps
         """)
         # Inject :axisymmetric module and rename Fx → Fz via body_force.
-        bf = Dict{Symbol, Kraken.KrakenExpr}()
-        bf[:Fz] = Kraken.parse_kraken_expr("1e-5", Dict{Symbol,Float64}())
-        physics_axi = Kraken.PhysicsSetup(setup_base.physics.params, bf)
-        setup_axi = Kraken.SimulationSetup(
+        bf = Dict{Symbol, KrakeNN.KrakenExpr}()
+        bf[:Fz] = KrakeNN.parse_kraken_expr("1e-5", Dict{Symbol,Float64}())
+        physics_axi = KrakeNN.PhysicsSetup(setup_base.physics.params, bf)
+        setup_axi = KrakeNN.SimulationSetup(
             "hagen_poiseuille", :D2Q9, setup_base.domain, physics_axi,
             setup_base.user_vars, setup_base.regions, setup_base.boundaries,
             setup_base.initial, [:axisymmetric], 50,

@@ -10,9 +10,9 @@
 #
 # Asserts: runs NaN-free AND returns a finite drag Cd.
 
-using Kraken, Printf
+using KrakeNN, Printf
 
-backend = Kraken.KernelAbstractions.CPU()
+backend = KrakeNN.KernelAbstractions.CPU()
 FT = Float64
 
 R_s = 4

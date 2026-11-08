@@ -1,7 +1,7 @@
 # Diagnose (D) cylinder_focused NaN locally on CPU F64.
 # Replicate the Aqua driver pipeline at small D to see where NaN appears.
 
-using Kraken, KernelAbstractions
+using KrakeNN, KernelAbstractions
 
 const T = Float64
 const backend = KernelAbstractions.CPU()
@@ -59,7 +59,7 @@ u_prof = fill(T(u_max), Ny)
 f_in = zeros(T, Nx, Ny, 9)
 for j in 1:Ny, i in 1:Nx, q in 1:9
     u = is_solid[i, j] ? 0.0 : Float64(u_max)
-    f_in[i, j, q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+    f_in[i, j, q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
 end
 f_out = similar(f_in); fill!(f_out, 0)
 ρ = ones(T, Nx, Ny); ux = zeros(T, Nx, Ny); uy = zeros(T, Nx, Ny)

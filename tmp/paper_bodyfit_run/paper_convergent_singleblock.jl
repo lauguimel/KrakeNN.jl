@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using Gmsh
 using KernelAbstractions
 using LinearAlgebra

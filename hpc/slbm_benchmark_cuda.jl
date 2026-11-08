@@ -1,5 +1,5 @@
-using Kraken, CUDA, KernelAbstractions
-using Kraken: LBMSpec, PullSLBM, SolidInert, ApplyLiBBPrePhase,
+using KrakeNN, CUDA, KernelAbstractions
+using KrakeNN: LBMSpec, PullSLBM, SolidInert, ApplyLiBBPrePhase,
               Moments, CollideTRTDirect, WriteMoments, build_lbm_kernel
 
 # ===========================================================================
@@ -50,7 +50,7 @@ function run_st(; Nx, Ny, x_str=0.0, y_str=0.0, label, steps=80_000)
     ρ = CuArray(ones(FT, Nx, Ny)); ux = CuArray(zeros(FT, Nx, Ny)); uy = similar(ux)
     f_init = zeros(FT, Nx, Ny, 9)
     for j in 1:Ny, i in 1:Nx, q in 1:9
-        f_init[i,j,q] = FT(Kraken.equilibrium(D2Q9(), 1.0, Float64(u_prof_h[min(j,Ny)]), 0.0, q))
+        f_init[i,j,q] = FT(KrakeNN.equilibrium(D2Q9(), 1.0, Float64(u_prof_h[min(j,Ny)]), 0.0, q))
     end
     copyto!(f_in, f_init)
 

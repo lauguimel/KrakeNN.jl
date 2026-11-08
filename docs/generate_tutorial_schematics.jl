@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 # generate_tutorial_schematics.jl — boundary-condition schematics for the 4
-# user tutorials. Self-contained (NO Kraken, NO simulations): it only includes
+# user tutorials. Self-contained (NO KrakeNN, NO simulations): it only includes
 # the bc_schematic.jl helper and renders 4 SVGs next to the tutorial .md pages,
 # mirroring how the example geometry SVGs sit beside their pages.
 #

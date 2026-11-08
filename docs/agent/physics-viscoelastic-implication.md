@@ -32,7 +32,7 @@ injects the polymer-stress divergence back into a Guo-forced BGK step.
 
 ## Public surface
 
-All names are `export`ed from `Kraken.jl` (so usable bare after `using Kraken`).
+All names are `export`ed from `Kraken.jl` (so usable bare after `using KrakeNN`).
 Grouped by source file:
 
 - **Model hierarchy** (`src/rheology/models.jl`): abstract roots `AbstractRheology`,

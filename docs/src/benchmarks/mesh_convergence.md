@@ -18,7 +18,7 @@ On a log-log plot, the error should follow a line of slope ``-2``.
 ## Setup
 
 ```julia
-using Kraken
+using KrakeNN
 using CairoMakie
 using Printf
 ```

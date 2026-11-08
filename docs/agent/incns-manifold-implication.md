@@ -17,7 +17,7 @@ The second black-box staging rung for steady incompressible SIMPLE: localized
 west/east velocity inlets, localized pressure-reference outlets, and full-cell
 immersed solid plates. It keeps the cavity convention for collocated fields and
 returns face velocities for scalar-transport handoff. **Registered in
-`src/Kraken.jl`** and exported (`solve_incns_manifold`,
+`src/KrakeNN.jl`** and exported (`solve_incns_manifold`,
 `manifold_full_cell_mask`); also reachable as
 `solve(params, IncNS(:manifold))` (`src/methods/inc_ns/method.jl`).
 

@@ -7,7 +7,7 @@
 #   C4_BENCH_CPU=1 julia --project benchmarks/fv_c4/c4_gpu.jl   (CPU smoke run,
 #       32² and 64², UMFPACK, no CUDA needed, test files skipped)
 #
-# <env> holds Kraken (dev'd by path), CUDA 6, CUDSS 1 (transposed solve needs
+# <env> holds KrakeNN (dev'd by path), CUDA 6, CUDSS 1 (transposed solve needs
 # CUDSS.jl >= 1.0), ForwardDiff, KernelAbstractions, Test. Per case: Newton
 # wall time and iterations; per parameter map (uniform ν, lid speed, ν field)
 # and objective (lid drag, u-profile misfit): the first gradient (finalize =
@@ -25,12 +25,12 @@ if !CPU
     using CUDSS
 end
 using Test, LinearAlgebra, Random, Printf, Statistics
-using Kraken
+using KrakeNN
 const TA = joinpath(@__DIR__, "..", "..", "test", "analytical")
 include(joinpath(TA, "fv_newton_helpers.jl"))
 CPU || println("GPU: ", CUDA.name(CUDA.device()), "  CUDA.jl ", pkgversion(CUDA), "  CUDSS.jl ",
-               pkgversion(CUDSS), "  Kraken ", pkgversion(Kraken), "  threads ", Threads.nthreads())
-CPU && println("CPU smoke run, Kraken ", pkgversion(Kraken), ", threads ", Threads.nthreads())
+               pkgversion(CUDSS), "  KrakeNN ", pkgversion(KrakeNN), "  threads ", Threads.nthreads())
+CPU && println("CPU smoke run, KrakeNN ", pkgversion(KrakeNN), ", threads ", Threads.nthreads())
 
 const STATUS = Ref(0)
 if !CPU
@@ -54,20 +54,20 @@ CPU ? (devalloc(f) = -1) : @eval(devalloc(f) = CUDA.@allocated f())
 gib(x) = x / 2^30
 
 function allocation_phases(s, U, θ, obj, m, ws)
-    hp = Kraken._fv_host_problem(s.prob)
+    hp = KrakeNN._fv_host_problem(s.prob)
     Uh = Vector{Float64}(Array(U))
-    _, gU = Kraken._fv_objective_grad_u(obj, Uh, hp)
+    _, gU = KrakeNN._fv_objective_grad_u(obj, Uh, hp)
     θh = m isa FVViscosityField ? vec(hp.nu) : Vector{Float64}(θ)
     phases = (
-        ("signature", () -> Kraken._fv_state_sig(s.norms, 0.0, U)),
-        ("host copies", () -> (Kraken._fv_host_problem(s.prob), Array(U))),
-        ("objective", () -> Kraken._fv_objective_grad_u(obj, Uh, hp)),
+        ("signature", () -> KrakeNN._fv_state_sig(s.norms, 0.0, U)),
+        ("host copies", () -> (KrakeNN._fv_host_problem(s.prob), Array(U))),
+        ("objective", () -> KrakeNN._fv_objective_grad_u(obj, Uh, hp)),
         ("RHS copy", () -> copyto!(ws.g, gU)),
         ("transpose", () -> lin_solve!(ws.λ, s.cache, ws.g; transpose = true)),
-        ("cotangent", () -> Kraken._fv_param_cotangent!(ws, m, s, U, θ)),
+        ("cotangent", () -> KrakeNN._fv_param_cotangent!(ws, m, s, U, θ)),
         ("residual", () -> fv_residual!(s.R, U, s.prob)),
-        ("norms", () -> Kraken._fv_norms(s.norms, s.R)),
-        ("explicit", () -> Kraken._fv_objective_grad_theta(obj, m, Uh, hp, θh)))
+        ("norms", () -> KrakeNN._fv_norms(s.norms, s.R)),
+        ("explicit", () -> KrakeNN._fv_objective_grad_theta(obj, m, Uh, hp, θh)))
     for (name, f) in phases
         sync()
         bytes = devalloc(f)

@@ -20,11 +20,11 @@ per-node buoyancy body force `Fy = β_g·(T − T_ref)` back into the flow popul
 anti-bounce-back Dirichlet temperature walls, and the fused single-launch natural
 convection step. Validated M7: de Vahl Davis differentially-heated cavity Ra=1e3
 Nu ≈ 1.118 within <10% at N=64 (`test/test_thermal.jl`). The compile-time
-non-dim ⇄ LU half lives in `Kraken.Units` (`ThermalBoussinesqSpec`).
+non-dim ⇄ LU half lives in `KrakeNN.Units` (`ThermalBoussinesqSpec`).
 
 ## Public surface
 
-Exported into `Kraken` (driver entry points, see `src/Kraken.jl`):
+Exported into `Kraken` (driver entry points, see `src/KrakeNN.jl`):
 
 - `run_natural_convection_2d(; N, Ra, Pr, Rc=1.0, T_hot, T_cold, max_steps, backend, FT) -> NamedTuple` — differentially-heated square cavity (hot west / cold east, adiabatic top/bottom). Uses the fused kernel; returns `(ρ, ux, uy, Temp, Nu, …)`. `Rc>1` switches to temperature-dependent viscosity.
 - `run_rayleigh_benard_2d(; Nx, Ny, Ra, Pr, T_hot, T_cold, max_steps, backend, FT) -> NamedTuple` — hot-bottom / cold-top, periodic-x; uses the unfused step kernels.
@@ -41,7 +41,7 @@ Kernel-level surface (de-facto public, called by the drivers and by refinement c
 - `apply_fixed_temp_{south,north,west,east}_2d!(g, T_wall, …)` — anti-bounce-back Dirichlet temperature walls.
 - `fused_natconv_step!` / `fused_natconv_vt_step!` (`fused_thermal_2d.jl`) — one GPU launch per step: stream + thermal BC + macroscopic + both collisions.
 - 3D mirrors: `collide_thermal_3d!`, `collide_boussinesq_3d!`, `compute_temperature_3d!`, `apply_fixed_temp_{west,east}_3d!` (`thermal_3d.jl`).
-- Units side: `Kraken.Units.ThermalBoussinesqSpec{T}(Re, Pr, Ra)` and its `nondim_to_lu` / `lu_to_nondim` (`src/units/physics/thermal.jl`); registered under physics symbol `:thermal_boussinesq` (params `Re, Pr, Ra`).
+- Units side: `KrakeNN.Units.ThermalBoussinesqSpec{T}(Re, Pr, Ra)` and its `nondim_to_lu` / `lu_to_nondim` (`src/units/physics/thermal.jl`); registered under physics symbol `:thermal_boussinesq` (params `Re, Pr, Ra`).
 
 ## Reads from
 

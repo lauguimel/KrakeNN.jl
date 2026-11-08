@@ -38,7 +38,7 @@
 #
 # ## Run and post-process
 
-using Kraken
+using KrakeNN
 using CairoMakie
 
 krk = joinpath(@__DIR__, "..", "..", "..", "examples", "couette.krk")

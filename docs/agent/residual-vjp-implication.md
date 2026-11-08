@@ -27,7 +27,7 @@ as thin delegations to the validated CPU-Float64 AD seams. Zero new numerics.
 - `src/ad/ad_thermal_step.jl`: `ad_thermal_cut_step!` (thermal coupled G).
 - `src/ad/ad_ve_step.jl`: `ad_ve_coupled_step!` (VE coupled G).
 - `src/ad/ad_api.jl`: `_ad_vjp_GtT`, `_ad_thermal_vjp_GtT`, `_ad_ve_vjp_GtT` (Enzyme stubs; throw without Enzyme).
-- `ext/KrakenADExt.jl`: provides the Enzyme implementations of the VJP stubs (loaded as a weak dependency).
+- `ext/KrakeNNADExt.jl`: provides the Enzyme implementations of the VJP stubs (loaded as a weak dependency).
 - `src/platform/contract.jl`: `AbstractMethod`, `Capability`, `LBM`.
 
 ## Writes to
@@ -49,7 +49,7 @@ CPU-Float64 only at this rung. `ad_step!`, `ad_thermal_cut_step!`, and `ad_ve_co
 1. `src/platform/residual.jl` — param structs + dispatches.
 2. `src/platform/contract.jl` — +1 line `SteadyResidual` to `@enum Capability`.
 3. `src/platform/solution.jl` — +1 `SteadyResidual` to `capabilities(::LBM)`.
-4. `src/Kraken.jl` — include + export.
+4. `src/KrakeNN.jl` — include + export.
 5. `test/platform/residual_vjp_test.jl` — Enzyme-free + Enzyme-gated tests.
 6. `test/runtests.jl` — +1 include.
 
@@ -62,7 +62,7 @@ CPU-Float64 only at this rung. `ad_step!`, `ad_thermal_cut_step!`, and `ad_ve_co
 
 ### New private symbols
 - `ad_step_nu!(out, f, q_wall, is_solid, u_profile, rho_out, ν, Nx, Ny)` — Enzyme-diffable wrapper: calls `ad_trt_rates_inline(ν)` then `ad_step!`. Target for `Active(ν)` Enzyme differentiation.
-- `_ad_pvjp_nu(f_star, lambda, p::LBMScalarParams) -> Float64` — Enzyme Reverse over `ad_step_nu!` with `Active(ν)`; returns dL/dν scalar cotangent. Impl in `ext/KrakenADExt.jl`.
+- `_ad_pvjp_nu(f_star, lambda, p::LBMScalarParams) -> Float64` — Enzyme Reverse over `ad_step_nu!` with `Active(ν)`; returns dL/dν scalar cotangent. Impl in `ext/KrakeNNADExt.jl`.
 
 ### ν chain
 - ν → (s_plus, s_minus) via `ad_trt_rates_inline` (exact inline formula, no residual).
@@ -72,8 +72,8 @@ CPU-Float64 only at this rung. `ad_step!`, `ad_thermal_cut_step!`, and `ad_ve_co
 - `src/platform/residual.jl` — +LBMScalarParams struct, +2 dispatches.
 - `src/ad/ad_step.jl` — +`ad_step_nu!` wrapper.
 - `src/ad/ad_api.jl` — +`_ad_pvjp_nu` stub.
-- `ext/KrakenADExt.jl` — +`_ad_pvjp_nu` impl.
-- `src/Kraken.jl` — +export LBMScalarParams.
+- `ext/KrakeNNADExt.jl` — +`_ad_pvjp_nu` impl.
+- `src/KrakeNN.jl` — +export LBMScalarParams.
 
 ## Phase 2c-1 — Field ν(y) channel (M-P2c-1, 2026-06-13)
 
@@ -110,5 +110,5 @@ CPU-Float64 only at this rung. `ad_step!`, `ad_thermal_cut_step!`, and `ad_ve_co
 - `src/ad/ad_step.jl` — +`ad_bulk_nufield!`, +`ad_apply_zou_he_rebuild_nufield!`, +`ad_step_nufield!`.
 - `src/ad/ad_forward.jl` — +`ad_forward_solve_nufield` (INTERNAL).
 - `src/ad/ad_api.jl` — +`_ad_pvjp_nufield` stub, +`_ad_vjp_GtT_nufield` stub.
-- `ext/KrakenADExt.jl` — +`_ad_pvjp_nufield` impl, +`_ad_vjp_GtT_nufield` impl, +imports.
-- `src/Kraken.jl` — +export `LBMFieldParams`.
+- `ext/KrakeNNADExt.jl` — +`_ad_pvjp_nufield` impl, +`_ad_vjp_GtT_nufield` impl, +imports.
+- `src/KrakeNN.jl` — +export `LBMFieldParams`.

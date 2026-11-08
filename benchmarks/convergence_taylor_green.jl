@@ -1,6 +1,6 @@
 # Taylor-Green vortex decay — convergence study
 # Verifies 2nd-order spatial accuracy via comparison with analytical decay
-using Kraken
+using KrakeNN
 using Printf
 
 function run_taylor_green_convergence()

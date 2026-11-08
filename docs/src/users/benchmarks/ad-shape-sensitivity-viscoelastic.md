@@ -1,6 +1,6 @@
 # Steady Shape Sensitivity — Viscoelastic (AD)
 
-Kraken can compute a cheap steady shape sensitivity of the polymeric drag on a
+KrakeNN can compute a cheap steady shape sensitivity of the polymeric drag on a
 confined Oldroyd-B cylinder, `d(Cd_polymer)/dR`, with respect to the cylinder
 radius. This extends the validated CPU Float64 AD track (cylinder drag `dCd/dR`
 and thermal Nusselt `dNu/dL`, documented on the
@@ -10,7 +10,7 @@ viscoelastic solver. The public entry point is the same
 `qoi=:polymer_drag, wrt=:radius`. The `.krk` surface is the same
 `Sensitivity { ... }` block with `qoi = polymer_drag`.
 
-The result is a derivative of Kraken's own discrete log-conformation operator at
+The result is a derivative of KrakeNN's own discrete log-conformation operator at
 a residual-converged steady state, not a transient tape. The forward solve first
 converges the coupled fixed point on the stacked state `w = (f, psi)`, where `f`
 is the D2Q9 flow distribution and `psi` is the log-conformation tensor,
@@ -69,15 +69,15 @@ exact to the production operator per step, guarded by a permanent anti-drift
 check that compares the inline polymeric-drag QoI against the production
 `compute_polymeric_drag_2d` on the same `(tau, q_wall)` to machine zero.
 
-Enzyme is a weak dependency: `using Kraken` loads the core AD stubs without
-Enzyme, and `using Enzyme` activates `ext/KrakenADExt.jl`, which supplies the
+Enzyme is a weak dependency: `using KrakeNN` loads the core AD stubs without
+Enzyme, and `using Enzyme` activates `ext/KrakeNNADExt.jl`, which supplies the
 reverse passes (`dJ/dw`, the coupled `dG^T . v`, and the `dG/dR` forward-JVP).
 Calling the sensitivity API without loading Enzyme raises a clear error.
 
 ## Julia Example
 
 ```julia
-using Kraken
+using KrakeNN
 using Enzyme
 
 result = steady_shape_sensitivity(;
@@ -149,7 +149,7 @@ Sensitivity { qoi = polymer_drag, wrt = radius }
 Running this file through `run_simulation` dispatches to the same AD API:
 
 ```julia
-using Kraken
+using KrakeNN
 using Enzyme
 
 result = run_simulation("examples/sensitivity_cylinder_polymer.krk")
@@ -182,9 +182,9 @@ floor is therefore the default in `ad_ve_forward_solve` and in the API.
 
 The validated envelope is `Wi <= 1` and `beta >= 0.5`. As with the Newtonian
 cut-link derivative, the reference for differentiating this discrete operator is
-a central finite difference of Kraken's own residual-converged forward solve, not
+a central finite difference of KrakeNN's own residual-converged forward solve, not
 an external code: a finite-volume tool can produce a polymeric drag value but
-cannot differentiate Kraken's LBM/FVFD cut-link operator with respect to `R`.
+cannot differentiate KrakeNN's LBM/FVFD cut-link operator with respect to `R`.
 
 ## Caveats
 

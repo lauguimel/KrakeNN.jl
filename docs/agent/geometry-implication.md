@@ -19,13 +19,13 @@ a small read-only `GeometryDescriptor` summary for the units audit. It is **not 
 Julia submodule**: `geometry/Geometry.jl` is a flat `include` chain
 (`stl_reader → voxelizer → stl_cut_fraction → mask_apply → libb_precompute →
 descriptor`) compiled directly into the `Kraken` top-level by
-`src/Kraken.jl`. Everything here runs once at setup time, never inside the time
+`src/KrakeNN.jl`. Everything here runs once at setup time, never inside the time
 loop.
 
 ## Public surface
 
 The module is included flat into `Kraken`; the descriptor names are `export`ed,
-the rest are de-facto public `Kraken.<name>` helpers called by drivers / the
+the rest are de-facto public `KrakeNN.<name>` helpers called by drivers / the
 runner.
 
 - `read_stl(filename; T=Float64) -> STLMesh{T}` — zero-dependency STL loader

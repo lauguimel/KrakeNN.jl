@@ -23,7 +23,7 @@ export JULIA_NUM_THREADS=1
 julia --project -e 'using Pkg; Pkg.instantiate()' 2>&1
 
 julia --project -e '
-using Kraken, KernelAbstractions, Printf
+using KrakeNN, KernelAbstractions, Printf
 
 N = 512
 Ra = 1e4

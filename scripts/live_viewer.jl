@@ -1,5 +1,5 @@
 # ============================================================================
-# live_viewer.jl — Live VTR field viewer for Kraken.jl simulations
+# live_viewer.jl — Live VTR field viewer for KrakeNN simulations
 # ============================================================================
 #
 # Usage:

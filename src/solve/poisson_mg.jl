@@ -697,7 +697,7 @@ Validation & performance receipts
   * GPU↔CPU parity at machine epsilon (‖Δ‖∞ ~1e-14, same source via the KA
     backend swap).
 
-Registered in `src/Kraken.jl` (exported by `using Kraken`); the file remains
+Registered in `src/KrakeNN.jl` (exported by `using KrakeNN`); the file remains
 standalone-include-able (its guard pulls in `linear_solve.jl` for the backend
 tags when needed).
 """

@@ -20,8 +20,8 @@ using Test
 using LinearAlgebra
 using Random
 using ForwardDiff
-using Kraken
-using Kraken.SparseArrays
+using KrakeNN
+using KrakeNN.SparseArrays
 
 include(joinpath(@__DIR__, "incns_fv_adjoint_compiler.jl"))
 
@@ -102,7 +102,7 @@ _fvc4_dense_cot(p, map, U, θ, λ) =
     # array write. Either can invalidate the existing solver's concrete type.
     oldarrays = Base.map(copy, arrays)
     oldvisc = s.prob.visc
-    for visc in (Kraken.FVNewtonianViscosity(),
+    for visc in (KrakeNN.FVNewtonianViscosity(),
                  FVGNFViscosity(CarreauYasuda(0.1f0, 0.01f0, 2f0, 2f0, 0.6f0), 1f-2))
         incompatible = FVProblemMap((q, t) -> FVSteadyProblem2D(q.grid, q.tag,
             q.nu .+ 1, q.bvel .+ 1, q.src .+ 1, visc), 0)
@@ -198,9 +198,9 @@ for law in (CarreauYasuda(0.1, 0.01, 2.0, 2.0, 0.6),
                 @test all(iszero, r.grad)
                 ru = fv_steady_gradient(s, U, [p.nu[1]], obj; params = FVUniformViscosity())
                 @test all(iszero, ru.grad)
-                @test all(iszero, Kraken._fv_wall_nu_gradient(obj, FVViscosityField(),
+                @test all(iszero, KrakeNN._fv_wall_nu_gradient(obj, FVViscosityField(),
                                                            U, p, vec(p.nu)))
-                @test all(iszero, Kraken._fv_wall_nu_gradient(obj, FVUniformViscosity(),
+                @test all(iszero, KrakeNN._fv_wall_nu_gradient(obj, FVUniformViscosity(),
                                                            U, p, [p.nu[1]]))
             end
         end
@@ -230,18 +230,18 @@ end
         parammap = FVProblemMap(fv_with_gnf_parameters, length(θ))
         for dir in 1:2, region in (:E, :W, :N, :S), pressure in (:cell, :linear)
             obj = FVWallForce(dir; region, pressure)
-            faces = Kraken._fv_wall_faces(obj, q)
+            faces = KrakeNN._fv_wall_faces(obj, q)
             # Exercise the accumulator with dual law parameters directly.
-            gθ = ForwardDiff.gradient(t -> Kraken._fv_wall_force_sum(obj, U,
+            gθ = ForwardDiff.gradient(t -> KrakeNN._fv_wall_force_sum(obj, U,
                 fv_with_gnf_parameters(q, t), faces), θ)
             @test norm(gθ, Inf) > 0
-            @test Kraken._fv_objective_grad_theta(obj, parammap, U, q, θ) ≈ gθ rtol = 1e-12
+            @test KrakeNN._fv_objective_grad_theta(obj, parammap, U, q, θ) ≈ gθ rtol = 1e-12
             ε = 1e-6 * θ[1]
             tp, tm = copy(θ), copy(θ); tp[1] += ε; tm[1] -= ε
             fd = (fv_objective(obj, U, fv_with_gnf_parameters(q, tp)) -
                   fv_objective(obj, U, fv_with_gnf_parameters(q, tm))) / (2ε)
             @test abs(fd - gθ[1]) <= 1e-6 * max(abs(gθ[1]), 1e-12)
-            _, gU = Kraken._fv_objective_grad_u(obj, U, q)
+            _, gU = KrakeNN._fv_objective_grad_u(obj, U, q)
             ref = ForwardDiff.gradient(X -> fv_objective(obj, X, q), U)
             @test norm(gU - ref, Inf) <= 1e-12 * max(norm(ref, Inf), 1)
         end
@@ -308,7 +308,7 @@ end
                     copyto!(ws.λ, λ)
                     # the solver's problem must be the problem at θ
                     s.prob = fv_param_problem(map, p, θ)
-                    cot = Kraken._fv_param_cotangent!(ws, map, s, U, θ)
+                    cot = KrakeNN._fv_param_cotangent!(ws, map, s, U, θ)
                     ref = _fvc4_dense_cot(p, map, U, θ, λ)
                     @test _fvc4_log!(:dense, norm(vec(Array(cot)) - ref, Inf) / max(norm(ref, Inf), 1)) <= 1e-12
                 end
@@ -329,12 +329,12 @@ end
                 FVStateObs(p, LineProfile(:p, [(2, j) for j in 1:8]), randn(rng, 8); scale = 0.5),
                 fv_flow_rate(p, 9), fv_pressure_drop(p, 2, 13))
         for obj in objs
-            J, gU = Kraken._fv_objective_grad_u(obj, U, p)
+            J, gU = KrakeNN._fv_objective_grad_u(obj, U, p)
             @test J ≈ fv_objective(obj, U, p) rtol = 1e-14
             ref = ForwardDiff.gradient(X -> fv_objective(obj, X, p), U)
             @test norm(gU - ref, Inf) <= 1e-13 * max(norm(ref, Inf), 1)
             for (map, θ) in ((FVViscosityField(), vec(copy(p.nu))), (FVSideVelocity(p, :W), [1.0]))
-                ge = Kraken._fv_objective_grad_theta(obj, map, U, p, θ)
+                ge = KrakeNN._fv_objective_grad_theta(obj, map, U, p, θ)
                 refθ = ForwardDiff.gradient(t -> fv_objective(obj, U, fv_param_problem(map, p, t)), θ)
                 @test norm(ge - refθ, Inf) <= 1e-13 * max(norm(refθ, Inf), 1)
             end
@@ -368,7 +368,7 @@ end
             @testset "case=$case dir=$dir region=$region pressure=$pressure" begin
                 obj = FVWallForce(dir; region, pressure)
                 U = randn(rng, fv_nunknowns(p))
-                J, gU = Kraken._fv_objective_grad_u(obj, U, p)
+                J, gU = KrakeNN._fv_objective_grad_u(obj, U, p)
                 ref = ForwardDiff.gradient(X -> fv_objective(obj, X, p), U)
                 @test J ≈ fv_objective(obj, U, p) rtol = 1e-14 atol = 1e-14
                 @test norm(gU - ref, Inf) <= 1e-13 * max(norm(ref, Inf), 1)
@@ -376,7 +376,7 @@ end
                                  (FVSideVelocity(p, :W), [1.3]),
                                  (FVUniformViscosity(), [0.05]),
                                  (FVUniformSource(1), [0.7]))
-                    ge = Kraken._fv_objective_grad_theta(obj, map, U, p, θ)
+                    ge = KrakeNN._fv_objective_grad_theta(obj, map, U, p, θ)
                     refθ = ForwardDiff.gradient(t -> fv_objective(obj, U, fv_param_problem(map, p, t)), θ)
                     @test norm(ge - refθ, Inf) <= 1e-13 * max(norm(refθ, Inf), 1)
                 end
@@ -465,7 +465,7 @@ end
         # guard: finalize = false refuses factors that are not the unshifted J at U
         Upert = copy(U); Upert[1] += 1e-3
         @test_throws ArgumentError fv_steady_gradient(s, Upert, nothing, prof; params = FVViscosityField(), finalize = false)
-        fv_jacobian!(s, U; shift = 1e-2); Kraken._fv_factor!(s)     # pseudo-transient factors left in the cache
+        fv_jacobian!(s, U; shift = 1e-2); KrakeNN._fv_factor!(s)     # pseudo-transient factors left in the cache
         @test_throws ArgumentError fv_steady_gradient(s, U, nothing, prof; params = FVViscosityField(), finalize = false)
         fv_newton_finalize!(s, U)                      # back to the normal path
         r4 = fv_steady_gradient(s, U, nothing, prof; params = FVViscosityField(), finalize = false)

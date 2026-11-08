@@ -50,7 +50,7 @@ cell count is `8 * N_arc * N_radial`.
 
 `radial_progression` (gmsh Transfinite "Progression"): ratio < 1 clusters
 cells at the INNER (cylinder) end of each spoke, which is essential for
-a body-fitted O-grid to resolve the boundary layer — and, for the Kraken
+a body-fitted O-grid to resolve the boundary layer — and, for the KrakeNN
 multi-block pipeline, to keep `dx_radial_at_cylinder` below `R_in` so
 that `extend_mesh_2d` can linearly extrapolate one ghost row inward
 without crossing the cylinder centre. A value of 0.8 gives ≈10× finer
@@ -134,7 +134,7 @@ function write_ogrid_rect_8block_geo(path::AbstractString;
         println(io, "Transfinite Curve {$arc_ids} = $N_arc;")
         println(io, "Transfinite Curve {$outer_ids} = $N_arc;")
         # Spokes: Progression <1 clusters nodes at the inner (cylinder)
-        # end so the boundary-layer resolution and the Kraken mesh
+        # end so the boundary-layer resolution and the KrakeNN mesh
         # extension inward remain valid.
         println(io, "Transfinite Curve {$spoke_ids} = $N_radial Using Progression $radial_progression;")
         for k in 1:8

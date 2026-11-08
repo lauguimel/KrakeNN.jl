@@ -1,4 +1,4 @@
-using Kraken
+using KrakeNN
 using Printf
 
 include(joinpath(@__DIR__, "paper_gmsh_bc_semantics.jl"))

@@ -7,9 +7,9 @@ Public type or module in the grid-refinement and conservative-tree AMR API.
 Construct or dispatch on this type according to the field layout and methods defined below.
 
 ```julia
-using Kraken
+using KrakeNN
 
-Kraken.ConservativeTreeAMRDKrkCase2D
+KrakeNN.ConservativeTreeAMRDKrkCase2D
 ```
 """
 struct ConservativeTreeAMRDKrkCase2D
@@ -52,9 +52,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_amr_d_boundary_policy_2d)
+methods(KrakeNN.conservative_tree_amr_d_boundary_policy_2d)
 ```
 """
 function conservative_tree_amr_d_boundary_policy_2d(source)
@@ -87,9 +87,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_amr_d_geometry_2d)
+methods(KrakeNN.conservative_tree_amr_d_geometry_2d)
 ```
 """
 function conservative_tree_amr_d_geometry_2d(source)
@@ -186,9 +186,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_amr_d_case_from_krk_2d)
+methods(KrakeNN.conservative_tree_amr_d_case_from_krk_2d)
 ```
 """
 function conservative_tree_amr_d_case_from_krk_2d(source)
@@ -232,9 +232,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.conservative_tree_amr_d_support_matrix_2d)
+methods(KrakeNN.conservative_tree_amr_d_support_matrix_2d)
 ```
 """
 function conservative_tree_amr_d_support_matrix_2d()
@@ -249,7 +249,7 @@ function conservative_tree_amr_d_support_matrix_2d()
          wall_model=:halfway_bounceback_mask,
          note="periodic square/cylinder nesting requires solid fully resolved away from interfaces"),
         (feature=:ibb, single_patch=false, nested=false, wall_model=:unsupported,
-         note="IBB is available in other Kraken paths, not AMR-D route-native D"),
+         note="IBB is available in other KrakeNN paths, not AMR-D route-native D"),
         (feature=:libb, single_patch=false, nested=false, wall_model=:unsupported,
          note="LIBB is available in body-fit/SLBM/cartesian paths, not AMR-D route-native D"),
     ]
@@ -304,9 +304,9 @@ Public function in the grid-refinement and conservative-tree AMR API.
 See the method definition below for argument requirements, array layout, and backend expectations.
 
 ```julia
-using Kraken
+using KrakeNN
 
-methods(Kraken.run_conservative_tree_amr_d_case_from_krk_2d)
+methods(KrakeNN.run_conservative_tree_amr_d_case_from_krk_2d)
 ```
 """
 function run_conservative_tree_amr_d_case_from_krk_2d(source;

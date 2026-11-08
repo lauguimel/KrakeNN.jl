@@ -1,7 +1,7 @@
 # Collision operators
 
 Collision kernels relax the distribution `f` toward its local
-equilibrium. Kraken exports a plain BGK operator, a Guo forced
+equilibrium. KrakeNN exports a plain BGK operator, a Guo forced
 variant (for body forces without spurious terms), MRT for
 higher-Reynolds cavities, and thermal/Boussinesq operators used by
 the natural-convection drivers. Every kernel is written to run on

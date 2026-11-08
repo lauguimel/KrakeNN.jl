@@ -7,10 +7,10 @@
 #   FVJ0_PATH=<path to FVJ0.jl> julia --project benchmarks/fv_c1/j0_parity.jl
 #
 # The prototype's two sparsity packages (SparseConnectivityTracer,
-# SparseMatrixColorings) are not Kraken dependencies; their `using` lines are
+# SparseMatrixColorings) are not KrakeNN dependencies; their `using` lines are
 # stripped before loading, which is safe because the residual never calls them.
 
-using Kraken, Random, LinearAlgebra, Printf
+using KrakeNN, Random, LinearAlgebra, Printf
 
 path = get(ENV, "FVJ0_PATH", "")
 isfile(path) || error("set FVJ0_PATH to benchmarks/fv_newton_j0/FVJ0.jl of feat/fv-newton-j0")

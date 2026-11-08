@@ -2,7 +2,7 @@
 # with different curved_edges settings. Print ext coordinates around
 # every ≤0-Jacobian cell.
 
-using Kraken, KernelAbstractions, Gmsh
+using KrakeNN, KernelAbstractions, Gmsh
 
 include(joinpath(@__DIR__, "gen_ogrid_rect_8block.jl"))
 

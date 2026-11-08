@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 const K1_ROOT = normpath(joinpath(@__DIR__, ".."))
 
@@ -14,7 +14,7 @@ end
 function _k1_solid_mask(setup)
     dom = setup.domain
     mask = falses(dom.Nx, dom.Ny)
-    Kraken._apply_geometry!(mask, setup, dom.Lx / dom.Nx, dom.Ly / dom.Ny)
+    KrakeNN._apply_geometry!(mask, setup, dom.Lx / dom.Nx, dom.Ly / dom.Ny)
     return mask
 end
 

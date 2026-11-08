@@ -8,7 +8,7 @@
 # triggered in (C). This script re-runs (C) alone with 10× more steps
 # (1.6M) to let the shedding transient develop.
 
-using Kraken, CUDA, KernelAbstractions, Gmsh
+using KrakeNN, CUDA, KernelAbstractions, Gmsh
 using FFTW: rfft, rfftfreq
 
 const Lx, Ly         = 1.0, 0.5
@@ -84,7 +84,7 @@ bcspec = BCSpec2D(; west=ZouHeVelocity(u_prof), east=ZouHePressure(one(T)),
 f_h = zeros(T, mesh.Nξ, mesh.Nη, 9)
 for j in 1:mesh.Nη, i in 1:mesh.Nξ, q in 1:9
     u = is_solid_h[i,j] ? 0.0 : Float64(u_prof_h[j])
-    f_h[i,j,q] = T(Kraken.equilibrium(D2Q9(), 1.0, u, 0.0, q))
+    f_h[i,j,q] = T(KrakeNN.equilibrium(D2Q9(), 1.0, u, 0.0, q))
 end
 fa = CuArray(f_h); fb = similar(fa); fill!(fb, zero(T))
 ρ = CUDA.ones(T, mesh.Nξ, mesh.Nη); ux = CUDA.zeros(T, mesh.Nξ, mesh.Nη); uy = CUDA.zeros(T, mesh.Nξ, mesh.Nη)

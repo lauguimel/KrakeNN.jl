@@ -44,7 +44,7 @@ Elle sert d'oracle de validation. Elle valide surtout:
 Tests voie D actuels:
 
 ```text
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_2d.jl")'
 Conservative tree 2D | 897 / 897
 ```
 
@@ -108,7 +108,7 @@ sur stress/Poiseuille. Un test de masse seule est insuffisant.
 Avant d'ecrire le streaming composite natif, ne pas casser:
 
 ```text
-julia --project=. -e 'using Test; using Kraken; include("test/test_conservative_tree_2d.jl")'
+julia --project=. -e 'using Test; using KrakeNN; include("test/test_conservative_tree_2d.jl")'
 ```
 
 Canaris importants:
@@ -641,7 +641,7 @@ Fichiers probables:
 ```text
 src/refinement/conservative_tree_topology_2d.jl
 test/test_conservative_tree_topology_2d.jl
-src/Kraken.jl
+src/KrakeNN.jl
 test/runtests.jl
 ```
 

@@ -1,8 +1,8 @@
-# Kraken.jl quickstart: the README shows this file verbatim and CI runs it on CPU.
+# KrakeNN quickstart: the README shows this file verbatim and CI runs it on CPU.
 # From a clone of the repository:
 #
 #     julia --project=. examples/quickstart.jl
-using Kraken
+using KrakeNN
 
 # 1. Run a lid-driven cavity described by a .krk configuration file.
 #    `max_steps` overrides the file's `Run 60000 steps` so the script finishes

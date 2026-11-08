@@ -24,7 +24,7 @@ julia --project="$PROJ" -e 'using CUDA; CUDA.functional() || error("CUDA not fun
     || { echo "ERROR: CUDA.jl not functional"; exit 1; }
 
 echo "==> PHASE 1: GPU phi parity test"
-julia --project="$PROJ" -e 'using CUDA, CUDSS, Kraken; include("test/analytical/ehd_phi_gpu_parity_2d.jl")' \
+julia --project="$PROJ" -e 'using CUDA, CUDSS, KrakeNN; include("test/analytical/ehd_phi_gpu_parity_2d.jl")' \
     || { echo "ERROR: GPU parity test failed"; exit 1; }
 
 echo "==> PHASE 2: timing sweep T=170, 50k cycles, phi=direct GPU"

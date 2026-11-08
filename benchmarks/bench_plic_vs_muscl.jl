@@ -6,7 +6,7 @@
 # reports metrics alongside Basilisk reference values.
 # ===========================================================================
 
-using Kraken
+using KrakeNN
 using KernelAbstractions
 using Printf
 

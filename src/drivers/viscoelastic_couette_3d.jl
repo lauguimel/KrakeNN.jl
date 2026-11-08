@@ -91,7 +91,7 @@ function run_conformation_couette_libb_3d(;
     for k in 1:Nz, j in 1:Ny, i in 1:Nx
         u0 = FT(γ̇ * (j - 0.5))
         for q in 1:19
-            f_in_h[i, j, k, q] = Kraken.equilibrium(D3Q19(), one(FT), u0,
+            f_in_h[i, j, k, q] = KrakeNN.equilibrium(D3Q19(), one(FT), u0,
                                                      zero(FT), zero(FT), q)
         end
     end

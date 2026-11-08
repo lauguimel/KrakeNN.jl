@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 
 # Boundary stencils of the 3D FVFD viscoelastic path (#51).
 #
@@ -51,7 +51,7 @@ function bs3_advect(phi, ux, uy, uz; scheme=:muscl_superbee,
     ux_face = fill(ux, Nx + 1, Ny, Nz)
     uy_face = fill(uy, Nx, Ny + 1, Nz)
     uz_face = fill(uz, Nx, Ny, Nz + 1)
-    Kraken.fvfd_advect_upwind_3d!(
+    KrakeNN.fvfd_advect_upwind_3d!(
         out, phi, bnd..., ux_face, uy_face, uz_face, is_solid,
         1.0, 1.0, 1.0, bc..., 0.1; advection_scheme=scheme,
     )
@@ -170,8 +170,8 @@ end
     @testset "max velocity-gradient norm" begin
         for T in (Float64, Float32)
             g = [T.(randn(5, 4, 3)) for _ in 1:9]
-            @test Kraken.logfv_max_grad_norm_3d(g...) isa Float64
-            @test Kraken.logfv_max_grad_norm_3d(g...) ≈ bs3_host_grad_norm(g...) rtol = (T == Float64 ? 1e-15 : 1e-6)
+            @test KrakeNN.logfv_max_grad_norm_3d(g...) isa Float64
+            @test KrakeNN.logfv_max_grad_norm_3d(g...) ≈ bs3_host_grad_norm(g...) rtol = (T == Float64 ? 1e-15 : 1e-6)
         end
     end
 end

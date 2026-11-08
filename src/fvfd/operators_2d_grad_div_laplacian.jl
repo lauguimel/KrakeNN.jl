@@ -503,7 +503,7 @@ when the aperture is closed).
 `sync=false` skips the host `KernelAbstractions.synchronize` (stream-ordered
 launches need no sync between dependent device kernels). MMS receipt:
 `test/analytical/incns_grad_div_laplacian_mms.jl`. Consumed by the IncNS
-solver stack (registered in `src/Kraken.jl` via `fvfd/FVFD.jl`).
+solver stack (registered in `src/KrakeNN.jl` via `fvfd/FVFD.jl`).
 """
 function gdl_divergence_embedded_2d!(
     divu, ux, uy, is_solid,

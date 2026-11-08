@@ -176,7 +176,7 @@ field, during which the velocity would be perturbed.
 ## Code
 
 ```julia
-using Kraken
+using KrakeNN
 
 N  = 64
 ν  = 0.01
@@ -219,7 +219,7 @@ for s in steps_list
 end
 ```
 
-![Taylor-Green vortex energy decay at N = 64.  Blue line: analytical exponential decay E(t) = E0 exp(-4 nu k^2 t) with E0 = u0^2/4 (mean kinetic-energy density).  Orange dots: Kraken simulation measured at intervals of 200 time steps.  The numerical energy follows the analytical curve to within 0.3 percent, confirming that the BGK collision operator produces the correct effective viscosity nu = 0.01.  After 2000 steps, the energy has decayed to approximately 46 percent of its initial value.](taylor_green_decay.svg)
+![Taylor-Green vortex energy decay at N = 64.  Blue line: analytical exponential decay E(t) = E0 exp(-4 nu k^2 t) with E0 = u0^2/4 (mean kinetic-energy density).  Orange dots: KrakeNN simulation measured at intervals of 200 time steps.  The numerical energy follows the analytical curve to within 0.3 percent, confirming that the BGK collision operator produces the correct effective viscosity nu = 0.01.  After 2000 steps, the energy has decayed to approximately 46 percent of its initial value.](taylor_green_decay.svg)
 
 The numerical energy decay follows the analytical exponential with
 excellent agreement.  This confirms that the effective viscosity of the

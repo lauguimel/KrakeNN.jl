@@ -1,5 +1,5 @@
 using Test
-using Kraken
+using KrakeNN
 using KernelAbstractions
 
 # Uses the package-level `stream_periodic_xz_wall_y_3d!` (periodic x/z, no-slip

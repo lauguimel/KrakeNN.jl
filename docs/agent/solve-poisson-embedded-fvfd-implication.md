@@ -14,7 +14,7 @@ The thin BRIDGE between the FVFD geometry layer's per-cell embedded-boundary
 convention and the aperture-array convention of `solve-poisson-embedded`. It owns
 exactly one concern: the fraction-layout translation (per-cell
 `west/east/south/north_fraction` -> staggered `face_frac_x/face_frac_y` +
-`vol_frac`), with validation. **Registered in `src/Kraken.jl`**
+`vol_frac`), with validation. **Registered in `src/KrakeNN.jl`**
 (`assemble_poisson_embedded_from_fvfd` and `fractions_from_fvfd` exported).
 
 ## Public surface

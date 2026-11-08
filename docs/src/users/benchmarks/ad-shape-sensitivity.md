@@ -1,13 +1,13 @@
 # Steady Shape Sensitivity (AD)
 
-Kraken can compute steady shape sensitivities for two validated CPU Float64 AD
+KrakeNN can compute steady shape sensitivities for two validated CPU Float64 AD
 paths: cylinder drag, `dCd/dR`, on the D2Q9 TRT/Li-BB confined-cylinder path,
 and thermal Nusselt sensitivity, `dNu/dL`, on the coupled Boussinesq cavity.
 The public entry point is `steady_shape_sensitivity`; the `.krk` surface is a
 `Sensitivity { ... }` block. The current validated pairs are exactly
 `qoi=:drag, wrt=:radius` and `qoi=:nusselt, wrt=:wall_position`.
 
-The result is a derivative of Kraken's own discrete operator at a residual-
+The result is a derivative of KrakeNN's own discrete operator at a residual-
 converged steady state, not a transient tape. On the cylinder path, the forward
 solve first converges the fixed point
 
@@ -36,7 +36,7 @@ R -> q_wall(R) -> {G, J}
 ```
 
 with the Boolean `is_solid` mask held fixed inside one smooth cut-set interval.
-Kraken does not differentiate through the ray-circle precompute. Instead it
+KrakeNN does not differentiate through the ray-circle precompute. Instead it
 contracts Enzyme cotangents with the analytic `dq_wall_dR_cylinder` derivative:
 
 ```text
@@ -53,8 +53,8 @@ The middle `-Cd/R` term is the direct derivative of the drag normalization
 ## CPU AD, GPU Production
 
 The differentiated path is deliberately CPU Float64. Enzyme is a weak dependency:
-`using Kraken` loads the core AD stubs without Enzyme, and `using Enzyme` activates
-`ext/KrakenADExt.jl`, which supplies the reverse passes. Calling the sensitivity
+`using KrakeNN` loads the core AD stubs without Enzyme, and `using Enzyme` activates
+`ext/KrakeNNADExt.jl`, which supplies the reverse passes. Calling the sensitivity
 API without loading Enzyme raises a clear error.
 
 These paths do not differentiate fused GPU kernels. The AD steps in `src/ad/`
@@ -70,7 +70,7 @@ field over 200 steps, with the production fused cavity kernel
 ## Julia Example
 
 ```julia
-using Kraken
+using KrakeNN
 using Enzyme
 
 result = steady_shape_sensitivity(;
@@ -136,7 +136,7 @@ Sensitivity { qoi = drag, wrt = radius }
 Running this file through `run_simulation` dispatches to the same AD API:
 
 ```julia
-using Kraken
+using KrakeNN
 using Enzyme
 
 result = run_simulation("examples/sensitivity_cylinder.krk")
@@ -168,7 +168,7 @@ the gradient into explicit Nusselt wall geometry, implicit flow-wall geometry,
 and implicit thermal-wall geometry.
 
 ```julia
-using Kraken
+using KrakeNN
 using Enzyme
 
 result = steady_shape_sensitivity(;
@@ -256,9 +256,9 @@ The C3 value is the one the `C3 cylinder radius sensitivity` testset of
 
 The C2 anchor is the substitute reference for the geometry derivative: RheoTool
 can compute a drag value for its own finite-volume operator, but it cannot
-differentiate Kraken's LBM cut-link operator with respect to `R`. For derivatives
+differentiate KrakeNN's LBM cut-link operator with respect to `R`. For derivatives
 of this discrete operator, the meaningful references are the analytic Poiseuille
-law `Q proportional to H^3` and central finite differences of Kraken's own
+law `Q proportional to H^3` and central finite differences of KrakeNN's own
 residual-converged forward solve.
 
 ## Caveats

@@ -6,7 +6,7 @@
 #
 # Run: julia --project=docs docs/export_downloads_taylor_green.jl
 
-using Kraken
+using KrakeNN
 
 const OUTDIR = joinpath(@__DIR__, "src", "public", "downloads", "taylor_green")
 mkpath(OUTDIR)
