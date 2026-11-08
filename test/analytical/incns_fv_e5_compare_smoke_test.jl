@@ -90,4 +90,24 @@ end
             "stage1" => E5Compare.stage1(cs)))
         @test haskey(TOML.parsefile(path), "stage1")
     end
+    @testset "thresholds table" begin
+        # the measured 600x200 stage-3 values of 2026-11-08 pass; the 300x100 ones are written with applies = false
+        st = Dict{String,Any}("m_ratio_fv_over_lbm" => 1.0138840568996894,
+            "flow_rate_ratio_fv_over_lbm" => 1.0135247710843704,
+            "dm_dtheta_norm_rel_diff" => 0.024374570980317412,
+            "dm_dtheta_componentwise_rel_diff" => [0.0128, 0.0083, 0.0455, 0.0142, 0.0242, 0.0122, 0.0133, 0.0145],
+            "dm_dtheta_sign_agree" => fill(true, 8))
+        t = E5Compare.thresholds("600x200", st)
+        @test t["applies"] && t["all_pass"]
+        @test t["gradient_worst_component_rel_diff"]["pass"] && t["gradient_signs_agree"]["pass"]
+        bad = merge(st, Dict{String,Any}("m_ratio_fv_over_lbm" => 1.031))
+        @test !E5Compare.thresholds("600x200", bad)["all_pass"]
+        t3 = E5Compare.thresholds("300x100", bad)
+        @test !t3["applies"] && t3["evaluated"] && !haskey(t3, "all_pass") && !haskey(t3["m_ratio_deviation"], "pass")
+        t0 = E5Compare.thresholds("600x200", nothing)   # stage 3 not run: limits only
+        @test !t0["evaluated"] && !haskey(t0["m_ratio_deviation"], "value") && !haskey(t0, "all_pass")
+        path = joinpath(mktempdir(), "t.toml")
+        E5Compare.write_summary(path, Dict{String,Any}("thresholds" => t))
+        @test TOML.parsefile(path)["thresholds"]["all_pass"] === true
+    end
 end

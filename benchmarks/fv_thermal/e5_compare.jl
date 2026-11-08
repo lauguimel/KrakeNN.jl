@@ -12,6 +12,9 @@
 #   KRAKEN_E5_INIT     zero | lbm            (initial flow guess of stages 1 and 3;
 #                                             the converged solution does not depend on it)
 #
+# The summary ends with a [thresholds] table (limit, value, pass per item; pass only
+# for grid 600x200 with stage 3 run, applies = false otherwise), see `thresholds` below.
+#
 # Run (repository root):  sh tmp/thermal_julia.sh --project=. benchmarks/fv_thermal/e5_compare.jl
 # Metric conventions (all over fluid cells, FV minus LBM):
 #   l2_over_max  = RMS(diff) / max|reference|        linf_over_max = max|diff| / max|reference|
@@ -406,6 +409,60 @@ function stage3(cs::Case; outdir = nothing, fd::Bool = true)
     return res
 end
 
+# ------------------------------------------------------------------- thresholds
+# Acceptance thresholds for FV vs LBM on the E5 six-cylinder cell, full coupling
+# (stage 3), grid 600x200. Decided 2026-11-08 from the job measurement of
+# 2026-11-08 (Aqua H100, 600x200) with a margin; they do not apply to other grids
+# (300x100 is reported for the record, it does not meet them). Not tuned on any
+# later run.
+const THRESHOLDS_GRID = "600x200"
+const THRESHOLDS_DATE = "2026-11-08"
+const THRESHOLDS_SOURCE = "job measurement 2026-11-08 (H100, 600x200, stage 3), with margin"
+const THRESHOLD_M_RATIO = 0.02       # |m_FV / m_LBM - 1|
+const THRESHOLD_FLOW_RATIO = 0.02    # |flow-rate ratio - 1|
+const THRESHOLD_GRADIENT_NORM = 0.03 # ||dm/dtheta_FV - dm/dtheta_LBM|| / ||dm/dtheta_LBM||
+const THRESHOLD_GRADIENT_COMPONENT = 0.06   # each component, relative
+# plus: the 8 signs of dm/dtheta agree.
+
+"""Threshold table for grid `grid`, evaluated on the stage-3 result `st3`.
+
+The limits are always written. `value` and `pass` are written only when stage 3
+converged and carries the LBM gradient (`evaluated = true`), and `pass` only when
+the thresholds apply (grid 600x200); other grids get `applies = false`.
+"""
+function thresholds(grid::AbstractString, st3)
+    keys3 = ("m_ratio_fv_over_lbm", "flow_rate_ratio_fv_over_lbm", "dm_dtheta_norm_rel_diff",
+             "dm_dtheta_componentwise_rel_diff", "dm_dtheta_sign_agree")
+    evaluated = st3 !== nothing && all(haskey.(Ref(st3), keys3))
+    applies = grid == THRESHOLDS_GRID
+    function item(value, limit)
+        d = Dict{String,Any}("limit" => limit, "applies" => applies)
+        evaluated && (d["value"] = value; applies && (d["pass"] = value <= limit))
+        return d
+    end
+    g(k, f = identity) = evaluated ? f(st3[k]) : nothing
+    t = Dict{String,Any}("applies" => applies, "evaluated" => evaluated,
+        "grid_required" => THRESHOLDS_GRID, "grid" => grid,
+        "date" => THRESHOLDS_DATE, "source" => THRESHOLDS_SOURCE,
+        "m_ratio_deviation" => item(g("m_ratio_fv_over_lbm", x -> abs(x - 1)), THRESHOLD_M_RATIO),
+        "flow_rate_deviation" => item(g("flow_rate_ratio_fv_over_lbm", x -> abs(x - 1)), THRESHOLD_FLOW_RATIO),
+        "gradient_norm_rel_diff" => item(g("dm_dtheta_norm_rel_diff"), THRESHOLD_GRADIENT_NORM),
+        "gradient_worst_component_rel_diff" => item(g("dm_dtheta_componentwise_rel_diff", maximum),
+                                                    THRESHOLD_GRADIENT_COMPONENT))
+    signs = Dict{String,Any}("limit" => evaluated ? length(st3["dm_dtheta_sign_agree"]) : 8, "applies" => applies)
+    if evaluated
+        signs["value"] = count(st3["dm_dtheta_sign_agree"])
+        applies && (signs["pass"] = signs["value"] == signs["limit"])
+    end
+    t["gradient_signs_agree"] = signs
+    if applies && evaluated
+        items = ("m_ratio_deviation", "flow_rate_deviation", "gradient_norm_rel_diff",
+                 "gradient_worst_component_rel_diff", "gradient_signs_agree")
+        t["all_pass"] = all(t[k]["pass"] for k in items)
+    end
+    return t
+end
+
 # ------------------------------------------------------------------- main
 function write_summary(path, summary)
     open(path, "w") do io
@@ -440,6 +497,8 @@ function main()
         write_summary(path, summary)
         @info "$name done" converged = get(summary[name], "converged", missing)
     end
+    summary["thresholds"] = thresholds(grid, get(summary, "stage3", nothing))
+    write_summary(path, summary)
     @info "summary written" path
     return summary
 end
