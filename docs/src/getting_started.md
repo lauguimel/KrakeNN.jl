@@ -15,7 +15,7 @@ From a Julia REPL (Julia 1.10 or later):
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/lauguimel/Kraken.jl")
+Pkg.add(url="https://github.com/lauguimel/KrakeNN.jl")
 ```
 
 Or, if you have cloned the repository and want a development checkout:

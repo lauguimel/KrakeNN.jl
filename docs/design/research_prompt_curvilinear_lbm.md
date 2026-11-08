@@ -161,7 +161,7 @@ Context on Kraken.jl you can assume:
     constraint rejected case-specific fused kernels. Curvilinear
     is attractive because a single warped mesh keeps the
     uniform-topology stream step — one kernel.
-  - Repo: https://github.com/lauguimel/Kraken.jl (branch `lbm`).
+  - Repo: https://github.com/lauguimel/KrakeNN.jl (branch `lbm`).
   - v0.2 publication target: Computer Physics Communications,
     emphasising single-kernel GPU portability across
     CUDA/Metal/ROCm from one source.

@@ -81,7 +81,7 @@ field_difference(a, b) = H * max(maximum(abs.(a.Ex .- b.Ex)),
         @test result.phi_error <= 1e-10
         @test result.prediction_error <= 1e-11
         if initialization === :cold
-            # https://github.com/lauguimel/Kraken.jl/issues/23 (repaired: the
+            # https://github.com/lauguimel/KrakeNN.jl/issues/23 (repaired: the
             # stopping rule also checks the field moment).
             @test result.field_error <= FIELD_GATE
         else

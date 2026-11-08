@@ -23,13 +23,13 @@ from GitHub:
 
 ```julia
 using Pkg
-Pkg.add(url = "https://github.com/lauguimel/Kraken.jl")
+Pkg.add(url = "https://github.com/lauguimel/KrakeNN.jl")
 ```
 
 Or from the Pkg REPL (press `]`):
 
 ```
-pkg> add https://github.com/lauguimel/Kraken.jl
+pkg> add https://github.com/lauguimel/KrakeNN.jl
 ```
 
 For a development checkout (clone + activate):
