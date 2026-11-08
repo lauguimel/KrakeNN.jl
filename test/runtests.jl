@@ -121,6 +121,8 @@ function run_incns_testset()
         # Newtonian, CY obstacle channel vs the LBM GNF driver (~50 s CPU),
         # and its opt-in GPU/cuDSS contract
         include("analytical/incns_fv_gnf.jl")
+        include("analytical/incns_fv_law_test.jl")
+        include("analytical/incns_fv_law_contraction_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,
@@ -173,6 +175,7 @@ include("platform/weakdeps_metadata_test.jl")
         @info "Skipping calibration twin experiments (KRAKEN_SKIP_AD=true)"
     else
         include("platform/calibration_test.jl")
+        include("platform/law_closure_test.jl")
         include("platform/calibration_nufield_test.jl")
     end
     include("test_lbm_basic.jl")

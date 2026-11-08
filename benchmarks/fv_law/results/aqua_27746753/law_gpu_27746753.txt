@@ -1,0 +1,26 @@
+GPU=NVIDIA H100 80GB HBM3 N=512 precision=Float64 CUDA=6.4.1 CUDSS=1.0.0 Kraken=0.6.0
+Test Summary:                                 | Pass  Total  Time
+GPU classical adapter reproduces FVGNF Newton |    6      6  0.0s
+Test Summary:                                   | Pass  Total  Time
+GPU full steady gradient: two random directions |    8      8  8.9s
+(N = 512, precision = "Float64", parameters = 17, chunk = 4, gnf_first_newton_s = 19.478684231, classical_first_newton_s = 10.038273833, learned_first_newton_s = 10.654735343, learned_first_newton_host_bytes = 283782504, learned_warm_newton_s = 0.539363925, learned_warm_newton_host_bytes = 75216, learned_warm_newton_device_bytes = 0, first_gradient_s = 3.795259746, warm_gradient_s = 0.159299021, warm_gradient_host_bytes = 174804944, warm_gradient_device_bytes = 0, residual_inf = 3.1870217622022377e-15)
+DONE status=0
+L3 GPU=NVIDIA H100 80GB HBM3 precision=Float64 fixed_state=true
+┌ Info: L3 GPU cotangent parity
+└   checks[end] = (kind = :classical, immersed = false, N = 12, parameters = 5, relative_error = 1.6753927087590659e-15, cpu_relative_error = 1.4128600215275152e-15, contraction_device_bytes = 0)
+┌ Info: L3 GPU cotangent parity
+└   checks[end] = (kind = :classical, immersed = true, N = 12, parameters = 5, relative_error = 4.549305548856513e-16, cpu_relative_error = 4.226793890996599e-16, contraction_device_bytes = 0)
+┌ Info: L3 GPU cotangent parity
+└   checks[end] = (kind = :monotone, immersed = false, N = 12, parameters = 17, relative_error = 2.3932989431283694e-15, cpu_relative_error = 2.8496337976897043e-15, contraction_device_bytes = 0)
+┌ Info: L3 GPU cotangent parity
+└   checks[end] = (kind = :monotone, immersed = true, N = 12, parameters = 17, relative_error = 4.3479529012882986e-16, cpu_relative_error = 6.341922788757451e-16, contraction_device_bytes = 0)
+┌ Info: L3 GPU cotangent parity
+└   checks[end] = (kind = :free, immersed = false, N = 12, parameters = 9, relative_error = 9.15954425299991e-16, cpu_relative_error = 9.42677835663732e-16, contraction_device_bytes = 0)
+┌ Info: L3 GPU cotangent parity
+└   checks[end] = (kind = :free, immersed = true, N = 12, parameters = 9, relative_error = 4.3148551359256413e-16, cpu_relative_error = 2.434366619765017e-16, contraction_device_bytes = 0)
+Test Summary:                                                | Pass  Total   Time
+GPU law cotangent: both paths, CPU parity, immersed boundary |   24     24  33.6s
+(N = 512, precision = "Float64", parameters = 248, path = :contraction, chunk = 4, residual_sweeps = 1, setup_s = 4.31482951, cold_s = 4.23900688, cold_compile_s = 1.214745007, warm_s = 0.036523584, warm_host_bytes = 5536, warm_device_bytes = 0, contraction_norm = 196.47744975905124)
+(N = 128, precision = "Float64", parameters = 248, path = :contraction, chunk = 4, residual_sweeps = 1, setup_s = 0.187268153, cold_s = 0.034420718, cold_compile_s = 0.0, warm_s = 0.034343296, warm_host_bytes = 5536, warm_device_bytes = 0, contraction_norm = 4.359025785383339)
+(N = 128, precision = "Float64", parameters = 248, path = :duals, chunk = 4, residual_sweeps = 62, setup_s = 0.187268153, cold_s = 2.960059216, cold_compile_s = 0.457456216, warm_s = 0.036582674, warm_host_bytes = 748640, warm_device_bytes = 0, contraction_norm = 4.359025785383314)
+DONE contraction_status=0

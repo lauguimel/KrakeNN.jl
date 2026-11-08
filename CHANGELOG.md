@@ -154,6 +154,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   across a cylinder in a channel is not monotone in h on the tested grids, and
   the surface-integral torque derivative converges more slowly than the
   residual-flux one.
+- Scalar laws and a learned viscosity in the steady FV Newton solver (branch
+  `feat/learned-law`): `AbstractScalarLaw` (`law_value`, hand-written
+  `law_pullback!`, allocation-free) with `ClassicalLaw` for the existing GNF
+  laws, `TinyMLP` and `LearnedViscosity` (shear stress strictly increasing in
+  shear rate by default, optional prescribed field inputs such as temperature
+  or concentration); `FVLawViscosity` evaluates any such law at every FV
+  viscosity point (interior, wall, inlet, immersed) with prescribed cell
+  fields; `FVLawParameters` gives `dJ/dtheta` through `fv_steady_gradient`,
+  by default with one face-cotangent contraction instead of parameter duals
+  (CPU 64x64, 248 parameters: 1.46 s to 67 ms; both paths agree to 1e-13,
+  central differences to 4e-7). `ClassicalLaw` reproduces `FVGNFViscosity`.
+  H100 run recorded in `benchmarks/fv_law/`.
 
 ### Changed
 - The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl`.

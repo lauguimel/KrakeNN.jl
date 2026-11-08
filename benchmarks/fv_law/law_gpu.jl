@@ -1,0 +1,289 @@
+# Prepared CUDA/cuDSS validation. Default size: 512^2, Float64, no CPU solve.
+using Test, LinearAlgebra, Random, Statistics, Printf, KrakeNN
+
+# Plain top-level imports: an `@eval using CUDA` inside the same expression as
+# its first use hits the world-age trap and kills the job at start-up.
+using CUDA, CUDSS
+CUDA.functional() || error("FV law GPU validation requires functional CUDA")
+const LAW_GPU_READY = true
+const LAW_REQUIRE_GPU = true
+law_device_allocated(f) = CUDA.@allocated f()
+
+const LAW_NEWTON = (; atol=1e-12, rtol=1e-12, maxit=40)
+const LAW_EPS = 1e-2
+
+function law_channel(N; kwargs...)
+    return fv_steady_problem(N, N; h=1/N, conv=false,
+        bc=(W=:periodic, E=:periodic, S=:wall, N=:wall),
+        source=(x,y)->(0.05,0.0,0.0), kwargs...)
+end
+
+function law_gpu_solve(p)
+    s = fv_newton_solver(p; to=CUDA.CuArray, linsolve=CUDABackendTag())
+    if s.prob.visc isa FVLawViscosity
+        @test s.prob.visc.theta isa CUDA.CuArray
+        @test all(field -> field isa CUDA.CuArray, s.prob.visc.fields)
+        @test isbitstype(typeof(CUDA.cudaconvert(s.prob.visc)))
+    end
+    U = CUDA.zeros(Float64, fv_nunknowns(p))
+    measured = @timed begin
+        st = fv_newton!(s, U; LAW_NEWTON...)
+        CUDA.synchronize()
+        st
+    end
+    measured.value.converged || error("GPU Newton did not converge")
+    return s, U, measured
+end
+
+function law_gpu_fd_objective!(s, U0, map, theta, obj)
+    fv_set_params!(s, map, theta)
+    U = copy(U0)
+    st = fv_newton!(s, U; LAW_NEWTON...)
+    st.converged || error("Perturbed GPU Newton did not converge")
+    # The objective is evaluated on the host, matching fv_steady_gradient.
+    return fv_objective(obj, Array(U), KrakeNN._fv_host_problem(s.prob))
+end
+
+function law_write_csv(path, records)
+    open(path, "w") do io
+        println(io, join(string.(keys(first(records))), ","))
+        foreach(row -> println(io, join(string.(values(row)), ",")), records)
+    end
+end
+
+# L3 fixed-state measurements: no Newton iterations, Jacobian assembly, or
+# factorization. Workspaces and all device arrays are allocated before timing.
+function law_gpu_fixed_setup(law, theta, N; immersed=false)
+    fields = law_ninputs(law) == 1 ? () :
+        ([0.2*(i-0.5)/N+0.1*(j-0.5)/N for i in 1:N,j in 1:N],)
+    ib = immersed ? fv_immersed_circle(N,N,0.511,0.489,0.184;h=1/N,mass=:M1) : nothing
+    p = law_channel(N; immersed=ib,
+        viscosity=FVLawViscosity(law,theta,fields;eps=LAW_EPS))
+    s = fv_newton_solver(p;to=CUDA.CuArray,linsolve=CUDABackendTag())
+    map = FVLawParameters(length(theta))
+    ws = fv_adjoint_workspace(s,map;chunk=4)
+    Uh = 0.03randn(MersenneTwister(71),fv_nunknowns(p))
+    lambda = randn(MersenneTwister(72),length(Uh))
+    U = CUDA.CuArray(Uh)
+    copyto!(ws.λ,lambda)
+    return (;p,s,map,ws,U,Uh,lambda)
+end
+
+function law_gpu_fixed_operation(case, theta, path)
+    r = KrakeNN._fv_param_cotangent!(case.ws,case.map,case.s,case.U,theta;
+        law_gradient=path)
+    CUDA.synchronize()
+    return r
+end
+
+law_gradient_relative(a,b) = norm(a-b)/max(norm(a),norm(b),eps(Float64))
+
+function law_gpu_contraction_main()
+    CUDA.allowscalar(false)
+    output = get(ENV,"KRAKEN_LAW_OUTPUT",@__DIR__)
+    mkpath(output)
+    println("L3 GPU=",CUDA.name(CUDA.device())," precision=Float64 fixed_state=true")
+    checks = NamedTuple[]
+    @testset "GPU law cotangent: both paths, CPU parity, immersed boundary" begin
+        for kind in (:classical,:monotone,:free), immersed in (false,true)
+            law = kind == :classical ? ClassicalLaw(CarreauYasuda(0.3,0.03,2.0,2.0,0.7)) :
+                LearnedViscosity(TinyMLP{2,2,1}();nu_ref=0.3,monotone=kind == :monotone)
+            theta = law_init(law;rng=MersenneTwister(33))
+            if kind != :classical
+                theta[3:4] .= (0.3,-0.2)
+                kind == :free && (theta[7:8] .= (0.2,-0.15))
+            end
+            case = law_gpu_fixed_setup(law,theta,12;immersed)
+            c = copy(law_gpu_fixed_operation(case,theta,:contraction))
+            d = copy(law_gpu_fixed_operation(case,theta,:duals))
+            relative_error = law_gradient_relative(c,d)
+            @test relative_error <= 1e-12
+            cpu = fv_newton_solver(case.p)
+            cpuws = fv_adjoint_workspace(cpu,case.map;chunk=4)
+            copyto!(cpuws.λ,case.lambda)
+            reference = KrakeNN._fv_param_cotangent!(cpuws,case.map,cpu,case.Uh,theta;
+                law_gradient=:duals)
+            cpu_relative_error = law_gradient_relative(c,reference)
+            @test cpu_relative_error <= 1e-12
+            bytes = law_device_allocated(() -> law_gpu_fixed_operation(case,theta,:contraction))
+            @test bytes == 0
+            @test case.s.n_factorize == 0
+            push!(checks,(;kind,immersed,N=12,parameters=length(theta),relative_error,
+                cpu_relative_error,contraction_device_bytes=bytes))
+            @info "L3 GPU cotangent parity" checks[end]
+        end
+    end
+    law_write_csv(joinpath(output,"law_gpu_contraction_checks.csv"),checks)
+    GC.gc(); CUDA.reclaim()
+
+    N = parse(Int,get(ENV,"KRAKEN_LAW_N","512"))
+    dual_N = parse(Int,get(ENV,"KRAKEN_LAW_DUAL_N","128"))
+    min(N,dual_N) >= 4 || error("Both grids must have at least four cells per direction")
+    law = LearnedViscosity(TinyMLP{2,35,1}();nu_ref=0.3,monotone=true)
+    theta = law_init(law;rng=MersenneTwister(33))
+    records = NamedTuple[]
+    for grid_N in unique((N,dual_N))
+        setup = @timed law_gpu_fixed_setup(law,theta,grid_N)
+        case = setup.value
+        paths = grid_N == dual_N ? (:contraction,:duals) : (:contraction,)
+        results = Vector{Float64}[]
+        current = NamedTuple[]
+        for path in paths
+            operation() = law_gpu_fixed_operation(case,theta,path)
+            cold = @timed operation()
+            reference = copy(cold.value)
+            push!(results,reference)
+            @test all(isfinite,reference)
+            warm = [@timed operation() for _ in 1:3]
+            @test all(r -> r.value == reference,warm)
+            bytes = law_device_allocated(operation)
+            @test bytes == 0
+            push!(current,(;N=grid_N,precision="Float64",parameters=length(theta),path,
+                chunk=4,residual_sweeps=path == :duals ? cld(length(theta),4) : 1,
+                setup_s=setup.time,cold_s=cold.time,cold_compile_s=cold.compile_time,
+                warm_s=median(r.time for r in warm),
+                warm_host_bytes=minimum(r.bytes for r in warm),warm_device_bytes=bytes,
+                contraction_norm=norm(reference)))
+        end
+        relative_error = length(results) == 2 ? law_gradient_relative(results...) : NaN
+        length(results) == 2 && (@test relative_error <= 1e-12)
+        @test case.s.n_factorize == 0
+        append!(records,[merge(row,(;relative_error)) for row in current])
+        law_write_csv(joinpath(output,"law_gpu_contraction_timings.csv"),records)
+        foreach(r -> println(r),current)
+        flush(stdout)
+        case = setup = nothing
+        GC.gc(); CUDA.reclaim()
+    end
+    println("DONE contraction_status=0")
+end
+
+function law_gpu_main()
+    CUDA.allowscalar(false)
+    N = parse(Int, get(ENV, "KRAKEN_LAW_N", "512"))
+    N >= 4 || error("KRAKEN_LAW_N must be at least 4")
+    output = get(ENV, "KRAKEN_LAW_OUTPUT", @__DIR__)
+    mkpath(output)
+    println("GPU=", CUDA.name(CUDA.device()), " N=", N, " precision=Float64 CUDA=",
+        pkgversion(CUDA), " CUDSS=", pkgversion(CUDSS), " KrakeNN=", pkgversion(KrakeNN))
+    flush(stdout)
+
+    classical = CarreauYasuda(0.3, 0.03, 2.0, 2.0, 0.7)
+    adapter = ClassicalLaw(classical)
+    pg = law_channel(N; rheology=classical, gnf_eps=LAW_EPS)
+    pc = law_channel(N; viscosity=FVLawViscosity(adapter, law_init(adapter), (); eps=LAW_EPS))
+    sg, Ug, tg = law_gpu_solve(pg)
+    sc, Uc, tc = law_gpu_solve(pc)
+    history = NamedTuple[]
+    @testset "GPU classical adapter reproduces FVGNF Newton" begin
+        @test tg.value.converged && tc.value.converged
+        @test length(tg.value.history) == length(tc.value.history)
+        @test norm(Array(Ug)-Array(Uc), Inf) <= 1e-12 * max(norm(Array(Ug), Inf), eps())
+        for k in eachindex(tg.value.history)
+            a, b = tg.value.history[k], tc.value.history[k]
+            # Frozen arithmetic parity gate; absolute floor covers final residuals.
+            @test isapprox(a, b; rtol=1e-13, atol=1e-14)
+            push!(history, (; iteration=k-1, gnf=a, classical=b, difference=b-a))
+        end
+    end
+    law_write_csv(joinpath(output, "classical_history.csv"), history)
+    # Release both large factor caches before preparing the learned system.
+    sg = sc = Ug = Uc = nothing
+    GC.gc(); CUDA.reclaim()
+
+    temperature = [0.2*(i-0.5)/N + 0.1*(j-0.5)/N for i in 1:N, j in 1:N]
+    law = LearnedViscosity(TinyMLP{2,2,1}(); nu_ref=0.3, monotone=true)
+    theta = law_init(law; rng=MersenneTwister(33))
+    p = law_channel(N; viscosity=FVLawViscosity(law, theta, (temperature,); eps=LAW_EPS))
+    s, U, primal = law_gpu_solve(p)
+    law_write_csv(joinpath(output, "learned_history.csv"),
+        [(; iteration=k-1, residual=r) for (k,r) in enumerate(primal.value.history)])
+    map = FVLawParameters(length(theta))
+    ws = fv_adjoint_workspace(s, map; chunk=4)
+    obj = fv_flow_rate(p, max(1,N÷2))
+    first_gradient = @timed begin
+        r = fv_steady_gradient(s, U, theta, obj; params=map, ws)
+        CUDA.synchronize()
+        r
+    end
+    result = first_gradient.value
+    dual_result = fv_steady_gradient(s,U,theta,obj;params=map,ws,
+        law_gradient=:duals,finalize=false)
+    @test law_gradient_relative(result.grad,dual_result.grad) <= 1e-12
+    @test result.residual_inf <= 1e-10
+    @test all(isfinite, result.grad)
+    @test s.n_factorize == 1
+
+    fd = NamedTuple[]
+    sfd = fv_newton_solver(p; to=CUDA.CuArray, linsolve=CUDABackendTag())
+    rng = MersenneTwister(41)
+    @testset "GPU full steady gradient: two random directions" begin
+        for direction in 1:2
+            d = randn(rng, length(theta)); d ./= norm(d)
+            adjoint = dot(result.grad, d)
+            for step in (1e-4, 2e-5)
+                plus = law_gpu_fd_objective!(sfd, U, map, theta .+ step.*d, obj)
+                minus = law_gpu_fd_objective!(sfd, U, map, theta .- step.*d, obj)
+                central = (plus-minus)/(2step)
+                error = abs(central-adjoint)
+                # Require a resolved derivative, then the requested relative gate.
+                scale = max(abs(central), abs(adjoint))
+                @test scale > 1e-10
+                relative_error = error/max(scale, eps())
+                @test relative_error <= 1e-6
+                push!(fd, (; direction, step, adjoint, central, absolute_error=error, relative_error))
+            end
+        end
+    end
+    law_write_csv(joinpath(output, "gradient_directions.csv"), fd)
+    sfd = nothing; GC.gc(); CUDA.reclaim()
+
+    # Allocation measurements distinguish host bytes from device bytes.
+    gradient() = begin
+        fv_steady_gradient(s, U, theta, obj; params=map, ws, finalize=false)
+        CUDA.synchronize()
+    end
+    gradient()
+    warm = [@timed gradient() for _ in 1:3]
+    device_bytes = law_device_allocated(gradient)
+    @test device_bytes == 0
+    U .+= 1e-6
+    fv_newton!(s,U; LAW_NEWTON...).converged || error("Newton warm-up failed")
+    U .+= 1e-6
+    warm_newton = @timed begin
+        st = fv_newton!(s,U; LAW_NEWTON...)
+        CUDA.synchronize()
+        st
+    end
+    @test warm_newton.value.converged && warm_newton.value.iterations > 0
+    U .+= 1e-6
+    receipt = Ref{Any}()
+    newton_device_bytes = law_device_allocated(() -> begin
+        receipt[] = fv_newton!(s,U; LAW_NEWTON...)
+        CUDA.synchronize()
+    end)
+    @test receipt[].converged && receipt[].iterations > 0
+    @test newton_device_bytes == 0
+    records = [(; N, precision="Float64", parameters=length(theta), chunk=4,
+        gnf_first_newton_s=tg.time, classical_first_newton_s=tc.time,
+        learned_first_newton_s=primal.time, learned_first_newton_host_bytes=primal.bytes,
+        learned_warm_newton_s=warm_newton.time, learned_warm_newton_host_bytes=warm_newton.bytes,
+        learned_warm_newton_device_bytes=newton_device_bytes,
+        first_gradient_s=first_gradient.time, warm_gradient_s=median(r.time for r in warm),
+        warm_gradient_host_bytes=minimum(r.bytes for r in warm),
+        warm_gradient_device_bytes=device_bytes, residual_inf=result.residual_inf)]
+    law_write_csv(joinpath(output, "law_gpu_timings.csv"), records)
+    show(stdout, MIME("text/plain"), only(records)); println()
+    println("DONE status=0")
+end
+
+if LAW_GPU_READY
+    if get(ENV,"KRAKEN_LAW_CONTRACTION_ONLY","0") != "1"
+        law_gpu_main()
+    end
+    law_gpu_contraction_main()
+elseif LAW_REQUIRE_GPU
+    error("KRAKEN_REQUIRE_GPU=1 but CUDA/cuDSS is unavailable or CUDA.functional() is false")
+else
+    @info "SKIPPED law GPU benchmark; no CPU simulation was started"
+end

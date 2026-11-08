@@ -151,7 +151,7 @@ function _fv_surface_reconstruction(U, prob, i, j, d, normal, wall_tangent,
     vn = (axial(2) - et * wall_tangent[2]) / en
     ux, uy = un * nx + wall_tangent[1] * tx, un * ny + wall_tangent[1] * ty
     vx, vy = vn * nx + wall_tangent[2] * tx, vn * ny + wall_tangent[2] * ty
-    nuw = _fv_wall_nu(prob.visc, physical_nu, ux, uy, vx, vy)
+    nuw = _fv_wall_nu(prob.visc, physical_nu, ux, uy, vx, vy, i, j)
     pP = _fv_val(U, g, i, j, 3)
     pw = pP + q * (pP - _fv_val(U, g, oi, oj, 3))
     pressure = (pw * nx, pw * ny)

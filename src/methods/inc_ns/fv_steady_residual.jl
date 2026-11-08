@@ -150,9 +150,20 @@ struct FVNewtonianViscosity end
 # (ux, uy, vx, vy); wall face: from the cell value and the wall-face gradient
 @inline _fv_face_nu(::FVNewtonianViscosity, nuP, nuN, ux, uy, vx, vy) = (nuP + nuN) / 2
 @inline _fv_wall_nu(::FVNewtonianViscosity, nuP, ux, uy, vx, vy) = nuP
+# Coordinates select prescribed scalar-law fields; existing viscosity models
+# retain their original arithmetic and their short hook signatures.
+@inline _fv_face_nu(v, nuP, nuN, ux, uy, vx, vy, i, j, ii, jj) =
+    _fv_face_nu(v, nuP, nuN, ux, uy, vx, vy)
+@inline _fv_wall_nu(v, nuP, ux, uy, vx, vy, i, j) =
+    _fv_wall_nu(v, nuP, ux, uy, vx, vy)
+# Context for one oriented residual face; ordinary viscosity models are unchanged.
+@inline _fv_face_viscosity(v, d) = v
 # zero carrying the number type of the model's parameters (Bool: neutral)
 @inline _fv_visc_zero(::FVNewtonianViscosity) = false
 _fv_visc_eltype(::FVNewtonianViscosity) = Bool
+_fv_adapt_viscosity(to, v) = v
+_fv_validate_viscosity(v, g, nu) = nothing
+_fv_with_fields(v, fields) = throw(ArgumentError("prescribed fields require FVLawViscosity"))
 
 # ------------------------------------------------------------------ geometry
 @inline _fv_val(U, g, i, j, comp) = @inbounds U[fv_index(g, i, j, comp)]
@@ -253,10 +264,10 @@ normal slope and the nominal-face tangential gradient supplied by
     end
     sx = (d == 1 || d == 3) ? 1 : -1
     if d <= 2
-        nuw = _fv_wall_nu(visc, nuf, sx * dun, gF[2], sx * dvn, gF[4])
+        nuw = _fv_wall_nu(visc, nuf, sx * dun, gF[2], sx * dvn, gF[4], i, j)
         return 2 * nuw * dun, nuw * (dvn + sx * gF[2])
     end
-    nuw = _fv_wall_nu(visc, nuf, gF[1], sx * dun, gF[3], sx * dvn)
+    nuw = _fv_wall_nu(visc, nuf, gF[1], sx * dun, gF[3], sx * dvn, i, j)
     return nuw * (dun + sx * gF[3]), 2 * nuw * dvn
 end
 
@@ -341,6 +352,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
     gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
     Ru = z; Rv = z; Rc = z
     for d in 1:4
+        face_visc = _fv_face_viscosity(visc, d)
         isx = d <= 2
         sx = (d == 1 || d == 3) ? 1 : -1
         kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
@@ -353,11 +365,11 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
             # face velocity gradient: compact normal difference, mean of the
             # two cell gradients tangentially (read by a GNF model only)
             if isx
-                nuf = _fv_face_nu(visc, nuP, nuN, sx * dun, (gP[2] + gN[2]) / 2,
-                                  sx * dvn, (gP[4] + gN[4]) / 2)
+                nuf = _fv_face_nu(face_visc, nuP, nuN, sx * dun, (gP[2] + gN[2]) / 2,
+                                  sx * dvn, (gP[4] + gN[4]) / 2, i, j, ii, jj)
             else
-                nuf = _fv_face_nu(visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
-                                  (gP[3] + gN[3]) / 2, sx * dvn)
+                nuf = _fv_face_nu(face_visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
+                                  (gP[3] + gN[3]) / 2, sx * dvn, i, j, ii, jj)
             end
             ubn = sx * (isx ? (uP + uN) / 2 : (vP + vN) / 2)
             # Rhie-Chow coefficient, decision D-RC (ii)
@@ -385,7 +397,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
             Rc += F
         else
             au, av, tx, ty, pf, F = _fv_wall_flux_components(U, tag, nu, bvel, g, i, j, d,
-                                                            visc, qcut, wvel, closure, gP, face_pair)
+                                                            face_visc, qcut, wvel, closure, gP, face_pair)
             Ru += au; Rv += av
             Ru -= h * tx; Rv -= h * ty
             Rc += F
@@ -545,6 +557,9 @@ Build the host-side problem of the steady FV residual.
   `CarreauYasuda`, `Cross`, `Bingham`, `HerschelBulkley`, `Newtonian`) in
   kinematic FV units; `nu` is then ignored. `gnf_eps` is the strain-rate
   regularisation `ε` of [`FVGNFViscosity`](@ref) (`γ̇_ε = √(2 S:S + ε²)`).
+- `viscosity`: an explicit viscosity model, including [`FVLawViscosity`](@ref)
+  for a scalar law with prescribed cell fields. Mutually exclusive with
+  `rheology`; its own `eps` supplies the shear-rate regularisation.
 
 Pressure pins are set by [`fv_pressure_pins!`](@ref). Cell centres are at
 `((i - 1/2) h, (j - 1/2) h)`.
@@ -554,7 +569,8 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
                            boundary_velocity = (side, x, y) -> (0.0, 0.0),
                            solid = nothing, source = nothing, conv::Bool = true,
                            T::Type{<:Real} = Float64, rheology = nothing,
-                           gnf_eps::Real = 0.0, immersed = nothing, wall_flux = nothing)
+                           gnf_eps::Real = 0.0, immersed = nothing, wall_flux = nothing,
+                           viscosity = nothing)
     Nx = Int(Nx); Ny = Int(Ny)
     (_fv_bc_code(bc.W) == FV_BC_PERIODIC) == (_fv_bc_code(bc.E) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic W/E sides must be paired"))
@@ -616,7 +632,11 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
         end
         s
     end
-    visc = rheology === nothing ? FVNewtonianViscosity() : FVGNFViscosity(rheology, T(gnf_eps))
+    viscosity === nothing || rheology === nothing ||
+        throw(ArgumentError("specify either viscosity or rheology, not both"))
+    visc = viscosity === nothing ?
+        (rheology === nothing ? FVNewtonianViscosity() : FVGNFViscosity(rheology, T(gnf_eps))) : viscosity
+    _fv_validate_viscosity(visc, g, nuc)
     return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed)
 end
 
@@ -627,7 +647,7 @@ Copy the arrays of `prob` with the array constructor `to` (e.g. `CuArray`,
 or `Array` to come back to the host). The grid is passed through.
 """
 fv_adapt(to, p::FVSteadyProblem2D) =
-    FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), p.visc,
+    FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
                       _fv_adapt_immersed(to, p.immersed))
 
 """

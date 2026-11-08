@@ -165,7 +165,11 @@ These cells already feed the viscosity of the opposite interior face. Tangential
 ghosts use the opposite member of their existing Green–Gauss pair, so the same
 GNF pattern remains sufficient, within the existing radius-two (5 × 5) box.
 """
-function fv_jacobian_pattern(prob::_FVGNFProblem)
+fv_jacobian_pattern(prob::_FVGNFProblem) = _fv_gnf_jacobian_pattern(prob)
+
+# Scalar laws of the same face gradient share exactly this stencil. Prescribed
+# cell fields are parameters, so they add no state unknowns or pattern entries.
+function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
     S0 = invoke(fv_jacobian_pattern, Tuple{FVSteadyProblem2D}, prob)
     g = prob.grid
     tag = Array(prob.tag)
