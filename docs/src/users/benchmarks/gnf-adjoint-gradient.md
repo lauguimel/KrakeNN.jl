@@ -196,6 +196,39 @@ no repeat); no timing or speed-up claim; Float32 has no gate and no Float32 fini
 difference check was made; only the bordered-GMRES solver (`gnf_adjoint_solve`, the
 `:gmres` option) was run on the GPU, not the `:kstep` default of `gnf_steady_gradient`.
 
+## Network and other scalar laws
+
+The same law slot as the FV solver (`FVLawViscosity`) drives this LBM step:
+`LBMLawViscosity(law, theta; eps, nu_scale, gamma_scale)` wraps any one-input
+`AbstractScalarLaw` (`ClassicalLaw`, `DenseNet`, an ONNX-loaded `DenseNet`) and is
+passed as `closure` to `run_gnf_periodic_steady`. The law is written in its own units:
+`nu_scale = dt/dx²` and `gamma_scale = 1/dt` convert to lattice units, and `eps` is the
+regularisation of `FVLawViscosity`, so both solvers evaluate the same function of the
+shear rate with the same `theta`. `gnf_steady_law_gradient` returns the gradient with
+respect to every law parameter (all network weights): the steady adjoint above, then
+`Σ_c s_c ∂ν_c/∂θ` by the law's own pullback (`law_pullback!`, a handwritten reverse
+pass for `DenseNet`). Only the shear-rate input is supported in the LBM (no
+temperature or prescribed fields), and only in 2D.
+
+Validated on the CPU (`test/analytical/lbm_law_test.jl`, 2026-11-09):
+
+- `ClassicalLaw(CarreauYasuda)` with `eps = 0` reproduces the Carreau–Yasuda closure
+  bit for bit (populations, `τ`, `ν`), split and fused kernels; its pullback gradient
+  equals the ForwardDiff parameter route to round-off.
+- A `DenseNet` (1 → 8 → 8 → 1, tanh, exp output; `ν` varies by 25 % across the flow) in
+  a periodic channel (H = 1, Ny = 16 and 32, `dt = dx²`) agrees with the FV solver run
+  with the same law and `theta`: relative L2 gap of `u` 8.5e-3 then 2.1e-3, mean
+  velocity 9.3e-3 then 2.3e-3 (second order).
+- Adjoint gradient of the mean velocity with respect to all 97 weights vs central
+  differences on random directions: best relative error 6e-9 to 1.5e-8 (V shape over
+  steps 1e-2 to 1e-5). LBM vs FV gradient: relative gap 1.2e-2 (Ny = 16) and 3.1e-3
+  (Ny = 32), shrinking with the discretisation gap.
+
+The per-cell blocks and the pullback stay on the host. Measured on one CPU thread
+(256×128 nodes): `gnf_linearise` 0.05 s with Carreau–Yasuda, 0.12–0.13 s with a
+`DenseNet` of 97 or 2209 parameters; the pullback 0.005 s and 0.07 s. GPU run pending
+(`test/analytical/nn_law_lbm_gpu.jl`).
+
 ## Calibration and cost scripts
 
 Two scripts in `benchmarks/validation/gnf_calibration/` use this gradient on the same
@@ -226,7 +259,8 @@ the commands and the output columns.
   (every event except pull requests, so a pull request does not run it); locally it runs
   when selected with `KRAKEN_ONLY=ad/gnf_adjoint_enzyme_test.jl`.
 - Only the 32×16 and 16×8 test grids are covered (the GPU run: 32×16).
-- Only the Carreau–Yasuda viscosity law is covered.
+- The 32×16 measurements above cover only the Carreau–Yasuda law; network laws are
+  covered on the periodic channel only (see "Network and other scalar laws").
 - Only 2D, `x`-periodic, body-force-driven flow is covered.
 - Forward-solve distances in T5. The test labels the three forward levels
   `1e-10`, `1e-12`, `1e-14`, and the third is the one used in the gate. The log line

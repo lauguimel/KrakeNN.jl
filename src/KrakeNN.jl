@@ -257,6 +257,7 @@ include("platform/closures/tiny_mlp.jl")
 include("platform/closures/dense_net.jl")
 include("platform/closures/onnx_stub.jl")
 include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing FV/adjoint seam
+include("rheology/gnf_law.jl")     # the same scalar laws in the 2D LBM GNF step and its adjoint
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
 include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities
 include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
@@ -727,6 +728,7 @@ export collide_twophase_rheology_2d!
 # Steady GNF (per-cell pure functions, split/fused kernels, periodic-x driver)
 export gnf_moments_cell, gnf_feq_cell, gnf_strain_rate_cell, gnf_collide_cell
 export gnf_viscosity, gnf_cell_update
+export LBMLawViscosity, gnf_law_gradient, gnf_steady_law_gradient
 export gnf_strain_rate_2d!, closure_eval!, collide_gnf_cell_2d!, collide_gnf_fused_2d!
 export gnf_macroscopic_post_2d!, gnf_step!, gnf_rest_state, run_gnf_periodic_steady
 # Steady GNF adjoint (local blocks, JVP/VJP, gauge-bordered GMRES, parameter gradient)
