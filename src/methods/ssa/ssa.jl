@@ -119,9 +119,9 @@ ssa_adapt(to, p::SSAProblem2D) =
 _ssa_adapt_drag(to, d::SSAWeertman) = d
 _ssa_adapt_drag(to, d::SSALearnedDrag) = SSALearnedDrag(d.mlp, d.F0, d.u_reg, to(d.theta))
 
-"""Same problem with a new drag law (e.g. other weights) or regularisation."""
-ssa_with(p::SSAProblem2D; drag = p.drag, eps_reg = sqrt(p.eps2)) =
-    SSAProblem2D(p.Nx, p.Ny, p.dx, p.dy, p.H, p.fx, p.fy, p.Neff, p.Bn, p.expo,
+"""Same problem with a new drag law (e.g. other weights), regularisation or Glen constant `Bn = A^(-1/n)/2`."""
+ssa_with(p::SSAProblem2D; drag = p.drag, eps_reg = sqrt(p.eps2), Bn = p.Bn) =
+    SSAProblem2D(p.Nx, p.Ny, p.dx, p.dy, p.H, p.fx, p.fy, p.Neff, Float64(Bn), p.expo,
                  Float64(eps_reg)^2, p.bvel, p.bdir, drag, p.n_glen, p.dmask)
 
 ssa_nunknowns(p::SSAProblem2D) = 2 * p.Nx * p.Ny
@@ -539,8 +539,12 @@ Gradient w.r.t. the weights of the learned drag of `dL/dθ` where `g = ∂L/∂U
 (device vector, same layout as `U`), by ONE transposed solve `Jᵀ λ = g` with the
 Newton factors re-assembled at `U` (no continuation shift), then a per-cell
 contraction `-λᵀ ∂R/∂θ` through [`law_pullback!`](@ref).
+
+With `logA = true` returns `(grad, dL_dlogA)`: the derivative w.r.t. `log A` of the
+uniform rate factor, from the same `λ`. The residual is affine in `Bn = A^(-1/n)/2`
+(`R = Bn V(U) + D(U)`), so `∂R/∂logA = -(R - R|_{Bn=0})/n` and `dL/dlogA = λᵀ (R - R₀)/n`.
 """
-function ssa_theta_gradient(s::SSANewtonSolver, U, g)
+function ssa_theta_gradient(s::SSANewtonSolver, U, g; logA::Bool = false)
     p = s.prob
     p.drag isa SSALearnedDrag || throw(ArgumentError("the problem has no learned drag"))
     ssa_jacobian!(s, U)
@@ -556,7 +560,12 @@ function ssa_theta_gradient(s::SSANewtonSolver, U, g)
                                              ndrange = size(partials, 1))
     _ssa_theta_reduce_kernel!(backend, 64)(grad, partials; ndrange = np)
     KernelAbstractions.synchronize(backend)
-    return Array(grad)
+    logA || return Array(grad)
+    R1 = similar(U); R0 = similar(U)
+    ssa_residual!(R1, U, p)
+    ssa_residual!(R0, U, ssa_with(p; Bn = 0.0))
+    dlogA = sum(lam .* (R1 .- R0)) / p.n_glen
+    return Array(grad), Float64(dlogA)
 end
 
 """

@@ -54,7 +54,19 @@ function ssa_learned_gradient_check(; N = ssa_test_n(), to = Array, linsolve = C
     # state at theta0, gradient by the adjoint
     _, g = ssa_misfit(U, Uo)
     nit = s.n_refactorize
-    grad = ssa_theta_gradient(s, U, g)
+    grad, glogA = ssa_theta_gradient(s, U, g; logA = true)
+    # d/dlogA by central FD of the re-solved misfit (Bn = Bn0 exp(-logA/n))
+    p0 = s.prob
+    fdA(h) = begin
+        vals = map((-h, h)) do dl
+            s.prob = ssa_with(p0; Bn = p0.Bn * exp(-dl / p0.n_glen))
+            ssa_misfit_at!(s, U, Uobs_d, theta0)
+        end
+        (vals[2] - vals[1]) / (2h)
+    end
+    Uobs_d = to(copy(Uobs))
+    fdlogA = fdA(1e-5)
+    s.prob = p0
     # weights to check: the largest gradient entries, spread over the layout
     order = sortperm(abs.(grad); rev = true)
     chosen = order[1:nweights]
@@ -70,5 +82,5 @@ function ssa_learned_gradient_check(; N = ssa_test_n(), to = Array, linsolve = C
     end
     kV = chosen[1]
     vshape = [abs(fd(kV, h) - grad[kV]) / abs(grad[kV]) for h in steps]
-    return (; L0, grad, chosen, rel, vshape, steps, solver = s, nweights = length(theta0), U)
+    return (; L0, grad, glogA, fdlogA, chosen, rel, vshape, steps, solver = s, nweights = length(theta0), U)
 end

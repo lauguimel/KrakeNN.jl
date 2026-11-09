@@ -15,6 +15,8 @@ end
     @test all(isfinite, r.grad)
     @test maximum(r.rel) < 1e-5
     @test r.vshape[2] < r.vshape[1] && r.vshape[2] < r.vshape[3]    # V: truncation left, round-off right
+    println("SSA T4: dL/dlogA adjoint ", r.glogA, " FD ", r.fdlogA)
+    @test abs(r.glogA - r.fdlogA) / abs(r.fdlogA) < 1e-5
     # gradient at the Weertman solution of a law that is not zero misfit is nonzero;
     # the factorization of the forward solve is reused: no second symbolic analysis
     @test r.solver.n_factorize == 1

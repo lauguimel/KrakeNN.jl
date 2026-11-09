@@ -13,6 +13,10 @@
 #   KRAKEN_PIG_ITERS   = number of L-BFGS iterations (default 50)
 #   KRAKEN_PIG_SIGMA   = misfit scale in m/yr (default 100; one value for all cells)
 #   KRAKEN_PIG_LAMBDA  = weight decay toward the pretrained theta (default 1.0)
+#   KRAKEN_PIG_LOSS    = grounded (default) | all : cells entering the training misfit (floating ice has no
+#                        basal drag, its misfit only informs the rate factor A)
+#   KRAKEN_PIG_LEARN_A = 1 (default) | 0 : learn one uniform rate factor A jointly (parameter log multiplier
+#                        lA, A = A0 exp(lA), gradient from the same adjoint) | keep A fixed
 #   KRAKEN_PIG_C       = Weertman C to imitate (default: best of the sweep KRAKEN_PIG_CS)
 #   KRAKEN_PIG_PRETRAIN_STEPS = Adam steps of the pretraining (default 20000)
 # Outputs in benchmarks/ssa_glacier/out/ with the suffix _c<coarsen>.
@@ -73,10 +77,14 @@ function main_train()
     iters = parse(Int, get(ENV, "KRAKEN_PIG_ITERS", "50"))
     sigma = parse(Float64, get(ENV, "KRAKEN_PIG_SIGMA", "100"))
     lambda = parse(Float64, get(ENV, "KRAKEN_PIG_LAMBDA", "1.0"))
+    lossmode = lowercase(get(ENV, "KRAKEN_PIG_LOSS", "grounded"))
+    lossmode in ("grounded", "all") || error("KRAKEN_PIG_LOSS must be grounded or all")
+    learnA = get(ENV, "KRAKEN_PIG_LEARN_A", "1") == "1"
     d = load_pig(; coarsen = k)
-    @printf("PIG crop %d x %d at %.0f m, backend %s, iters %d, sigma %.0f m/yr, lambda %.3g\n",
-            d.Nx, d.Ny, d.dx, be.name, iters, sigma, lambda)
+    @printf("PIG crop %d x %d at %.0f m, backend %s, iters %d, sigma %.0f m/yr, lambda %.3g, loss %s, learn A %s\n",
+            d.Nx, d.Ny, d.dx, be.name, iters, sigma, lambda, lossmode, learnA)
     Uobs = observed_state(d); w = misfit_weights(d)
+    lossmode == "grounded" && (w = w .* Float64.(d.mask .== 2))
     W = zeros(length(Uobs)); W[1:2:end] .= vec(w); W[2:2:end] .= vec(w)
     mkpath(OUT); tag = "_c$(k)"
 
@@ -146,15 +154,19 @@ function main_train()
             best.m.rms_speed, best.m.rms_grounded, best.m.rms_floating)
     st[end].converged || error("Newton did not converge with the pretrained network")
     Upre = Array(Ucur)
+    Bn0 = pl.Bn; nglen = pl.n_glen; np = length(theta_pre)
+    A0 = (2 * Bn0)^(-nglen)               # initial rate factor (kPa^-n yr^-1)
+    Bn_of(lA) = Bn0 * exp(-lA / nglen)    # A = A0 exp(lA)
 
     # (3) training
     println("\n== Training (L-BFGS, backtracking)")
     misfitL(U) = (r = Wd .* (U .- Ub); (sum(r .* (U .- Ub)) / (2 * sigma^2), r ./ sigma^2))
     # one solve at theta from the state Ucur; returns (L_total, ok, its, fell_back)
-    function trial!(theta)
-        ssa_set_theta!(sl, theta)
+    function trial!(x)
+        th = x[1:np]; lA = learnA ? x[np + 1] : 0.0
+        ssa_set_theta!(sl, th)
         copyto!(Utry, Ucur)
-        sl.prob = ssa_with(sl.prob; eps_reg = 1e-5)
+        sl.prob = ssa_with(sl.prob; eps_reg = 1e-5, Bn = Bn_of(lA))
         r = ssa_newton!(sl, Utry; atol = 1e-8, rtol = 1e-13, maxit = 30)
         its = r.iterations; fb = false
         if !r.converged
@@ -164,13 +176,14 @@ function main_train()
             stc[end].converged || return (Inf, false, its, fb)
         end
         Lm = misfitL(Utry)[1]
-        return (Lm + lambda / 2 * sum(abs2, theta .- theta_pre), true, its, fb)
+        return (Lm + lambda / 2 * sum(abs2, th .- theta_pre), true, its, fb)
     end
-    function gradient_at(theta)       # sl holds theta and Ucur = the solution at theta
-        g = ssa_theta_gradient(sl, Ucur, misfitL(Ucur)[2])
-        return g .+ lambda .* (theta .- theta_pre)
+    function gradient_at(x)       # sl holds (theta, A) of x and Ucur = the solution there
+        gth, gA = ssa_theta_gradient(sl, Ucur, misfitL(Ucur)[2]; logA = true)
+        gth = gth .+ lambda .* (x[1:np] .- theta_pre)
+        return learnA ? vcat(gth, gA) : gth
     end
-    theta = copy(theta_pre)
+    theta = learnA ? vcat(theta_pre, 0.0) : copy(theta_pre)      # optimisation vector x
     Lc, ok, its0, _ = trial!(theta); ok || error("initial solve failed")
     copyto!(Ucur, Utry)
     g = gradient_at(theta)
@@ -183,12 +196,12 @@ function main_train()
         trial!(theta); copyto!(Ucur, Utry)
     end
     hist = open(joinpath(OUT, "pig_train_history$(tag).csv"), "w")
-    println(hist, "iter,L,Lmisfit,rms_all,rms_grounded,rms_floating,newton_its,solves,fallback,grad_inf,grad_l2,step_norm")
+    println(hist, "iter,L,Lmisfit,rms_all,rms_grounded,rms_floating,newton_its,solves,fallback,grad_inf,grad_l2,step_norm,A_ratio")
     function log_iter(it, L, Ucurr, its, solves, fb, gg, sn)
         ms = misfit_stats(d, Array(Ucurr))
-        @printf("it %3d  L %.6e  RMS speed all/grounded/floating %.1f/%.1f/%.1f  Newton its %d (%d solves%s)  |g|inf %.2e |g|2 %.2e  step %.3f\n",
-                it, L, ms.rms_speed, ms.rms_grounded, ms.rms_floating, its, solves, fb ? ", fallback" : "", maximum(abs, gg), norm(gg), sn)
-        println(hist, join((it, L, L - lambda / 2 * sum(abs2, theta .- theta_pre), ms.rms_speed, ms.rms_grounded, ms.rms_floating, its, solves, Int(fb), maximum(abs, gg), norm(gg), sn), ","))
+        @printf("it %3d  L %.6e  RMS speed all/grounded/floating %.1f/%.1f/%.1f  Newton its %d (%d solves%s)  |g|inf %.2e |g|2 %.2e  step %.3f  A/A0 %.4f\n",
+                it, L, ms.rms_speed, ms.rms_grounded, ms.rms_floating, its, solves, fb ? ", fallback" : "", maximum(abs, gg), norm(gg), sn, learnA ? exp(theta[np + 1]) : 1.0)
+        println(hist, join((it, L, L - lambda / 2 * sum(abs2, theta[1:np] .- theta_pre), ms.rms_speed, ms.rms_grounded, ms.rms_floating, its, solves, Int(fb), maximum(abs, gg), norm(gg), sn, learnA ? exp(theta[np + 1]) : 1.0), ","))
         flush(hist)
     end
     log_iter(0, Lc, Ucur, its0, 1, false, g, 0.0)
@@ -214,7 +227,7 @@ function main_train()
             println("line search failed: reset the L-BFGS memory")
             empty!(S); empty!(Y)
             # restore the solver at theta (state Ucur is still the solution there)
-            ssa_set_theta!(sl, theta)
+            ssa_set_theta!(sl, theta[1:np]); sl.prob = ssa_with(sl.prob; Bn = Bn_of(learnA ? theta[np + 1] : 0.0))
             continue
         end
         copyto!(Ucur, Utry)
@@ -233,17 +246,23 @@ function main_train()
     close(hist)
 
     # outputs
-    ssa_set_theta!(sl, theta)
+    lAend = learnA ? theta[np + 1] : 0.0
+    ssa_set_theta!(sl, theta[1:np]); sl.prob = ssa_with(sl.prob; Bn = Bn_of(lAend))
     mtr = misfit_stats(d, Array(Ucur))
     @printf("\nRESULT %dx%d at %.0f m: RMS speed all/grounded/floating  Weertman %.1f/%.1f/%.1f  pretrained %.1f/%.1f/%.1f  trained %.1f/%.1f/%.1f m/yr; max model trained %.0f (obs %.0f)\n",
             d.Nx, d.Ny, d.dx, best.m.rms_speed, best.m.rms_grounded, best.m.rms_floating, mpre.rms_speed, mpre.rms_grounded, mpre.rms_floating,
             mtr.rms_speed, mtr.rms_grounded, mtr.rms_floating, mtr.max_model, mtr.max_obs)
+    theta = theta[1:np]
     open(joinpath(OUT, "pig_theta$(tag).txt"), "w") do io
         println(io, "# trained theta of TinyMLP{2,4,1}(shift=(0,0), scale=$(MLP_SCALE)), F0 = $F0, C_weertman = $C, sigma = $sigma, lambda = $lambda")
         println(io, "# columns: index, pretrained, trained")
         for q in eachindex(theta)
             println(io, q, " ", theta_pre[q], " ", theta[q])
         end
+    end
+    @printf("LEARNED A: A0 = %.4g, A_end = %.4g kPa^-3 yr^-1, ratio %.4f (learn A %s)\n", A0, A0 * exp(lAend), exp(lAend), learnA)
+    open(joinpath(OUT, "pig_A$(tag).txt"), "w") do io
+        println(io, "A0 = $A0\nlogA_mult = $lAend\nratio = $(exp(lAend))\nlearned = $learnA\nloss = $lossmode")
     end
     for (nm, U) in (("weertman", Uw), ("pretrained", Upre), ("learned", Array(Ucur)))
         write(joinpath(OUT, "speed_$(nm)$(tag).bin"), Float64.(reshape(hypot.(U[1:2:end], U[2:2:end]), d.Nx, d.Ny)))
