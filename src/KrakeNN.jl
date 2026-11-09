@@ -258,6 +258,7 @@ include("platform/closures/dense_net.jl")
 include("platform/closures/onnx_stub.jl")
 include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing FV/adjoint seam
 include("rheology/gnf_law.jl")     # the same scalar laws in the 2D LBM GNF step and its adjoint
+include("rheology/gnf_law_3d.jl")  # the same scalar laws in the 3D D3Q19 GNF step
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
 include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities
 include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
