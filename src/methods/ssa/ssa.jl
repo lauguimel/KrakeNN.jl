@@ -99,12 +99,13 @@ struct SSAProblem2D{M,B,D}
     bdir::NTuple{4,Bool}
     drag::D
     n_glen::Float64
+    dmask::M            # per-cell multiplier of the basal drag (0 = floating / no friction)
 end
 
 KernelAbstractions.Adapt.adapt_structure(to, p::SSAProblem2D) =
     SSAProblem2D(p.Nx, p.Ny, p.dx, p.dy, map(a -> KernelAbstractions.Adapt.adapt(to, a), (p.H, p.fx, p.fy, p.Neff))...,
                  p.Bn, p.expo, p.eps2, KernelAbstractions.Adapt.adapt(to, p.bvel), p.bdir,
-                 KernelAbstractions.Adapt.adapt(to, p.drag), p.n_glen)
+                 KernelAbstractions.Adapt.adapt(to, p.drag), p.n_glen, KernelAbstractions.Adapt.adapt(to, p.dmask))
 
 """
     ssa_adapt(to, prob) -> SSAProblem2D
@@ -114,14 +115,14 @@ Move all arrays of `prob` with `to` (`Array`, `CuArray`).
 ssa_adapt(to, p::SSAProblem2D) =
     SSAProblem2D(p.Nx, p.Ny, p.dx, p.dy, to(p.H), to(p.fx), to(p.fy), to(p.Neff),
                  p.Bn, p.expo, p.eps2, to(p.bvel), p.bdir, _ssa_adapt_drag(to, p.drag),
-                 p.n_glen)
+                 p.n_glen, to(p.dmask))
 _ssa_adapt_drag(to, d::SSAWeertman) = d
 _ssa_adapt_drag(to, d::SSALearnedDrag) = SSALearnedDrag(d.mlp, d.F0, d.u_reg, to(d.theta))
 
 """Same problem with a new drag law (e.g. other weights) or regularisation."""
 ssa_with(p::SSAProblem2D; drag = p.drag, eps_reg = sqrt(p.eps2)) =
     SSAProblem2D(p.Nx, p.Ny, p.dx, p.dy, p.H, p.fx, p.fy, p.Neff, p.Bn, p.expo,
-                 Float64(eps_reg)^2, p.bvel, p.bdir, drag, p.n_glen)
+                 Float64(eps_reg)^2, p.bvel, p.bdir, drag, p.n_glen, p.dmask)
 
 ssa_nunknowns(p::SSAProblem2D) = 2 * p.Nx * p.Ny
 
@@ -140,18 +141,21 @@ end
 
 """
     ssa_problem(Nx, Ny; Lx, Ly, H, s, A, n = 3, drag, N = nothing, eps_reg = 1e-5,
-                boundary_velocity = nothing, dirichlet = (true,true,true,true))
+                boundary_velocity = nothing, dirichlet = (true,true,true,true), drag_mask = nothing)
 
 `H`, `s` are numbers, `(x, y) -> value` functions (cell centres, origin at the
 lower-left corner) or `Nx × Ny` matrices (m). `A` is the rate factor in
 kPa^-n yr^-1. The driving stress is `rho g H ∇s` with the surface gradient by
 central differences. `N` (effective pressure, kPa) defaults to `rho g H`.
 `boundary_velocity(x, y) -> (u, v)` is evaluated at the wall midpoints of the
-Dirichlet sides (default zero). Sides are ordered E, W, N, S.
+Dirichlet sides (default zero). Sides are ordered E, W, N, S. `boundary_velocity`
+may also be an `NTuple{4}` of `2 × L` matrices (side E, W: L = Ny; N, S: L = Nx)
+giving the wall velocities directly. `drag_mask` (number or `Nx × Ny` matrix,
+default 1) multiplies the basal drag cell by cell (0 for floating ice).
 """
 function ssa_problem(Nx::Int, Ny::Int; Lx::Real, Ly::Real, H, s, A::Real, n::Real = 3,
                      drag, N = nothing, eps_reg::Real = 1e-5, boundary_velocity = nothing,
-                     dirichlet::NTuple{4,Bool} = (true, true, true, true))
+                     dirichlet::NTuple{4,Bool} = (true, true, true, true), drag_mask = nothing)
     dx = Float64(Lx) / Nx; dy = Float64(Ly) / Ny
     cellfield(f::Number) = fill(Float64(f), Nx, Ny)
     cellfield(f::AbstractMatrix) = Float64.(f)
@@ -161,7 +165,13 @@ function ssa_problem(Nx::Int, Ny::Int; Lx::Real, Ly::Real, H, s, A::Real, n::Rea
     sx, sy = _ssa_gradient(sm, dx, dy)
     Nm = N === nothing ? SSA_RHOG .* Hm : cellfield(N)
     bvel = zeros(2, max(Nx, Ny), 4)
-    if boundary_velocity !== nothing
+    if boundary_velocity isa NTuple{4,AbstractMatrix}
+        for side in 1:4
+            L = size(boundary_velocity[side], 2)
+            bvel[1, 1:L, side] .= boundary_velocity[side][1, :]
+            bvel[2, 1:L, side] .= boundary_velocity[side][2, :]
+        end
+    elseif boundary_velocity !== nothing
         for l in 1:max(Nx, Ny)
             pts = ((Lx, (l - 0.5) * dy), (0.0, (l - 0.5) * dy), ((l - 0.5) * dx, Ly), ((l - 0.5) * dx, 0.0))
             for side in 1:4
@@ -171,9 +181,10 @@ function ssa_problem(Nx::Int, Ny::Int; Lx::Real, Ly::Real, H, s, A::Real, n::Rea
         end
     end
     nn = Float64(n)
+    dm = drag_mask === nothing ? ones(Nx, Ny) : cellfield(drag_mask)
     return SSAProblem2D(Nx, Ny, dx, dy, Hm, SSA_RHOG .* Hm .* sx, SSA_RHOG .* Hm .* sy, Nm,
                         0.5 * Float64(A)^(-1 / nn), (1 - nn) / (2nn), Float64(eps_reg)^2,
-                        bvel, dirichlet, drag, nn)
+                        bvel, dirichlet, drag, nn, dm)
 end
 
 # ------------------------------------------------------------------ residual
@@ -254,6 +265,8 @@ end
     _, Fxy_s, Fyy_s = _ssa_yface(U, p, i, j - 1)
     u, v = _ssa_cell(U, p, i, j)
     tbx, tby = ssa_drag(p.drag, u, v, @inbounds p.Neff[i, j])
+    dm = @inbounds p.dmask[i, j]
+    tbx *= dm; tby *= dm
     ru = (Fxx_e - Fxx_w) / p.dx + (Fxy_n - Fxy_s) / p.dy - tbx - @inbounds(p.fx[i, j])
     rv = (Fxy_e - Fxy_w) / p.dx + (Fyy_n - Fyy_s) / p.dy - tby - @inbounds(p.fy[i, j])
     return ru, rv
@@ -494,7 +507,7 @@ end
     sp = sqrt(u * u + v * v + d.u_reg * d.u_reg)
     N = @inbounds p.Neff[i, j]
     z = law_value(d.mlp, (sp, N), d.theta)
-    @inbounds coef[c] = (lam[2c - 1] * u + lam[2c] * v) / sp * d.F0 * _law_logistic(z)
+    @inbounds coef[c] = (lam[2c - 1] * u + lam[2c] * v) / sp * d.F0 * _law_logistic(z) * @inbounds(p.dmask[i, j])
     @inbounds inputs[1, c] = sp
     @inbounds inputs[2, c] = N
 end
