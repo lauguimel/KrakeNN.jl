@@ -5,7 +5,8 @@
 # Derivative consistency <=1e-12 relative, Newton/Picard and force/flow
 # agreement <=1e-10 relative. No acceptance constant is fitted to FV results.
 # Run: sh tmp/thermal_julia.sh --project=. test/analytical/incns_fv_thermal_coupling_test.jl
-using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random, SparseArrays
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random
+using KrakeNN.SparseArrays
 
 struct _FVTExpLaw <: AbstractScalarLaw end
 KrakeNN.law_ninputs(::_FVTExpLaw)=2
