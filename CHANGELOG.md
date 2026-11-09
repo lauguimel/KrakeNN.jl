@@ -166,6 +166,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   (CPU 64x64, 248 parameters: 1.46 s to 67 ms; both paths agree to 1e-13,
   central differences to 4e-7). `ClassicalLaw` reproduces `FVGNFViscosity`.
   H100 run recorded in `benchmarks/fv_law/`.
+- Steady thermal coupling on the colocated FV Newton solver (branch
+  `feat/fv-thermal`): `FVEnergy` adds a temperature equation (linear-upwind
+  convection on the Rhie–Chow flux, diffusion, viscous heating `2 sigma nu S:S`,
+  Dirichlet or adiabatic walls, adiabatic voxel solids) stored as
+  `theta = T - T_ref`; temperature-dependent viscosity through
+  `FVStateTemperature` and `E5ThermalLaw`; imposed mean velocity
+  (`u_mean_target`, `fv_flow_force`); `fv_thermal_continuation` in the heating
+  coefficient with fold diagnostics; a round-off floor stopping gate for the
+  energy rows (`C = 64`, result field `gate`); the discrete adjoint through the
+  temperature (`fv_mean_temperature`, `fv_temperature_l2`,
+  `fv_flow_force_objective`); the FV-vs-LBM comparison driver
+  `benchmarks/fv_thermal/e5_compare.jl` with acceptance thresholds. Validation:
+  independent Nahme channel reference (second order), and on the E5 six-cylinder
+  cell at 600x200 (H100, 2026-11-08) mean temperature rise +1.4 %, flow rate
+  +1.4 %, `dm/dtheta` norm difference 2.4 % (worst component 4.5 %, 8 of 8
+  signs), adjoint vs finite differences 2.7e-6; at 300x100 +3.1 %, +3.3 %,
+  6.0 % (worst 10.7 %). Two grids only, Float64 only, no transient. See
+  `docs/src/users/fv-thermal.md`.
 
 ### Changed
 - The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl`.

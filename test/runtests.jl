@@ -115,7 +115,15 @@ function run_incns_testset()
         # as GPU) vs dense, quadratic convergence, one analysis, Ghia, SIMPLE
         # (~15 s CPU), and its opt-in GPU/cuDSS contract
         include("analytical/incns_fv_newton.jl")
+        include("analytical/incns_fv_layout_test.jl")
+        include("analytical/incns_fv_energy_test.jl")
+        include("analytical/incns_fv_thermal_coupling_test.jl")
+        include("analytical/incns_fv_thermal_adjoint_test.jl")
+        include("analytical/incns_fv_e5_compare_smoke_test.jl")
+        include("analytical/incns_fv_energy_theta_test.jl")
+        include("analytical/incns_fv_energy_floor_test.jl")
         include("analytical/incns_fv_newton_gpu.jl")
+        include("analytical/incns_fv_energy_gpu.jl")
         # C3 GNF viscosity in that residual: exact-stencil pattern, Jacobian
         # through nu(U) vs dense ForwardDiff, power-law Poiseuille, n = 1 vs
         # Newtonian, CY obstacle channel vs the LBM GNF driver (~50 s CPU),
@@ -123,6 +131,7 @@ function run_incns_testset()
         include("analytical/incns_fv_gnf.jl")
         include("analytical/incns_fv_law_test.jl")
         include("analytical/incns_fv_law_contraction_test.jl")
+        include("analytical/incns_fv_jacobian_pattern_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,

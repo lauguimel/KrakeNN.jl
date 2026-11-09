@@ -160,6 +160,7 @@ makedocs(;
             "Architecture" => "architecture.md",
             "KRK reference" => "users/krk-reference.md",
             "Incompressible Navier–Stokes (FVFD/SIMPLE)" => "users/incompressible-navier-stokes.md",
+            "Thermal coupling (steady FV)" => "users/fv-thermal.md",
             "Simulation state and checkpoints" => "users/simulation-state-checkpoints.md",
         ],
         "Examples" => [

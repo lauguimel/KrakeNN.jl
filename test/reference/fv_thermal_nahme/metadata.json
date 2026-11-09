@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-08",
+  "scipy": "1.17.1",
+  "nu0": 0.3,
+  "alpha": 0.2,
+  "beta": 1.0,
+  "T_wall": 1.0,
+  "H": 1.0,
+  "force": 0.6,
+  "cases": {
+    "poiseuille": {
+      "sigma": 1.9127858635347974,
+      "top_rise": 0.7,
+      "center_nu_change": 0.3580878417725081,
+      "nodes": [
+        101,
+        441,
+        1977
+      ],
+      "tolerances": [
+        1e-06,
+        1e-08,
+        1e-10
+      ],
+      "coarse_medium_differences_to_fine": [
+        1.6489780874096027e-08,
+        4.3657202852820376e-11
+      ],
+      "reference_error_bound": 1e-08,
+      "curvature_envelope": 4.561318254849151,
+      "finest_FV_error_bound": 0.002227206179125562,
+      "u_mean": 0.24850082140745203,
+      "fixed_mesh_intervals": [
+        32,
+        64,
+        128,
+        256
+      ],
+      "fixed_mesh_errors_to_adaptive_reference": [
+        8.319127351580358e-07,
+        5.507631538337332e-08,
+        3.5385800505050025e-09,
+        2.241666522545538e-10
+      ],
+      "fixed_mesh_orders": [
+        3.9169282512316728,
+        3.9601895843793615,
+        3.9805269773124503
+      ]
+    },
+    "couette": {
+      "sigma": 0.8,
+      "top_rise": 0.47000362924572703,
+      "center_nu_change": 0.2922152924789505,
+      "nodes": [
+        65,
+        193,
+        686
+      ],
+      "tolerances": [
+        1e-06,
+        1e-08,
+        1e-10
+      ],
+      "coarse_medium_differences_to_fine": [
+        2.708466229073281e-10,
+        3.859301767050738e-12
+      ],
+      "reference_error_bound": 1e-08,
+      "curvature_envelope": 1.0159067307963985,
+      "finest_FV_error_bound": 0.000496048208396679,
+      "u_mean": 0.4615521351513654,
+      "fixed_mesh_intervals": [
+        32,
+        64,
+        128,
+        256
+      ],
+      "fixed_mesh_errors_to_adaptive_reference": [
+        4.323423397067927e-09,
+        2.7033064675663354e-10,
+        1.689698381213134e-11,
+        1.0433875985427221e-12
+      ],
+      "fixed_mesh_orders": [
+        3.9993771464461414,
+        3.99988742909889,
+        4.017418645751679
+      ]
+    }
+  },
+  "fold": {
+    "sigma": 2.611023571651698,
+    "top_rise": 1.6661102501192615,
+    "coarse_fine_sigma_difference": 5.123457214040172e-12,
+    "sigma_error_bound": 1e-07,
+    "nahme": 15.666141429910187
+  }
+}

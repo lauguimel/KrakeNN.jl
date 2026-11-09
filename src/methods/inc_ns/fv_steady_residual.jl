@@ -30,7 +30,8 @@
 #   to a solid cell is a halfway no-slip wall by default. A lowered immersed
 #   geometry replaces only these faces with its prescribed ghost closure.
 #
-# Unknown ordering: k = 3*(c-1) + {1:u, 2:v, 3:p}, c = i + (j-1)*Nx.
+# Unknown ordering: k = nfields*(c-1) + {1:u, 2:v, 3:p, 4:scalar1, ...}.
+# The default FVFieldLayout{0} has exactly the original three cell fields.
 # M3 appends one lambda per immersed (solid body, fluid region) pair.
 
 # ------------------------------------------------------------------ codes
@@ -51,6 +52,29 @@ const _FV_F_OUTLET = 2
 const _FV_SIDES = (:E, :W, :N, :S)
 
 """
+    FVFieldLayout{NS}()
+
+Internal, isbits cell layout: two velocity components, pressure, and `NS`
+scalar slots. Scalars carry identity equations unless a scalar model is active.
+The compile-time slot count changes storage, never physical vector dimensions.
+"""
+struct FVFieldLayout{NS}
+    function FVFieldLayout{NS}() where {NS}
+        NS isa Int && NS >= 0 || throw(ArgumentError("scalar count must be a nonnegative Int"))
+        return new{NS}()
+    end
+end
+@inline _fv_nscalars(::FVFieldLayout{NS}) where {NS} = NS
+@inline _fv_nfields(layout::FVFieldLayout) = 3 + _fv_nscalars(layout)
+@inline _fv_velocity_slot(::FVFieldLayout, component) = component
+@inline _fv_pressure_slot(::FVFieldLayout) = 3
+@inline _fv_scalar_slot(::FVFieldLayout, scalar) = 3 + scalar
+@inline _fv_cell_base(layout::FVFieldLayout, cell) = _fv_nfields(layout) * (cell - 1)
+@inline _fv_cell_index(layout::FVFieldLayout, cell, component) =
+    _fv_cell_base(layout, cell) + component
+@inline _fv_cell_from_index(layout::FVFieldLayout, index) = (index - 1) ÷ _fv_nfields(layout) + 1
+
+"""
     FVGrid2D{T}
 
 Isbits description of a uniform `Nx × Ny` grid of spacing `h` and of its
@@ -61,7 +85,7 @@ convective flux and the convective part of the Rhie-Chow coefficient), and the
 side codes `bcE`, `bcW`, `bcN`, `bcS` (`FV_BC_WALL`, `FV_BC_INLET`,
 `FV_BC_OUTLET`, `FV_BC_PERIODIC`; periodic sides come in pairs).
 """
-struct FVGrid2D{T}
+struct FVGrid2D{T,L<:FVFieldLayout}
     Nx::Int
     Ny::Int
     h::T
@@ -70,7 +94,18 @@ struct FVGrid2D{T}
     bcW::Int
     bcN::Int
     bcS::Int
+    layout::L
 end
+# Keep both original eight-argument constructors and their default layout.
+FVGrid2D{T}(Nx, Ny, h, conv, bcE, bcW, bcN, bcS) where {T} =
+    FVGrid2D(Int(Nx), Int(Ny), T(h), T(conv), Int(bcE), Int(bcW), Int(bcN), Int(bcS), FVFieldLayout{0}())
+FVGrid2D(Nx, Ny, h::T, conv::T, bcE, bcW, bcN, bcS) where {T} =
+    FVGrid2D{T}(Nx, Ny, h, conv, bcE, bcW, bcN, bcS)
+@inline _fv_nfields(g::FVGrid2D) = _fv_nfields(g.layout)
+@inline _fv_cell_base(g::FVGrid2D, cell) = _fv_cell_base(g.layout, cell)
+@inline _fv_cell_index(g::FVGrid2D, cell, component) = _fv_cell_index(g.layout, cell, component)
+@inline _fv_cell_from_index(g::FVGrid2D, index) = _fv_cell_from_index(g.layout, index)
+
 
 """
     FVSteadyProblem2D(grid, tag, nu, bvel, src[, visc, immersed])
@@ -94,11 +129,15 @@ type; the residual is evaluated in the promoted type, so a parameter array of
   face strain rate; `nu` is then not read). Its parameters may be duals too.
 - `immersed`: `nothing` (the original halfway walls), or a lowered
   [`FVImmersedBoundary2D`](@ref) with fixed cell tags and cut-face data.
+- `energy`: `nothing` (three fields), or lowered [`FVEnergy`](@ref) data
+  activating temperature in the first scalar slot.
+- `flowrate`: `nothing` (prescribed forcing), or lowered mean-x-velocity
+  target with one final global force unknown after any immersed multipliers.
 
 Build with [`fv_steady_problem`](@ref); move to a device with
 [`fv_adapt`](@ref).
 """
-struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I}
+struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E,F}
     grid::G
     tag::TA
     nu::NA
@@ -106,11 +145,17 @@ struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I}
     src::SA
     visc::V
     immersed::I
+    energy::E
+    flowrate::F
 end
 FVSteadyProblem2D(grid, tag, nu, bvel, src) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, FVNewtonianViscosity())
 FVSteadyProblem2D(grid, tag, nu, bvel, src, visc) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, nothing)
+FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed) =
+    FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, nothing)
+FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy) =
+    FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy, nothing)
 
 # Arrays are separate kernel arguments: only the scalar closure description
 # crosses the device boundary as a struct. Number types come from signatures.
@@ -123,16 +168,17 @@ _fv_immersed_eltype(b) = promote_type(eltype(b.qcut), eltype(b.wvel), _fv_mass_e
 _fv_adapt_immersed(to, ::Nothing) = nothing
 _fv_adapt_immersed(to, b) = fv_adapt(to, b)
 
-fv_nunknowns(g::FVGrid2D) = 3 * g.Nx * g.Ny
-fv_nunknowns(p::FVSteadyProblem2D) = fv_nunknowns(p.grid) + _fv_npairs(p.immersed)
+fv_nunknowns(g::FVGrid2D) = _fv_nfields(g) * g.Nx * g.Ny
+@inline _fv_extra_index(p::FVSteadyProblem2D, k) = fv_nunknowns(p.grid) + k
+fv_nunknowns(p::FVSteadyProblem2D) = _fv_extra_index(p, _fv_npairs(p.immersed) + (p.flowrate !== nothing))
 
 """
     fv_index(grid, i, j, comp) -> Int
 
-Position of unknown `comp` (1 = u, 2 = v, 3 = p) of cell `(i, j)` in the state
-vector: `3 (i - 1 + (j - 1) Nx) + comp`.
+Position of unknown `comp` (1 = u, 2 = v, 3 = p, then scalar slots) of cell
+`(i, j)`: `nfields * (i - 1 + (j - 1) Nx) + comp`.
 """
-@inline fv_index(g::FVGrid2D, i, j, comp) = 3 * (i - 1 + (j - 1) * g.Nx) + comp
+@inline fv_index(g::FVGrid2D, i, j, comp) = _fv_cell_index(g, i + (j - 1) * g.Nx, comp)
 
 # ------------------------------------------------------------------ viscosity hooks
 """
@@ -226,8 +272,8 @@ arithmetic and prescribed inflow value; its geometric q is deliberately ignored.
 """
 @inline function _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
     z = _fv_array_zero(U) + _fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel)
-    uP = _fv_val(U, g, i, j, 1) + z; vP = _fv_val(U, g, i, j, 2) + z
-    pP = _fv_val(U, g, i, j, 3) + z
+    uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)) + z; vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)) + z
+    pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout)) + z
     cut = _fv_immersed_face(g, qcut, i, j, d)
     if cut
         @inbounds uw, vw = wvel[1, d, i, j], wvel[2, d, i, j]
@@ -241,10 +287,10 @@ arithmetic and prescribed inflow value; its geometric q is deliberately ignored.
     oi = i - (d == 1) + (d == 2)
     oj = j - (d == 3) + (d == 4)
     @inbounds q = qcut[d, i, j]
-    uO = _fv_val(U, g, oi, oj, 1); vO = _fv_val(U, g, oi, oj, 2)
+    uO = _fv_val(U, g, oi, oj, _fv_velocity_slot(g.layout, 1)); vO = _fv_val(U, g, oi, oj, _fv_velocity_slot(g.layout, 2))
     uG = _fv_ghost_value(uO, uP, uw, q, closure.ghost)
     vG = _fv_ghost_value(vO, vP, vw, q, closure.ghost)
-    pf = closure.pressure == 0 ? pP : pP + (pP - _fv_val(U, g, oi, oj, 3)) / 2
+    pf = closure.pressure == 0 ? pP : pP + (pP - _fv_val(U, g, oi, oj, _fv_pressure_slot(g.layout))) / 2
     return uw, vw, uG, vG, pf, (uP + uG) / 2, (vP + vG) / 2,
            (uG - uP) / g.h, (vG - vP) / g.h
 end
@@ -274,11 +320,11 @@ end
 # face values (u, v, p) of the face of cell (i, j) in direction d
 @inline function _fv_face_values(U, tag, bvel, g, i, j, d,
                                 qcut = nothing, wvel = nothing, closure = nothing)
-    uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2); pP = _fv_val(U, g, i, j, 3)
+    uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)); vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)); pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
     kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
     zb = _fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel)
     if kind == _FV_F_INT
-        uN = _fv_val(U, g, ii, jj, 1); vN = _fv_val(U, g, ii, jj, 2); pN = _fv_val(U, g, ii, jj, 3)
+        uN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 1)); vN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 2)); pN = _fv_val(U, g, ii, jj, _fv_pressure_slot(g.layout))
         return (uP + uN) / 2 + zb, (vP + vN) / 2 + zb, (pP + pN) / 2 + zb
     elseif kind == _FV_F_OUTLET
         return uP + zb, vP + zb, zero(pP) + zb
@@ -324,6 +370,19 @@ end
 @inline _fv_posp(F) = (F + abs(F)) / 2
 @inline _fv_negp(F) = (F - abs(F)) / 2
 
+"""Oriented Rhie--Chow mass flux, shared by flow and scalar transport.
+
+The arithmetic order is the original three-field residual's order.
+"""
+@inline function _fv_interior_mass_flux(h, conv, uP, vP, pP, uN, vN, pN,
+                                        gP, gN, nuf, isx, sx)
+    ubn = sx * (isx ? (uP + uN) / 2 : (vP + vN) / 2)
+    df = h * h / (4 * nuf + conv * abs(ubn) * h)
+    dpc = (pN - pP) / h
+    dpa = sx * (isx ? (gP[5] + gN[5]) / 2 : (gP[6] + gN[6]) / 2)
+    return h * (ubn - df * (dpc - dpa))
+end
+
 """
     fv_cell_residual(U, tag, nu, bvel, src, grid, i, j[, visc, qcut, wvel, closure, face_pair])
         -> (Ru, Rv, Rc)
@@ -340,7 +399,8 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
 @inline function fv_cell_residual(U, tag, nu, bvel, src, g, i, j,
                                   visc = FVNewtonianViscosity(),
                                   qcut = nothing, wvel = nothing, closure = nothing, face_pair = nothing)
-    uP = _fv_val(U, g, i, j, 1); vP = _fv_val(U, g, i, j, 2); pP = _fv_val(U, g, i, j, 3)
+    visc = _fv_bind_viscosity(visc, U, g)
+    uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)); vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)); pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
     h = g.h
     @inbounds nuP = nu[i, j]
     z = zero(uP) + zero(nuP) + zero(eltype(bvel)) + zero(eltype(src)) + _fv_visc_zero(visc) +
@@ -357,7 +417,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
         sx = (d == 1 || d == 3) ? 1 : -1
         kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
         if kind == _FV_F_INT
-            uN = _fv_val(U, g, ii, jj, 1); vN = _fv_val(U, g, ii, jj, 2); pN = _fv_val(U, g, ii, jj, 3)
+            uN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 1)); vN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 2)); pN = _fv_val(U, g, ii, jj, _fv_pressure_slot(g.layout))
             gN = _fv_cell_grad(U, tag, bvel, g, ii, jj, qcut, wvel, closure)
             @inbounds nuN = nu[ii, jj]
             dun = (uN - uP) / h
@@ -371,12 +431,8 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
                 nuf = _fv_face_nu(face_visc, nuP, nuN, (gP[1] + gN[1]) / 2, sx * dun,
                                   (gP[3] + gN[3]) / 2, sx * dvn, i, j, ii, jj)
             end
-            ubn = sx * (isx ? (uP + uN) / 2 : (vP + vN) / 2)
-            # Rhie-Chow coefficient, decision D-RC (ii)
-            df = h * h / (4 * nuf + g.conv * abs(ubn) * h)
-            dpc = (pN - pP) / h
-            dpa = sx * (isx ? (gP[5] + gN[5]) / 2 : (gP[6] + gN[6]) / 2)
-            F = h * (ubn - df * (dpc - dpa))
+            F = _fv_interior_mass_flux(h, g.conv, uP, vP, pP, uN, vN, pN,
+                                       gP, gN, nuf, isx, sx)
             Ru += g.conv * (_fv_posp(F) * uP + _fv_negp(F) * uN)
             Rv += g.conv * (_fv_posp(F) * vP + _fv_negp(F) * vN)
             if isx
@@ -410,9 +466,9 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
     end
     b = fv_index(g, i, j, 0)
     @inbounds begin
-        Ru -= h * h * src[b + 1]
-        Rv -= h * h * src[b + 2]
-        Rc -= h * h * src[b + 3]
+        Ru -= h * h * src[b + _fv_velocity_slot(g.layout, 1)]
+        Rv -= h * h * src[b + _fv_velocity_slot(g.layout, 2)]
+        Rc -= h * h * src[b + _fv_pressure_slot(g.layout)]
     end
     if tP == FV_CELL_PINNED
         Rc = z + pP
@@ -420,16 +476,40 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
     return Ru, Rv, Rc
 end
 
+@inline function _fv_residual_cell!(R, U, tag, nu, bvel, src, g, visc,
+                                    qcut, wvel, closure, face_pair, energy, energy_source, i, j)
+    ru, rv, rc = fv_cell_residual(U, tag, nu, bvel, src, g, i, j, visc, qcut, wvel, closure, face_pair)
+    b = fv_index(g, i, j, 0)
+    @inbounds R[b + _fv_velocity_slot(g.layout, 1)] = ru
+    @inbounds R[b + _fv_velocity_slot(g.layout, 2)] = rv
+    @inbounds R[b + _fv_pressure_slot(g.layout)] = rc
+    @inbounds for scalar in 1:_fv_nscalars(g.layout)
+        slot = _fv_scalar_slot(g.layout, scalar)
+        R[b + slot] = _fv_scalar_residual(energy, energy_source, U, tag, nu, bvel,
+                                         g, i, j, visc, scalar)
+    end
+end
+
+# Preserve the original launcher signature, including direct compiler probes.
 @kernel function _fv_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
                                       @Const(bvel), @Const(src), g, visc,
                                       @Const(qcut), @Const(wvel), closure, @Const(face_pair))
     i, j = @index(Global, NTuple)
-    ru, rv, rc = fv_cell_residual(U, tag, nu, bvel, src, g, i, j, visc, qcut, wvel, closure, face_pair)
-    b = fv_index(g, i, j, 0)
-    @inbounds R[b + 1] = ru
-    @inbounds R[b + 2] = rv
-    @inbounds R[b + 3] = rc
+    _fv_residual_cell!(R, U, tag, nu, bvel, src, g, visc, qcut, wvel, closure,
+                        face_pair, nothing, nothing, i, j)
 end
+
+@kernel function _fv_energy_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
+                                             @Const(bvel), @Const(src), g, visc,
+                                             @Const(qcut), @Const(wvel), closure, @Const(face_pair),
+                                             energy, @Const(energy_source))
+    i, j = @index(Global, NTuple)
+    _fv_residual_cell!(R, U, tag, nu, bvel, src, g, visc, qcut, wvel, closure,
+                        face_pair, energy, energy_source, i, j)
+end
+
+@inline _fv_scalar_residual(::Nothing, source, U, tag, nu, bvel, g, i, j, visc, scalar) =
+    _fv_val(U, g, i, j, _fv_scalar_slot(g.layout, scalar))
 
 """
     fv_residual!(R, U, prob::FVSteadyProblem2D; workgroup = 64, sync = true) -> R
@@ -454,10 +534,18 @@ function fv_residual!(R, U, prob::FVSteadyProblem2D; workgroup::Int = 64, sync::
     length(R) == n || throw(DimensionMismatch("length(R) = $(length(R)), expected $n"))
     backend = KernelAbstractions.get_backend(U)
     qcut, wvel, closure = _fv_immersed_args(prob.immersed)
-    _fv_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
-                                             prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed);
-                                             ndrange = (g.Nx, g.Ny))
+    if prob.energy === nothing
+        _fv_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
+            prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed);
+            ndrange = (g.Nx, g.Ny))
+    else
+        energy, energy_source = _fv_energy_args(prob.energy)
+        _fv_energy_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
+            prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed),
+            energy, energy_source; ndrange = (g.Nx, g.Ny))
+    end
     mass_rows && _fv_mass_residual!(R, U, prob, backend, workgroup)
+    _fv_flow_residual!(R, U, prob, backend, workgroup; constraint=mass_rows)
     sync && KernelAbstractions.synchronize(backend)
     return R
 end
@@ -470,7 +558,8 @@ element type of `U` and of the arrays of `prob`.
 """
 function fv_residual(U, prob::FVSteadyProblem2D)
     T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel), eltype(prob.src),
-                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed),
+                     _fv_energy_eltype(prob.energy))
     R = similar(U, T)
     return fv_residual!(R, U, prob)
 end
@@ -560,6 +649,14 @@ Build the host-side problem of the steady FV residual.
 - `viscosity`: an explicit viscosity model, including [`FVLawViscosity`](@ref)
   for a scalar law with prescribed cell fields. Mutually exclusive with
   `rheology`; its own `eps` supplies the shear-rate regularisation.
+- `energy`: `nothing` (default), or [`FVEnergy`](@ref) to activate the
+  temperature equation. Thermal source data belongs to that model;
+  `source` continues to prescribe the three flow equations.
+- `u_mean_target`: `nothing` (prescribed force, default), or a finite target
+  for the arithmetic mean of x velocity over fluid cells, including pressure
+  pins. Requires periodic x. The uniform x component of `source` becomes the
+  initial guess of a final global unknown Fx; y and mass sources stay fixed.
+  Use [`fv_flow_force`](@ref) to read the solved force.
 
 Pressure pins are set by [`fv_pressure_pins!`](@ref). Cell centres are at
 `((i - 1/2) h, (j - 1/2) h)`.
@@ -570,14 +667,15 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
                            solid = nothing, source = nothing, conv::Bool = true,
                            T::Type{<:Real} = Float64, rheology = nothing,
                            gnf_eps::Real = 0.0, immersed = nothing, wall_flux = nothing,
-                           viscosity = nothing)
+                           viscosity = nothing, energy = nothing, u_mean_target = nothing)
     Nx = Int(Nx); Ny = Int(Ny)
     (_fv_bc_code(bc.W) == FV_BC_PERIODIC) == (_fv_bc_code(bc.E) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic W/E sides must be paired"))
     (_fv_bc_code(bc.S) == FV_BC_PERIODIC) == (_fv_bc_code(bc.N) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic S/N sides must be paired"))
-    g = FVGrid2D{T}(Nx, Ny, T(h), conv ? one(T) : zero(T),
-                    _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S))
+    layout = energy === nothing ? FVFieldLayout{0}() : FVFieldLayout{1}()
+    g = FVGrid2D(Nx, Ny, T(h), conv ? one(T) : zero(T),
+                 _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S), layout)
     xc(i) = (i - 0.5) * h
     yc(j) = (j - 0.5) * h
     tag = fill(FV_CELL_FLUID, Nx, Ny)
@@ -616,12 +714,21 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
             bvel[1, l, d] = uv[1]; bvel[2, l, d] = uv[2]
         end
     end
-    n = 3 * Nx * Ny
+    n = fv_nunknowns(g)
     srcv = if source === nothing
         zeros(T, n)
     elseif source isa AbstractVector
-        length(source) == n || throw(DimensionMismatch("source must have length $n"))
-        T.(source)
+        if length(source) == n
+            T.(source)
+        elseif energy !== nothing && length(source) == 3 * Nx * Ny
+            s = zeros(T, n)
+            for cell in 1:(Nx * Ny), c in 1:3
+                s[_fv_cell_index(g, cell, c)] = source[3 * (cell - 1) + c]
+            end
+            s
+        else
+            throw(DimensionMismatch("source must have length $n (or $(3 * Nx * Ny) flow entries with energy)"))
+        end
     else
         s = zeros(T, n)
         for j in 1:Ny, i in 1:Nx
@@ -637,7 +744,11 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
     visc = viscosity === nothing ?
         (rheology === nothing ? FVNewtonianViscosity() : FVGNFViscosity(rheology, T(gnf_eps))) : viscosity
     _fv_validate_viscosity(visc, g, nuc)
-    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed)
+    thermal = _fv_lower_energy(energy, g, tag, immersed, T)
+    _fv_has_state_temperature(visc) && thermal === nothing &&
+        throw(ArgumentError("state-temperature viscosity requires an active energy model"))
+    flowrate = _fv_lower_flowrate(u_mean_target, g, tag, srcv, T)
+    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed, thermal, flowrate)
 end
 
 """
@@ -648,14 +759,15 @@ or `Array` to come back to the host). The grid is passed through.
 """
 fv_adapt(to, p::FVSteadyProblem2D) =
     FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
-                      _fv_adapt_immersed(to, p.immersed))
+                      _fv_adapt_immersed(to, p.immersed), _fv_adapt_energy(to, p.energy), p.flowrate)
 
 """
     fv_state(prob, u, v, p) -> Vector
 
 Pack cell fields (`Nx × Ny` matrices, or `(x, y) -> value` functions evaluated
 at cell centres) into a host state vector in the unknown ordering.
-M3 lambda entries are initialized to zero.
+M3 lambda entries are initialized to zero; a controlled Fx starts at the
+uniform x source supplied when building the problem.
 """
 function fv_state(prob::FVSteadyProblem2D, u, v, p)
     g = prob.grid
@@ -664,24 +776,48 @@ function fv_state(prob::FVSteadyProblem2D, u, v, p)
     get(f::AbstractMatrix, i, j) = f[i, j]
     get(f, i, j) = f((i - 0.5) * g.h, (j - 0.5) * g.h)
     for j in 1:g.Ny, i in 1:g.Nx
-        U[fv_index(g, i, j, 1)] = get(u, i, j)
-        U[fv_index(g, i, j, 2)] = get(v, i, j)
-        U[fv_index(g, i, j, 3)] = get(p, i, j)
+        U[fv_index(g, i, j, _fv_velocity_slot(g.layout, 1))] = get(u, i, j)
+        U[fv_index(g, i, j, _fv_velocity_slot(g.layout, 2))] = get(v, i, j)
+        U[fv_index(g, i, j, _fv_pressure_slot(g.layout))] = get(p, i, j)
     end
+    _fv_initial_force!(U, prob)
     return U
 end
 
 """
-    fv_fields(prob, U) -> (u, v, p)
+    fv_fields(prob, U) -> (u, v, p) or (u, v, p, temperature)
 
-Unpack the cell entries of a (host) state vector into three `Nx × Ny` matrices.
+Unpack the cell entries into `Nx × Ny` matrices. Temperature is returned
+only when the energy model is active; synthetic scalar slots stay internal.
 Any appended M3 lambda entries remain accessible in the original vector.
 """
 function fv_fields(prob::FVSteadyProblem2D, U::AbstractVector)
     g = prob.grid
     length(U) == fv_nunknowns(prob) || throw(DimensionMismatch("state length does not match problem"))
-    A = reshape(Array(U)[1:fv_nunknowns(g)], 3, g.Nx, g.Ny)
-    return A[1, :, :], A[2, :, :], A[3, :, :]
+    A = reshape(Array(U)[1:fv_nunknowns(g)], _fv_nfields(g), g.Nx, g.Ny)
+    flow = (A[_fv_velocity_slot(g.layout, 1), :, :],
+            A[_fv_velocity_slot(g.layout, 2), :, :], A[_fv_pressure_slot(g.layout), :, :])
+    return prob.energy === nothing ? flow : (flow..., A[_fv_scalar_slot(g.layout, 1), :, :])
+end
+
+"""Rebuild a host problem with an internal cell layout, preserving physical data.
+
+M3 stores absolute state columns, so re-lower its rows with the new grid while
+inheriting physical targets and quadrature diagnostics. Scalars have identity
+residuals; their source slots are storage placeholders initialized to zero.
+"""
+function _fv_with_layout(p::FVSteadyProblem2D, layout::FVFieldLayout)
+    p.nu isa Array || throw(ArgumentError("layout changes require a host problem"))
+    p.energy === nothing || _fv_nscalars(layout) == 1 ||
+        throw(ArgumentError("an active energy equation requires exactly one scalar slot"))
+    old = p.grid
+    g = FVGrid2D(old.Nx, old.Ny, old.h, old.conv, old.bcE, old.bcW, old.bcN, old.bcS, layout)
+    src = zeros(eltype(p.src), fv_nunknowns(g))
+    for cell in 1:(g.Nx * g.Ny), component in 1:min(_fv_nfields(old), _fv_nfields(g))
+        src[_fv_cell_index(g, cell, component)] = p.src[_fv_cell_index(old, cell, component)]
+    end
+    immersed = _fv_lower_mass(p.immersed, g, p.tag, nothing)
+    return FVSteadyProblem2D(g, p.tag, p.nu, p.bvel, src, p.visc, immersed, p.energy, p.flowrate)
 end
 
 # ------------------------------------------------------------------ platform

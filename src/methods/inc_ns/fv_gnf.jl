@@ -17,7 +17,7 @@
 # rate (3 × 3 cell block for u and v; no radius-2 diamond).
 
 """
-    FVGNFViscosity(law, eps)
+    FVGNFViscosity(law, eps; temperature=nothing)
 
 Generalised-Newtonian viscosity model of an [`FVSteadyProblem2D`](@ref): the
 kinematic viscosity of a face is `gnf_viscosity(law, I1 + ε²/2)`, i.e.
@@ -25,7 +25,8 @@ kinematic viscosity of a face is `gnf_viscosity(law, I1 + ε²/2)`, i.e.
 velocity gradient (full strain-rate tensor). `law` is one of the
 `GeneralizedNewtonian` laws of `src/rheology/models.jl`, parameters in
 kinematic FV units (the same law objects as the LBM GNF drivers; their
-`thermal` coupling is not used here).
+`thermal` coupling is used only when `temperature=FVStateTemperature()` is
+explicitly selected; the default retains the isothermal evaluation).
 
 The regularisation `ε > 0` is a change of model, not a numerical device: it
 removes the infinite viscosity (shear-thinning) or the infinite derivative of
@@ -46,14 +47,15 @@ change).
 struct FVGNFViscosity{L<:GeneralizedNewtonian,T}
     law::L
     eps::T
-    function FVGNFViscosity(law::L, eps::T; warn::Bool = true) where {L<:GeneralizedNewtonian,T<:Real}
+    function FVGNFViscosity(law::L, eps::T; warn::Bool = true, temperature=nothing) where {L<:GeneralizedNewtonian,T<:Real}
         warn && _fv_gnf_warn_clamp(law)
         eps >= 0 || throw(ArgumentError("gnf_eps must be ≥ 0, got $eps"))
         if iszero(eps) && !_fv_gnf_regular_at_rest(law)
             throw(ArgumentError("$(nameof(L)) has an infinite derivative at zero shear: " *
                                 "set the regularisation gnf_eps > 0"))
         end
-        return new{L,T}(law, eps)
+        model = new{L,T}(law, eps)
+        return temperature === nothing ? model : _fv_thermal_gnf_viscosity(model, temperature)
     end
 end
 
@@ -138,7 +140,7 @@ function fv_with_gnf_parameters(p::_FVGNFProblem,
     T = promote_type(eltype(θ), typeof(eps))
     newlaw = typeof(law).name.wrapper(ntuple(k -> T(θ[k]), np)..., law.thermal)
     return FVSteadyProblem2D(p.grid, p.tag, p.nu, p.bvel, p.src,
-                            FVGNFViscosity(newlaw, T(eps); warn = false), p.immersed)
+                            FVGNFViscosity(newlaw, T(eps); warn = false), p.immersed, p.energy, p.flowrate)
 end
 
 # ------------------------------------------------------------------ pattern
@@ -169,6 +171,13 @@ fv_jacobian_pattern(prob::_FVGNFProblem) = _fv_gnf_jacobian_pattern(prob)
 
 # Scalar laws of the same face gradient share exactly this stencil. Prescribed
 # cell fields are parameters, so they add no state unknowns or pattern entries.
+# Equation-local viscosity dependencies: momentum reads every non-outlet face;
+# unpinned continuity reads interior faces; identity scalars read no viscosity.
+_fv_viscosity_dependency(::Val{1}, kind, pinned) = kind != _FV_F_OUTLET
+_fv_viscosity_dependency(::Val{2}, kind, pinned) = kind != _FV_F_OUTLET
+_fv_viscosity_dependency(::Val{3}, kind, pinned) = kind == _FV_F_INT && !pinned
+_fv_viscosity_dependency(::Val{K}, kind, pinned) where {K} = false
+
 function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
     S0 = invoke(fv_jacobian_pattern, Tuple{FVSteadyProblem2D}, prob)
     g = prob.grid
@@ -184,13 +193,12 @@ function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
     tang(c, d) = d <= 2 ? (nb(c..., 3), nb(c..., 4)) : (nb(c..., 1), nb(c..., 2))
     function pushuv(r, c)
         c[1] == 0 && return nothing
-        push!(I, r, r); push!(J, fv_index(g, c[1], c[2], 1), fv_index(g, c[1], c[2], 2))
+        push!(I, r, r); push!(J, fv_index(g, c[1], c[2], _fv_velocity_slot(g.layout, 1)), fv_index(g, c[1], c[2], _fv_velocity_slot(g.layout, 2)))
         return nothing
     end
     for j in 1:g.Ny, i in 1:g.Nx
         tag[i, j] == FV_CELL_SOLID && continue
         P = (i, j)
-        ru = fv_index(g, i, j, 1); rv = ru + 1; rc = ru + 2
         pinned = tag[i, j] == FV_CELL_PINNED
         for d in 1:4
             kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
@@ -198,9 +206,18 @@ function _fv_gnf_jacobian_pattern(prob::FVSteadyProblem2D)
             cells = kind == _FV_F_INT ?
                 (P, (ii, jj), tang(P, d)..., tang((ii, jj), d)...) :
                 (P, tang(P, d)...)
-            for c in cells
-                pushuv(ru, c); pushuv(rv, c)
-                (kind == _FV_F_INT && !pinned) && pushuv(rc, c)
+            for equation in 1:_fv_nfields(g)
+                _fv_viscosity_dependency(Val(equation), kind, pinned) || continue
+                row = fv_index(g, i, j, equation)
+                for c in cells
+                    pushuv(row, c)
+                end
+                if _fv_has_state_temperature(prob.visc)
+                    push!(I, row); push!(J, fv_index(g, i, j, _fv_scalar_slot(g.layout, 1)))
+                    if kind == _FV_F_INT
+                        push!(I, row); push!(J, fv_index(g, ii, jj, _fv_scalar_slot(g.layout, 1)))
+                    end
+                end
             end
         end
     end
