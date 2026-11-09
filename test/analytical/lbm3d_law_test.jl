@@ -10,6 +10,12 @@
 #       wall-normal nodes, diffusive scaling dt = dx^2: 3D LBM vs the FV
 #       solution with the same law, theta and eps (2D FV plane channel: the
 #       flow is invariant in z), gap shrinking at second order.
+#   (d) 3D steady adjoint (`gnf3d_steady_law_gradient`) of J = mean u on the
+#       same channels (reduced periodic lattice taken from (b), re-converged by
+#       `run_gnf3d_periodic_steady`) vs the FV gradient with the same law: gap
+#       shrinking at second order.
+#   (c) 3D adjoint gradient (all weights) vs central differences on random
+#       directions, steps 1e-2..1e-5 (N = 16): V-shaped error, minimum < 1e-6.
 using Test, KrakeNN, Random, LinearAlgebra, Printf
 
 const _L3_G = 1.0
@@ -58,7 +64,8 @@ _l3_rel(a, b) = norm(a .- b) / max(norm(b), eps(Float64))
     end
 
     net, theta = _l3_net()
-    gaps = Float64[]; qgaps = Float64[]
+    gaps = Float64[]; qgaps = Float64[]; ggaps = Float64[]
+    base16 = Ref{Any}(nothing)
     @testset "(b) DenseNet plane channel: 3D LBM vs FV, N = $N" for N in (16, 32)
         t0 = time()
         rl = _l3_lbm(_l3_closure(net, theta, N), N)
@@ -76,10 +83,65 @@ _l3_rel(a, b) = norm(a .- b) / max(norm(b), eps(Float64))
         numin, numax = extrema(rl.nu)
         @test numax / numin > 1.2               # the law is not Newtonian on this flow
         @info "LBM3D law (b) DenseNet channel" N lbm_steps = rl.steps t_lbm nu_range = (numin, numax) rel_L2_u = gaps[end] mean_u_gap = qgaps[end]
+
+        # (d) adjoint on the reduced periodic lattice (interior of the padded channel)
+        cl = _l3_closure(net, theta, N)
+        F = (_L3_G / N^3, 0.0, 0.0)
+        solid = Array{Bool}(Array(rl.fields.is_solid)[2:3, :, 2:3])
+        f0 = Array(rl.fields.f)[2:3, :, 2:3, :]
+        tau0 = inv.(Array(rl.fields.sp)[2:3, :, 2:3])
+        rp = run_gnf3d_periodic_steady(; is_solid=solid, closure=cl, F, tol=1e-12,
+                                       f_init=f0, tau_init=tau0, max_steps=200_000)
+        @test rp.converged
+        up = [sum(rp.ux[:, j, :]) / 4 for j in 2:N+1]
+        @test _l3_rel(up, rl.u) <= 1e-8         # same fixed point as run_gnf_channel_3d
+        fl = .!solid; nfl = count(fl)
+        gux = zeros(size(solid)); gux[fl] .= N / nfl   # J = mean physical u over fluid nodes
+        t1 = time()
+        gl = gnf3d_steady_law_gradient(rp.f, rp.tau, (gux, zeros(size(solid)), zeros(size(solid)));
+                                       is_solid=solid, closure=cl, F, solver=:gmres,
+                                       tol=1e-12, restart=1000, maxiter=20_000)
+        t_adj = time() - t1
+        @test gl.stats.converged
+        @test length(gl.grad) == law_nparams(net) && all(isfinite, gl.grad)
+        lawp = FVLawParameters(length(theta))
+        nc = _L3_FVNX * N
+        obj = FVLinearFunctional([fv_index(p.grid, i, j, 1) for i in 1:_L3_FVNX for j in 1:N],
+                                 fill(1 / nc, nc))
+        gf = fv_steady_gradient(s, U, theta, obj; params=lawp, ws=fv_adjoint_workspace(s, lawp))
+        push!(ggaps, _l3_rel(gl.grad, gf.grad))
+        @info "LBM3D law (d) adjoint gradient vs FV" N gmres_iters = gl.stats.iters relres = gl.stats.relres grad_gap = ggaps[end] t_lin = gl.t_lin t_adjoint = gl.t_adjoint t_grad = gl.t_grad t_total = t_adj
+        N == 16 && (base16[] = (; rp, grad=gl.grad, solid, F))
     end
     ratio = gaps[1] / gaps[2]; qratio = qgaps[1] / qgaps[2]
     @info "LBM3D law (b) second-order check" gap_ratio = ratio mean_gap_ratio = qratio
     @test gaps[1] <= 2e-2 && qgaps[1] <= 2e-2
     @test ratio >= 3.0                          # second order: ratio ≈ 4 expected
     @test qratio >= 3.0
+    gratio = ggaps[1] / ggaps[2]
+    @info "LBM3D law (d) gradient second-order check" grad_gaps = Tuple(ggaps) grad_gap_ratio = gratio
+    @test ggaps[1] <= 3e-2
+    @test gratio >= 3.0                         # shrinking with the discretisation gap
+
+    @testset "(c) 3D adjoint vs central differences, all weights (N = 16)" begin
+        N = 16
+        b = base16[]
+        fl = .!b.solid; nfl = count(fl)
+        J = r -> N * sum(r.ux[fl]) / nfl
+        rng = MersenneTwister(11)
+        for k in 1:2
+            d = normalize(randn(rng, length(theta)))
+            exact = dot(b.grad, d)
+            errs = Float64[]
+            for h in (1e-2, 1e-3, 1e-4, 1e-5)
+                Jh = t -> J(run_gnf3d_periodic_steady(; is_solid=b.solid,
+                    closure=_l3_closure(net, theta .+ t .* d, N), F=b.F, tol=0.0,
+                    f_init=b.rp.f, tau_init=b.rp.tau, max_steps=6000))
+                push!(errs, abs((Jh(h) - Jh(-h)) / (2h) - exact) / abs(exact))
+            end
+            @info "LBM3D law (c) adjoint vs FD" direction = k steps = (1e-2, 1e-3, 1e-4, 1e-5) rel_err = Tuple(errs)
+            @test minimum(errs) <= 1e-6
+            @test errs[1] > 10 * errs[3]             # truncation branch of the V
+        end
+    end
 end

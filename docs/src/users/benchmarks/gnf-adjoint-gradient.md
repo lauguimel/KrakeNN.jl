@@ -229,6 +229,27 @@ The per-cell blocks and the pullback stay on the host. Measured on one CPU threa
 `DenseNet` of 97 or 2209 parameters; the pullback 0.005 s and 0.07 s. GPU run pending
 (`test/analytical/nn_law_lbm_gpu.jl`).
 
+## 3D D3Q19 step
+
+`gnf3d_steady_law_gradient` gives the same gradient for the 3D D3Q19 GNF step
+(`run_gnf_channel_3d`, TRT with Λ = 3/16, Guo forcing) with a law passed as
+`LBMLawViscosity`; in 3D the kernel gives γ̇ = √(2 S:S) and the law receives
+I1 = γ̇²/2, the 2D convention. The state per node is (f_1..f_19, τ⁺), linearised in
+20×21 blocks by ForwardDiff (`gnf3d_linearise`); the matrix-free products
+(`gnf3d_jvp!`, `gnf3d_vjp!`) are KernelAbstractions kernels with the transposed
+D3Q19 stream. `GNF3DStepOperator` and the 2D `GNFStepOperator` are both
+`AbstractGNFStepOperator`, so the 2D solvers (`:kstep` default, `:gmres`,
+`:fixed_point`) solve the 3D adjoint unchanged. The forward state comes from
+`run_gnf3d_periodic_steady`, the same step on a periodic lattice with voxel solids.
+
+Scope: halfway bounce-back (q_w = 1/2) on voxel solids, body-force-driven, periodic
+box; no Zou-He inlet, no interpolated (LI-BB) walls, CPU only so far.
+Tests: `test/ad/gnf3d_adjoint_test.jl` (kernel vs host step, JVP vs finite
+differences, transposition, mass gauge, K-step vs GMRES, gradient vs finite
+differences) and parts (c), (d) of `test/analytical/lbm3d_law_test.jl` (gradient of
+the mean velocity in a `DenseNet` plane channel vs the FV gradient, N = 16 and 32).
+Results pending.
+
 ## Calibration and cost scripts
 
 Two scripts in `benchmarks/validation/gnf_calibration/` use this gradient on the same
@@ -261,7 +282,7 @@ the commands and the output columns.
 - Only the 32×16 and 16×8 test grids are covered (the GPU run: 32×16).
 - The 32×16 measurements above cover only the Carreau–Yasuda law; network laws are
   covered on the periodic channel only (see "Network and other scalar laws").
-- Only 2D, `x`-periodic, body-force-driven flow is covered.
+- Only `x`-periodic, body-force-driven flow is covered (3D: see "3D D3Q19 step").
 - Forward-solve distances in T5. The test labels the three forward levels
   `1e-10`, `1e-12`, `1e-14`, and the third is the one used in the gate. The log line
   `T5 forward levels` prints the Newton distance of each level as 3.7e-10, 1.3e-10

@@ -321,6 +321,7 @@ include("platform/weakdeps_metadata_test.jl")
     include("analytical/gnf3d_strain_rate.jl")
     include("analytical/gnf3d_channel_order.jl")
     include("analytical/gnf3d_parity.jl")
+    include("ad/gnf3d_adjoint_test.jl")      # steady 3D GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
     include("analytical/lbm3d_law_test.jl")  # ClassicalLaw/DenseNet in the 3D GNF step, vs FV
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
