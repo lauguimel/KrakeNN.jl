@@ -4,7 +4,8 @@
 # Run: sh tmp/thermal_julia.sh --project=. test/analytical/incns_fv_energy_test.jl
 # Measured 2026-11-08, macOS arm64 / Julia 1.12.5: 430 checks in 15.0 s
 # after package loading, including compilation; no optimisation flag needed.
-using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random, SparseArrays
+using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random
+using KrakeNN.SparseArrays
 
 const _FVE_BC = (W=:periodic, E=:periodic, S=:wall, N=:wall)
 _fve_zero(x, y) = 0.0
