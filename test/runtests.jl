@@ -324,6 +324,7 @@ include("platform/weakdeps_metadata_test.jl")
     include("ad/gnf3d_adjoint_test.jl")      # steady 3D GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
     include("analytical/lbm3d_law_test.jl")  # ClassicalLaw/DenseNet in the 3D GNF step, vs FV
     include("analytical/gnf3d_adjoint_gpu.jl") # its CUDA parity, self-gated on CUDA.functional()
+    include("analytical/gnf3d_duct_obstacle.jl")
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
     include("test_bsd_open_corner_2d.jl")

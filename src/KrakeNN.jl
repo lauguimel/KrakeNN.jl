@@ -340,6 +340,7 @@ include("kernels/boundary_spatial_2d.jl")
 include("geometry/Geometry.jl")
 include("drivers/obstacle_3d.jl")
 include("drivers/gnf_3d.jl")
+include("drivers/gnf_duct_3d.jl")
 
 # --- Carved .krk runner support ---
 include("kernels/mesh_drag_2d.jl")
@@ -391,7 +392,7 @@ export apply_bounce_back_walls_2d!, apply_bounce_back_wall_2d!
 export LBMConfig, omega, reynolds
 export initialize_2d, initialize_3d
 export run_cavity_2d, run_cavity_3d
-export run_gnf_channel_3d
+export run_gnf_channel_3d, run_gnf_duct_obstacle_3d
 export run_poiseuille_2d, run_couette_2d
 export initialize_taylor_green_2d, run_taylor_green_2d
 export initialize_cylinder_2d, run_cylinder_2d, compute_drag_mea_2d
