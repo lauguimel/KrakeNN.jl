@@ -29,7 +29,7 @@ export observe, predict, Prediction, FieldProbe, LineProfile, FieldReduction
 export residual, adjoint_vjp
 export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldParams
 export ParameterSpace, loss, fit, CalibResult
-export AbstractScalarLaw, ClassicalLaw, TinyMLP, LearnedViscosity
+export AbstractScalarLaw, ClassicalLaw, TinyMLP, LearnedViscosity, DenseNet, load_onnx_law
 export law_nparams, law_ninputs, law_value, law_pullback!, law_init
 export FVLawViscosity, FVLawParameters, FVStateTemperature, E5ThermalLaw
 export AbstractSimulationState, StateSnapshot, CheckpointError
@@ -254,6 +254,8 @@ include("platform/residual.jl")
 include("platform/calibration.jl")
 include("platform/closures/law.jl")
 include("platform/closures/tiny_mlp.jl")
+include("platform/closures/dense_net.jl")
+include("platform/closures/onnx_stub.jl")
 include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing FV/adjoint seam
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
 include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities

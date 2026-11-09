@@ -131,6 +131,8 @@ function run_incns_testset()
         include("analytical/incns_fv_gnf.jl")
         include("analytical/incns_fv_law_test.jl")
         include("analytical/incns_fv_law_contraction_test.jl")
+        include("analytical/incns_fv_densenet_test.jl")
+        include("analytical/nn_law_gpu.jl")   # self-gated on CUDA.functional()
         include("analytical/incns_fv_jacobian_pattern_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
@@ -185,6 +187,20 @@ include("platform/weakdeps_metadata_test.jl")
     else
         include("platform/calibration_test.jl")
         include("platform/law_closure_test.jl")
+        include("platform/dense_net_test.jl")
+        # ONNX reader (ProtoBuf weakdep ext): guard the LOAD, not the tests.
+        let pb_ok = try
+                @eval Main using ProtoBuf
+                true
+            catch
+                false
+            end
+            if pb_ok
+                include("platform/onnx_law_test.jl")
+            else
+                @info "Skipping ONNX law tests (ProtoBuf not loadable in this environment)"
+            end
+        end
         include("platform/calibration_nufield_test.jl")
     end
     include("test_lbm_basic.jl")
