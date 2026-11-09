@@ -15,6 +15,10 @@ using LinearAlgebra
 using Random
 using Printf
 using Statistics
+# Load CUDA at top level: an @eval inside a function leaves its bindings in a newer world.
+if lowercase(get(ENV, "KRAKEN_SSA_BACKEND", "cpu")) == "cuda"
+    using CUDA, CUDSS
+end
 
 const DATA = get(ENV, "KRAKEN_PIG_DATA", joinpath(@__DIR__, "data"))
 const OUT = joinpath(@__DIR__, "out")
@@ -93,7 +97,6 @@ end
 # ------------------------------------------------------------------ backend
 function select_backend()
     if lowercase(get(ENV, "KRAKEN_SSA_BACKEND", "cpu")) == "cuda"
-        @eval Main using CUDA, CUDSS
         Main.CUDA.functional() || error("KRAKEN_SSA_BACKEND=cuda but CUDA is not functional")
         return (to = Main.CUDA.CuArray, linsolve = CUDABackendTag(), name = "cuda")
     end
