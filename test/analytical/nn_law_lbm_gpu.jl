@@ -11,7 +11,7 @@
 # Environment: KRAKEN_NNLAW_LBM_N (Ny for (b), default 512, Nx = 2 Ny);
 # KRAKEN_NNLAW_CPU_SMOKE=1 runs the same code on the CPU (script check only, not
 # a GPU receipt; use a small KRAKEN_NNLAW_LBM_N such as 32).
-using Test, KrakeNN, LinearAlgebra, Random, Printf, KernelAbstractions
+using Test, KrakeNN, LinearAlgebra, Random, Printf
 
 const _NLG_SMOKE = get(ENV, "KRAKEN_NNLAW_CPU_SMOKE", "0") in ("1", "true")
 const _NLG_REQUIRE_GPU = get(ENV, "KRAKEN_REQUIRE_GPU", "0") in ("1", "true")
@@ -23,7 +23,7 @@ catch
     false
 end) === true
 
-_nlg_backend() = _NLG_SMOKE ? KernelAbstractions.CPU() : Main.CUDA.CUDABackend()
+_nlg_backend() = _NLG_SMOKE ? KrakeNN.KernelAbstractions.CPU() : Main.CUDA.CUDABackend()
 _nlg_to() = _NLG_SMOKE ? Array : Main.CUDA.CuArray
 _nlg_sync() = _NLG_SMOKE ? nothing : Main.CUDA.synchronize()
 _nlg_rel(a, b) = norm(a .- b) / max(norm(b), eps(Float64))
