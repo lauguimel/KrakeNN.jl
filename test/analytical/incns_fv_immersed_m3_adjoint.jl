@@ -2,6 +2,7 @@
 # Frozen C4 centred-FD bound: 2e-7 absolute + 1e-6 relative, two fixed steps.
 # Dense objective state-gradient reference permits 1e-11 absolute roundoff.
 isdefined(@__MODULE__,:_c5m3_csv) || include(joinpath(@__DIR__,"incns_fv_immersed_m3_helpers.jl"))
+isdefined(@__MODULE__,:_FV_IMMERSED_KNOWN112) || include(joinpath(@__DIR__,"incns_fv_immersed_known112.jl"))
 
 function _c5m3_shape_problem(theta;conv=false,frozen_tag=nothing)
     radius,cx,omega = theta
@@ -55,7 +56,7 @@ let evidence = NamedTuple[]
                     push!(errors,abs(derivative-result.grad[k]))
                 end
                 best = argmin(errors)
-                @test errors[best] <= 2e-7+1e-6*abs(result.grad[k])
+                @fv_immersed_gate errors[best] <= 2e-7+1e-6*abs(result.grad[k])
                 push!(evidence,(;conv,kind,objective,parameter=(:R,:cx,:omega)[k],
                     adjoint=result.grad[k],fd_large=derivatives[1],fd_small=derivatives[2],
                     absolute_error=errors[best],relative_error=errors[best]/max(abs(result.grad[k]),1e-12),
