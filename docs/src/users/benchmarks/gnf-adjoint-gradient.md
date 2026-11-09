@@ -243,12 +243,19 @@ D3Q19 stream. `GNF3DStepOperator` and the 2D `GNFStepOperator` are both
 `run_gnf3d_periodic_steady`, the same step on a periodic lattice with voxel solids.
 
 Scope: halfway bounce-back (q_w = 1/2) on voxel solids, body-force-driven, periodic
-box; no Zou-He inlet, no interpolated (LI-BB) walls, CPU only so far.
+box; no Zou-He inlet, no interpolated (LI-BB) walls.
 Tests: `test/ad/gnf3d_adjoint_test.jl` (kernel vs host step, JVP vs finite
 differences, transposition, mass gauge, K-step vs GMRES, gradient vs finite
 differences) and parts (c), (d) of `test/analytical/lbm3d_law_test.jl` (gradient of
 the mean velocity in a `DenseNet` plane channel vs the FV gradient, N = 16 and 32).
-Results pending.
+
+Validated on the CPU (Aqua, 2026-11-10): K-step and GMRES gradients agree to 5.8e-15;
+adjoint vs central differences, best relative error 1.6e-8 and 5.3e-9 on the N = 16
+channel (6000-step perturbed runs); LBM vs FV gradient gap 6.7e-3 (N = 16, 53 GMRES
+iterations) and 1.7e-3 (N = 32, 121 iterations), ratio 3.97 (second order).
+GPU parity: `test/analytical/gnf3d_adjoint_gpu.jl` (forward, products, GMRES and
+K-step gradients, Float64); cost: `benchmarks/lbm3d_law/cost_gnf3d_adjoint.jl`
+(32³ and 64³). Both pending.
 
 ## Calibration and cost scripts
 

@@ -1,0 +1,74 @@
+# I3, Aqua job 27835338 (gpu1n001, H100 MIG 1g.10gb, Float64), base c2b6d0b89 + working tree. Cost lines are a smoke run on a MIG slice: timings not representative.
+gpu_parity status=0
+cost_smoke status=0
+I3 DONE
+== gpu_parity
+┌ Info: GNF3D GPU forward parity
+│   case = "4x6x3 wall+voxel"
+│   steps = 500
+└   relative = 1.7074756671884363e-15
+┌ Info: GNF3D GPU product parity
+│   case = "4x6x3 wall+voxel"
+│   project = false
+│   jvp = 1.5715340362664464e-16
+└   vjp = 1.3718949164253303e-16
+┌ Info: GNF3D GPU product parity
+│   case = "4x6x3 wall+voxel"
+│   project = true
+│   jvp = 1.5715340362664464e-16
+└   vjp = 1.3718949164253303e-16
+┌ Info: GNF3D GPU Float32 vjp (no gate)
+│   case = "4x6x3 wall+voxel"
+└   relative = 1.0663187883765895e-7
+┌ Info: GNF3D GPU gradient parity
+│   case = "4x6x3 wall+voxel"
+│   n_fluid = 59
+│   steps = 500
+│   iters_cpu = 43
+│   iters_gpu_gmres = 43
+│   iters_gpu_kstep = 2
+│   gmres = 5.467053324726412e-16
+│   kstep = 5.804704881425531e-15
+│   t_adjoint_gpu_gmres = 5.738278150558472
+└   t_adjoint_gpu_kstep = 1.6462888717651367
+┌ Info: GNF3D GPU forward parity
+│   case = "12x10x8 channel+sphere"
+│   steps = 500
+└   relative = 1.7276379551163731e-16
+┌ Info: GNF3D GPU product parity
+│   case = "12x10x8 channel+sphere"
+│   project = false
+│   jvp = 1.5098233588519146e-16
+└   vjp = 1.4500163553833403e-16
+┌ Info: GNF3D GPU product parity
+│   case = "12x10x8 channel+sphere"
+│   project = true
+│   jvp = 1.5098233588519146e-16
+└   vjp = 1.4500163553833403e-16
+┌ Info: GNF3D GPU Float32 vjp (no gate)
+│   case = "12x10x8 channel+sphere"
+└   relative = 1.0363962812426427e-7
+┌ Info: GNF3D GPU gradient parity
+│   case = "12x10x8 channel+sphere"
+│   n_fluid = 736
+│   steps = 800
+│   iters_cpu = 113
+│   iters_gpu_gmres = 113
+│   iters_gpu_kstep = 2
+│   gmres = 1.939034521812508e-16
+│   kstep = 4.827814729839881e-15
+│   t_adjoint_gpu_gmres = 0.4373319149017334
+└   t_adjoint_gpu_kstep = 0.7984280586242676
+Test Summary:                | Pass  Total   Time
+3D GNF steady adjoint (CUDA) |   20     20  45.7s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:07.70
+== cost_smoke_n32
+3D GNF adjoint cost, CUDA NVIDIA H100 80GB HBM3 MIG 1g.10gb, 4 host threads
+N=32 forward: 15000 steps, converged=true, 4.90 s, 100.3 MLUPS (fluid 30096 of 32768 nodes)
+N=32 linearise: 0.84 s on 4 threads (host blocks 0.11 GB)
+N=32 operator: copy 0.32 s (device blocks 0.10 GB), vjp 0.752 ms
+N=32 adjoint gmres: converged=true, 1778 iters, relres 1.00e-10, 36.91 s; pullback 0.005 s
+N=32 adjoint kstep: converged=true, 6 iters, relres 3.89e-11, 9.61 s; pullback 0.005 s
+N=32 gradient gap kstep vs gmres: 3.17e-11
+N=32 memory: device used (sampled max) 2.14 GB, host maxrss 2.44 GB
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:47.08
