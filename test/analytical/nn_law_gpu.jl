@@ -10,7 +10,9 @@
 # Environment: KRAKEN_NNLAW_N (grid size for (b), default 256);
 # KRAKEN_NNLAW_CPU_SMOKE=1 runs the same code on the CPU (script check only,
 # not a GPU receipt; use a small KRAKEN_NNLAW_N such as 24).
-using Test, KrakeNN, LinearAlgebra, Random, SparseArrays, Printf, Statistics
+using Test, KrakeNN, LinearAlgebra, Random, Printf, Statistics
+# SparseArrays is not in test/Project.toml: load it through KrakeNN (Pkg.test sandbox).
+using KrakeNN.SparseArrays
 
 const _NNL_SMOKE = get(ENV, "KRAKEN_NNLAW_CPU_SMOKE", "0") in ("1", "true")
 const _NNL_REQUIRE_GPU = get(ENV, "KRAKEN_REQUIRE_GPU", "0") in ("1", "true")
