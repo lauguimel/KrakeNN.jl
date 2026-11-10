@@ -12,7 +12,7 @@
 Power iteration on Q P Aᵀ P (Q = I − ĉĉᵀ removes the mass eigenvalue 1):
 `mu` = last Rayleigh quotient, `ratio` = last ‖y‖/‖x‖, `history` of both.
 """
-function gnf_power_iteration(op::GNFStepOperator; iters::Integer=50, seed::Integer=1)
+function gnf_power_iteration(op::AbstractGNFStepOperator; iters::Integer=50, seed::Integer=1)
     n = op.n
     xh = _gnf_pseudo_randn(seed, n)
     x = similar(op.chat); copyto!(x, xh)
@@ -54,7 +54,7 @@ end
 Truncated Neumann series of the adjoint, λ_N = Q Σ_{n<N} (P Aᵀ P)ⁿ P b with
 Q = I − ĉĉᵀ (computed as Σ (Q P Aᵀ P)ⁿ Q P b), for every N in `Ns`.
 """
-function gnf_adjoint_series(op::GNFStepOperator, b, Ns)
+function gnf_adjoint_series(op::AbstractGNFStepOperator, b, Ns)
     Nmax = maximum(Ns)
     x = similar(op.chat); x .= op.active .* b
     x .-= dot(op.chat, x) .* op.chat
@@ -78,7 +78,7 @@ end
 
 # y = M^K x with M = Q P Aᵀ P (adjoint iteration operator, Q = I − ĉĉᵀ), or with
 # `transposed = true` y = (Mᵀ)^K x, Mᵀ = P A P Q. Buffers u, v distinct from x, y.
-function _gnf_power!(y, op::GNFStepOperator, x, K::Integer, u, v; transposed::Bool=false)
+function _gnf_power!(y, op::AbstractGNFStepOperator, x, K::Integer, u, v; transposed::Bool=false)
     copyto!(u, x)
     for _ in 1:K
         if transposed
@@ -101,7 +101,7 @@ end
 K products of the adjoint iteration operator M (Q = I − ĉĉᵀ removes the mass
 mode) or of its transpose; ⟨M^K l, v⟩ = ⟨l, (Mᵀ)^K v⟩ is the K-step form of T4c.
 """
-gnf_adjoint_power!(y, op::GNFStepOperator, x, K::Integer) =
+gnf_adjoint_power!(y, op::AbstractGNFStepOperator, x, K::Integer) =
     _gnf_power!(y, op, x, K, similar(x), similar(x))
 
 """
@@ -109,12 +109,12 @@ gnf_adjoint_power!(y, op::GNFStepOperator, x, K::Integer) =
 
 Apply K powers of the transposed adjoint iteration operator:
 `y = (Mᵀ)^K x`, with `Mᵀ = P A P Q` and `Q = I − ĉĉᵀ` removing the mass mode.
-`op::GNFStepOperator` supplies the linearised step, active mask P and gauge ĉ;
+`op::AbstractGNFStepOperator` supplies the linearised step, active mask P and gauge ĉ;
 `x` and `y` are flat vectors of length `op.n` on its backend, and `K` is the
 nonnegative number of products. Allocates two work vectors and returns the
 updated `y`. Products run on the host or device backend of `op`.
 """
-gnf_tangent_power!(y, op::GNFStepOperator, x, K::Integer) =
+gnf_tangent_power!(y, op::AbstractGNFStepOperator, x, K::Integer) =
     _gnf_power!(y, op, x, K, similar(x), similar(x); transposed=true)
 
 """
@@ -123,14 +123,14 @@ gnf_tangent_power!(y, op::GNFStepOperator, x, K::Integer) =
 Callable `A(y, x)`: y = x − M^K x (K VJPs, M = Q P Aᵀ P), the operator of the
 K-step adjoint system of `gnf_adjoint_kstep_solve`.
 """
-struct GNFKStepAdjoint{TO<:GNFStepOperator, TV<:AbstractVector{Float64}}
+struct GNFKStepAdjoint{TO<:AbstractGNFStepOperator, TV<:AbstractVector{Float64}}
     op::TO
     K::Int
     u::TV
     v::TV
     w::TV
 end
-GNFKStepAdjoint(op::GNFStepOperator, K::Integer) =
+GNFKStepAdjoint(op::AbstractGNFStepOperator, K::Integer) =
     GNFKStepAdjoint(op, Int(K), similar(op.chat), similar(op.chat), similar(op.chat))
 
 function (A::GNFKStepAdjoint)(y, x)
@@ -140,7 +140,7 @@ function (A::GNFKStepAdjoint)(y, x)
 end
 
 # b' = Q P b and the projected warm start (zero if λ0 === nothing).
-function _gnf_projected_rhs_start(op::GNFStepOperator, b, λ0)
+function _gnf_projected_rhs_start(op::AbstractGNFStepOperator, b, λ0)
     bp = similar(op.chat); bp .= op.active .* b
     bp .-= dot(op.chat, bp) .* op.chat
     λ = similar(bp)
@@ -154,7 +154,7 @@ function _gnf_projected_rhs_start(op::GNFStepOperator, b, λ0)
 end
 
 # Explicit residual ‖b' − (I − M) λ‖ / ‖b'‖ (one VJP).
-function _gnf_true_relres(op::GNFStepOperator, bp, λ)
+function _gnf_true_relres(op::AbstractGNFStepOperator, bp, λ)
     y = similar(bp)
     gnf_vjp!(y, op, λ)
     y .-= dot(op.chat, y) .* op.chat
@@ -185,7 +185,7 @@ distance estimate at each check. Stops only at a check (or after `maxiter` or
 `max_wall`, unconverged). `snapshots`: distance tolerances above `tol` at which
 the mean iterate is kept as `(; tol, iters, t, x)`.
 """
-function gnf_adjoint_fixed_point(op::GNFStepOperator, b; tol::Real=1e-6, check_every::Integer=1000,
+function gnf_adjoint_fixed_point(op::AbstractGNFStepOperator, b; tol::Real=1e-6, check_every::Integer=1000,
                                  fit_checks::Integer=20, maxiter::Integer=10^7, λ0=nothing,
                                  max_wall::Real=Inf, snapshots=())
     check_every >= 2 || throw(ArgumentError("check_every must be ≥ 2 (two-step change)"))
@@ -263,7 +263,7 @@ its iterate with the K-step tolerance scaled down by the measured ratio
 `info.t_rhs` = cost of the right-hand side (K − 1 VJPs, included in `t_total`
 and in the snapshot times). Returns η = 0.
 """
-function gnf_adjoint_kstep_solve(op::GNFStepOperator, b; K::Integer=1001, tol::Real=1e-6,
+function gnf_adjoint_kstep_solve(op::AbstractGNFStepOperator, b; K::Integer=1001, tol::Real=1e-6,
                                  restart::Integer=50, orth::Symbol=:cgs2, maxiter::Integer=10_000,
                                  λ0=nothing, max_wall::Real=Inf, snapshots=(), verbose::Bool=false,
                                  refine::Integer=3)
@@ -314,7 +314,7 @@ function gnf_adjoint_kstep_solve(op::GNFStepOperator, b; K::Integer=1001, tol::R
 end
 
 # Solver selection for `gnf_steady_adjoint` (`solver` keyword).
-function _gnf_solve_adjoint(op::GNFStepOperator, b, solver::Symbol; kwargs...)
+function _gnf_solve_adjoint(op::AbstractGNFStepOperator, b, solver::Symbol; kwargs...)
     solver === :gmres && return gnf_adjoint_solve(op, b; kwargs...)
     solver === :fixed_point && return gnf_adjoint_fixed_point(op, b; kwargs...)
     solver === :kstep && return gnf_adjoint_kstep_solve(op, b; kwargs...)

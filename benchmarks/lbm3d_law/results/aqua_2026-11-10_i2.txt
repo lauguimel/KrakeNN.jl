@@ -1,0 +1,354 @@
+# I2, Aqua job 27834310 (H100 MIG node, CPU Float64), base 7353d33ae + working tree
+ad/gnf3d_adjoint_test status=0
+analytical/lbm3d_law_test status=0
+ad/gnf_adjoint_test status=0
+ad/gnf_calibration_test status=0
+analytical/lbm_law_test status=0
+analytical/gnf3d_channel_order status=0
+analytical/gnf3d_parity status=0
+I2 DONE
+== ad_gnf3d_adjoint_test.txt
+Precompiling packages...
+  19663.5 ms  ✓ KrakeNN
+  1 dependency successfully precompiled in 21 seconds. 230 already precompiled.
+┌ Info: GNF3D T3 host vs kernel step
+└   relative = 6.546050902208089e-17
+┌ Info: GNF3D T4 JVP vs FD
+│   state_direction = 1.184986576576463e-9
+└   theta_direction = 3.5219753263939875e-9
+┌ Info: GNF3D T5 transposition
+│   project = false
+│   a = -15.045966158376999
+│   b = -15.045966158377004
+└   scaled_error = 6.898700126774137e-18
+┌ Info: GNF3D T5 transposition
+│   project = true
+│   a = -15.045966158376999
+│   b = -15.045966158377004
+└   scaled_error = 6.898700126774137e-18
+┌ Info: GNF3D T7 adjoint
+│   steps = 500
+│   iters = 43
+│   relres = 5.713997982063735e-13
+│   explicit = 5.713906363374015e-13
+│   t_lin = 0.0015439987182617188
+└   t_adjoint = 7.208703994750977
+┌ Info: GNF3D T7 kstep vs gmres
+│   converged = true
+│   iters = 2
+└   grad_gap = 5.806301176019212e-15
+┌ Info: GNF3D T7 adjoint vs FD
+│   direction = 1
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (1.891847339987411e-5, 7.495999973509665e-7, 5.680097661701854e-7, 5.662889707519497e-7)
+┌ Info: GNF3D T7 adjoint vs FD
+│   direction = 2
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (1.3417171603875402e-5, 4.269006412156716e-7, 5.655310127075688e-7, 5.760804274778695e-7)
+Test Summary:         | Pass  Total   Time
+ad/gnf3d_adjoint_test |   22     22  53.1s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:53.47
+== ad_gnf_adjoint_test.txt
+  case m=4 32x16: g_lat=6.773e-04  u_lat,max=0.0622  Ma=0.108  nu/nu0 in [0.390, 0.997]  small-I1 nodes=0 (I1_min=5.33e-08)
+  forward levels: steps 1880/383/383 (K = 383, rho_1 = 0.988036) ; dist_est 8.9e-11/1.0e-10/4.9e-11 ; Newton distance 3.7e-10/1.3e-10/4.9e-11 (GMRES it 130/139/154)
+  case wall 17.6 s
+  T4b(i) max|P A^T P c - c| = 9.77e-15  (n=1280, active=1016, fluid nodes=96)
+  T4b(ii) leaks inactive->active A 0.0e+00 A^T 0.0e+00 ; active->inactive A 0.0e+00 A^T 0.0e+00
+  T4b(iii) n_active=1016  |A_jvp^T - A_vjp|=0.0e+00  sigma(I-A_red): max 5.100e+01, smallest 3.603e-16, 6.767e-03 ; #<1e-10 sigma_max: 1 ; bordered sigma_min/sigma_max = 1.327e-04
+  T4b(iv) eigenvalue closest to -1: -0.98982077 + 0.0im (|mu+1| = 1.018e-02) ; mass eigenvalue 1.0 + 0.0im ; dominant other |mu| = 0.989821 (mu = -0.98982077 + 0.0im)
+  T4b wall 4.2 s (forward 0.0, assembly 1.5, dense SVD+eig 2.3 ; BLAS threads 1, Julia threads 4)
+  T4c worst relative mismatch over 5 pairs: 4.06e-15
+  T4d dir 1: rel err at h = 1e-3..1e-6: 7.40e-02, 8.64e-04, 8.66e-06, 8.66e-08 (ratio h1/h2 = 85.6)
+  T4d dir 2: rel err at h = 1e-3..1e-6: 6.46e-02, 7.87e-04, 7.89e-06, 7.89e-08 (ratio h1/h2 = 82.1)
+  T4d dir 3: rel err at h = 1e-3..1e-6: 5.79e-02, 6.40e-04, 6.41e-06, 6.41e-08 (ratio h1/h2 = 90.5)
+  T4d dir 4: rel err at h = 1e-3..1e-6: 5.12e-02, 5.81e-04, 5.82e-06, 5.82e-08 (ratio h1/h2 = 88.2)
+  T4d dir 5: rel err at h = 1e-3..1e-6: 6.18e-02, 6.94e-04, 6.95e-06, 6.95e-08 (ratio h1/h2 = 89.1)
+  Tb dJ/dw worst rel err 4.14e-11
+  T5 forward levels: Newton distance 3.7e-10/1.3e-10/4.9e-11 ; adjoint GMRES iterations (dist x tol): 130 167 193 130 167 193 130 167 193
+  T5 dist 1e-10 tol 1e-04:  ln eta_inf -3.8363e-01 [1.1e-04 6.5e-07 6.1e-07 2.5e-08]  ln k 5.1900e+00 [9.8e-05 7.0e-07 2.7e-07 5.0e-07]  n -4.1196e+01 [1.8e-03 1.7e-05 3.2e-07 4.6e-07]  a -1.7215e-01 [2.8e-04 5.6e-06 7.8e-06 1.7e-04]
+  T5 dist 1e-10 tol 1e-06:  ln eta_inf -3.8363e-01 [1.1e-04 1.1e-06 1.5e-07 4.3e-07]  ln k 5.1900e+00 [9.8e-05 9.9e-07 2.2e-08 2.0e-07]  n -4.1196e+01 [1.8e-03 1.8e-05 1.7e-07 3.2e-08]  a -1.7215e-01 [2.8e-04 2.6e-06 1.1e-05 1.7e-04]
+  T5 dist 1e-10 tol 1e-08:  ln eta_inf -3.8363e-01 [1.1e-04 1.1e-06 1.5e-07 4.4e-07]  ln k 5.1900e+00 [9.8e-05 9.9e-07 1.7e-08 2.1e-07]  n -4.1196e+01 [1.8e-03 1.8e-05 1.8e-07 3.4e-08]  a -1.7215e-01 [2.8e-04 2.6e-06 1.1e-05 1.7e-04]
+  T5 dist 1e-12 tol 1e-04:  ln eta_inf -3.8363e-01 [1.1e-04 6.7e-07 4.5e-07 4.9e-07]  ln k 5.1900e+00 [9.8e-05 7.0e-07 2.8e-07 2.7e-07]  n -4.1196e+01 [1.8e-03 1.7e-05 3.2e-07 5.0e-07]  a -1.7215e-01 [2.8e-04 5.8e-06 3.0e-06 2.8e-06]
+  T5 dist 1e-12 tol 1e-06:  ln eta_inf -3.8363e-01 [1.1e-04 1.1e-06 9.1e-09 2.8e-08]  ln k 5.1900e+00 [9.8e-05 9.9e-07 1.6e-08 1.8e-08]  n -4.1196e+01 [1.8e-03 1.8e-05 1.7e-07 2.3e-09]  a -1.7215e-01 [2.8e-04 2.9e-06 3.3e-08 1.4e-07]
+  T5 dist 1e-12 tol 1e-08:  ln eta_inf -3.8363e-01 [1.1e-04 1.1e-06 1.4e-08 2.3e-08]  ln k 5.1900e+00 [9.8e-05 9.8e-07 1.1e-08 1.3e-08]  n -4.1196e+01 [1.8e-03 1.8e-05 1.8e-07 2.1e-10]  a -1.7215e-01 [2.8e-04 2.8e-06 1.0e-09 1.7e-07]
+  T5 dist 1e-14 tol 1e-04:  ln eta_inf -3.8363e-01 [1.1e-04 6.7e-07 4.5e-07 4.7e-07]  ln k 5.1900e+00 [9.8e-05 7.0e-07 2.8e-07 2.9e-07]  n -4.1196e+01 [1.8e-03 1.7e-05 3.2e-07 5.0e-07]  a -1.7215e-01 [2.8e-04 5.8e-06 3.0e-06 3.0e-06]
+  T5 dist 1e-14 tol 1e-06:  ln eta_inf -3.8363e-01 [1.1e-04 1.1e-06 6.7e-09 7.5e-09]  ln k 5.1900e+00 [9.8e-05 9.9e-07 1.5e-08 4.9e-09]  n -4.1196e+01 [1.8e-03 1.8e-05 1.7e-07 8.1e-10]  a -1.7215e-01 [2.8e-04 2.9e-06 5.9e-08 1.9e-08]
+  T5 dist 1e-14 tol 1e-08:  ln eta_inf -3.8363e-01 [1.1e-04 1.1e-06 1.1e-08 2.8e-09]  ln k 5.1900e+00 [9.8e-05 9.8e-07 9.8e-09 3.1e-11]  n -4.1196e+01 [1.8e-03 1.8e-05 1.8e-07 1.7e-09]  a -1.7215e-01 [2.8e-04 2.8e-06 2.8e-08 1.2e-08]
+  T5 criterion ln eta_inf: adj -3.836337e-01  DF(h=1e-05) -3.836337e-01  |diff| 1.08e-09  bound 2.11e-02  ok
+  T5 criterion ln k: adj 5.189978e+00  DF(h=1e-05) 5.189978e+00  |diff| 1.62e-10  bound 2.60e-02  ok
+  T5 criterion n: adj -4.119560e+01  DF(h=1e-05) -4.119560e+01  |diff| 7.06e-08  bound 6.20e-02  ok
+  T5 criterion a: adj -1.721468e-01  DF(h=1e-05) -1.721468e-01  |diff| 2.14e-09  bound 2.09e-02  ok
+  T5 wall 7.2 s
+  T6 GMRES tol 1e-12: 233 it, relres 8.0e-13, |c^T l| = 4.1e-13
+  T6 N= 1000: |l_N - l|/|l| = 1.125e-07   |grad_N - grad|/|grad| = 6.227e-09
+  T6 N= 4000: |l_N - l|/|l| = 4.649e-12   |grad_N - grad|/|grad| = 1.257e-14
+  T6 N=16000: |l_N - l|/|l| = 7.215e-14   |grad_N - grad|/|grad| = 5.924e-15
+  T6 wall 1.3 s
+  C: 214 it, relres 9.6e-11, |s - s_ref|/|s_ref| = 0.0e+00, wall 4.0 s
+  T4c-K (K = 101): worst |<M^K l, v> - <l, (M^T)^K v>| / (|M^K l| |v|) = 2.53e-17
+  T4d-K (K = 11) dir 1: rel err at h = 1e-4..1e-6: 2.87e-05, 2.88e-07, 3.38e-09
+  T4d-K (K = 11) dir 2: rel err at h = 1e-4..1e-6: 2.50e-05, 2.50e-07, 3.02e-09
+  (v): 3800 it, contraction 0.997357, dist_est 7.9e-12, relres 1.1e-12, |l - l_ref|/|l_ref| = 7.3e-14, grad 6.6e-15
+  (vi) K = 101: 11 it (1719 VJP), relres 6.1e-11 (K-step 1.3e-12, 2 refine rounds), |l - l_ref|/|l_ref| = 1.0e-12
+  E: default solver K = 1001, 3 it, relres 2.3e-13, |s1 - s_ref|/|s_ref| = 4.9e-14, |s2 - s1|/|s1| = 0.0e+00, |l2 - l1|/|l1| = 0.0e+00, wall 0.6 s
+  V/VI wall 2.5 s
+  G parity: JVP 1.1e-16  VJP 7.9e-17  adjoint solve 8.6e-14 (it CPU 214, GPU 214)
+  gnf_adjoint_test wall (incl. compilation) 59.8 s
+Test Summary:       | Pass  Total     Time
+ad/gnf_adjoint_test |   57     57  1m04.9s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:05.63
+== ad_gnf_calibration_test.txt
+Test Summary:           | Pass  Total   Time
+ad/gnf_calibration_test |   50     50  28.2s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:28.60
+== analytical_lbm3d_law_test.txt
+┌ Info: LBM3D law (a) CY bit identity
+│   q_w = 0.5
+│   steps = 1200
+│   nu_range = (0.155842783090804, 0.16965402676006858)
+└   max_abs_f_diff = 0.0
+┌ Info: LBM3D law (a) CY bit identity
+│   q_w = 0.3
+│   steps = 1100
+│   nu_range = (0.15584020480398963, 0.16965424288507158)
+└   max_abs_f_diff = 0.0
+┌ Info: LBM3D law (b) DenseNet channel
+│   N = 16
+│   lbm_steps = 8100
+│   t_lbm = 2.695930004119873
+│   nu_range = (0.07733399185629615, 0.09650536787344093)
+│   rel_L2_u = 0.005046956610824863
+└   mean_u_gap = 0.0054942255658694894
+┌ Info: LBM3D law (d) adjoint gradient vs FV
+│   N = 16
+│   gmres_iters = 53
+│   relres = 7.660761006307606e-13
+│   grad_gap = 0.00671628547586686
+│   t_lin = 3.2808210849761963
+│   t_adjoint = 7.145937919616699
+│   t_grad = 1.5974044799804688e-5
+└   t_total = 14.302340030670166
+┌ Info: LBM3D law (b) DenseNet channel
+│   N = 32
+│   lbm_steps = 30400
+│   t_lbm = 6.089806079864502
+│   nu_range = (0.07732746704371644, 0.09827660346440285)
+│   rel_L2_u = 0.0012598526262610074
+└   mean_u_gap = 0.0013736052128387663
+┌ Info: LBM3D law (d) adjoint gradient vs FV
+│   N = 32
+│   gmres_iters = 121
+│   relres = 9.760623728423458e-13
+│   grad_gap = 0.001692914229738306
+│   t_lin = 0.01108407974243164
+│   t_adjoint = 0.02875494956970215
+│   t_grad = 2.5033950805664062e-5
+└   t_total = 0.039891958236694336
+┌ Info: LBM3D law (b) second-order check
+│   gap_ratio = 4.00598967341381
+└   mean_gap_ratio = 3.999857829976364
+┌ Info: LBM3D law (d) gradient second-order check
+│   grad_gaps = (0.00671628547586686, 0.001692914229738306)
+└   grad_gap_ratio = 3.967292233644392
+┌ Info: LBM3D law (c) adjoint vs FD
+│   direction = 1
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (2.6922563743230693e-5, 2.8207552376424337e-7, 1.555067103865354e-8, 3.894675970346477e-8)
+┌ Info: LBM3D law (c) adjoint vs FD
+│   direction = 2
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (1.8784086588860201e-6, 5.294144604812091e-9, 1.3774947674928113e-8, 1.5444661406707715e-8)
+Test Summary:             | Pass  Total   Time
+analytical/lbm3d_law_test |   39     39  58.8s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:59.26
+== analytical_lbm_law_test.txt
+┌ Info: LBM law (a) CY pullback vs analytic route
+└   relative = 0.0
+┌ Info: LBM law (b, d) DenseNet channel
+│   Ny = 16
+│   lbm_steps = 9180
+│   nu_range = (0.07733404092767732, 0.09653829660093777)
+│   rel_L2_u = 0.008511753538829395
+│   mean_u_gap = 0.009283398299620934
+│   grad_gap = 0.012299558661645008
+│   t_lin = 0.20293712615966797
+│   t_adjoint = 0.004378795623779297
+└   t_grad = 1.3113021850585938e-5
+┌ Info: LBM law (b, d) DenseNet channel
+│   Ny = 32
+│   lbm_steps = 39300
+│   nu_range = (0.0773274644817021, 0.09828004104078158)
+│   rel_L2_u = 0.0021216860928833007
+│   mean_u_gap = 0.002316166332912295
+│   grad_gap = 0.0030885221369313567
+│   t_lin = 0.006028890609741211
+│   t_adjoint = 0.013396978378295898
+└   t_grad = 2.6941299438476562e-5
+┌ Info: LBM law (c) adjoint vs FD
+│   direction = 1
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (2.680266895498024e-5, 2.7997115836969203e-7, 1.5243676784060637e-8, 5.5575939104130225e-8)
+┌ Info: LBM law (c) adjoint vs FD
+│   direction = 2
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (1.886956074310226e-6, 6.143002074757917e-9, 1.2483646223872834e-8, 2.4549622262319764e-8)
+Test Summary:           | Pass  Total   Time
+analytical/lbm_law_test |   36     36  43.8s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:44.22
+== analytical_gnf3d_channel_order.txt
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.5
+│   N = 16
+│   H = 16.0
+│   error_u = 0.004631963109416719
+│   error_nu = 1.228353982184114e-6
+│   steps = 7000
+└   seconds = 7.335998005
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.5
+│   N = 32
+│   H = 32.0
+│   error_u = 0.0011582846708748805
+│   error_nu = 7.844063414121485e-8
+│   steps = 15800
+└   seconds = 2.86559511
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.5
+│   N = 64
+│   H = 64.0
+│   error_u = 0.00028960996811013933
+│   error_nu = 7.946971505126868e-9
+│   steps = 47600
+└   seconds = 13.457327407
+┌ Info: GNF3D observed orders
+│   law = :carreau
+│   q_w = 0.5
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.3
+│   N = 16
+│   H = 15.6
+│   error_u = 0.007045039903662932
+│   error_nu = 1.26613171787607e-6
+│   steps = 5400
+└   seconds = 0.47122812
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.3
+│   N = 32
+│   H = 31.6
+│   error_u = 0.001728678038458421
+│   error_nu = 7.570387178269919e-8
+│   steps = 17800
+└   seconds = 2.495092794
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.3
+│   N = 64
+│   H = 63.6
+│   error_u = 0.0004281689183901035
+│   error_nu = 7.88849611890954e-9
+│   steps = 56200
+└   seconds = 15.408263974
+┌ Info: GNF3D observed orders
+│   law = :carreau
+│   q_w = 0.3
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+┌ Info: GNF3D channel accuracy
+│   law = :power_thin
+│   q_w = 0.5
+│   N = 16
+│   H = 16.0
+│   error_u = 0.0027428874359226503
+│   error_nu = 0.00020155498974251427
+│   steps = 4800
+└   seconds = 1.596894088
+┌ Info: GNF3D channel accuracy
+│   law = :power_thin
+│   q_w = 0.5
+│   N = 32
+│   H = 32.0
+│   error_u = 0.0006856086410665703
+│   error_nu = 0.0001149211469965977
+│   steps = 15200
+└   seconds = 2.020955527
+┌ Info: GNF3D channel accuracy
+│   law = :power_thin
+│   q_w = 0.5
+│   N = 64
+│   H = 64.0
+│   error_u = 0.00017139586652480804
+│   error_nu = 5.6249647613309716e-5
+│   steps = 46000
+└   seconds = 12.614298196
+┌ Info: GNF3D observed orders
+│   law = :power_thin
+│   q_w = 0.5
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+┌ Info: GNF3D channel accuracy
+│   law = :power_thick
+│   q_w = 0.5
+│   N = 16
+│   H = 16.0
+│   error_u = 0.0029855784137358065
+│   error_nu = 0.00011115502510479063
+│   steps = 3400
+└   seconds = 0.277138534
+┌ Info: GNF3D channel accuracy
+│   law = :power_thick
+│   q_w = 0.5
+│   N = 32
+│   H = 32.0
+│   error_u = 0.0007822844980299231
+│   error_nu = 2.7674811729575808e-5
+│   steps = 10800
+└   seconds = 1.435365593
+┌ Info: GNF3D channel accuracy
+│   law = :power_thick
+│   q_w = 0.5
+│   N = 64
+│   H = 64.0
+│   error_u = 0.00020247376668795252
+│   error_nu = 6.519476416762193e-6
+│   steps = 34000
+└   seconds = 8.9212122
+┌ Info: GNF3D observed orders
+│   law = :power_thick
+│   q_w = 0.5
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+Test Summary:                  | Pass  Total     Time
+analytical/gnf3d_channel_order |  156    156  1m13.8s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:14.18
+== analytical_gnf3d_parity.txt
+┌ Info: GNF3D constant-viscosity parity
+│   rheology = Newtonian{Float64, IsothermalCoupling}(0.1, IsothermalCoupling())
+└   delta = 0.0
+┌ Info: GNF3D constant-viscosity parity
+│   rheology = PowerLaw{Float64, IsothermalCoupling}(0.1, 1.0, 1.0e-6, 10.0, IsothermalCoupling())
+└   delta = 0.0
+┌ Info: GNF3D rotated channel
+│   delta_u = 1.705180430044476e-14
+└   delta_nu = 2.096706523796814e-14
+┌ Info: GNF3D rotated channel
+│   delta_u = 1.5428279190783758e-14
+└   delta_nu = 2.3530741413456586e-14
+┌ Info: GNF3D Zou-He local rates
+│   error_u = 0.006012940299086424
+│   error_nu = 0.0002799217216555376
+│   flux_spread = 5.123438887302248e-10
+└   steps = 5800
+Test Summary:           | Pass  Total   Time
+analytical/gnf3d_parity |   26     26  17.4s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:17.81

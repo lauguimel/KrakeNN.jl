@@ -29,7 +29,7 @@ export observe, predict, Prediction, FieldProbe, LineProfile, FieldReduction
 export residual, adjoint_vjp
 export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldParams
 export ParameterSpace, loss, fit, CalibResult
-export AbstractScalarLaw, ClassicalLaw, TinyMLP, LearnedViscosity
+export AbstractScalarLaw, ClassicalLaw, TinyMLP, LearnedViscosity, DenseNet, load_onnx_law
 export law_nparams, law_ninputs, law_value, law_pullback!, law_init
 export FVLawViscosity, FVLawParameters, FVStateTemperature, E5ThermalLaw
 export AbstractSimulationState, StateSnapshot, CheckpointError
@@ -254,7 +254,13 @@ include("platform/residual.jl")
 include("platform/calibration.jl")
 include("platform/closures/law.jl")
 include("platform/closures/tiny_mlp.jl")
+include("platform/closures/dense_net.jl")
+include("platform/closures/onnx_stub.jl")
 include("methods/inc_ns/fv_law.jl") # Scalar constitutive laws on the existing FV/adjoint seam
+include("rheology/gnf_law.jl")     # the same scalar laws in the 2D LBM GNF step and its adjoint
+include("rheology/gnf_law_3d.jl")  # the same scalar laws in the 3D D3Q19 GNF step
+include("ad/gnf3d_adjoint.jl")     # steady adjoint of the 3D GNF step: forward map, blocks
+include("ad/gnf3d_adjoint_operator.jl")  # its JVP/VJP kernels, shared solvers, law gradient
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
 include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities
 include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
@@ -334,6 +340,7 @@ include("kernels/boundary_spatial_2d.jl")
 include("geometry/Geometry.jl")
 include("drivers/obstacle_3d.jl")
 include("drivers/gnf_3d.jl")
+include("drivers/gnf_duct_3d.jl")
 
 # --- Carved .krk runner support ---
 include("kernels/mesh_drag_2d.jl")
@@ -385,7 +392,7 @@ export apply_bounce_back_walls_2d!, apply_bounce_back_wall_2d!
 export LBMConfig, omega, reynolds
 export initialize_2d, initialize_3d
 export run_cavity_2d, run_cavity_3d
-export run_gnf_channel_3d
+export run_gnf_channel_3d, run_gnf_duct_obstacle_3d
 export run_poiseuille_2d, run_couette_2d
 export initialize_taylor_green_2d, run_taylor_green_2d
 export initialize_cylinder_2d, run_cylinder_2d, compute_drag_mea_2d
@@ -725,6 +732,12 @@ export collide_twophase_rheology_2d!
 # Steady GNF (per-cell pure functions, split/fused kernels, periodic-x driver)
 export gnf_moments_cell, gnf_feq_cell, gnf_strain_rate_cell, gnf_collide_cell
 export gnf_viscosity, gnf_cell_update
+export LBMLawViscosity, gnf_law_gradient, gnf_steady_law_gradient
+export run_gnf3d_periodic_steady, gnf3d_step_state, gnf3d_host_step, gnf3d_cell_update
+export gnf3d_pack_state, gnf3d_unpack_state, gnf3d_active_mask, gnf3d_post_moments
+export GNF3DLinearisation, gnf3d_linearise, AbstractGNFStepOperator, GNF3DStepOperator, gnf3d_jvp!, gnf3d_vjp!
+export gnf3d_adjoint_solve, gnf3d_velocity_rhs, gnf3d_nu_sensitivity, gnf3d_parameter_gradient
+export gnf3d_law_gradient, gnf3d_steady_law_gradient
 export gnf_strain_rate_2d!, closure_eval!, collide_gnf_cell_2d!, collide_gnf_fused_2d!
 export gnf_macroscopic_post_2d!, gnf_step!, gnf_rest_state, run_gnf_periodic_steady
 # Steady GNF adjoint (local blocks, JVP/VJP, gauge-bordered GMRES, parameter gradient)

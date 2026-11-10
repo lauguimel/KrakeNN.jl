@@ -131,6 +131,8 @@ function run_incns_testset()
         include("analytical/incns_fv_gnf.jl")
         include("analytical/incns_fv_law_test.jl")
         include("analytical/incns_fv_law_contraction_test.jl")
+        include("analytical/incns_fv_densenet_test.jl")
+        include("analytical/nn_law_gpu.jl")   # self-gated on CUDA.functional()
         include("analytical/incns_fv_jacobian_pattern_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
@@ -185,6 +187,20 @@ include("platform/weakdeps_metadata_test.jl")
     else
         include("platform/calibration_test.jl")
         include("platform/law_closure_test.jl")
+        include("platform/dense_net_test.jl")
+        # ONNX reader (ProtoBuf weakdep ext): guard the LOAD, not the tests.
+        let pb_ok = try
+                @eval Main using ProtoBuf
+                true
+            catch
+                false
+            end
+            if pb_ok
+                include("platform/onnx_law_test.jl")
+            else
+                @info "Skipping ONNX law tests (ProtoBuf not loadable in this environment)"
+            end
+        end
         include("platform/calibration_nufield_test.jl")
     end
     include("test_lbm_basic.jl")
@@ -299,10 +315,16 @@ include("platform/weakdeps_metadata_test.jl")
     include("test_rheology.jl")
     include("rheology/gnf_cell_test.jl")   # steady GNF forward (per-cell functions, driver)
     include("ad/gnf_adjoint_test.jl")      # steady GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
+    include("analytical/lbm_law_test.jl")  # ClassicalLaw/DenseNet in the LBM GNF step + adjoint, vs FV (~25 s)
+    include("analytical/nn_law_lbm_gpu.jl") # its CUDA parity + cost, self-gated on CUDA.functional()
     include("ad/gnf_calibration_test.jl")  # Carreau calibration script: BFGS + 16×8 smoke (no Enzyme)
     include("analytical/gnf3d_strain_rate.jl")
     include("analytical/gnf3d_channel_order.jl")
     include("analytical/gnf3d_parity.jl")
+    include("ad/gnf3d_adjoint_test.jl")      # steady 3D GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
+    include("analytical/lbm3d_law_test.jl")  # ClassicalLaw/DenseNet in the 3D GNF step, vs FV
+    include("analytical/gnf3d_adjoint_gpu.jl") # its CUDA parity, self-gated on CUDA.functional()
+    include("analytical/gnf3d_duct_obstacle.jl")
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
     include("test_bsd_open_corner_2d.jl")

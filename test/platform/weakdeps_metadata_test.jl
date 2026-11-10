@@ -15,6 +15,7 @@ const REGISTERED_WEAKDEP_UUIDS = Dict(
     "Enzyme"      => "7da242da-08ed-463a-9acd-ee780be4f1d9",
     "LinearSolve" => "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae",
     "Optim"       => "429524aa-4258-5aef-a3af-852621145aeb",
+    "ProtoBuf"    => "3349acd9-ac6a-5e09-bcdb-63829b23a429",
 )
 
 @testset "Project.toml weakdeps match General registry UUIDs" begin

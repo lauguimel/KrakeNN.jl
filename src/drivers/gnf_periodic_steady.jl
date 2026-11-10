@@ -129,7 +129,7 @@ function run_gnf_periodic_steady(; is_solid::AbstractMatrix{Bool}, closure, Fx, 
     copyto!(fluidw, T.(.!Array(is_solid)))
     Fxa = _gnf_field(backend, T, Fx, Nx, Ny)
     Fya = _gnf_field(backend, T, Fy, Nx, Ny)
-    tau_rest = 3 * gnf_viscosity(closure, zero(T)) + T(0.5)
+    tau_rest = 3 * gnf_viscosity(_gnf_host_closure(closure), zero(T)) + T(0.5)
 
     if f_init === nothing
         tau0 = tau_init === nothing ? tau_rest : tau_init
