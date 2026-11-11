@@ -306,6 +306,12 @@ end
     return t1, t2, t3
 end
 
+# Extra (non-viscous) face stress added to the traction t = (t1, t2, t3) of
+# face normal n, sign sx, face gradient Gf. Identity by default, so the
+# Newtonian/GNF/law paths are unchanged; see fv_second_normal_3d.jl.
+@inline _fv3_face_stress(v, t, Gf, n, sx, i, j, k, ii, jj, kk) = t
+@inline _fv3_wall_stress(v, t, Gf, n, sx, i, j, k) = t
+
 @inline _fv3_mean9(gP, gN) = ntuple(q -> (gP[q] + gN[q]) / 2, Val(9))
 @inline _fv3_first9(gP) = ntuple(q -> gP[q], Val(9))
 
@@ -352,15 +358,16 @@ differentiable by dual numbers through every branch (upwind written with `abs`).
             dv = (vN - vP) / h + z
             dw = (wN - wP) / h + z
             Gt = _fv3_mean9(gP, gN)
-            nuf = _fv_face_nu3(vf, nuP, nuN, _fv3_face_grad(Gt, n, sx, du, dv, dw),
-                               i, j, k, ii, jj, kk)
+            Gf = _fv3_face_grad(Gt, n, sx, du, dv, dw)
+            nuf = _fv_face_nu3(vf, nuP, nuN, Gf, i, j, k, ii, jj, kk)
             uNn = _fv3_pick3(n, uN, vN, wN)
             F = _fv3_interior_mass_flux(h, g.conv, uPn, uNn, pP, pN,
                                         gP[9 + n], gN[9 + n], nuf, sx)
             Ru += g.conv * (_fv_posp(F) * uP + _fv_negp(F) * uN)
             Rv += g.conv * (_fv_posp(F) * vP + _fv_negp(F) * vN)
             Rw += g.conv * (_fv_posp(F) * wP + _fv_negp(F) * wN)
-            t1, t2, t3 = _fv3_traction(nuf, n, sx, du, dv, dw, Gt)
+            t1, t2, t3 = _fv3_face_stress(vf, _fv3_traction(nuf, n, sx, du, dv, dw, Gt),
+                                          Gf, n, sx, i, j, k, ii, jj, kk)
             Ru -= h2 * t1; Rv -= h2 * t2; Rw -= h2 * t3
             pf = (pP + pN) / 2 + z
             Rc += F
@@ -378,12 +385,14 @@ differentiable by dual numbers through every branch (upwind written with `abs`).
             dv = (vw - vP) * 2 / h
             dw = (ww - wP) * 2 / h
             Gt = _fv3_first9(gP)
-            nuw = _fv_wall_nu3(vf, nuP, _fv3_face_grad(Gt, n, sx, du, dv, dw), i, j, k)
+            Gf = _fv3_face_grad(Gt, n, sx, du, dv, dw)
+            nuw = _fv_wall_nu3(vf, nuP, Gf, i, j, k)
             F = h2 * sx * _fv3_pick3(n, uw, vw, ww)
             Ru += g.conv * (_fv_posp(F) * uP + _fv_negp(F) * uw)
             Rv += g.conv * (_fv_posp(F) * vP + _fv_negp(F) * vw)
             Rw += g.conv * (_fv_posp(F) * wP + _fv_negp(F) * ww)
-            t1, t2, t3 = _fv3_traction(nuw, n, sx, du, dv, dw, Gt)
+            t1, t2, t3 = _fv3_wall_stress(vf, _fv3_traction(nuw, n, sx, du, dv, dw, Gt),
+                                          Gf, n, sx, i, j, k)
             Ru -= h2 * t1; Rv -= h2 * t2; Rw -= h2 * t3
             pf = pP + z
             Rc += F

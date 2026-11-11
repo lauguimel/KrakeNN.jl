@@ -297,6 +297,9 @@ include("methods/inc_ns/fv_energy_3d.jl") # 3D energy equation (I3): slot 5, New
 include("methods/inc_ns/fv_conformation_law.jl") # relaxation laws + pointwise conformation algebra (CONF-1)
 include("methods/inc_ns/fv_conformation_3d.jl") # 3D steady conformation unknowns + polymer stress (CONF-1)
 include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (device gather/scatter)
+include("methods/inc_ns/fv_second_normal_3d.jl") # 3D Reiner-Rivlin stress: Psi2 term in the traction
+export FVReinerRivlinViscosity, FVReinerRivlinParameters
+export GiesekusViscosityLaw, GiesekusPsi2Law, TabulatedGiesekusPsi2Law
 export FVPIVObjective, fv_objective_gradient!
 export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective
 

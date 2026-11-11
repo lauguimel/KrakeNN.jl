@@ -144,6 +144,10 @@ function run_incns_testset()
         # adjoint vs centred FD for every map × objective, law contraction vs
         # duals, `abs` convention at zero-flux faces (~25 s CPU)
         include("analytical/incns_fv3d_adjoint_test.jl")
+        # 3D Reiner-Rivlin stress (Psi2 term in the traction): Psi2 = 0 == GNF,
+        # Jacobian vs duals and FD, Psi2 = c eta, adjoint vs FD, Giesekus
+        # 16 x 16 duct slice eight-vortex sign pattern (80 assertions)
+        include("analytical/incns_fv3d_reiner_rivlin_test.jl")
         # 3D branch K (plan I4): GMRES + ILU(0) on the assembled Jacobian vs the
         # direct branch — solves (forward, transposed), Newton state, adjoint
         # gradients (both flow-rate border treatments) and one FD check

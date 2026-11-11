@@ -229,8 +229,9 @@ end
     @inbounds nuP = prob.nu[i, j, k]
     # bound to the state temperature when the law reads it (identity otherwise)
     visc = _fv_bind_viscosity(prob.visc, U, g)
-    nuw = _fv_wall_nu3(visc, nuP, _fv3_face_grad(Gt, n, sx, du, dv, dw), i, j, k)
-    t = _fv3_traction(nuw, n, sx, du, dv, dw, Gt)
+    Gf = _fv3_face_grad(Gt, n, sx, du, dv, dw)
+    nuw = _fv_wall_nu3(visc, nuP, Gf, i, j, k)
+    t = _fv3_wall_stress(visc, _fv3_traction(nuw, n, sx, du, dv, dw, Gt), Gf, n, sx, i, j, k)
     pf = pP
     if f.pressure === :linear
         dop = isodd(d) ? d + 1 : d - 1
