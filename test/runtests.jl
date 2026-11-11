@@ -152,6 +152,9 @@ function run_incns_testset()
         # coloured = dense with energy rows, thermal law adjoint vs duals and FD,
         # thermal Newton (branches D and K), heating continuation (~60 s CPU)
         include("analytical/incns_fv3d_thermal_test.jl")
+        # 3D conformation tensor (plan CONF-1): pointwise law, Giesekus closed form,
+        # default path, coloured = dense, Oldroyd-B Poiseuille, Giesekus Couette
+        include("analytical/incns_fv3d_conformation_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,

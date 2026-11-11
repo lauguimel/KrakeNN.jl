@@ -166,6 +166,9 @@ export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!
        FV_CELL_FLUID, FV_CELL_SOLID, FV_CELL_PINNED
 # 3D steady colocated FV residual (plan FV 3D, increment I1)
 export FVSteadyProblem, FVGrid3D, FVSteadyProblem3D, fv_ncells, FVEnergy3D
+export FVConformation3D, AbstractRelaxationLaw, PolynomialRelaxation, relaxation_nparams,
+       relaxation_coefficients, fv_relaxation, fv_upper_convected, fv_conformation_source,
+       fv_conformation_fields
 export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,
        fv_immersed_circle, fv_immersed_annulus,
        FVImmersedWall, FVProfileWall, FVCircleWall, fv_immersed_walls, fv_immersed_wall_heat
@@ -289,6 +292,8 @@ include("methods/inc_ns/fv_steady_residual_3d.jl") # 3D steady FV residual (KA k
 include("methods/inc_ns/fv_newton_3d.jl") # 3D Jacobian pattern; Newton/assembly shared with 2D
 include("methods/inc_ns/fv_adjoint_3d.jl") # 3D steady adjoint: maps, law capture, wall force
 include("methods/inc_ns/fv_energy_3d.jl") # 3D energy equation (I3): slot 5, Newton, adjoint
+include("methods/inc_ns/fv_conformation_law.jl") # relaxation laws + pointwise conformation algebra (CONF-1)
+include("methods/inc_ns/fv_conformation_3d.jl") # 3D steady conformation unknowns + polymer stress (CONF-1)
 include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (device gather/scatter)
 export FVPIVObjective, fv_objective_gradient!
 export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective

@@ -106,7 +106,7 @@ cell `(i, j, k)`: `nfields (i - 1 + (j - 1) Nx + (k - 1) Nx Ny) + comp`.
     _fv_cell_index(g, i + (j - 1) * g.Nx + (k - 1) * g.Nx * g.Ny, comp)
 
 """
-    FVSteadyProblem3D(grid, tag, nu, bvel, src, visc, immersed, energy, flowrate)
+    FVSteadyProblem3D(grid, tag, nu, bvel, src, visc, immersed, energy, flowrate[, conformation])
 
 3D counterpart of [`FVSteadyProblem2D`](@ref); build with
 [`fv_steady_problem`](@ref)`(Nx, Ny, Nz; ...)`.
@@ -125,8 +125,11 @@ cell `(i, j, k)`: `nfields (i - 1 + (j - 1) Nx + (k - 1) Nx Ny) + comp`.
   in slot 5; see fv_energy_3d.jl).
 - `flowrate`: `nothing`, or the lowered mean-x-velocity target with the
   global force unknown Fx (periodic x required), as in 2D.
+- `conformation`: `nothing` (default of the 9-argument form), or the lowered
+  [`FVConformation3D`](@ref) model (six conformation unknowns in the last six
+  scalar slots; see fv_conformation_3d.jl).
 """
-struct FVSteadyProblem3D{G<:FVGrid3D,TA,NA,BA,SA,V,I,E,F} <: FVSteadyProblem
+struct FVSteadyProblem3D{G<:FVGrid3D,TA,NA,BA,SA,V,I,E,F,C} <: FVSteadyProblem
     grid::G
     tag::TA
     nu::NA
@@ -136,7 +139,11 @@ struct FVSteadyProblem3D{G<:FVGrid3D,TA,NA,BA,SA,V,I,E,F} <: FVSteadyProblem
     immersed::I
     energy::E
     flowrate::F
+    conformation::C
 end
+# Problems without conformation (every caller before CONF-1) keep the 9-argument form.
+FVSteadyProblem3D(grid, tag, nu, bvel, src, visc, immersed, energy, flowrate) =
+    FVSteadyProblem3D(grid, tag, nu, bvel, src, visc, immersed, energy, flowrate, nothing)
 
 fv_ncells(p::FVSteadyProblem3D) = p.grid.Nx * p.grid.Ny * p.grid.Nz
 @inline _fv_extra_index(p::FVSteadyProblem3D, k) = fv_nunknowns(p.grid) + k
@@ -551,7 +558,8 @@ end
 
 """
     fv_steady_problem(Nx, Ny, Nz; h, nu, bc, boundary_velocity, solid, source, conv,
-                      T, rheology, gnf_eps, viscosity, u_mean_target, energy) -> FVSteadyProblem3D
+                      T, rheology, gnf_eps, viscosity, u_mean_target, energy,
+                      conformation) -> FVSteadyProblem3D
 
 Host-side 3D steady FV problem (same keywords as the 2D builder, one more
 dimension). `bc` has keys `W, E, S, N, B, T` (x-, x+, y-, y+, z-, z+), values
@@ -565,6 +573,9 @@ passes an explicit model ([`FVLawViscosity`](@ref) with `Nx × Ny × Nz` fields)
 (periodic x). Cell centres are at `((i - 1/2) h, (j - 1/2) h, (k - 1/2) h)`.
 `energy = FVEnergy3D(...)` adds the steady temperature equation (slot 5; wall
 and periodic sides only); `energy = nothing` keeps the isothermal problem.
+`conformation = FVConformation3D(...)` adds the six steady conformation
+unknowns and the polymer stress (wall and periodic sides, Newtonian solvent
+`nu`, no energy); `conformation = nothing` keeps the problem unchanged.
 Immersed boundaries are not available in 3D.
 """
 function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / Ny, nu = 1.0,
@@ -573,7 +584,7 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
                            solid = nothing, source = nothing, conv::Bool = true,
                            T::Type{<:Real} = Float64, rheology = nothing, gnf_eps::Real = 0.0,
                            viscosity = nothing, u_mean_target = nothing,
-                           immersed = nothing, energy = nothing)
+                           immersed = nothing, energy = nothing, conformation = nothing)
     immersed === nothing || throw(ArgumentError("immersed boundaries are not available in the 3D FV residual"))
     Nx = Int(Nx); Ny = Int(Ny); Nz = Int(Nz)
     for (a, b) in ((:W, :E), (:S, :N), (:B, :T))
@@ -584,7 +595,8 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
     g = FVGrid3D(Nx, Ny, Nz, T(h), conv ? one(T) : zero(T),
                  _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S),
                  _fv_bc_code(bc.T), _fv_bc_code(bc.B),
-                 energy === nothing ? FVFieldLayout3D{0}() : FVFieldLayout3D{1}())
+                 FVFieldLayout3D{(energy === nothing ? 0 : 1) +
+                                 _fv3_conformation_nscalars(conformation)}())
     xc(i) = (i - 0.5) * h
     tag = fill(FV_CELL_FLUID, Nx, Ny, Nz)
     if solid !== nothing
@@ -626,14 +638,14 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
     elseif source isa AbstractVector
         if length(source) == n
             T.(source)
-        elseif energy !== nothing && length(source) == 4 * Nx * Ny * Nz
+        elseif _fv_nscalars(g.layout) > 0 && length(source) == 4 * Nx * Ny * Nz
             s = zeros(T, n)
             for cell in 1:(Nx * Ny * Nz), c in 1:4
                 s[_fv_cell_index(g, cell, c)] = source[4 * (cell - 1) + c]
             end
             s
         else
-            throw(DimensionMismatch(energy === nothing ? "source must have length $n" :
+            throw(DimensionMismatch(_fv_nscalars(g.layout) == 0 ? "source must have length $n" :
                 "source must have length $n (or $(4 * Nx * Ny * Nz) flow entries with energy)"))
         end
     else
@@ -655,7 +667,8 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
     _fv_has_state_temperature(visc) && thermal === nothing &&
         throw(ArgumentError("state-temperature viscosity requires an active energy model"))
     flowrate = _fv3_lower_flowrate(u_mean_target, g, tag, srcv, T)
-    return FVSteadyProblem3D(g, tag, nuc, bvel, srcv, visc, nothing, thermal, flowrate)
+    conf = _fv3_lower_conformation(conformation, g, tag, bvel, visc, thermal, T)
+    return FVSteadyProblem3D(g, tag, nuc, bvel, srcv, visc, nothing, thermal, flowrate, conf)
 end
 
 """
@@ -665,14 +678,14 @@ Copy the arrays of `prob` with `to` (e.g. `CuArray`, or `Array` back to host).
 """
 fv_adapt(to, p::FVSteadyProblem3D) =
     FVSteadyProblem3D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
-                      nothing, _fv_adapt_energy(to, p.energy), p.flowrate)
+                      nothing, _fv_adapt_energy(to, p.energy), p.flowrate, p.conformation)
 
 """
     fv_state(prob::FVSteadyProblem3D, u, v, w, p) -> Vector
 
 Pack cell fields (`Nx × Ny × Nz` arrays or `(x, y, z) -> value` functions at
 cell centres) into a host state vector; a controlled Fx starts at the uniform
-x source.
+x source, conformation unknowns (if any) at rest, `c = I` in fluid cells.
 """
 function fv_state(prob::FVSteadyProblem3D, u, v, w, p)
     g = prob.grid
@@ -685,6 +698,7 @@ function fv_state(prob::FVSteadyProblem3D, u, v, w, p)
         end
     end
     _fv_initial_force!(U, prob)
+    _fv3_initial_conformation!(U, prob)
     return U
 end
 

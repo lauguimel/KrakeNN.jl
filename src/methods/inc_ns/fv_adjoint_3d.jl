@@ -18,8 +18,9 @@
 _fv_nflow(p::FVSteadyProblem3D) = 4
 
 _fv_with(p::FVSteadyProblem3D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc,
-         immersed = p.immersed, energy = p.energy, flowrate = p.flowrate) =
-    FVSteadyProblem3D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy, flowrate)
+         immersed = p.immersed, energy = p.energy, flowrate = p.flowrate,
+         conformation = p.conformation) =
+    FVSteadyProblem3D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy, flowrate, conformation)
 
 _fv_host_problem(p::FVSteadyProblem3D) = p.nu isa Array ? p : fv_adapt(Array, p)
 

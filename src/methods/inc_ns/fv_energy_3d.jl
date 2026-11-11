@@ -181,12 +181,13 @@ const _FVEnergyProblem3D = FVSteadyProblem3D{<:FVGrid3D,<:Any,<:Any,<:Any,<:Any,
 # Lowering hook, as in 2D: an energy-active problem shifts the state-temperature
 # inputs of its viscosity by T_ref (idempotent), through every constructor path
 # (fv_steady_problem, fv_adapt, _fv_with).
+# (conformation together with energy is rejected at lowering: always `nothing` here)
 function FVSteadyProblem3D(grid::FVGrid3D, tag, nu, bvel, src, visc, immersed,
-                           energy::_FVEnergyData3D, flowrate)
+                           energy::_FVEnergyData3D, flowrate, conformation::Nothing = nothing)
     v = _fv_shift_viscosity(visc, energy.Tref)
     return FVSteadyProblem3D{typeof(grid),typeof(tag),typeof(nu),typeof(bvel),typeof(src),
-                             typeof(v),typeof(immersed),typeof(energy),typeof(flowrate)}(
-        grid, tag, nu, bvel, src, v, immersed, energy, flowrate)
+                             typeof(v),typeof(immersed),typeof(energy),typeof(flowrate),Nothing}(
+        grid, tag, nu, bvel, src, v, immersed, energy, flowrate, nothing)
 end
 
 # ------------------------------------------------------------------ state temperature in 3D laws

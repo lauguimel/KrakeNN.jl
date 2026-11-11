@@ -429,3 +429,44 @@ cells; with `KRAKEN_DIE_TRUTH` it also compares them with the LBM fields. See
   the iterate is closer to the exact discrete solution than that.
 - `fv_thermal_continuation` has no arclength step: it cannot follow a branch past
   a fold.
+
+## Conformation tensor (viscoelastic, 3D)
+
+The 3D steady problem accepts an opt-in conformation equation, solved in the
+same Newton system as `(u, v, w, p)`:
+
+```julia
+conf = FVConformation3D(; lambda = 1.0, nu_p = 0.5, alpha = 0.4)   # alpha = 0: Oldroyd-B
+p = fv_steady_problem(2, 32, 2; nu = 0.5, conformation = conf,
+                      bc = (W = :periodic, E = :periodic, S = :wall, N = :wall,
+                            B = :periodic, T = :periodic),
+                      source = (x, y, z) -> (2.0, 0.0, 0.0, 0.0))
+U = fv_state(p, zeros(2, 32, 2), zeros(2, 32, 2), zeros(2, 32, 2), zeros(2, 32, 2))
+fv_newton!(fv_newton_solver(p), U)
+c = fv_conformation_fields(p, U)          # (; xx, xy, xz, yy, yz, zz)
+```
+
+The unknown is `c` itself (six components per cell, the last six cell slots),
+not `log c`. Each fluid cell solves
+`u·∇c − L c − c Lᵀ + Rlx(c)/λ = 0`, `L_ij = ∂u_i/∂x_j`, and the momentum
+traction gains `τ_p = (ν_p/λ)(c − I)`; `nu` is the solvent viscosity. The
+relaxation term is `Rlx(c) = b1 (c − I) + b2 (c − I)²`; `PolynomialRelaxation`
+uses constants `theta = (b1, b2)` (Oldroyd-B `(1, 0)`, Giesekus `(1, α)`). A
+new law subtypes `AbstractRelaxationLaw` and returns `(b1, b2)` from the
+invariants of `c`, so the law can later be learned without touching the
+residual. Discretisation: first-order upwind advection with the Rhie–Chow mass
+flux, Green–Gauss velocity gradient, face mean of `c` in the polymer stress and
+linear extrapolation `(3 c_P − c_O)/2` on wall faces. There is no boundary
+condition on `c` (walls carry no flux). The Jacobian comes from the same
+coloured ForwardDiff assembly; `conformation = nothing` leaves the problem
+unchanged.
+
+Validation (`test/analytical/incns_fv3d_conformation_test.jl`): Oldroyd-B plane
+Poiseuille (velocity equal to the Newtonian `η_0 = η_s + η_p` solution, `c_xy`,
+`N1 = 2 η_p λ γ̇²` and `N2 = 0` at the cell centres) and Giesekus plane Couette
+against the closed-form viscometric functions.
+
+Limits of this first version: wall (zero normal velocity) and periodic sides
+only; Newtonian solvent; no energy equation together with conformation; no
+pseudo-transient shift on the `c` rows and no continuation helper in the
+Weissenberg number; no adjoint parameter map for the relaxation law yet.
