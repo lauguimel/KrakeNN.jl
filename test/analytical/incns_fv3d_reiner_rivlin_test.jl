@@ -39,9 +39,28 @@ _rr_giesekus(lam, alpha; eta_s = 1.0, eta_p = 1.0, eps = 1e-4) =
     FVReinerRivlinViscosity(FVLawViscosity(GiesekusViscosityLaw(), [eta_s, eta_p, lam, alpha]; eps),
                             FVLawViscosity(GiesekusPsi2Law(), [eta_p, lam, alpha]; eps))
 
-function _rr_solve(p, U = KrakeNN._fv_initial_force!(zeros(fv_nunknowns(p)), p); s = fv_newton_solver(p))
+function _rr_solve(p, U = KrakeNN._fv_initial_force!(zeros(fv_nunknowns(p)), p); s = fv_newton_solver(p),
+                   label = "")
     st = fv_newton!(s, U; _RR_NEWTON...)
-    st.converged || st.stagnated || error("Newton did not converge")
+    ok = st.converged || st.stagnated
+    ok || @info "Reiner-Rivlin Newton solve failed" label converged = st.converged stagnated = st.stagnated iterations = st.iterations residual_inf = last(st.inf) history = st.inf
+    ok || error("Newton did not converge ($label)")
+    return s, U, st
+end
+
+# continuation in the Psi2 amplitude from 0 (the GNF solution) to 1, same
+# solver (one pattern); psi2 parameters whose first `namp` entries scale
+function _rr_ramp_solve(p, namp; steps = (0.0, 0.25, 0.5, 0.75, 1.0), label = "")
+    map = FVReinerRivlinParameters(p.visc)
+    θ1 = Array(p.visc.psi2.theta)
+    s = fv_newton_solver(p)
+    U = KrakeNN._fv_initial_force!(zeros(fv_nunknowns(p)), p)
+    st = nothing
+    for a in steps
+        θ = copy(θ1); θ[1:namp] .*= a
+        fv_set_params!(s, map, θ)
+        _, U, st = _rr_solve(s.prob, U; s, label = "$label amplitude $a")
+    end
     return s, U, st
 end
 
@@ -145,9 +164,13 @@ end
     end
 
     @testset "(d) Psi2 = c eta: secondary flow is a discretisation error" begin
-        # eta: Carreau (shear thinning, so the constant-Psi2 forcing is not a gradient)
-        eta0, etainf, lam, a, nidx = 2.0, 0.2, 1.5, 2.0, 0.5
-        c = -0.2
+        # eta: Carreau (shear thinning, so the constant-Psi2 forcing is not a gradient).
+        # Amplitude: |Psi2| gdot / eta <= ~0.25 at the wall (gdot ~ 7), the range of
+        # the Giesekus slice (f). The first version (lambda = 1.5, c = -0.2, i.e.
+        # |Psi2| gdot / eta ~ 2 to 7) did not converge from rest: a large negative
+        # Psi2 makes the momentum operator lose its viscous dominance.
+        eta0, etainf, lam, a, nidx = 2.0, 0.2, 0.5, 2.0, 0.5
+        c = -0.02
         eta = FVGNFViscosity(CarreauYasuda(eta0, etainf, lam, a, nidx), 1e-3)
         prop = FVReinerRivlinViscosity(eta, FVLawViscosity(ClassicalLaw(CarreauYasuda(eta0, etainf, lam, a, nidx)),
                                                          [c * eta0, c * etainf, lam, a, nidx]; eps = 1e-3))
@@ -155,8 +178,8 @@ end
                                                          [c * eta0, c * eta0, lam, a, nidx]; eps = 1e-3))
         ratio = Dict{Int,Float64}()
         for N in (8, 16)
-            _, Up, stp = _rr_solve(_rr_slice(N, prop; conv = false))
-            _, Uc, stc = _rr_solve(_rr_slice(N, cons; conv = false))
+            _, Up, stp = _rr_ramp_solve(_rr_slice(N, prop; conv = false), 2; label = "Psi2 = c eta, N = $N")
+            _, Uc, stc = _rr_ramp_solve(_rr_slice(N, cons; conv = false), 2; label = "constant Psi2, N = $N")
             @test last(stp.inf) < 1e-11 && last(stc.inf) < 1e-11
             sp = maximum(_rr_secondary(_rr_slice(N, prop), Up)[3])
             sc = maximum(_rr_secondary(_rr_slice(N, cons), Uc)[3])
