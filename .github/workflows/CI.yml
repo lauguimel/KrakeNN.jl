@@ -37,6 +37,15 @@ jobs:
   #     2026-09-16.
   # Neither is shrunk — their size is what they validate. Run the full suite on
   # a PR on demand with workflow_dispatch.
+  #
+  # The tier is split into 6 shards per Julia version, run in parallel
+  # (KRAKEN_TEST_SHARD, see test/shards.jl). In one process it took 63 min on
+  # 1.11 and 81 min on 1.12 (run 43037632029). 6 because the gain flattens
+  # there: each shard still pays ~5 min of setup and precompilation, and the
+  # longest file (ehd_onset_2d.jl) alone is ~7 min on 1.12. 2 x 6 quick jobs
+  # + quickstart + 2 full jobs = 15 of the free plan's 20 concurrent jobs.
+  # To change the count, edit both `shard` and the "/6" below;
+  # test/shard_check.jl fails if they disagree.
   quick:
     if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.os }}
@@ -48,15 +57,22 @@ jobs:
         # Project.toml and segfaults under Enzyme.
         julia-version: ['1.11', '1.12']
         os: [ubuntu-latest]
+        shard: [1, 2, 3, 4, 5, 6]
     env:
       KRAKEN_SKIP_AD: "true"
       KRAKEN_SKIP_VE3D: "true"
+      KRAKEN_TEST_SHARD: "${{ matrix.shard }}/6"
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
+      # One cache per Julia version, shared by its shards: with the matrix in
+      # the key (the default) every shard would store its own ~600 MB copy.
       - uses: julia-actions/cache@v2
+        with:
+          cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia-version=${{ matrix.julia-version }}
+          include-matrix: false
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
 
@@ -69,6 +85,10 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1.11'
+      # Seconds, no package needed: every suite file is in exactly one shard
+      # of the `quick` tier, and the shard count matches the matrix.
+      - name: Check test sharding (test/shard_check.jl)
+        run: julia --startup-file=no test/shard_check.jl
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - name: Run examples/quickstart.jl
