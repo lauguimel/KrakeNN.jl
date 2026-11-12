@@ -677,23 +677,32 @@ function _fv_temperature_increment(nb, dU)
 end
 
 """
-    fv_jacobian!(solver, U; shift = 0.0) -> solver.J
+    fv_jacobian!(solver, U; shift = 0.0, shift_conformation = false) -> solver.J
 
 Assemble `∂R/∂U` at `U` into `solver.J` (values only; pattern fixed).
-`shift > 0` adds `shift` to the diagonal of the two momentum rows of every cell
+`shift > 0` adds `shift` to the diagonal of the momentum rows of every cell
 (pseudo-transient term `V/Δτ`, `V` the cell measure: `h²` in 2D, `h³` in 3D).
+With `shift_conformation = true` (3D conformation-active problems only) the
+six conformation rows get the same shift, the pseudo-transient term `V c/Δτ`
+of `∂c/∂t` (the conformation rows are scaled by `V = h³` as the momentum rows).
 """
-function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0)
+function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0, shift_conformation::Bool = false)
+    shift_conformation && _fv_check_conformation_shift(s.prob)
     fv_assemble_jacobian!(s.nzval, s.asm, U, s.prob; sync = shift == 0)
     s.asm_sig = _fv_state_sig(s.norms, shift, U)
     if shift != 0
         backend = KernelAbstractions.get_backend(U)
         _fv_diag_shift_kernel!(backend, 256)(s.nzval, s.asm.diag, Float64(shift), s.prob.grid.layout;
                                              ndrange = fv_ncells(s.prob))
+        shift_conformation && _fv_shift_conformation!(s.nzval, s.asm.diag, Float64(shift), s.prob, backend)
         KernelAbstractions.synchronize(backend)
     end
     return s.J
 end
+# Conformation-row shift hooks (methods for 3D conformation-active problems in
+# fv_conformation_3d.jl).
+_fv_check_conformation_shift(prob) =
+    throw(ArgumentError("shift_conformation = true needs a conformation-active 3D problem"))
 
 # factorize on first use (the only symbolic analysis), refactorize afterwards
 function _fv_factor!(s::FVNewtonSolver)
@@ -729,7 +738,8 @@ end
 """
     fv_newton!(solver, U; atol = 1e-12, rtol = 1e-13, maxit = 30,
                linesearch = true, armijo = 1e-4, alpha_min = 2.0^-10,
-               dtau0 = nothing, dtau_max = 1e8, verbose = false) -> NamedTuple
+               dtau0 = nothing, dtau_max = 1e8, shift_conformation = false,
+               verbose = false) -> NamedTuple
 
 Solve `R(U) = 0` in place by Newton's method, `U` on the solver's device (e.g.
 `to(fv_state(...))`). Each iteration: residual → coloured dual assembly of `J`
@@ -754,6 +764,11 @@ rows get the diagonal shift `V/Δτ_k` (`V = h²` in 2D, `h³` in 3D, the
 scaling of the residual, so `dtau0` is the same physical pseudo-step in both), `Δτ_k = dtau0 ‖R₀‖₂ / ‖R_k‖₂` (switched
 evolution relaxation); once `Δτ_k ≥ dtau_max` the shift is dropped for good,
 so the last iterations are pure Newton (quadratic convergence).
+`shift_conformation = true` (3D conformation-active problems only) extends the
+same diagonal shift `V/Δτ_k` to the six conformation rows (the pseudo-time
+derivative `∂c/∂τ`); off by default. The shift changes the Newton path only:
+the residual and therefore the converged state are those of the steady
+equations (`Δτ → ∞`).
 
 A second way to pass (energy only) is the round-off floor gate: the increment
 criterion above, every non-energy equation within 1e-10, and `|R_c| ≤ floor_c`
@@ -779,8 +794,9 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
                     maxit::Int = 30, linesearch::Bool = true, armijo::Real = 1e-4,
                     alpha_min::Real = 2.0^-10, dtau0 = nothing, dtau_max::Real = 1e8,
                     verbose::Bool = false, thermal_scales = nothing,
-                    abort_small_step::Bool = false)
+                    abort_small_step::Bool = false, shift_conformation::Bool = false)
     p = s.prob
+    shift_conformation && _fv_check_conformation_shift(p)
     thermal = p.energy !== nothing
     thermal_scales = thermal ? (thermal_scales === nothing ? _fv_energy_scales(p) : thermal_scales) : nothing
     thermal && _fv_equation_scales!(s.norms, thermal_scales.equations)
@@ -817,7 +833,7 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
             dtau >= dtau_max ? (ptc = false) : (sigma = _fv_cell_measure(h, s.prob.grid.layout) / dtau)
         end
         t0 = time_ns()
-        fv_jacobian!(s, U; shift = sigma)
+        fv_jacobian!(s, U; shift = sigma, shift_conformation)
         t1 = time_ns()
         _fv_factor!(s)
         _fv_sync(U)

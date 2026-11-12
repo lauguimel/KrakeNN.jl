@@ -18,18 +18,21 @@
 #   the wall velocity);
 # - no boundary condition on c: on walls the normal velocity is zero (checked at
 #   lowering) so no face carries a flux of c; only wall and periodic sides.
-# Polymer stress in momentum, tau_p = G (c - I), G = nu_p / lambda (kinematic):
-#   R_mom -= sum_f h^2 tau_p,f . (sx e_n),
-#   tau_p,f = mean(c_P, c_N) on interior faces, the linear extrapolation
+# Polymer stress in momentum, tau_p = G S(c), G = nu_p / lambda (kinematic),
+# S = relaxation_stress(law, theta, c) (c - I except FENE-P: f c - I):
+#   R_mom -= sum_f h^2 G S(c_f) . (sx e_n),
+#   c_f = mean(c_P, c_N) on interior faces, the linear extrapolation
 #   (3 c_P - c_O) / 2 from the opposite neighbour O on wall faces (c_P when O
 #   is not a fluid neighbour). A 1D model of this discretisation reproduces the
 #   Oldroyd-B plane-Poiseuille conformation to round-off and the Newtonian
 #   (eta_0 = eta_s + eta_p) velocity; holding c_P on the wall face instead
 #   makes c first order at the wall (prototype, CONF-1, 2026-11-11).
 # Solid cells: identity rows. Pinned cells: only the continuity row changes.
+# Pseudo-transient continuation: `fv_newton!(...; dtau0, shift_conformation =
+# true)` adds V/dtau to the diagonal of the six c rows as well as the momentum
+# rows (Jacobian only; the steady residual is unchanged).
 # Not available yet: energy together with conformation, state-dependent solvent
-# viscosity (GNF / law), inlet and outlet sides, the pseudo-transient shift on c
-# rows (momentum rows only, as without conformation), adjoint parameter maps.
+# viscosity (GNF / law), inlet and outlet sides, adjoint parameter maps.
 
 """
     FVConformation3D(; lambda, nu_p, alpha = 0, law = PolynomialRelaxation(), theta = nothing)
@@ -39,16 +42,19 @@ Ny, Nz; conformation = FVConformation3D(...))`:
 
 ```math
 \\mathbf{u}\\cdot\\nabla\\mathbf{c} - \\mathbf{L}\\mathbf{c} - \\mathbf{c}\\mathbf{L}^T
-+ \\frac{1}{\\lambda}\\left[b_1(\\mathbf{c}-\\mathbf{I}) + b_2(\\mathbf{c}-\\mathbf{I})^2\\right] = 0,
-\\qquad \\boldsymbol{\\tau}_p = \\frac{\\nu_p}{\\lambda}(\\mathbf{c}-\\mathbf{I}),
++ \\frac{1}{\\lambda}\\left[b_0\\mathbf{I} + b_1(\\mathbf{c}-\\mathbf{I}) + b_2(\\mathbf{c}-\\mathbf{I})^2\\right] = 0,
+\\qquad \\boldsymbol{\\tau}_p = \\frac{\\nu_p}{\\lambda}\\,\\mathbf{S}(\\mathbf{c}),
 ```
 
 `L_ij = du_i/dx_j`, with the polymer stress `τ_p` added to the momentum
 traction (kinematic units, as `nu`: the `nu` of the problem is the solvent
 viscosity). `lambda > 0` is the relaxation time, `nu_p >= 0` the polymer
-viscosity. `law`/`theta` give `(b1, b2)` (an [`AbstractRelaxationLaw`](@ref));
-the default `PolynomialRelaxation()` with `theta = (1, alpha)` is Oldroyd-B
-(`alpha = 0`) or Giesekus (mobility `alpha`).
+viscosity. `law`/`theta` give `(b0, b1, b2)` and the stress `S(c)` (`c - I`
+except FENE-P), see [`AbstractRelaxationLaw`](@ref); the default
+`PolynomialRelaxation()` with `theta = (1, alpha)` is Oldroyd-B (`alpha = 0`)
+or Giesekus (mobility `alpha`). Other laws: `LinearPTTRelaxation()` and
+`ExponentialPTTRelaxation()` with `theta = (epsilon,)`, `FENEPRelaxation()`
+with `theta = (L2,)`; `theta` is then required.
 
 The six components `(c_xx, c_xy, c_xz, c_yy, c_yz, c_zz)` are the last six cell
 unknowns; `fv_state` starts them at `c = I`, [`fv_conformation_fields`](@ref)
@@ -77,6 +83,7 @@ function FVConformation3D(; lambda::Real, nu_p::Real, alpha::Real = 0.0,
     length(th) == relaxation_nparams(law) ||
         throw(DimensionMismatch("theta has $(length(th)) entries, the law takes $(relaxation_nparams(law))"))
     all(x -> x isa Real && isfinite(x), th) || throw(ArgumentError("theta must be finite reals"))
+    relaxation_check(law, th)
     return FVConformation3D(l, p, law, th)
 end
 
@@ -119,6 +126,7 @@ function _fv3_lower_conformation(c::FVConformation3D, g::FVGrid3D, tag, bvel, vi
     theta = map(T, c.theta)
     isfinite(lambda) && lambda > 0 && isfinite(nu_p) && nu_p >= 0 && all(isfinite, theta) ||
         throw(ArgumentError("conformation coefficients must remain finite in $T"))
+    relaxation_check(c.law, theta)
     return _FVConformationData3D(lambda, nu_p / lambda, nu_p, c.law, theta)
 end
 
@@ -151,13 +159,13 @@ extrapolation from the opposite fluid neighbour on wall faces."""
     return cP
 end
 
-"""Polymer force sum_f h^2 G (c_f - I) . (sx e_n) on cell (i, j, k), per component."""
+"""Polymer force sum_f h^2 G S(c_f) . (sx e_n) on cell (i, j, k), per component."""
 @inline function _fv3_polymer_force(U, tag, g, conf, cP, i, j, k, z)
     fx = z; fy = z; fz = z
     h2 = g.h * g.h
     for d in 1:6
         n = _fv3_axis(d)
-        dc = _fvc_minus_identity(_fv3_conf_face(U, tag, g, cP, i, j, k, d))
+        dc = relaxation_stress(conf.law, conf.theta, _fv3_conf_face(U, tag, g, cP, i, j, k, d))
         w = h2 * _fv3_sign(d) * conf.G
         fx += w * _fvc_get(dc, 1, n)
         fy += w * _fvc_get(dc, 2, n)
@@ -276,8 +284,10 @@ end
 """
     fv_jacobian_pattern(prob::FVSteadyProblem3D)   (conformation active)
 
-Isothermal 3D pattern plus: momentum row `a` on `c_(a,b)`, `b = 1:3`, at the
-star (face mean, wall extrapolation from the opposite neighbour); conformation
+Isothermal 3D pattern plus: momentum row `a` on `c_(a,b)`, `b = 1:3` (all six
+components when the law's stress is nonlinear, `relaxation_stress_linear(law)
+== false`, e.g. FENE-P), at the star (face mean, wall extrapolation from the
+opposite neighbour); conformation
 row `m` on its own component at the star (upwind), on all six components at P
 (source), on `u, v, w` at the star (face flux and cell gradient) and on `p` as
 the continuity row (Rhie-Chow flux).
@@ -293,13 +303,22 @@ function fv_jacobian_pattern(prob::_FVConfProblem3D)
         push!(I, row); push!(J, fv_index(g, c[1], c[2], c[3], comp))
     end
     slot(m) = _fv3_conf_slot(g.layout, m)
+    linear_stress = relaxation_stress_linear(prob.conformation.law)
     for k in 1:g.Nz, j in 1:g.Ny, i in 1:g.Nx
         _fv3_push_newtonian!(I, J, g, tag, i, j, k)       # flow rows; diagonal of every scalar slot
         tag[i, j, k] == FV_CELL_SOLID && continue
         s = _fv3_newtonian_dependencies(g, tag, i, j, k)
         star = (s.P, s.nbs...)
-        for a in 1:3, b in 1:3
-            add(fv_index(g, i, j, k, a), slot(_fvc_sym(a, b)), star)
+        for a in 1:3
+            if linear_stress
+                for b in 1:3
+                    add(fv_index(g, i, j, k, a), slot(_fvc_sym(a, b)), star)
+                end
+            else
+                for q in 1:6
+                    add(fv_index(g, i, j, k, a), slot(q), star)
+                end
+            end
         end
         for m in 1:6
             row = fv_index(g, i, j, k, slot(m))
@@ -315,6 +334,26 @@ function fv_jacobian_pattern(prob::_FVConfProblem3D)
     end
     _fv_flow_pattern!(I, J, prob)
     return sparse(I, J, trues(length(I)), n, n, |)
+end
+
+# ------------------------------------------------------------------ pseudo-transient shift on c rows
+# Hooks of `fv_jacobian!(...; shift_conformation = true)` (fv_newton.jl): the
+# diagonal of the six conformation rows of every cell gets `sigma = V/dtau`,
+# as the momentum rows (solid cells included, as there: identity rows, so the
+# converged state is unchanged).
+_fv_check_conformation_shift(::_FVConfProblem3D) = nothing
+
+@kernel function _fv3_conf_shift_kernel!(nzval, @Const(diag), sigma, layout)
+    c = @index(Global)
+    b = _fv_cell_base(layout, c)
+    @inbounds for m in 1:6
+        nzval[diag[b + _fv3_conf_slot(layout, m)]] += sigma
+    end
+end
+
+function _fv_shift_conformation!(nzval, diag, sigma, prob::_FVConfProblem3D, backend)
+    _fv3_conf_shift_kernel!(backend, 256)(nzval, diag, sigma, prob.grid.layout; ndrange = fv_ncells(prob))
+    return nzval
 end
 
 # ------------------------------------------------------------------ coefficient update (continuation)

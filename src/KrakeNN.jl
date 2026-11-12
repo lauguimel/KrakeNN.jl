@@ -167,6 +167,8 @@ export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!
 # 3D steady colocated FV residual (plan FV 3D, increment I1)
 export FVSteadyProblem, FVGrid3D, FVSteadyProblem3D, fv_ncells, FVEnergy3D
 export FVConformation3D, AbstractRelaxationLaw, PolynomialRelaxation, relaxation_nparams,
+       LinearPTTRelaxation, ExponentialPTTRelaxation, FENEPRelaxation,
+       relaxation_stress, relaxation_stress_linear, relaxation_check,
        relaxation_coefficients, fv_relaxation, fv_upper_convected, fv_conformation_source,
        fv_conformation_fields, fv_set_conformation, fv_set_conformation!
 export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,

@@ -449,12 +449,30 @@ c = fv_conformation_fields(p, U)          # (; xx, xy, xz, yy, yz, zz)
 The unknown is `c` itself (six components per cell, the last six cell slots),
 not `log c`. Each fluid cell solves
 `u·∇c − L c − c Lᵀ + Rlx(c)/λ = 0`, `L_ij = ∂u_i/∂x_j`, and the momentum
-traction gains `τ_p = (ν_p/λ)(c − I)`; `nu` is the solvent viscosity. The
-relaxation term is `Rlx(c) = b1 (c − I) + b2 (c − I)²`; `PolynomialRelaxation`
-uses constants `theta = (b1, b2)` (Oldroyd-B `(1, 0)`, Giesekus `(1, α)`). A
-new law subtypes `AbstractRelaxationLaw` and returns `(b1, b2)` from the
-invariants of `c`, so the law can later be learned without touching the
-residual. Discretisation: first-order upwind advection with the Rhie–Chow mass
+traction gains `τ_p = (ν_p/λ) S(c)`, `S(c) = c − I` except for FENE-P; `nu` is
+the solvent viscosity. The relaxation term has the general isotropic form
+`Rlx(c) = b0 I + b1 (c − I) + b2 (c − I)²` (by the Cayley–Hamilton theorem every
+isotropic function of the symmetric `c` can be written so), with scalar
+coefficients of the invariants of `c` and of the parameters `theta`:
+
+| law | `theta` | `(b0, b1, b2)` | `S(c)` |
+|-----|---------|----------------|--------|
+| `PolynomialRelaxation()` Oldroyd-B / Giesekus | `(1, 0)` / `(1, α)` | `(0, 1, α)` | `c − I` |
+| `LinearPTTRelaxation()` | `(ε,)` | `(0, 1 + ε(tr c − 3), 0)` | `c − I` |
+| `ExponentialPTTRelaxation()` | `(ε,)` | `(0, exp(ε(tr c − 3)), 0)` | `c − I` |
+| `FENEPRelaxation()` | `(L²,)` | `(f − 1, f, 0)`, `f = (L² − 3)/(L² − tr c)` | `f c − I` |
+
+PTT is the upper-convected form (`ξ = 0`): the Gordon–Schowalter term
+`ξ (D τ + τ D)` depends on the rate of deformation, not on `c` alone, so it is not
+of this form and is not implemented. FENE-P is defined only while `tr c < L²`;
+nothing clips an iterate that crosses the bound. In simple shear (`Wi = λ γ̇`)
+all three give `η_p(γ̇) = η_p/f`, `Ψ1 = 2 η_p λ/f²`, `Ψ2 = 0`, with
+`f³ − f² = 2εWi²` (linear PTT), `f³ − f² = 2Wi²/L²` (FENE-P) and
+`f² ln f² = 4εWi²` (exponential PTT); references and DOIs are in the
+docstrings. A new law subtypes `AbstractRelaxationLaw` and returns
+`(b0, b1, b2)` (or `(b1, b2)`, meaning `b0 = 0`) from the invariants of `c`,
+optionally with its own `relaxation_stress`, so the law can later be learned
+without touching the residual. Discretisation: first-order upwind advection with the Rhie–Chow mass
 flux, Green–Gauss velocity gradient, face mean of `c` in the polymer stress and
 linear extrapolation `(3 c_P − c_O)/2` on wall faces. There is no boundary
 condition on `c` (walls carry no flux). The Jacobian comes from the same
@@ -463,8 +481,17 @@ unchanged.
 
 Validation (`test/analytical/incns_fv3d_conformation_test.jl`): Oldroyd-B plane
 Poiseuille (velocity equal to the Newtonian `η_0 = η_s + η_p` solution, `c_xy`,
-`N1 = 2 η_p λ γ̇²` and `N2 = 0` at the cell centres) and Giesekus plane Couette
-against the closed-form viscometric functions.
+`N1 = 2 η_p λ γ̇²` and `N2 = 0` at the cell centres); Giesekus, linear and
+exponential PTT and FENE-P simple shear (pointwise, BigFloat) and plane Couette
+against the closed-form viscometric functions above; dual derivatives of each
+law against central differences.
+
+Pseudo-transient continuation on the conformation rows is opt-in:
+`fv_newton!(s, U; dtau0 = 1.0, shift_conformation = true)` adds the same
+diagonal shift `h³/Δτ` (the term `∂c/∂τ`) to the six `c` rows as to the
+momentum rows. Only the Newton path changes; the residual is the steady one, so
+the converged state is the same (checked against plain Newton in the test). It
+is not a transient solver.
 
 ### Square-duct slice and continuation in De
 
@@ -496,6 +523,7 @@ from the corners toward the centre, along the wall bisectors toward the walls)
 and, for Oldroyd-B, `N2 = 0` and no secondary flow.
 
 Limits: wall (zero normal velocity) and periodic sides only; Newtonian
-solvent; no energy equation together with conformation; no pseudo-transient
-shift on the `c` rows (the damped retry shifts the momentum rows only); no
-adjoint parameter map for the relaxation law yet.
+solvent; no energy equation together with conformation; PTT with `ξ ≠ 0` not
+available; the duct benchmark's damped retry still shifts the momentum rows only
+(`shift_conformation` is not passed there); no adjoint parameter map for the
+relaxation law yet.
