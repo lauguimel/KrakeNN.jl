@@ -69,8 +69,38 @@ end
 
 function gnf_convert_closure(::Type{T}, c::LBMLawViscosity) where {T<:AbstractFloat}
     theta = eltype(c.theta) === T ? c.theta : T.(c.theta)
-    return LBMLawViscosity(c.law, theta, T(c.eps), T(c.nu_scale), T(c.gamma_scale))
+    return LBMLawViscosity(_gnf_convert_law(T, c.law), theta, T(c.eps), T(c.nu_scale),
+                           T(c.gamma_scale))
 end
+
+# Every numeric constant held by the law object itself (network input shift and
+# scale, LearnedViscosity reference values, ClassicalLaw model and thermal
+# metadata) in the number type T. Without it a law built with Float64 constants
+# promotes a Float32 kernel to Float64 (measured 0.54-0.74x throughput). Each
+# law is rebuilt through its own constructor, so the result is the law one
+# would have built directly with T constants; a Float64 law converted to
+# Float64 is unchanged. Laws without a method are returned as they are.
+_gnf_convert_law(::Type, law) = law
+_gnf_convert_law(::Type{T}, law::DenseNet{NIN,Ws,Acts}) where {T<:AbstractFloat,NIN,Ws,Acts} =
+    DenseNet{NIN,Ws,Acts,T}(map(T, law.shift), map(T, law.scale))
+_gnf_convert_law(::Type{T}, law::TinyMLP{NIN,H,L}) where {T<:AbstractFloat,NIN,H,L} =
+    TinyMLP{NIN,H,L}(; shift=map(T, law.shift), scale=map(T, law.scale))
+_gnf_convert_law(::Type{T}, law::LearnedViscosity) where {T<:AbstractFloat} =
+    LearnedViscosity(_gnf_convert_law(T, law.mlp); nu_ref=T(law.nu_ref),
+                     monotone=law.monotone, epsilon=T(law.epsilon))
+_gnf_convert_law(::Type{T}, law::ClassicalLaw{<:PowerLaw}) where {T<:AbstractFloat} =
+    ClassicalLaw(PowerLaw(T(law.model.K), T(law.model.n), T(law.model.nu_min),
+                          T(law.model.nu_max), _gnf_convert_thermal(T, law.model.thermal)))
+_gnf_convert_law(::Type{T}, law::ClassicalLaw{<:CarreauYasuda}) where {T<:AbstractFloat} =
+    ClassicalLaw(CarreauYasuda(T(law.model.eta_0), T(law.model.eta_inf), T(law.model.lambda),
+                               T(law.model.a), T(law.model.n),
+                               _gnf_convert_thermal(T, law.model.thermal)))
+
+_gnf_convert_thermal(::Type, th) = th
+_gnf_convert_thermal(::Type{T}, th::ArrheniusCoupling) where {T<:AbstractFloat} =
+    ArrheniusCoupling(T(th.T_ref), T(th.E_a))
+_gnf_convert_thermal(::Type{T}, th::WLFCoupling) where {T<:AbstractFloat} =
+    WLFCoupling(T(th.T_ref), T(th.C1), T(th.C2))
 
 # Host evaluations of a closure (rest relaxation time, adjoint blocks). Identity
 # for every closure without device storage.
