@@ -322,6 +322,7 @@ include("platform/weakdeps_metadata_test.jl")
     include("analytical/gnf3d_channel_order.jl")
     include("analytical/gnf3d_parity.jl")
     include("ad/gnf3d_adjoint_test.jl")      # steady 3D GNF adjoint (blocks, JVP/VJP, GMRES; no Enzyme)
+    include("ad/gnf3d_setup_equality_test.jl") # device-built 3D periodic setup == host reference, bitwise (CPU; CUDA if functional)
     include("analytical/lbm3d_law_test.jl")  # ClassicalLaw/DenseNet in the 3D GNF step, vs FV
     include("analytical/gnf3d_adjoint_gpu.jl") # its CUDA parity, self-gated on CUDA.functional()
     include("analytical/gnf3d_duct_obstacle.jl")
