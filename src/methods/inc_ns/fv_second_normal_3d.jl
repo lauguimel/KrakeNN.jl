@@ -170,6 +170,52 @@ end
     end
 end
 
+# ------------------------------------------------------------------ learned Psi2
+"""
+    NeuralPsi2Law(mlp::TinyMLP{1}; wi0 = 1e-2)
+
+Learned second normal stress coefficient in the dimensionless form of the
+Giesekus closed form, one input `gdot`:
+
+    Psi2 = -eta_p0 lambda g(Wi),   Wi = lambda gdot,   g = mlp(log(Wi + wi0)),
+
+with the network input normalised by `mlp.shift` and `mlp.scale`.
+`theta = [eta_p0, lambda, theta_mlp...]` (all differentiable; a calibration
+usually holds the first two fixed and learns the network). `wi0 > 0` keeps the
+input finite at rest. [`law_init`](@ref) gives `g = 0` (output layer zero) with
+unit-variance hidden weights and biases, so `Psi2 = 0` at the start.
+[`neural_psi2_g`](@ref) evaluates `g(Wi)`.
+"""
+struct NeuralPsi2Law{M<:TinyMLP{1}} <: AbstractScalarLaw
+    mlp::M
+    wi0::Float64
+    function NeuralPsi2Law(mlp::M; wi0::Real = 1e-2) where {M<:TinyMLP{1}}
+        isfinite(wi0) && wi0 > 0 || throw(ArgumentError("wi0 must be finite and positive"))
+        return new{M}(mlp, Float64(wi0))
+    end
+end
+@inline law_ninputs(::NeuralPsi2Law) = 1
+@inline law_nparams(law::NeuralPsi2Law) = 2 + law_nparams(law.mlp)
+@inline _fv_law_number_type(::Type{NeuralPsi2Law{M}}) where {M} = promote_type(Float64, _fv_law_number_type(M))
+
+"""
+    neural_psi2_g(law::NeuralPsi2Law, wi, theta)
+
+The dimensionless `g(Wi) = -Psi2 / (eta_p0 lambda)` of the law at `Wi`.
+"""
+@inline neural_psi2_g(law::NeuralPsi2Law, wi, theta::AbstractVector) =
+    _mlp_value(law.mlp, (log(wi + law.wi0),), theta, Val(false), 2)
+@inline law_value(law::NeuralPsi2Law, x::Tuple, theta::AbstractVector) =
+    @inbounds -theta[1] * theta[2] * neural_psi2_g(law, theta[2] * x[1], theta)
+
+function law_init(law::NeuralPsi2Law; rng = nothing, eta_p0 = 1.0, lambda = 1.0)
+    r() = rng === nothing ? randn() : randn(rng)
+    m = law.mlp
+    theta = [r() for _ in 1:law_nparams(m)]
+    theta[(_mlp_output_offset(m) + 1):end] .= 0      # output weights and bias: g = 0
+    return [Float64(eta_p0); Float64(lambda); theta]
+end
+
 # ------------------------------------------------------------------ parameters
 """
     FVReinerRivlinParameters(neta, npsi) <: FVParameterMap

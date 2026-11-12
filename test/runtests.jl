@@ -148,6 +148,9 @@ function run_incns_testset()
         # Jacobian vs duals and FD, Psi2 = c eta, adjoint vs FD, Giesekus
         # 16 x 16 duct slice eight-vortex sign pattern (80 assertions)
         include("analytical/incns_fv3d_reiner_rivlin_test.jl")
+        # learned Psi2 (NeuralPsi2Law, TinyMLP g(Wi)) in the same slice: law
+        # value and duals, adjoint of a velocity misfit vs centred FD
+        include("analytical/incns_fv3d_psi2_net_test.jl")
         # 3D branch K (plan I4): GMRES + ILU(0) on the assembled Jacobian vs the
         # direct branch — solves (forward, transposed), Newton state, adjoint
         # gradients (both flow-rate border treatments) and one FD check

@@ -300,6 +300,7 @@ include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (d
 include("methods/inc_ns/fv_second_normal_3d.jl") # 3D Reiner-Rivlin stress: Psi2 term in the traction
 export FVReinerRivlinViscosity, FVReinerRivlinParameters
 export GiesekusViscosityLaw, GiesekusPsi2Law, TabulatedGiesekusPsi2Law
+export NeuralPsi2Law, neural_psi2_g
 export FVPIVObjective, fv_objective_gradient!
 export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective
 
