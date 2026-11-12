@@ -168,7 +168,7 @@ export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!
 export FVSteadyProblem, FVGrid3D, FVSteadyProblem3D, fv_ncells, FVEnergy3D
 export FVConformation3D, AbstractRelaxationLaw, PolynomialRelaxation, relaxation_nparams,
        relaxation_coefficients, fv_relaxation, fv_upper_convected, fv_conformation_source,
-       fv_conformation_fields
+       fv_conformation_fields, fv_set_conformation, fv_set_conformation!
 export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,
        fv_immersed_circle, fv_immersed_annulus,
        FVImmersedWall, FVProfileWall, FVCircleWall, fv_immersed_walls, fv_immersed_wall_heat

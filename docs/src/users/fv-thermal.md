@@ -466,7 +466,36 @@ Poiseuille (velocity equal to the Newtonian `η_0 = η_s + η_p` solution, `c_xy
 `N1 = 2 η_p λ γ̇²` and `N2 = 0` at the cell centres) and Giesekus plane Couette
 against the closed-form viscometric functions.
 
-Limits of this first version: wall (zero normal velocity) and periodic sides
-only; Newtonian solvent; no energy equation together with conformation; no
-pseudo-transient shift on the `c` rows and no continuation helper in the
-Weissenberg number; no adjoint parameter map for the relaxation law yet.
+### Square-duct slice and continuation in De
+
+`fv_set_conformation!(solver, conf)` replaces `lambda`, `nu_p` and `theta` of a
+conformation-active solver in place (same law type), so a continuation in the
+Deborah number keeps the Jacobian pattern, the colouring and the one symbolic
+analysis:
+
+```julia
+for De in (0.1, 0.3, 0.6, 1.0)
+    fv_set_conformation!(s, FVConformation3D(; lambda = De, nu_p = 1.0, alpha = 0.4))
+    fv_newton!(s, U)                      # starts from the previous solution
+end
+```
+
+`benchmarks/ve_duct/slice_conformation.jl` solves the secondary flow of a
+Giesekus fluid in a square duct on one periodic slice (`Nx = 1`, walls on y and
+z, imposed mean axial velocity) on the CPU or on CUDA (`VE_BACKEND`), with this
+continuation (plain Newton, then a damped retry, then halved De steps), and
+writes a TOML summary (iterations per De, `max|u_xy|/U`, RMS secondary speed,
+smallest eigenvalue of `c`, symmetry defect, device memory) plus one CSV of cell
+fields per De. The case is the RheoTool reference of
+kraken-research/hidden-rheology/ve-duct: side `H = 1`, `U_mean = 1`,
+`η_s = η_p = 1` (`β = 0.5`, `Re = ρ U H / η_0 = 0.5`), `α = 0.4`,
+`De = λ U_mean / H` (the RheoTool runs set `λ = De`). Test (h) of the
+conformation test file checks a 12 × 12 slice at De 0.1: the mirror and diagonal
+symmetries, the eight-vortex sense of the RheoTool solution (along the diagonals
+from the corners toward the centre, along the wall bisectors toward the walls)
+and, for Oldroyd-B, `N2 = 0` and no secondary flow.
+
+Limits: wall (zero normal velocity) and periodic sides only; Newtonian
+solvent; no energy equation together with conformation; no pseudo-transient
+shift on the `c` rows (the damped retry shifts the momentum rows only); no
+adjoint parameter map for the relaxation law yet.

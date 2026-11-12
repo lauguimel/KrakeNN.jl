@@ -317,6 +317,56 @@ function fv_jacobian_pattern(prob::_FVConfProblem3D)
     return sparse(I, J, trues(length(I)), n, n, |)
 end
 
+# ------------------------------------------------------------------ coefficient update (continuation)
+# Same lowering arithmetic as `_fv3_lower_conformation`; the geometric checks
+# (sides, wall velocity, solvent model) do not depend on the coefficients and
+# were done when the problem was built.
+function _fv3_conformation_data(old::_FVConformationData3D, c::FVConformation3D)
+    T = typeof(old.lambda)
+    lambda, nu_p = T(c.lambda), T(c.nu_p)
+    theta = map(T, c.theta)
+    isfinite(lambda) && lambda > 0 && isfinite(nu_p) && nu_p >= 0 && all(isfinite, theta) ||
+        throw(ArgumentError("conformation coefficients must remain finite in $T"))
+    new = _FVConformationData3D(lambda, nu_p / lambda, nu_p, c.law, theta)
+    typeof(new) === typeof(old) ||
+        throw(ArgumentError("the relaxation law and theta types must match those of the problem " *
+                            "($(typeof(old)) vs $(typeof(new)))"))
+    return new
+end
+
+"""
+    fv_set_conformation(prob::FVSteadyProblem3D, conf::FVConformation3D) -> FVSteadyProblem3D
+
+Copy of the conformation-active problem `prob` (host or device) with the
+coefficients `lambda`, `nu_p`, `theta` of `conf`; arrays are shared, the law
+type must be the same. Bit-identical to building the problem with `conf`.
+"""
+function fv_set_conformation(p::FVSteadyProblem3D, conf::FVConformation3D)
+    p.conformation isa _FVConformationData3D ||
+        throw(ArgumentError("problem has no conformation unknowns"))
+    return FVSteadyProblem3D(p.grid, p.tag, p.nu, p.bvel, p.src, p.visc, p.immersed, p.energy,
+                             p.flowrate, _fv3_conformation_data(p.conformation, conf))
+end
+
+"""
+    fv_set_conformation!(solver::FVNewtonSolver, conf::FVConformation3D) -> solver
+
+Replace the conformation coefficients (`lambda`, `nu_p`, `theta`) of the
+solver's problem in place, e.g. for a continuation in the Deborah number. The
+Jacobian pattern, colouring and the symbolic analysis held by the solver are
+kept (the pattern does not depend on the coefficients); the next
+[`fv_newton!`](@ref) refactorizes numerically. Stored factors are marked stale
+for the adjoint.
+"""
+function fv_set_conformation!(s::FVNewtonSolver, conf::FVConformation3D)
+    s.prob isa FVSteadyProblem3D ||
+        throw(ArgumentError("fv_set_conformation! needs a 3D conformation-active solver"))
+    s.prob = fv_set_conformation(s.prob, conf)
+    s.asm_sig = (NaN, NaN, NaN)
+    s.fac_sig = (NaN, NaN, NaN)
+    return s
+end
+
 # ------------------------------------------------------------------ state, fields
 _fv3_initial_conformation!(U, p::FVSteadyProblem3D) = _fv3_initial_conformation!(U, p, p.conformation)
 _fv3_initial_conformation!(U, p, ::Nothing) = U

@@ -15,7 +15,12 @@
 #       c_xy, c_xx, N1, N2 exact at the cell centres; odd-even indicator;
 #   (f) same channel rotated (walls on x, flow along z);
 #   (g) Giesekus plane Couette, continuation in Wi: eta_p, Psi1, Psi2 against the
-#       closed form, u linear.
+#       closed form, u linear;
+#   (h) square-duct slice 12 x 12 (Nx = 1 periodic, imposed mean velocity),
+#       Giesekus De 0.1: converged, mirror and diagonal symmetries, eight-vortex
+#       sense of the RheoTool solution, c positive definite; fv_set_conformation!
+#       to De 0.2 (bit-identical residual, no new analysis); Oldroyd-B: N2 = 0 and
+#       no secondary flow.
 using Test
 using LinearAlgebra
 using Random
@@ -67,6 +72,12 @@ end
 
 const _FVCT_YWALLS = (W = :periodic, E = :periodic, S = :wall, N = :wall, B = :periodic, T = :periodic)
 const _FVCT_XWALLS = (W = :wall, E = :wall, S = :periodic, N = :periodic, B = :periodic, T = :periodic)
+const _FVCT_DUCT = (W = :periodic, E = :periodic, S = :wall, N = :wall, B = :wall, T = :wall)
+
+# a second relaxation-law type (only to check that a law change is refused)
+struct _FVCTOtherLaw <: AbstractRelaxationLaw end
+KrakeNN.relaxation_nparams(::_FVCTOtherLaw) = 2
+KrakeNN.relaxation_coefficients(::_FVCTOtherLaw, theta, I1, I2, I3) = (theta[1], theta[2])
 
 # plane channel of width H = 1, body force F; walls on y (flow x) or on x (flow z)
 function _fvct_channel(Ny; lambda, nu_s = 0.5, nu_p = 0.5, F = 2.0, axis = :y, conformation = true)
@@ -328,5 +339,85 @@ end
             @test worst <= 1e-8
             @info "Giesekus Couette" Wi iterations = st.iterations worst
         end
+    end
+
+    @testset "(h) square-duct slice 12 x 12, De 0.1 and 0.2 (CONF-2)" begin
+        # 1 x N x N periodic slice of a square duct of side 1, mean axial velocity 1,
+        # eta_s = eta_p = 1 (beta = 0.5, Re = 0.5), lambda = De (U = H = 1), as the
+        # RheoTool case and benchmarks/ve_duct/slice_conformation.jl.
+        N = 12; M = N + 1
+        duct(conf) = fv_steady_problem(1, N, N; h = 1 / N, nu = 1.0, bc = _FVCT_DUCT, conformation = conf,
+                                       source = (x, y, z) -> (50.0, 0.0, 0.0, 0.0), u_mean_target = 1.0)
+        rest(p) = (z = zeros(1, N, N); fv_state(p, z, z, z, z))
+        giesekus(de) = FVConformation3D(; lambda = de, nu_p = 1.0, alpha = 0.4)
+        ok(st) = st.converged || (st.stagnated && last(st.inf) <= 1e-11)
+        newton = (; atol = 1e-13, rtol = 1e-12, maxit = 30)
+        secondary(p, U) = (f = fv_fields(p, U); (f[2][1, :, :], f[3][1, :, :], f[1][1, :, :]))
+
+        # Giesekus De 0.1 from rest (u = v = w = 0, c = I, Fx = 50)
+        p = duct(giesekus(0.1))
+        s = fv_newton_solver(p)
+        U = rest(p)
+        st = fv_newton!(s, U; newton...)
+        @test ok(st)
+        @test st.iterations <= 15
+        v, w, u = secondary(p, U)
+        Um = sum(u) / length(u)
+        @test abs(Um - 1) <= 1e-10
+        sp = sqrt.(v .^ 2 .+ w .^ 2)
+        m1 = maximum(sp)
+        @test 1e-4 < m1 < 1e-2                     # RheoTool 200^2: 1.29e-3
+        tol = 1e-6 * m1 + 1e-13
+        # mirror y -> 1 - y, z -> 1 - z and the diagonal y <-> z
+        @test maximum(abs(v[j, k] + v[M - j, k]) for j in 1:N, k in 1:N) <= tol
+        @test maximum(abs(v[j, k] - v[j, M - k]) for j in 1:N, k in 1:N) <= tol
+        @test maximum(abs(w[j, k] - w[M - j, k]) for j in 1:N, k in 1:N) <= tol
+        @test maximum(abs(w[j, k] + w[j, M - k]) for j in 1:N, k in 1:N) <= tol
+        @test maximum(abs(v[j, k] - w[k, j]) for j in 1:N, k in 1:N) <= tol
+        # eight vortices, sense of the RheoTool solution (checked in its De 0.1 field):
+        # along the diagonal from the corner toward the centre, along the wall
+        # bisectors (between cells N/2 and N/2 + 1) toward the walls
+        @test all(v[j, j] > 0 && w[j, j] > 0 for j in 2:5)
+        @test all((v[j, 6] + v[j, 7]) / 2 < 0 for j in 2:4)
+        @test all((w[6, k] + w[7, k]) / 2 < 0 for k in 2:4)
+        # c stays positive definite
+        c = fv_conformation_fields(p, U)
+        mineig = minimum(eigmin(Symmetric(_fvct_mat((c.xx[1, j, k], c.xy[1, j, k], c.xz[1, j, k],
+                                                    c.yy[1, j, k], c.yz[1, j, k], c.zz[1, j, k]))))
+                         for j in 1:N, k in 1:N)
+        @test mineig > 0
+        @info "Giesekus duct slice" N De = 0.1 iterations = st.iterations max_uxy = m1 mineig
+
+        # continuation: new coefficients on the same solver, bit-identical residual
+        fv_set_conformation!(s, giesekus(0.2))
+        p2 = duct(giesekus(0.2))
+        X = U .+ 1e-3 .* randn(rng, length(U))
+        @test fv_residual(X, s.prob) == fv_residual(X, p2)
+        @test s.prob.conformation === p2.conformation
+        nf = s.n_factorize
+        st2 = fv_newton!(s, U; newton...)
+        @test ok(st2)
+        @test st2.iterations <= 10
+        @test s.n_factorize == nf                  # no new symbolic analysis
+        m2 = maximum(hypot.(secondary(p, U)[1], secondary(p, U)[2]))
+        @test m2 > m1                              # RheoTool: 1.29e-3 -> 2.88e-3
+        @info "Giesekus duct slice" N De = 0.2 iterations = st2.iterations max_uxy = m2
+        @test_throws ArgumentError fv_set_conformation!(s, FVConformation3D(; lambda = 0.2, nu_p = 1.0,
+                                                        law = _FVCTOtherLaw(), theta = (1.0, 0.4)))
+        p0 = fv_steady_problem(1, N, N; h = 1 / N, bc = _FVCT_DUCT)
+        @test_throws ArgumentError fv_set_conformation!(fv_newton_solver(p0), giesekus(0.2))
+
+        # Oldroyd-B (b2 = 0): N2 = 0, no secondary flow
+        pob = duct(FVConformation3D(; lambda = 0.1, nu_p = 1.0))
+        Uob = rest(pob)
+        stob = fv_newton!(fv_newton_solver(pob), Uob; newton...)
+        @test ok(stob)
+        vo, wo, uo = secondary(pob, Uob)
+        @test maximum(abs, vo) <= 1e-12 && maximum(abs, wo) <= 1e-12
+        co = fv_conformation_fields(pob, Uob)
+        N1 = co.xx .- co.yy
+        @test maximum(abs, co.yy .- co.zz) <= 1e-12 * maximum(abs, N1)
+        @test maximum(abs, co.yz) <= 1e-12 * maximum(abs, N1)
+        @info "Oldroyd-B duct slice" N iterations = stob.iterations max_vw = max(maximum(abs, vo), maximum(abs, wo))
     end
 end
