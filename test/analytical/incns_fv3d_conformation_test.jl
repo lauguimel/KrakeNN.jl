@@ -385,11 +385,14 @@ end
         end
     end
 
-    @testset "(h) square-duct slice 12 x 12, De 0.1 and 0.2 (CONF-2)" begin
+    @testset "(h) square-duct slice 24 x 24, De 0.1 and 0.2 (CONF-2)" begin
         # 1 x N x N periodic slice of a square duct of side 1, mean axial velocity 1,
         # eta_s = eta_p = 1 (beta = 0.5, Re = 0.5), lambda = De (U = H = 1), as the
         # RheoTool case and benchmarks/ve_duct/slice_conformation.jl.
-        N = 12; M = N + 1
+        # N = 24: smallest grid with the RheoTool vortex sense at De 0.1 (mesh study
+        # N = 12..200, H100, 2026-11-12, kraken-research 252b241; at N = 12 the De 0.1
+        # maximum sits at the wall, 3.6e-3, and the bisector sense is wrong)
+        N = 24; M = N + 1
         duct(conf) = fv_steady_problem(1, N, N; h = 1 / N, nu = 1.0, bc = _FVCT_DUCT, conformation = conf,
                                        source = (x, y, z) -> (50.0, 0.0, 0.0, 0.0), u_mean_target = 1.0)
         rest(p) = (z = zeros(1, N, N); fv_state(p, z, z, z, z))
@@ -420,10 +423,11 @@ end
         @test maximum(abs(v[j, k] - w[k, j]) for j in 1:N, k in 1:N) <= tol
         # eight vortices, sense of the RheoTool solution (checked in its De 0.1 field):
         # along the diagonal from the corner toward the centre, along the wall
-        # bisectors (between cells N/2 and N/2 + 1) toward the walls
-        @test all(v[j, j] > 0 && w[j, j] > 0 for j in 2:5)
-        @test all((v[j, 6] + v[j, 7]) / 2 < 0 for j in 2:4)
-        @test all((w[6, k] + w[7, k]) / 2 < 0 for k in 2:4)
+        # bisectors (between cells N/2 and N/2 + 1) toward the walls; cells whose
+        # centre lies 0.1 to 0.3 from the wall (bisector) or 0.1 to 0.35 from the corner
+        @test all(v[j, j] > 0 && w[j, j] > 0 for j in 3:9)
+        @test all((v[j, 12] + v[j, 13]) / 2 < 0 for j in 3:7)
+        @test all((w[12, k] + w[13, k]) / 2 < 0 for k in 3:7)
         # c stays positive definite
         c = fv_conformation_fields(p, U)
         mineig = minimum(eigmin(Symmetric(_fvct_mat((c.xx[1, j, k], c.xy[1, j, k], c.xz[1, j, k],
