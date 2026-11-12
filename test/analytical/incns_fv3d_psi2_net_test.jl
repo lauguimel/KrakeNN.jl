@@ -59,8 +59,8 @@ _pn_J(W, D, U) = sum(W .* (U .- D) .^ 2) / 2
             z = log(wi + 1e-2) / 2
             h = [tanh(θ[2 + i] * z + θ[2 + 3 + i]) for i in 1:3]
             gref = dot(θ[9:11], h) + θ[12]
-            @test neural_psi2_g(law, wi, θ) ≈ gref rtol = 1e-14
-            @test law_value(law, (gd,), θ) ≈ -1.5 * 0.6 * gref rtol = 1e-14
+            @test neural_psi2_g(law, wi, θ) ≈ gref atol = 1e-13   # sum of O(1) terms
+            @test law_value(law, (gd,), θ) ≈ -1.5 * 0.6 * gref atol = 1e-13
             gr = ForwardDiff.gradient(t -> law_value(law, (gd,), t), θ)
             for q in (1, 2, 4, 9, 12)
                 e = 1e-6; d = Float64.(1:12 .== q)
