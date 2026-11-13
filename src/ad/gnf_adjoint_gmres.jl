@@ -66,7 +66,8 @@ end
 
 """
     gnf_gmres!(x, apply!, b; tol=1e-6, restart=1000, maxiter=100_000, orth=:mgs2,
-               deflate=0, max_wall=Inf, ritz=false, verbose=false) -> info
+               deflate=0, max_wall=Inf, ritz=false, verbose=false, basis=nothing,
+               work=nothing) -> info
 
 Restarted GMRES for `apply!(y, x)` (y = M x), in place on the initial guess `x`.
 Works on any AbstractVector type (Array, CuArray): Krylov basis
@@ -85,6 +86,13 @@ Works on any AbstractVector type (Array, CuArray): Krylov basis
   basis) and kept, with the iteration count and the elapsed time, so one solve
   gives the cost and the solution at several tolerances.
 - `ritz = true`: harmonic Ritz values of every full cycle (the last is kept).
+- `basis`: optional preallocated Krylov basis of size `(length(b), restart + 1)`
+  and the element/array type of `b` (reused across calls by the Krylov branch
+  of the linear-solve seam); by default a fresh one is allocated per call.
+- `work`: optional preallocated work vectors `(; r, hbuf, d)` of the array type
+  of `b` (`r` of length `length(b)`, `hbuf` and `d` of length ≥ `restart + 1`);
+  with `basis` and `work` given (and `deflate = 0`, no snapshots) a solve makes
+  no device allocation of its own.
 
 Times exclude the diagnostics (snapshots, Ritz values), reported as `t_diag`.
 Returns `(; converged, iters, cycles, relres, relres_cycles, relres_iter, t_iter,
@@ -94,16 +102,27 @@ t_total, t_op, t_orth, t_diag, n_apply, restart, orth, deflate, ritz, snaps)`;
 function gnf_gmres!(x, apply!, b; tol::Real=1e-6, restart::Integer=1000,
                     maxiter::Integer=100_000, orth::Symbol=:mgs2, deflate::Integer=0,
                     max_wall::Real=Inf, ritz::Bool=false, verbose::Bool=false,
-                    snapshots=())
+                    snapshots=(), basis=nothing, work=nothing)
     Tv = eltype(b)
     Nv = length(b)
     m = Int(restart)
     k = Int(deflate)
     0 <= k < m || throw(ArgumentError("need 0 ≤ deflate < restart"))
     t0 = time(); t_op = 0.0; t_orth = 0.0; t_diag = 0.0; n_apply = 0
-    V = similar(b, Nv, m + 1)
-    hbuf = similar(b, m + 1)
-    r = similar(b)
+    if basis === nothing
+        V = similar(b, Nv, m + 1)
+    else
+        size(basis) == (Nv, m + 1) ||
+            throw(DimensionMismatch("basis has size $(size(basis)), expected $((Nv, m + 1))"))
+        V = basis
+    end
+    if work === nothing
+        hbuf = similar(b, m + 1); r = similar(b); dbuf = nothing
+    else
+        (length(work.r) == Nv && length(work.hbuf) >= m + 1 && length(work.d) >= m) ||
+            throw(DimensionMismatch("work vectors too short for n = $Nv, restart = $m"))
+        hbuf = work.hbuf; r = work.r; dbuf = work.d
+    end
     bnorm = norm(b)
     relres_cycles = Float64[]; relres_iter = Float64[]; t_iter = Float64[]
     ritz_vals = ComplexF64[]
@@ -193,7 +212,11 @@ function gnf_gmres!(x, apply!, b; tol::Real=1e-6, restart::Integer=1000,
              time() - t0 > max_wall) && break
         end
         d = UpperTriangular(R[1:jlast, 1:jlast]) \ g[1:jlast]
-        ddev = similar(b, jlast); copyto!(ddev, d)
+        if dbuf === nothing
+            ddev = similar(b, jlast); copyto!(ddev, d)
+        else
+            copyto!(dbuf, 1, d, 1, jlast); ddev = view(dbuf, 1:jlast)
+        end
         mul!(x, view(V, :, 1:jlast), ddev, one(Tv), one(Tv))
         ta = time(); apply!(r, x); _gnf_sync(r); t_op += time() - ta; n_apply += 1
         r .= b .- r

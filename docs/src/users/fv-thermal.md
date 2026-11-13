@@ -186,6 +186,35 @@ On GPU the all-linear objective and its gradient allocate at most 1 KiB of
 device memory per call (a fixed amount, the same at every grid size; measured
 by `benchmarks/fv3d/i2_adjoint_measure.jl`).
 
+### 3D problems without a direct factorisation: `KrylovBackendTag`
+
+The direct factors of a 3D Jacobian grow faster than the grid (about 25 GB at
+48³). `KrylovBackendTag()` replaces them by restarted GMRES on the assembled
+Jacobian, behind the same calls. Two preconditioners: `precond = :ilu0`
+(default, ILU(0) of the whole Jacobian) and `precond = :simple` (block SIMPLE:
+ILU(0) of the velocity block, LU of the Schur approximation
+C − D diag(A)⁻¹ G of the pressure block; `schur = :ilu0` replaces that LU by an
+ILU(0)).
+
+```julia
+solver = fv_newton_solver(prob; to = CuArray,
+                          linsolve = KrylovBackendTag(precond = :simple))   # `using CUDA, CUDSS`
+st = fv_newton!(solver, U; atol = 1e-10, dtau0 = 1.0, dtau_max = 1e4)
+r  = fv_steady_gradient(solver, U, theta, obj; params = FVLawParameters(n))
+lin_krylov_log(solver.cache)    # iterations, residual, time of every solve
+```
+
+Each Newton step is solved to `rtol = 1e-6` (an inexact Newton step; the
+Newton iteration still converges to the requested residual) and the adjoint
+(transposed) solve to `rtol_transpose = 1e-10`, both measured on the true
+residual. With an imposed flow rate (`u_mean_target`), the border unknown is
+left out of the preconditioner by default (`border = :krylov`; always with
+`:simple`). A zero or non-finite ILU(0) pivot raises an error: switch
+preconditioner or use the direct backend for that case. The branch is a
+prototype: ILU(0) alone stalls on 32³ ducts with an imposed flow rate; the
+iteration counts and memory of both preconditioners at 24³–48³ are measured by
+`benchmarks/fv3d/i4_krylov_measure.jl`.
+
 ## Validation
 
 Test files are in `test/analytical/`; each frozen threshold carries its date and

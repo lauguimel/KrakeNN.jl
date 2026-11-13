@@ -555,6 +555,17 @@ _fv_device_csr(tag::LinearSolveBackend, rowptr, colval, n) =
     throw(ArgumentError("no FV Jacobian matrix for the $(_lin_backend_name(tag)) backend " *
                         "(CUDABackendTag needs `using CUDA, CUDSS`)"))
 
+# Cell grid of a host problem for the P3 multigrid aggregates of the Krylov
+# branch: (Nx, Ny, Nz) (Nz = 1 in 2D; cell c = i + (j-1) Nx + (k-1) Nx Ny) and
+# the solid flag of each cell.
+function _fv_krylov_geometry(prob::FVSteadyProblem)
+    t = Array(prob.tag)
+    d = size(t)
+    dims = (d[1], ndims(t) >= 2 ? d[2] : 1, ndims(t) >= 3 ? d[3] : 1)
+    prod(dims) == fv_ncells(prob) || return nothing      # not a plain cell grid: no P3
+    return (; dims, solid = vec(t .== FV_CELL_SOLID))
+end
+
 """
     fv_newton_solver(prob::FVSteadyProblem2D; to = Array,
                      linsolve = CPUBackendTag(), chunk = 4) -> FVNewtonSolver
@@ -577,6 +588,19 @@ function fv_newton_solver(prob::FVSteadyProblem; to = Array,
                                          zeros(Float64, nnz(S)))
         nzval = nonzeros(J)
         order = :csc
+    elseif linsolve isa KrylovBackendTag
+        # Krylov branch: plain CSR on the device of `to` (GMRES + ILU(0), block
+        # SIMPLE or block SIMPLE with multigrid blocks); the interleaved field
+        # layout tells P2/P3 which unknowns are velocity-like, pressure or extra
+        # (flow-rate border), the cell grid and solid mask give the P3 aggregates.
+        _, _, rowptr, colval = _fv_storage_order(S, :csr)
+        nf = _fv_nfields(prob.grid)
+        J = krylov_csr_matrix(to, rowptr, colval, n;
+                              border = prob.flowrate === nothing ? 0 : _fv_force_index(prob),
+                              nfields = nf, pslot = _fv_pressure_slot(prob.grid.layout),
+                              nlocal = nf * fv_ncells(prob), geometry = _fv_krylov_geometry(prob))
+        nzval = J.nzval
+        order = :csr
     else
         _, _, rowptr, colval = _fv_storage_order(S, :csr)
         J, nzval = _fv_device_csr(linsolve, rowptr, colval, n)

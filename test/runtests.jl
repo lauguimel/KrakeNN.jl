@@ -141,6 +141,10 @@ function run_incns_testset()
         # adjoint vs centred FD for every map × objective, law contraction vs
         # duals, `abs` convention at zero-flux faces (~25 s CPU)
         include("analytical/incns_fv3d_adjoint_test.jl")
+        # 3D branch K (plan I4): GMRES + ILU(0) on the assembled Jacobian vs the
+        # direct branch — solves (forward, transposed), Newton state, adjoint
+        # gradients (both flow-rate border treatments) and one FD check
+        include("analytical/incns_fv3d_krylov_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,
