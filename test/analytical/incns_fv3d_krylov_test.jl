@@ -37,9 +37,10 @@
 #       diagonals positive on every level, same checks on the hierarchy of
 #       Jᵀ), linear solves, Newton state, adjoint gradients and one FD check
 #       against branch D, stationary residual ratios of one cycle (logged);
-#       the default tag (`precond = :auto`) resolves to P4 with
-#       `vanka_omega = 0.5` on these 3D Jacobians and to P1 on a matrix
-#       without layout, without geometry or with Nz = 1 (the 2D rule).
+#       the default tag (`precond = :auto`) resolves to P4 with constant
+#       prolongation and `vanka_omega = 0.5` on these 3D Jacobians and to P1
+#       on a matrix without layout, without geometry or with Nz = 1 (the 2D
+#       rule); the 3D energy case (P3L) is checked in incns_fv3d_thermal_test.jl.
 # Every P1 tag below sets `precond = :ilu0` explicitly: the default of the tag
 # is P4 on 3D FV Jacobians.
 using Test
@@ -150,6 +151,7 @@ end
             U6 = _i4_solve!(s6, _i4_U0(p))
             @test norm(U6 - UD, Inf) <= 1e-9 * norm(UD, Inf)
             @test s6.cache.backend.precond === (t6.precond === :auto ? :vanka : :ilu0)
+            t6.precond === :auto && @test s6.cache.backend.vanka_prolong === :constant
             @info "I4 Newton K vs D ($pname, rtol 1e-6, $tname)" rel_tight = norm(UK - UD, Inf) / norm(UD, Inf) rel_default = norm(U6 - UD, Inf) / norm(UD, Inf) gmres_iters = [e.iters for e in lin_krylov_log(s6.cache)]
         end
     end
@@ -776,11 +778,14 @@ end
     @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, vanka_omega = 0.0))
     @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, vanka_prolong = :bogus))
     @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, mg_cycle = :K))
-    # default tag: P4 with vanka_omega = 0.5 on the 3D Jacobian, P1 without layout,
-    # without geometry or on a grid with Nz = 1 (the rule of 2D problems)
+    # default tag: P4 with constant prolongation and vanka_omega = 0.5 on the 3D
+    # Jacobian, P1 without layout, without geometry or on a grid with Nz = 1
+    # (the rule of 2D problems); explicit precond = :vanka keeps its own prolongation
     cdef = lin_factorize(s0.J; backend = KrylovBackendTag())
     @test cdef.backend.precond === :vanka && cdef.backend.vanka_omega == 0.5
-    @test lin_krylov_blocks(cdef).vanka.omega == 0.5
+    @test cdef.backend.vanka_prolong === :constant
+    @test lin_krylov_blocks(cdef).vanka.omega == 0.5 && lin_krylov_blocks(cdef).vanka.prolong === :constant
+    @test lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka)).backend.vanka_prolong === :linear
     @test lin_factorize(bare; backend = KrylovBackendTag()).backend.precond === :ilu0
     @test lin_factorize(nogeom; backend = KrylovBackendTag()).backend.precond === :ilu0
     flat = KrylovCSRMatrix(s0.J.n, s0.J.rowptr, s0.J.colval, s0.J.nzval, s0.J.border, s0.J.nfields,

@@ -62,12 +62,22 @@ using KernelAbstractions
 
 Linear-solve backend: restarted GMRES (`gnf_gmres!`, restart length `restart`)
 with a right preconditioner on the assembled matrix. `precond = :auto`
-(default) is resolved per matrix by [`lin_factorize`](@ref): `:vanka` (P4,
-below) for a 3D isothermal FV Jacobian (block layout of 4 fields per cell with
-the pressure in slot 4, and a cell grid with more than one cell along z, as
-set by `fv_newton_solver` on a 3D problem without energy equation), `:ilu0`
-(P1) otherwise, so 2D problems, 3D problems with an energy equation and bare
-matrices keep ILU(0). Explicit choices: `precond = :ilu0` (P1,
+(default) is resolved per matrix by [`lin_factorize`](@ref) to the measured
+setting of each case (block layout and grid geometry as set by
+`fv_newton_solver`, grid with more than one cell along z):
+
+- 3D without energy equation (4 fields per cell, pressure in slot 4): P4,
+  `precond = :vanka` with `vanka_prolong = :constant` (and `vanka_omega`,
+  default 0.5), the configuration that passes the D2 gate and runs V5;
+- 3D with energy equation (5 fields per cell, pressure in slot 4): P3L,
+  `precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4`, the
+  configuration of the I3 energy runs;
+- anything else (2D problems, matrices without block layout or geometry):
+  P1, `precond = :ilu0`.
+
+With `:auto` these fields are set by the resolution whatever was passed for
+them; to tune them, name `precond` explicitly. The other fields (tolerances,
+`strict`, multigrid knobs) are kept. Explicit choices: `precond = :ilu0` (P1,
 ILU(0) of the whole matrix) or `precond = :simple` (P2, block SIMPLE: ILU(0)
 of the velocity block, Schur approximation S̃ = C − D diag(A)⁻¹ G factorized by
 LU (`schur = :lu`: UMFPACK on CPU, cuDSS on GPU) or by ILU(0) (`schur =
@@ -155,20 +165,25 @@ Base.@kwdef struct KrylovBackendTag <: LinearSolveBackend
     vanka_prolong::Symbol = :linear
 end
 
-# Preconditioner actually used for the matrix `A` (`precond = :auto` resolved):
-# P4 on a 3D isothermal FV Jacobian (4 fields per cell, pressure in slot 4,
-# geometry with Nz > 1), P1 otherwise (2D, 3D with energy, bare matrices).
-function _krylov_precond_kind(tag::KrylovBackendTag, A)
-    tag.precond === :auto || return tag.precond
-    return (A.nfields == 4 && A.pslot == 4 && A.nlocal > 0 && A.geom !== nothing &&
-            A.geom.dims[3] > 1) ? :vanka : :ilu0
-end
-
-# Copy of `tag` with the preconditioner `precond` (the resolved tag kept in the cache).
-function _krylov_with_precond(tag::KrylovBackendTag, precond::Symbol)
+# Copy of `tag` with the fields of `kw` replaced.
+function _krylov_with(tag::KrylovBackendTag; kw...)
     names = fieldnames(KrylovBackendTag)
     nt = NamedTuple{names}(ntuple(i -> getfield(tag, i), length(names)))
-    return KrylovBackendTag(; merge(nt, (; precond))...)
+    return KrylovBackendTag(; merge(nt, values(kw))...)
+end
+
+# Tag actually used for the matrix `A` (`precond = :auto` resolved to the
+# measured setting): 3D (geometry with Nz > 1) with 4 fields per cell → P4
+# with constant prolongation (D2 gate, V5); 3D with 5 fields (energy) → P3L
+# with 4 multigrid cycles per block (I3 runs, `fv3d_p3_tag` of
+# benchmarks/fv3d/fv3d_common.jl); otherwise (2D, bare matrices) → P1.
+function _krylov_resolve(tag::KrylovBackendTag, A)
+    tag.precond === :auto || return tag
+    is3d = A.nlocal > 0 && A.pslot == 4 && A.geom !== nothing && A.geom.dims[3] > 1
+    is3d && A.nfields == 4 && return _krylov_with(tag; precond = :vanka, vanka_prolong = :constant)
+    is3d && A.nfields == 5 &&
+        return _krylov_with(tag; precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4)
+    return _krylov_with(tag; precond = :ilu0)
 end
 
 # Schur treatment actually used (`:auto` resolved per preconditioner).
@@ -311,9 +326,10 @@ end
 
 Build the preconditioner of `A` (Krylov branch): ILU(0) (P1), block SIMPLE
 (P2), block SIMPLE with multigrid blocks (P3) or monolithic Vanka multigrid
-(P4), per `backend.precond`; `precond = :auto` (default) gives P4 on a 3D
-isothermal FV Jacobian and P1 otherwise, and the cache keeps the resolved tag
-(`cache.backend.precond`). `pin_k0 > 0` is not supported (pin the operator
+(P4), per `backend.precond`; `precond = :auto` (default) gives P4 with
+constant prolongation on a 3D FV Jacobian without energy equation, P3L
+(4 multigrid cycles per block) on a 3D one with energy equation and P1
+otherwise; the cache keeps the resolved tag (`cache.backend`). `pin_k0 > 0` is not supported (pin the operator
 rows instead, as the FV Newton problems do).
 """
 function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovBackendTag(),
@@ -321,7 +337,7 @@ function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovB
     backend isa KrylovBackendTag ||
         throw(ArgumentError("a KrylovCSRMatrix needs backend = KrylovBackendTag(), got $(_lin_backend_name(backend))"))
     pin_k0 == 0 || throw(ArgumentError("KrylovBackendTag does not support pin_k0 > 0"))
-    tag = backend.precond === :auto ? _krylov_with_precond(backend, _krylov_precond_kind(backend, A)) : backend
+    tag = _krylov_resolve(backend, A)
     tag.border in (:krylov, :ilu) || throw(ArgumentError("border must be :krylov or :ilu, got :$(tag.border)"))
     tag.trisolve in (:persistent, :simple) ||
         throw(ArgumentError("trisolve must be :persistent or :simple, got :$(tag.trisolve)"))

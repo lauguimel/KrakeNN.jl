@@ -214,10 +214,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   schur_approx = :lsc`, also `:simplec`, `:pcd`, `schur_q`, `schur_shift`,
   `ablock` options), and P4 monolithic geometric multigrid with an additive
   Vanka smoother (`precond = :vanka`, `vanka_omega`, `vanka_prolong`). The
-  default `precond = :auto` gives P4 with `vanka_omega = 0.5` on 3D
-  isothermal FV Jacobians and P1 elsewhere (2D problems, 3D problems with an
-  energy equation, matrices without block layout or grid geometry), so 2D
-  behaviour is unchanged; P3L stays available as an option. Diagnostics `lin_krylov_log`, `lin_krylov_pivot`, `lin_krylov_blocks`,
+  default `precond = :auto` resolves to the measured setting of each case: P4
+  with `vanka_prolong = :constant` and `vanka_omega = 0.5` on 3D FV Jacobians
+  without energy equation, P3L with 4 multigrid cycles per block on 3D ones
+  with energy equation (the setting of the I3 runs: V4 duct to N = 48, V0'
+  energy to 64³, peak 4.7 GB), P1 elsewhere (2D problems, matrices without
+  block layout or grid geometry), so 2D behaviour is unchanged. An explicit
+  `precond = :vanka` keeps trilinear prolongation by default. Diagnostics `lin_krylov_log`, `lin_krylov_pivot`, `lin_krylov_blocks`,
   `lin_krylov_stationary`. Memory is linear in the cells instead of the
   cells^(4/3) of the direct factors. P3L with 4 multigrid cycles per block is
   the setting used by the 3D benchmarks (29 / 28 / 34 forward GMRES iterations

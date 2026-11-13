@@ -309,7 +309,10 @@ end
                                                          strict = false)),
                              ("block SIMPLE, Schur LU",
                               KrylovBackendTag(; precond = :simple, schur = :lu, rtol = 1e-10,
-                                               rtol_transpose = 1e-11, strict = false)))
+                                               rtol_transpose = 1e-11, strict = false)),
+                             # default tag: P3L (block upper, LSC, 4 cycles) on a 3D Jacobian with energy
+                             ("default (P3L)", KrylovBackendTag(; rtol = 1e-10, rtol_transpose = 1e-11,
+                                                                strict = false)))
             sK = fv_newton_solver(p3; linsolve = tag)
             UK = fv_state(p3, 0.0, 0.0, 0.0, 0.0, TW)
             stK = _fv3e_solve!(sK, UK; maxit = 40)
@@ -319,6 +322,11 @@ end
                 blk = lin_krylov_blocks(sK.cache)
                 @test sK.J.nfields == 5 && sK.J.pslot == 4
                 @test blk.np == fv_ncells(p3) && blk.nu == 4 * fv_ncells(p3)
+            end
+            if kname == "default (P3L)"
+                bA = sK.cache.backend
+                @test bA.precond === :mg && bA.block === :upper && bA.schur_approx === :lsc &&
+                      bA.mg_cycles == 4
             end
             @info "I3 branch K vs D" kname iterations = stK.iterations gate = stK.gate difference = norm(UK - U3, Inf)
         end

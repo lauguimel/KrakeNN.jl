@@ -158,8 +158,8 @@ Branch K in the I3 scripts. The direct factorisation limits V0'
 energy to 48³ and V4 (a) to N = 32 on one 80 GB GPU. `FV3D_LINSOLVE=krylov`
 solves the Newton steps of `v0p_energy_mms.jl` and of `v4_heated_duct.jl` (a)
 with GMRES + P3L (`fv3d_p3_tag` in `fv3d_common.jl`, also the V5 option
-`FV5_PRECOND=p3l`; these scripts keep P3L, with which their receipts below were
-run, although the default of `KrylovBackendTag` is now P4: block upper triangular, LSC Schur, 4 W-cycles of multigrid per
+`FV5_PRECOND=p3l`; the same P3L setting is what the default tag
+`KrylovBackendTag()` resolves to on a 3D problem with energy equation: block upper triangular, LSC Schur, 4 W-cycles of multigrid per
 block, l1-Jacobi, forward η = 1e-6, restart 50, at most 2000 iterations);
 `FV3D_LINSOLVE=direct` (default) keeps cuDSS. The tag goes to
 `fv_newton_solver(p; linsolve)`; the thermal Newton and its gates are the
@@ -187,9 +187,11 @@ seam: restarted GMRES (`gnf_gmres!`, restart 50, classical Gram–Schmidt twice)
 right-preconditioned by ILU(0) of the assembled Jacobian (`KrylovCSRMatrix`,
 CSR on the device of the assembler). The Newton and adjoint API is unchanged:
 `fv_newton_solver(p; to, linsolve = KrylovBackendTag())`. That default tag
-(`precond = :auto`) now gives P4 (below, `vanka_omega = 0.5`) on a 3D
-isothermal problem and P1 on 2D problems and on 3D problems with an energy
-equation; P1 as described here is `precond = :ilu0`. GPU methods
+(`precond = :auto`) now resolves to the measured setting of each case: P4
+(below, constant prolongation, `vanka_omega = 0.5`) on a 3D problem without
+energy equation, P3L (4 multigrid cycles per block) on a 3D problem with
+energy equation, P1 on 2D problems; P1 as described here is
+`precond = :ilu0`. GPU methods
 (cuSPARSE `ilu02!`, triangular solves with the analysis kept between
 applications, cuDSS LU of the P2 Schur matrix) are in `ext/KrakeNNCUDSSExt.jl`,
 so `using CUDA, CUDSS` is needed on GPU as for branch D; SpMV and the P2 block
@@ -374,13 +376,15 @@ at less memory than the direct solve.
 - Measured with damping ω = 0.5 and constant prolongation (knobs
   `FV3D_VANKA_OMEGA`, `FV3D_VANKA_PROLONG`): gate D2 passes at 32³, 48³ and 64³ in both cases (flow rate and body force). This
   is the V5 default `FV5_PRECOND=p4` (`FV5_VANKA_OMEGA`, default 0.5).
-- Default: P4 is the preconditioner of `KrylovBackendTag()` on 3D isothermal
-  problems (`precond = :auto`), with `vanka_omega = 0.5` (0.7 fails D2 on the
-  body-force case). The tag default prolongation is still trilinear
-  (`vanka_prolong = :linear`); the D2 passes above were measured with
-  `vanka_prolong = :constant`. P3L stays available (`precond = :mg, block =
-  :upper, schur_approx = :lsc, mg_cycles = 4`, V5 option `FV5_PRECOND=p3l`)
-  and remains the solver of the I3 scripts.
+- Default: `KrylovBackendTag()` (`precond = :auto`) resolves on 3D problems
+  without energy equation to exactly the configuration measured above, P4
+  with `vanka_prolong = :constant` and `vanka_omega = 0.5` (0.7 fails D2 on
+  the body-force case). An explicit `precond = :vanka` keeps the tag's own
+  prolongation default, trilinear (`vanka_prolong = :linear`), which has not
+  passed D2. On 3D problems with energy equation the default is P3L
+  (`precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4`), the
+  setting of the I3 runs (V4 duct to N = 48, V0' energy to 64³, PASS, peak
+  4.7 GB); P3L is also the V5 option `FV5_PRECOND=p3l`.
 - V5 twin calibration (stage d, H100): P4 143 s and 5.07 GiB GPU peak, P3L
   402 s and 6.94 GiB, same fit.
 - Reynolds range (N = 32, first-order upwind convection): P4 stays usable up

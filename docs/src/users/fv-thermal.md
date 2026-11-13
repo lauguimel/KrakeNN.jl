@@ -193,25 +193,34 @@ The direct factors of a 3D Jacobian grow faster than the grid (about 25 GB at
 Jacobian, behind the same calls. The default (`precond = :auto`) picks the
 preconditioner from the Jacobian:
 
-- 3D problems without energy equation: P4 (`precond = :vanka`), one cycle of
-  a monolithic geometric multigrid on the coupled velocity–pressure block
-  with an additive Vanka smoother, damping `vanka_omega = 0.5`;
-- 2D problems and 3D problems with an energy equation: P1
-  (`precond = :ilu0`, ILU(0) of the whole Jacobian), as before.
+- 3D problems without energy equation: P4 (`precond = :vanka`,
+  `vanka_prolong = :constant`, `vanka_omega = 0.5`), one cycle of a
+  monolithic geometric multigrid on the coupled velocity–pressure block with
+  an additive Vanka smoother;
+- 3D problems with an energy equation: P3L (`precond = :mg, block = :upper,
+  schur_approx = :lsc, mg_cycles = 4`: block upper triangular with a
+  least-squares commutator Schur approximation and 4 multigrid cycles per
+  block);
+- 2D problems: P1 (`precond = :ilu0`, ILU(0) of the whole Jacobian), as
+  before.
 
-Other choices: `precond = :simple` (block SIMPLE: ILU(0) of the velocity
-block, LU of the Schur approximation C − D diag(A)⁻¹ G of the pressure block;
-`schur = :ilu0` replaces that LU by an ILU(0)) and P3L (`precond = :mg, block
-= :upper, schur_approx = :lsc, mg_cycles = 4`: block upper triangular with a
-least-squares commutator Schur approximation and multigrid blocks).
+With the default, these fields are set by the choice; to tune them, name
+`precond` explicitly (an explicit `precond = :vanka` uses trilinear
+prolongation unless `vanka_prolong = :constant` is given). Another choice:
+`precond = :simple` (block SIMPLE: ILU(0) of the velocity block, LU of the
+Schur approximation C − D diag(A)⁻¹ G of the pressure block; `schur = :ilu0`
+replaces that LU by an ILU(0)).
 
 What was measured on the 3D benchmarks (`benchmarks/fv3d/README.md`):
 
 - P4 with `vanka_omega = 0.5` and `vanka_prolong = :constant` passes the D2
   gate (GMRES iterations, memory, agreement with the direct solve) at 32³,
   48³ and 64³ on the flow-rate duct and on the body-force duct; with
-  `vanka_omega = 0.7` it fails on the body-force duct. The default
-  prolongation of the tag is trilinear (`vanka_prolong = :linear`).
+  `vanka_omega = 0.7` it fails on the body-force duct. This is the default
+  on 3D problems without energy equation.
+- P3L on the 3D energy cases: heated duct to N = 48 and the manufactured
+  energy solution to 64³ pass their gates, GPU peak 4.7 GB. This is the
+  default on 3D problems with an energy equation.
 - Law calibration on the V5 twin (H100): 143 s and 5.07 GiB GPU peak under
   P4, 402 s and 6.94 GiB under P3L, same fitted law.
 - At N = 32 with first-order upwind convection, P4 stays usable up to
