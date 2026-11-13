@@ -30,9 +30,10 @@ Every script:
 | `v4_heated_duct.jl` | I3, V4: (a) heated periodic square duct vs a separated-variable reference (no LBM, see below); (b) 2D channel with obstacle, thermal CY law and heating vs its Nz = 3 extrusion on the device | (a) relative L2 and L∞ of θ ≤ 3 % at the finest N; (b) residual h × 2D to 1e-14, solves to 1e-7; with `FV3D_LINSOLVE=krylov` ((a) only): every GMRES solve converges, K vs D state 1e-6 for N ≤ `FV3D_DIRECT_MAX` (24) | `FV3D_NS=16,24 FV3D_EXT_N=32` (10 GB), `FV3D_NS=16,24,32 FV3D_EXT_N=64` (80 GB); `FV3D_LINSOLVE=krylov FV3D_NS=16,24,32,48 FV3D_EXT_N=64` (run on an 80 GB H100, peak 4.2 GB) |
 
 Run on the cluster (after `setup_fv3d.sh` on the login node, with
-`~/kraken_fv3d/src_fv3d` a git archive of `feat/fv-3d`), each as
+`$FV3D_ROOT/src_fv3d` a git archive of the branch; `FV3D_ROOT` defaults to
+`$HOME/kraken_fv3d`), each from `$FV3D_ROOT` as
 `FV3D_BACKEND=cuda julia --project=env src_fv3d/benchmarks/fv3d/<script>.jl`
-with `JULIA_DEPOT_PATH=~/kraken_fv3d/depot` and `JULIA_CUDA_USE_COMPAT=false`.
+with `JULIA_DEPOT_PATH=$FV3D_ROOT/depot` and `JULIA_CUDA_USE_COMPAT=false`.
 
 CPU smoke runs (checked 2026-11-09, each under 15 s on a laptop):
 

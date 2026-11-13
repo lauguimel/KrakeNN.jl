@@ -1,11 +1,13 @@
 #!/bin/bash -l
-# Login-node setup of ~/kraken_fv3d (network available there, not on the compute
-# node): private depot, env with KrakeNN dev'd by path from src_fv3d (a git
-# archive of feat/fv-3d), instantiate + precompile, CUDA runtime precompiled.
-# Seed the depot from a previous job folder to avoid re-downloading CUDA
-# artifacts (optional):  cp -a ~/kraken_c4/depot ~/kraken_fv3d/depot
-cd ~/kraken_fv3d || exit 2
-export JULIA_DEPOT_PATH=$HOME/kraken_fv3d/depot
+# Login-node setup of the job folder FV3D_ROOT (default $HOME/kraken_fv3d;
+# network available there, not on the compute node): private depot, env with
+# KrakeNN dev'd by path from src_fv3d (a git archive of the branch),
+# instantiate + precompile, CUDA runtime precompiled. Seed the depot from a
+# previous job folder to avoid re-downloading CUDA artifacts (optional):
+#   cp -a <previous job folder>/depot "$FV3D_ROOT/depot"
+FV3D_ROOT=${FV3D_ROOT:-$HOME/kraken_fv3d}
+cd "$FV3D_ROOT" || exit 2
+export JULIA_DEPOT_PATH=$FV3D_ROOT/depot
 export JULIA_CUDA_USE_COMPAT=false
 export PATH=$HOME/.juliaup/bin:$PATH
 mkdir -p env
