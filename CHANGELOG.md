@@ -207,28 +207,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   an assembled `KrylovCSRMatrix`, forward and transposed solves, CPU and CUDA
   through `ext/KrakeNNCUDSSExt.jl`), selected by `fv_newton_solver(p; linsolve =
   KrylovBackendTag(...))` with the Newton and adjoint API unchanged.
-  Preconditioners: P1 ILU(0) (`precond = :ilu0`), P2 block
-  SIMPLE (`:simple`), P3 block SIMPLE with aggregation multigrid blocks (`:mg`),
-  P3L block upper triangular with the least-squares commutator Schur
-  approximation and multigrid blocks (`precond = :mg, block = :upper,
-  schur_approx = :lsc`, also `:simplec`, `:pcd`, `schur_q`, `schur_shift`,
-  `ablock` options), and P4 monolithic geometric multigrid with an additive
-  Vanka smoother (`precond = :vanka`, `vanka_omega`, `vanka_prolong`). The
-  default `precond = :auto` resolves to the measured setting of each case: P4
-  with `vanka_prolong = :constant` and `vanka_omega = 0.5` on 3D FV Jacobians
-  without energy equation, P3L with 4 multigrid cycles per block on 3D ones
-  with energy equation (the setting of the I3 runs: V4 duct to N = 48, V0'
-  energy to 64³, peak 4.7 GB), P1 elsewhere (2D problems, matrices without
-  block layout or grid geometry), so 2D behaviour is unchanged. An explicit
-  `precond = :vanka` keeps trilinear prolongation by default. Diagnostics `lin_krylov_log`, `lin_krylov_pivot`, `lin_krylov_blocks`,
+  Preconditioners: ILU(0) of the whole Jacobian (`precond = :ilu0`); block
+  SIMPLE, ILU(0) of the velocity block and LU of the SIMPLE Schur
+  approximation (`:simple`); block SIMPLE with one aggregation-multigrid cycle
+  per block (`:mg`); a block-triangular preconditioner with an LSC
+  Schur-complement approximation ("block LSC": velocity block by aggregation
+  multigrid, pressure through the least-squares commutator approximation of
+  the Schur complement; `precond = :mg, block = :upper, schur_approx = :lsc`,
+  also `:simplec`, `:pcd`, `schur_q`, `schur_shift`, `ablock` options); and a
+  coupled (monolithic) multigrid with a Vanka smoother ("Vanka multigrid":
+  one multigrid on the whole velocity–pressure system, whose smoother solves
+  cell by cell the small local system of the cell's velocities and its
+  pressure; `precond = :vanka`, `vanka_omega`, `vanka_prolong`). The default
+  `precond = :auto` resolves to the measured setting of each case: Vanka
+  multigrid with constant prolongation (`vanka_prolong = :constant`) and
+  damping `vanka_omega = 0.5` on 3D FV Jacobians without energy equation;
+  block LSC with 4 multigrid cycles per block on 3D ones with energy equation
+  (the setting of the I3 runs: V4 duct to N = 48, V0' energy to 64³, peak
+  4.7 GB); ILU(0) elsewhere (2D problems, matrices without block layout or
+  grid geometry), so 2D behaviour is unchanged. An explicit
+  `precond = :vanka` keeps trilinear prolongation by default. Diagnostics
+  `lin_krylov_log`, `lin_krylov_pivot`, `lin_krylov_blocks`,
   `lin_krylov_stationary`. Memory is linear in the cells instead of the
-  cells^(4/3) of the direct factors. P3L with 4 multigrid cycles per block is
-  the setting used by the 3D benchmarks (29 / 28 / 34 forward GMRES iterations
-  at 16³ / 24³ / 32³ on the flow-rate duct, H100). P4 with `vanka_omega = 0.5`
-  and constant prolongation passes the D2 gate of `i4_krylov_measure.jl` at 32³,
+  cells^(4/3) of the direct factors. Block LSC with 4 multigrid cycles per
+  block takes 29 / 28 / 34 forward GMRES iterations at 16³ / 24³ / 32³ on the
+  flow-rate duct (H100). Vanka multigrid with `vanka_omega = 0.5` and
+  constant prolongation passes the D2 gate of `i4_krylov_measure.jl` at 32³,
   48³ and 64³ in both benchmark cases (with 0.7 it fails on the body-force
-  case). At N = 32 with first-order upwind convection P4 stays usable up to
-  Re ≈ 250 (208 GMRES iterations) and fails at Re ≈ 415; P3L at Re ≈ 250 was
+  case). At N = 32 with first-order upwind convection the Vanka multigrid
+  default is reliable up to Re ≈ 250 (208 GMRES iterations); beyond, Newton
+  or GMRES fail (measured at Re ≈ 415); block LSC at Re ≈ 250 was
   not measured to the end. Tested against the direct branch in
   `test/analytical/incns_fv3d_krylov_test.jl`.
 - 3D energy equation `FVEnergy3D` (`fv_steady_problem(Nx, Ny, Nz; energy)`):
@@ -244,8 +252,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   the 3D adjoint, identifiability gate with a predicted model-error bias.
   Against the LBM data the Carreau fit recovers η(γ̇) within 2.4 % over the
   observed shear-rate range. On the noisy twin (stage d, H100) the same fit
-  takes 402 s under P3L instead of 1201 s under P3, and 143 s under P4 (peak
-  5.07 GiB instead of 6.94 GiB); P4 is the V5 default (`FV5_PRECOND=p4`).
+  takes 402 s with block LSC instead of 1201 s with block SIMPLE and
+  multigrid, and 143 s with Vanka multigrid (peak 5.07 GiB instead of
+  6.94 GiB); Vanka multigrid is the V5 default (`FV5_PRECOND=p4`, the value
+  name is kept for compatibility).
 
 ### Changed
 - The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl`.

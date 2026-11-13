@@ -190,42 +190,55 @@ by `benchmarks/fv3d/i2_adjoint_measure.jl`).
 
 The direct factors of a 3D Jacobian grow faster than the grid (about 25 GB at
 48³). `KrylovBackendTag()` replaces them by restarted GMRES on the assembled
-Jacobian, behind the same calls. The default (`precond = :auto`) picks the
-preconditioner from the Jacobian:
+Jacobian, behind the same calls. GMRES needs a preconditioner, an approximate
+inverse of the Jacobian that is cheap to apply; the tag offers five:
 
-- 3D problems without energy equation: P4 (`precond = :vanka`,
-  `vanka_prolong = :constant`, `vanka_omega = 0.5`), one cycle of a
-  monolithic geometric multigrid on the coupled velocity–pressure block with
-  an additive Vanka smoother;
-- 3D problems with an energy equation: P3L (`precond = :mg, block = :upper,
-  schur_approx = :lsc, mg_cycles = 4`: block upper triangular with a
-  least-squares commutator Schur approximation and 4 multigrid cycles per
-  block);
-- 2D problems: P1 (`precond = :ilu0`, ILU(0) of the whole Jacobian), as
-  before.
+- Vanka multigrid (`precond = :vanka`): a coupled (monolithic) multigrid with
+  a Vanka smoother, i.e. one multigrid cycle on the whole velocity–pressure
+  system, whose smoother solves, cell by cell, the small local system made of
+  the cell's velocities and its pressure (constant prolongation with
+  `vanka_prolong = :constant`, damping `vanka_omega`, default 0.5).
+- Block LSC (`precond = :mg, block = :upper, schur_approx = :lsc,
+  mg_cycles = 4`): a block-triangular preconditioner with an LSC
+  Schur-complement approximation, i.e. the velocity block is solved by
+  aggregation multigrid (4 cycles) and the pressure through the
+  least-squares commutator (LSC) approximation of the Schur complement.
+- ILU(0) (`precond = :ilu0`): an incomplete LU factorisation of the whole
+  Jacobian that keeps only its sparsity pattern.
+- Block SIMPLE (`precond = :simple`): ILU(0) of the velocity block and an LU
+  of the SIMPLE Schur approximation C − D diag(A)⁻¹ G for the pressure
+  (`schur = :ilu0` replaces that LU by an ILU(0)).
+- Block SIMPLE with multigrid (`precond = :mg`): the same splitting with one
+  aggregation-multigrid cycle for each block.
+
+The default (`precond = :auto`) picks one from the Jacobian:
+
+- 3D problems without energy equation: Vanka multigrid with
+  `vanka_prolong = :constant` and `vanka_omega = 0.5`;
+- 3D problems with an energy equation: block LSC with `mg_cycles = 4`;
+- 2D problems: ILU(0), as before.
 
 With the default, these fields are set by the choice; to tune them, name
 `precond` explicitly (an explicit `precond = :vanka` uses trilinear
-prolongation unless `vanka_prolong = :constant` is given). Another choice:
-`precond = :simple` (block SIMPLE: ILU(0) of the velocity block, LU of the
-Schur approximation C − D diag(A)⁻¹ G of the pressure block; `schur = :ilu0`
-replaces that LU by an ILU(0)).
+prolongation unless `vanka_prolong = :constant` is given).
 
 What was measured on the 3D benchmarks (`benchmarks/fv3d/README.md`):
 
-- P4 with `vanka_omega = 0.5` and `vanka_prolong = :constant` passes the D2
-  gate (GMRES iterations, memory, agreement with the direct solve) at 32³,
-  48³ and 64³ on the flow-rate duct and on the body-force duct; with
-  `vanka_omega = 0.7` it fails on the body-force duct. This is the default
-  on 3D problems without energy equation.
-- P3L on the 3D energy cases: heated duct to N = 48 and the manufactured
-  energy solution to 64³ pass their gates, GPU peak 4.7 GB. This is the
-  default on 3D problems with an energy equation.
-- Law calibration on the V5 twin (H100): 143 s and 5.07 GiB GPU peak under
-  P4, 402 s and 6.94 GiB under P3L, same fitted law.
-- At N = 32 with first-order upwind convection, P4 stays usable up to
-  Re ≈ 250 (208 GMRES iterations) and fails at Re ≈ 415. P3L at Re ≈ 250 was
-  not measured to the end.
+- Vanka multigrid with `vanka_omega = 0.5` and constant prolongation passes
+  the D2 gate (GMRES iterations, memory, agreement with the direct solve) at
+  32³, 48³ and 64³ on the flow-rate duct and on the body-force duct; with
+  `vanka_omega = 0.7` it fails on the body-force duct.
+- Block LSC on the 3D energy cases: heated duct to N = 48 and the
+  manufactured energy solution to 64³ pass their gates, GPU peak 4.7 GB.
+- Law calibration on the V5 twin (H100): 143 s and 5.07 GiB GPU peak with
+  Vanka multigrid, 402 s and 6.94 GiB with block LSC, same fitted law.
+
+Range of the default: the Vanka multigrid default is reliable up to
+Re ≈ 250 at N = 32 with first-order upwind convection (measured: 208 GMRES
+iterations per solve). Beyond that, Newton or GMRES fail (measured failure at
+Re ≈ 415); block LSC at Re ≈ 250 was not measured to the end. Second-order
+convection and pseudo-transient continuation for this path are planned for
+v0.8.
 
 ```julia
 solver = fv_newton_solver(prob; to = CuArray,

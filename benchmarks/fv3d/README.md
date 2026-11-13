@@ -24,10 +24,41 @@ Every script:
 | `v2_small_lbm.jl` | V2-small: cavity vs `run_cavity_3d`; GNF plane channel vs `run_gnf_channel_3d` | relative L2 velocity deviation ≤ 3 % per case | `FV3D_LBM_N=24 FV3D_RE=100 FV3D_LBM_STEPS=60000 FV3D_GNF_N=32 FV3D_GNF_STEPS=120000` |
 | `step2_measure.jl` | step 2: CPU/GPU parity + zero device allocation; colours, nnz, memory, first factorisation, time per Newton iteration (cavity Re 100, Newtonian and GNF) | parity 1e-12, 0 device bytes, Newton converged | `FV3D_NS=32,48,64 FV3D_CHECK_N=8` |
 | `i2_adjoint_measure.jl` | I2: CPU/GPU parity of adjoint gradients (uniform ν, ν field, side velocity, x source, NN law parameters) for the composite PIV objective (3 planes + flow-rate/Fx + wall-force terms); device bytes of the objective and of the gradient; gradient cost vs median Newton iteration (finalize / factors reused) | parity 1e-12 relative (∞-norm), ≤ 1024 device bytes for the all-linear objective and gradient, the same at `FV3D_CHECK_N` and at the largest `FV3D_NS`, Newton converged | `FV3D_CHECK_N=8 FV3D_NS=32` (`FV3D_NS=32,48` for the cost curve) |
-| `i4_krylov_measure.jl` | I4 (input of D2): branch K (GMRES, `KrylovBackendTag`) with P1 = ILU(0), P2 = block SIMPLE and P3 = block SIMPLE with multigrid blocks (`mg`) and P3L = block upper triangular with LSC (`lsc`), P4 = monolithic Vanka multigrid (`vanka`; other `KrylovBackendTag` options through `FV3D_TAG_EXTRA`) side by side on a Carreau duct with obstacle at Re 50, imposed flow rate and body force; GMRES iterations per Newton step, forward / transposed iterations, time, device bytes per solve (forward η = 1e-6, transposed 1e-10), pivot report, adjoint gradient, device memory of each branch measured alone; branch D (cuDSS) compared where it fits | on the gated preconditioners (`FV3D_GATE`, default the multigrid ones present in `FV3D_PRECONDS`, else P2): Newton and transposed solves converge; forward iterations ≤ 200 at the largest N and growing at most linearly in N; memory ≤ `FV3D_MEM_GB` (9); K vs D state and gradient 1e-6 | `FV3D_NS=24,32,48 FV3D_DIRECT_MAX=32 FV3D_PRECONDS=ilu0,simple` |
+| `i4_krylov_measure.jl` | I4 (input of D2): branch K (GMRES, `KrylovBackendTag`) with the preconditioners defined below the table (ILU(0) `ilu0`, block SIMPLE `simple`, SIMPLE-MG `mg`, block LSC `lsc`, Vanka multigrid `vanka`; other `KrylovBackendTag` options through `FV3D_TAG_EXTRA`) side by side on a Carreau duct with obstacle at Re 50, imposed flow rate and body force; GMRES iterations per Newton step, forward / transposed iterations, time, device bytes per solve (forward η = 1e-6, transposed 1e-10), pivot report, adjoint gradient, device memory of each branch measured alone; branch D (cuDSS) compared where it fits | on the gated preconditioners (`FV3D_GATE`, default the multigrid ones present in `FV3D_PRECONDS`, else block SIMPLE): Newton and transposed solves converge; forward iterations ≤ 200 at the largest N and growing at most linearly in N; memory ≤ `FV3D_MEM_GB` (9); K vs D state and gradient 1e-6 | `FV3D_NS=24,32,48 FV3D_DIRECT_MAX=32 FV3D_PRECONDS=ilu0,simple` |
 | `i5_mg_diagnose.jl` | I5 (input of D2): diagnostic of the block preconditioners at the converged duct state, per `KrylovBackendTag` configuration (`FV3D_TAGS`): stationary multigrid reduction per level (a), GMRES on A (b), on S̃ (c), on the true Schur complement with exact A (e), on J (d), each also with exact inner solves | none (measurements only) | `FV3D_NS=16,24,32` |
 | `v0p_energy_mms.jl` | I3, V0' energy rows: manufactured temperature on N³, conduction (u = 0) and convection (V0' flow, viscous heating), side sets walls / periodic x, L2 and L∞ of T, orders | finest pair, L2 and L∞ of T: conduction ≥ 1.8, convection ≥ 0.9; with `FV3D_LINSOLVE=krylov`: every GMRES solve converges, K vs D state 1e-6 for N ≤ `FV3D_DIRECT_MAX` (24) | `FV3D_NS=12,16,24` (10 GB), `16,24,32,48` (80 GB); `FV3D_LINSOLVE=krylov FV3D_NS=16,24,32,48,64` (run on an 80 GB H100, peak 4.7 GB); `FV3D_CASES=` filters |
 | `v4_heated_duct.jl` | I3, V4: (a) heated periodic square duct vs a separated-variable reference (no LBM, see below); (b) 2D channel with obstacle, thermal CY law and heating vs its Nz = 3 extrusion on the device | (a) relative L2 and L∞ of θ ≤ 3 % at the finest N; (b) residual h × 2D to 1e-14, solves to 1e-7; with `FV3D_LINSOLVE=krylov` ((a) only): every GMRES solve converges, K vs D state 1e-6 for N ≤ `FV3D_DIRECT_MAX` (24) | `FV3D_NS=16,24 FV3D_EXT_N=32` (10 GB), `FV3D_NS=16,24,32 FV3D_EXT_N=64` (80 GB); `FV3D_LINSOLVE=krylov FV3D_NS=16,24,32,48 FV3D_EXT_N=64` (run on an 80 GB H100, peak 4.2 GB) |
+
+
+Preconditioners of the Krylov branch (`KrylovBackendTag`). GMRES needs a
+preconditioner, an approximate inverse of the Jacobian that is cheap to
+apply. The benchmark scripts print short codes (P1 … P4, in lines such as
+`D2 P4 <case>`) and take the values in brackets through `FV3D_PRECONDS`;
+the text below uses the names:
+
+- ILU(0) (code P1, `ilu0`; `precond = :ilu0`): an incomplete LU
+  factorisation of the whole Jacobian that keeps only its sparsity pattern.
+- Block SIMPLE (code P2, `simple`; `precond = :simple`): ILU(0) of the
+  velocity block and an LU of the SIMPLE Schur approximation
+  S̃ = C − D diag(A)⁻¹ G for the pressure.
+- SIMPLE-MG (code P3, `mg`; `precond = :mg`): the same block SIMPLE with one
+  aggregation-multigrid cycle for each block.
+- Block LSC (code P3L, `lsc`; `precond = :mg, block = :upper, schur_approx =
+  :lsc`, here with `mg_cycles = 4`): a block-triangular preconditioner with
+  an LSC Schur-complement approximation, i.e. the velocity block solved by
+  aggregation multigrid (4 cycles) and the pressure through the
+  least-squares commutator (LSC) approximation of the Schur complement.
+- Vanka multigrid (code P4, `vanka`; `precond = :vanka`): a coupled
+  (monolithic) multigrid with a Vanka smoother, i.e. one multigrid on the
+  whole velocity–pressure system whose smoother solves, cell by cell, the
+  small local system of the cell's velocities and its pressure; measured
+  with constant prolongation (`vanka_prolong = :constant`) and damping 0.5.
+
+The default of `KrylovBackendTag()` is Vanka multigrid on 3D problems
+without energy equation, block LSC on 3D problems with energy equation and
+ILU(0) on 2D problems. V5 keeps its option values `FV5_PRECOND=p4` (Vanka
+multigrid, default), `p3l` (block LSC) and `p3` (SIMPLE-MG) for
+compatibility.
 
 Run on the cluster (after `setup_fv3d.sh` on the login node, with
 `$FV3D_ROOT/src_fv3d` a git archive of the branch; `FV3D_ROOT` defaults to
@@ -157,8 +188,8 @@ temperature: next two paragraphs.
 Branch K in the I3 scripts. The direct factorisation limits V0'
 energy to 48³ and V4 (a) to N = 32 on one 80 GB GPU. `FV3D_LINSOLVE=krylov`
 solves the Newton steps of `v0p_energy_mms.jl` and of `v4_heated_duct.jl` (a)
-with GMRES + P3L (`fv3d_p3_tag` in `fv3d_common.jl`, also the V5 option
-`FV5_PRECOND=p3l`; the same P3L setting is what the default tag
+with GMRES + block LSC (`fv3d_p3_tag` in `fv3d_common.jl`, also the V5 option
+`FV5_PRECOND=p3l`; the same block LSC setting is what the default tag
 `KrylovBackendTag()` resolves to on a 3D problem with energy equation: block upper triangular, LSC Schur, 4 W-cycles of multigrid per
 block, l1-Jacobi, forward η = 1e-6, restart 50, at most 2000 iterations);
 `FV3D_LINSOLVE=direct` (default) keeps cuDSS. The tag goes to
@@ -173,7 +204,7 @@ its size is set by `FV3D_EXT_N` and its 1e-7 gate compares two direct
 solves. Memory of the Krylov branch: linear in cells (the earlier estimate
 of 20–35 GB at 64³ was high).
 
-Krylov branch on the GPU (H100, P3L tag): every gate passes. V4 (a) to
+Krylov branch on the GPU (H100, block LSC): every gate passes. V4 (a) to
 N = 48: θ relative L2 1.09e-3, L∞ 1.15e-3, orders L2 1.99/2.00/2.02, peak
 device memory 4.2 GB (27.9 GB with cuDSS at N = 32), largest Newton 44 s.
 V0' energy to 64³: conduction orders 2.00 (both side sets), convection
@@ -187,28 +218,28 @@ seam: restarted GMRES (`gnf_gmres!`, restart 50, classical Gram–Schmidt twice)
 right-preconditioned by ILU(0) of the assembled Jacobian (`KrylovCSRMatrix`,
 CSR on the device of the assembler). The Newton and adjoint API is unchanged:
 `fv_newton_solver(p; to, linsolve = KrylovBackendTag())`. That default tag
-(`precond = :auto`) now resolves to the measured setting of each case: P4
+(`precond = :auto`) now resolves to the measured setting of each case: Vanka multigrid
 (below, constant prolongation, `vanka_omega = 0.5`) on a 3D problem without
-energy equation, P3L (4 multigrid cycles per block) on a 3D problem with
-energy equation, P1 on 2D problems; P1 as described here is
+energy equation, block LSC (4 multigrid cycles per block) on a 3D problem with
+energy equation, ILU(0) on 2D problems; ILU(0) as described here is
 `precond = :ilu0`. GPU methods
 (cuSPARSE `ilu02!`, triangular solves with the analysis kept between
-applications, cuDSS LU of the P2 Schur matrix) are in `ext/KrakeNNCUDSSExt.jl`,
-so `using CUDA, CUDSS` is needed on GPU as for branch D; SpMV and the P2 block
+applications, cuDSS LU of the block SIMPLE Schur matrix) are in `ext/KrakeNNCUDSSExt.jl`,
+so `using CUDA, CUDSS` is needed on GPU as for branch D; SpMV and the block SIMPLE
 kernels are KernelAbstractions kernels in the core file.
 
 - Tolerances: forward `rtol = 1e-6` (fixed forcing term of an inexact Newton,
   no Eisenstat–Walker adaptation), transposed `rtol_transpose = 1e-10`, both
   on the true residual ‖b − A x‖/‖b‖.
-- Preconditioner P1 = ILU(0) of the whole saddle-point matrix (u, v, w, p
+- ILU(0) preconditioner of the whole saddle-point matrix (u, v, w, p
   interleaved per cell). Rhie–Chow puts a non-zero pressure diagonal in every
   continuity row, so ILU(0) does not break down structurally; every
   factorisation checks |Uᵢᵢ| / maxⱼ|Aᵢⱼ| per row, raises on a zero or
   non-finite pivot and reports small ones (`lin_krylov_pivot`). First Aqua
   measurement (2026-11-09): correct (K vs D 2e-11 on the CPU test grids) but
   weak — forward iterations 43 → 61 (N = 6 → 8) with imposed flow rate, GMRES
-  stalls at the 2000 cap at N = 32 on GPU. D2 fails for P1.
-- Preconditioner P2 (`precond = :simple`, plan Étape 3 / R5) = block SIMPLE:
+  stalls at the 2000 cap at N = 32 on GPU. D2 fails for ILU(0).
+- Block SIMPLE preconditioner (`precond = :simple`, plan Étape 3 / R5):
   unknowns split into velocity-like U (every field but pressure), pressure P
   and extras X (the flow-rate border); J = [A G; D C] on U ∪ P,
   S̃ = C − D diag(A)⁻¹ G; one application is û = ILU(0)(A)⁻¹ v_U,
@@ -241,15 +272,15 @@ kernels are KernelAbstractions kernels in the core file.
   measured alone.
 - CPU validation: `test/analytical/incns_fv3d_krylov_test.jl` (K vs D solves
   forward/transposed, Newton state, adjoint gradients with and without imposed
-  flow rate, one FD check; for P2 with Schur LU and Schur ILU(0): S̃ against a
+  flow rate, one FD check; for block SIMPLE with Schur LU and Schur ILU(0): S̃ against a
   dense C − D diag(A)⁻¹ G, solves, Newton state, adjoint gradients).
 
-### P3: block SIMPLE with multigrid blocks
+### SIMPLE-MG: block SIMPLE with multigrid blocks
 
 `precond = :mg` (code in `src/solve/linear_solve_multigrid.jl`) keeps the
-block SIMPLE of P2 and replaces both block solves by one multigrid cycle: the
+block SIMPLE above and replaces both block solves by one multigrid cycle: the
 velocity block A and S̃ each get their own hierarchy (S̃ by default,
-`schur = :auto`; `precond = :mg, schur = :lu` keeps the LU of S̃ = "P3s",
+`schur = :auto`; `precond = :mg, schur = :lu` keeps the LU of S̃ ("SIMPLE-MG with Schur LU", script label P3s),
 `precond = :simple, schur = :mg` puts multigrid on S̃ only).
 
 - Coarsening: unsmoothed aggregation on the cell grid, aggregates of 2 × 2 × 2
@@ -260,16 +291,16 @@ velocity block A and S̃ each get their own hierarchy (S̃ by default,
   positions summed into each coarse entry are built once on the host; values
   are a gather-sum on the device at each refactorisation (no atomics). The
   matrix needs its grid (`krylov_csr_matrix(...; geometry)`, passed by
-  `fv_newton_solver`); without it P3 raises.
+  `fv_newton_solver`); without it SIMPLE-MG raises.
 - Cycle: W (default, `mg_cycle = :V` possible), `mg_sweeps` (2) pre- and
   post-smoothing sweeps of l1-Jacobi (default), damped Jacobi (ω = 0.7) or
   ILU(0) (`mg_smoother`), coarsening stops at `mg_coarse` (2000) unknowns,
-  coarsest level by LU (cuDSS on GPU, UMFPACK on CPU, same hooks as the P2
+  coarsest level by LU (cuDSS on GPU, UMFPACK on CPU, same hooks as the block SIMPLE
   Schur LU). `mg_cycles` cycles per application, `mg_scale` scales the
   coarse correction (unsmoothed aggregation tends to under-correct; 1 by
   default). The cycle is a fixed linear operator, which restarted GMRES
   needs; a K-cycle (inner Krylov) would not be.
-- Transposed solve: built from the blocks of Jᵀ as in P2, so its hierarchy is
+- Transposed solve: built from the blocks of Jᵀ as in block SIMPLE, so its hierarchy is
   that of Aᵀ, i.e. the transposed coarse operators. With (damped) Jacobi the
   cycle on Aᵀ is exactly the transpose of the cycle on A (tested); l1-Jacobi
   (row sums) and ILU(0) are not, which only changes the GMRES count of the
@@ -278,9 +309,10 @@ velocity block A and S̃ each get their own hierarchy (S̃ by default,
   ≈ 1.15–1.3 in 3D), plus one LU of at most `mg_coarse` unknowns per
   hierarchy.
 - Benchmark: `FV3D_PRECONDS=mg[,mg_lu,simple]`, knobs `FV3D_MG_*` (header of
-  the script). The D2 count for P3 is the largest GMRES count of the
+  the script). The D2 count for SIMPLE-MG is the largest GMRES count of the
   forward solve and of every Newton-step solve; one line
-  `D2 P3 <case>: PASS|FAIL` per case.
+  `D2 P3 <case>: PASS|FAIL` per case (the scripts print the short codes of the
+glossary above).
 - Case "source": the PTC shift of `fv_newton!` was h²/Δτ while the 3D residual
   is integrated over h³ cells, so `dtau0 = 1` was a physical step of h = 1/N and
   the body-force case needed about 2.5 N iterations (N = 8: 47 observed). Fixed
@@ -301,25 +333,25 @@ velocity block A and S̃ each get their own hierarchy (S̃ by default,
   preconditioner with exact inner solves takes 26 / 26 iterations, 134 /
   173 / 450 with the same aggregation cycles inside.
 
-### P4: monolithic multigrid with an additive Vanka smoother
+### Vanka multigrid: coupled multigrid with an additive Vanka smoother
 
 `precond = :vanka` (code in `src/solve/linear_solve_mg_monolithic.jl`, hooks
 `_krylov_block_build` and the tag fields `vanka_omega`, `vanka_prolong` in
 `linear_solve_krylov.jl`) drops the SIMPLE splitting: one multigrid cycle on
 the coupled velocity–pressure block of J is the preconditioner, the flow-rate
-border is left to GMRES as in P2/P3 (a rank-one bordering of the
+border is left to GMRES as in block SIMPLE/SIMPLE-MG (a rank-one bordering of the
 preconditioned operator: at most one extra GMRES iteration in exact
-arithmetic). Target set by the P3 measurement: about 30 iterations flat in N,
+arithmetic). Target set by the SIMPLE-MG measurement: about 30 iterations flat in N,
 at less memory than the direct solve.
 
-- Hierarchy: the P3 aggregation of the cell grid (2 × 2 × 2 blocks, solid and
+- Hierarchy: the SIMPLE-MG aggregation of the cell grid (2 × 2 × 2 blocks, solid and
   fluid apart), all four unknowns of a cell coarsened together so every
   level keeps the (u, v, w, p) block structure. Transfers: restriction by
   sums (the finite-volume restriction), prolongation trilinear and
   cell-centred (3/4 own block, 1/4 nearest block per axis, same field and
   class; dropped and renormalised at walls, wrapped on periodic axes), so
   the transfer orders add up to 3 > 2 (Wesseling–Khalil cell-centred
-  multigrid; the aggregation of P3 adds up to 2, hence its 0.9 factor).
+  multigrid; the aggregation of SIMPLE-MG adds up to 2, hence its 0.9 factor).
   `vanka_prolong = :constant` keeps P = Rᵀ for the A/B. Coarse operators
   R J P (Petrov–Galerkin) of the full saddle-point block: summing continuity
   rows cancels the interior mass fluxes of a block, the Rhie–Chow
@@ -339,8 +371,8 @@ at less memory than the direct solve.
   pivoting, one thread per patch) at each refactorisation; a sweep adds
   ω / multiplicity times the local solutions (a velocity lies in up to three
   patches), ω = `vanka_omega` (default 0.5, was 0.7), damped Jacobi on uncovered rows (solid
-  cells). Cycle and knobs as P3 (`mg_cycle` W, `mg_sweeps` 2, `mg_coarse`,
-  `mg_levels`, `mg_cycles`, `mg_scale`), coarsest level by the P2 LU hooks
+  cells). Cycle and knobs as SIMPLE-MG (`mg_cycle` W, `mg_sweeps` 2, `mg_coarse`,
+  `mg_levels`, `mg_cycles`, `mg_scale`), coarsest level by the block SIMPLE LU hooks
   (cuDSS / UMFPACK). The cycle is a fixed linear operator: restarted GMRES,
   no FGMRES.
 - Transposed solve: a second hierarchy with the same rule on the gathered
@@ -349,7 +381,7 @@ at less memory than the direct solve.
 - Diagnostics: `lin_krylov_stationary(cache, b; iters, transpose,
   local_block)` gives the residual ratios of the stationary iteration with
   one application per step (the convergence factor of one cycle, first and
-  tail); the benchmark prints them per N for P3 and P4 ("SUMMARY ...
+  tail); the benchmark prints them per N for SIMPLE-MG and Vanka multigrid ("SUMMARY ...
   stationary factor"), with the hierarchy line (levels, nnz, patches,
   operator complexity).
 - Memory per side (64³, estimated, not measured): fine values gathered
@@ -359,11 +391,11 @@ at less memory than the direct solve.
   vectors about 6–7 GB in all, against cuDSS factors growing like
   cells^(4/3).
 - Benchmark: `FV3D_PRECONDS=vanka[,mg]`, knobs `FV3D_VANKA_OMEGA`,
-  `FV3D_VANKA_PROLONG` and the `FV3D_MG_*` of P3; the D2 count and the
-  `D2 P4 <case>` line follow the P3 rule.
+  `FV3D_VANKA_PROLONG` and the `FV3D_MG_*` of SIMPLE-MG; the D2 count and the
+  `D2 P4 <case>` line follow the SIMPLE-MG rule.
 - CPU validation: testset (7) of `test/analytical/incns_fv3d_krylov_test.jl`
   (hierarchy, patches, solves, Newton, adjoint, FD check).
-- Source-case diagnostic: with constant prolongation and ω = 0.7, P4
+- Source-case diagnostic: with constant prolongation and ω = 0.7, Vanka multigrid
   passes the flow-rate case but not the body-force case (GMRES at the 2000
   cap at N = 32, transposed also at N = 48). `i4_vanka_diag.jl` takes the
   converged state of the direct branch and prints, per case and N, the
@@ -377,30 +409,30 @@ at less memory than the direct solve.
   `FV3D_VANKA_OMEGA`, `FV3D_VANKA_PROLONG`): gate D2 passes at 32³, 48³ and 64³ in both cases (flow rate and body force). This
   is the V5 default `FV5_PRECOND=p4` (`FV5_VANKA_OMEGA`, default 0.5).
 - Default: `KrylovBackendTag()` (`precond = :auto`) resolves on 3D problems
-  without energy equation to exactly the configuration measured above, P4
+  without energy equation to exactly the configuration measured above, Vanka multigrid
   with `vanka_prolong = :constant` and `vanka_omega = 0.5` (0.7 fails D2 on
   the body-force case). An explicit `precond = :vanka` keeps the tag's own
   prolongation default, trilinear (`vanka_prolong = :linear`), which has not
-  passed D2. On 3D problems with energy equation the default is P3L
+  passed D2. On 3D problems with energy equation the default is block LSC
   (`precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4`), the
   setting of the I3 runs (V4 duct to N = 48, V0' energy to 64³, PASS, peak
-  4.7 GB); P3L is also the V5 option `FV5_PRECOND=p3l`.
-- V5 twin calibration (stage d, H100): P4 143 s and 5.07 GiB GPU peak, P3L
+  4.7 GB); block LSC is also the V5 option `FV5_PRECOND=p3l`.
+- V5 twin calibration (stage d, H100): Vanka multigrid 143 s and 5.07 GiB GPU peak, block LSC
   402 s and 6.94 GiB, same fit.
-- Reynolds range (N = 32, first-order upwind convection): P4 stays usable up
-  to Re ≈ 250 (208 GMRES iterations) and fails at Re ≈ 415. P3L at Re ≈ 250
+- Reynolds range (N = 32, first-order upwind convection): Vanka multigrid stays usable up
+  to Re ≈ 250 (208 GMRES iterations) and fails at Re ≈ 415. Block LSC at Re ≈ 250
   was not measured to the end.
 
 ### I5: diagnostic of the block preconditioners, block structure and Schur approximations
 
-Why: P3 needs 143 / 312 / 631 forward GMRES iterations at 32³ / 48³ / 64³
-(gate D2: ≤ 200 at 64³). Every change that brings P3 closer to exact SIMPLE
-made it worse (2 MG cycles, coarse scale > 1, exact LU of S̃ = P3s, ILU(0)
-on A = P2). The SIMPLE Schur approximation S̃ = C − D diag(A)⁻¹ G is a
+Why: SIMPLE-MG needs 143 / 312 / 631 forward GMRES iterations at 32³ / 48³ / 64³
+(gate D2: ≤ 200 at 64³). Every change that brings SIMPLE-MG closer to exact SIMPLE
+made it worse (2 MG cycles, coarse scale > 1, exact LU of S̃ (SIMPLE-MG with Schur LU), ILU(0)
+on A (block SIMPLE)). The SIMPLE Schur approximation S̃ = C − D diag(A)⁻¹ G is a
 Laplacian. The true S = C − D A⁻¹ G is not a Laplacian on smooth pressure
 modes: it is mass-like in Stokes flow and dominated by convection at Re 50.
 So S̃⁻¹S spreads more and more as N grows. The inexact MG cycle on S̃ hides
-part of that error, which is why making the cycle more exact made P3 worse.
+part of that error, which is why making the cycle more exact made SIMPLE-MG worse.
 Measurement (e) below confirms the diagnosis.
 
 `benchmarks/fv3d/i5_mg_diagnose.jl` is the shared measuring tool. A
@@ -418,7 +450,7 @@ schur=lu`), which measures the block approximation itself. There is no gate:
 it prints SUMMARY lines and writes a TOML file.
 
 New options (code in `src/solve/linear_solve_block_schur.jl`, CPU and GPU,
-transposed path included; the defaults keep P2 / P3 unchanged):
+transposed path included; the defaults keep block SIMPLE / SIMPLE-MG unchanged):
 
 - `block`: `:simple` (default), `:lower` or `:upper` block triangular.
 - `schur_approx`: `:simple`, `:simplec` (Q = l1 row sum of A), `:lsc`
@@ -435,7 +467,7 @@ transposed path included; the defaults keep P2 / P3 unchanged):
   or `=stokes` (6 ν0 h), resolved per N. Not measured yet. S̃ still depends
   on the state through C (Rhie–Chow), so it is still refactorised at every
   Newton step.
-- `ablock`: `:auto` (ILU(0) for P2, MG for P3), `:ilu0`, `:mg`, `:lu`
+- `ablock`: `:auto` (ILU(0) for block SIMPLE, MG for SIMPLE-MG), `:ilu0`, `:mg`, `:lu`
   (exact sparse LU of A: UMFPACK / cuDSS).
 - CPU validation: testset (6) of `test/analytical/incns_fv3d_krylov_test.jl`
   (346 assertions, all passing on the cluster at commit cfcbd15c4) checks the
@@ -450,7 +482,7 @@ per inner solve unless stated):
 
 | configuration | 16³ | 24³ | 32³ | transposed 16³ / 24³ / 32³ |
 |---|---|---|---|---|
-| P3 (SIMPLE, MG on A and S̃) | 75 | 94 | 146 | |
+| SIMPLE-MG (MG on A and S̃) | 75 | 94 | 146 | |
 | LSC upper, exact A and S̃ | 25 | 26 | 25 | 39 / 42 / 42 |
 | LSC upper, MG, `mg_cycles=1` | 134 | 173 | 450 | |
 | LSC upper, MG, `mg_cycles=2` | 55 | 50 | 64 | |
@@ -498,15 +530,15 @@ What this shows:
     pressure boundary conditions of PCD (not checked).
   - Neither is worth pursuing while LSC works.
 
-D2 gate with LSC: `i4_krylov_measure.jl` takes `FV3D_PRECONDS=lsc` (P3L:
-`precond=mg, block=upper, schur_approx=lsc`, MG on A and S̃) or `lsc_lu` (P3Ls,
-exact S̃). Any other `KrylovBackendTag` option goes through `FV3D_TAG_EXTRA`
+D2 gate with LSC: `i4_krylov_measure.jl` takes `FV3D_PRECONDS=lsc` (block LSC:
+`precond=mg, block=upper, schur_approx=lsc`, MG on A and S̃) or `lsc_lu` (block
+LSC with exact S̃, script label P3Ls). Any other `KrylovBackendTag` option goes through `FV3D_TAG_EXTRA`
 (e.g. `mg_cycles=4`), applied last.
 
-Which count the D2 gate uses (unchanged): for P3/P3s/P3L/P3Ls it is the
+Which count the D2 gate uses (unchanged): for SIMPLE-MG and block LSC (with or without Schur LU) it is the
 largest of the step-(2) forward solve and every Newton-step solve. The step-(2)
 solve uses a synthetic right-hand side that is O(1) in every row, including the
-continuity rows, so it is harder than a Newton step. With P3 at 64³ it needs
+continuity rows, so it is harder than a Newton step. With SIMPLE-MG at 64³ it needs
 631 iterations against 325 for the worst Newton step, so it usually sets the
 gated count. Both counts are printed (`gmres per newton step […] (max m)`,
 `fwd it (synthetic rhs)`), with one line per case listing both against N. A
@@ -677,10 +709,10 @@ measured and fitted |u|/U_b and the residual of one component over σ_u:
 python3 benchmarks/fv3d/v5_figure.py <FV5_OUT> --data noisy [--plane z_mid] [--fit d|e]
 ```
 
-Cost reasoning (none of it measured). Memory: the P3 multigrid hierarchy and
+Cost reasoning (none of it measured). Memory: the SIMPLE-MG multigrid hierarchy and
 the GMRES basis grow linearly with the number of cells (221k here, twice
-48³); the i4 gate asks P3 to stay under 9 GB at 48³, so ≤ 18 GB is that
-bound scaled, not a measurement (written before P3 ran on a GPU). Run stage c
+48³); the i4 gate asks SIMPLE-MG to stay under 9 GB at 48³, so ≤ 18 GB is that
+bound scaled, not a measurement (written before SIMPLE-MG ran on a GPU). Run stage c
 first: its `SUMMARY v5c cost` line gives the peak memory and the time of one
 solve and one gradient, from which d and e follow. Time: one evaluation is a
 warm Newton solve (3–6 iterations near the optimum) plus one adjoint
@@ -695,17 +727,17 @@ Deviations from the design above: the x-plane is stereo (the 2C x-plane
 would only see v and w, the secondary flow); ν∞ = 0.1 ν0, λ = 5, mean
 velocity 0.2 (see below); sheet σ = h/2
 (`FV5_SHEET`); a fourth plane (z = 0.6 Lz, 2C) is held out; the linear
-solver is GMRES + P4 (monolithic Vanka multigrid, ω = 0.5, constant
-prolongation; default since the P4 rerun below); `FV5_PRECOND=p3l` gives P3L
+solver is GMRES + Vanka multigrid (ω = 0.5, constant
+prolongation; default since the Vanka multigrid rerun below); `FV5_PRECOND=p3l` gives block LSC
 (block upper triangular, LSC Schur, 4 multigrid cycles per block),
-`FV5_PRECOND=p3` restores P3, with which stages a–e were first run;
+`FV5_PRECOND=p3` restores SIMPLE-MG, with which stages a–e were first run;
 `FV5_LINSOLVE=direct` restores cuDSS, about 60 GB by the estimate above.
-Stage d on the noisy twin, rerun under P3L on an H100 (2026-11-12): same fit
-as under P3 (23 BFGS iterations, η max error 0.21 % over the observed range,
+Stage d on the noisy twin, rerun under block LSC on an H100 (2026-11-12): same fit
+as under SIMPLE-MG (23 BFGS iterations, η max error 0.21 % over the observed range,
 no unconverged solve), wall 402 s instead of 1201 s, GPU peak 6.94 GiB
-instead of 6.31 GiB. The same twin under P4 (`FV5_PRECOND=p4`, ω = 0.5,
+instead of 6.31 GiB. The same twin under Vanka multigrid (`FV5_PRECOND=p4`, ω = 0.5,
 constant prolongation, H100): same fit, wall 143 s instead of 402 s under
-P3L, GPU peak 5.07 GiB instead of 6.94 GiB.
+block LSC, GPU peak 5.07 GiB instead of 6.94 GiB.
 
 LBM stability (first smoke run, stage a diverged with ν∞ = 0). The GNF
 kernel sets τ = 1/2 + 3 ν(γ̇) with no lower bound, so with ν∞ = 0 the

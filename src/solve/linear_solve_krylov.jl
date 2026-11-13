@@ -61,55 +61,76 @@ using KernelAbstractions
                      trisolve=:persistent, precond=:auto, schur=:auto)
 
 Linear-solve backend: restarted GMRES (`gnf_gmres!`, restart length `restart`)
-with a right preconditioner on the assembled matrix. `precond = :auto`
-(default) is resolved per matrix by [`lin_factorize`](@ref) to the measured
-setting of each case (block layout and grid geometry as set by
-`fv_newton_solver`, grid with more than one cell along z):
+with a right preconditioner (an approximate inverse of the matrix, cheap to
+apply) on the assembled matrix. Preconditioners, by `precond`:
 
-- 3D without energy equation (4 fields per cell, pressure in slot 4): P4,
-  `precond = :vanka` with `vanka_prolong = :constant` (and `vanka_omega`,
-  default 0.5), the configuration that passes the D2 gate and runs V5;
-- 3D with energy equation (5 fields per cell, pressure in slot 4): P3L,
+- `:vanka`, Vanka multigrid: a coupled (monolithic) multigrid with a Vanka
+  smoother, i.e. one multigrid on the whole velocity–pressure system whose
+  smoother solves, cell by cell, the small local system of the cell's
+  velocities and its pressure (details below);
+- `:mg` with `block = :upper, schur_approx = :lsc`, block LSC: a
+  block-triangular preconditioner with an LSC Schur-complement
+  approximation, i.e. the velocity block solved by aggregation multigrid
+  (`mg_cycles` cycles) and the pressure through the least-squares
+  commutator (LSC) approximation of the Schur complement;
+- `:ilu0`, ILU(0): an incomplete LU factorisation of the whole matrix that
+  keeps only its sparsity pattern;
+- `:simple`, block SIMPLE: ILU(0) of the velocity block, Schur approximation
+  S̃ = C − D diag(A)⁻¹ G factorized by LU (`schur = :lu`: UMFPACK on CPU,
+  cuDSS on GPU) or by ILU(0) (`schur = :ilu0`);
+- `:mg`, block SIMPLE with multigrid: the same splitting with one
+  aggregation-multigrid cycle per block (details below).
+
+`precond = :auto` (default) is resolved per matrix by
+[`lin_factorize`](@ref) to the measured setting of each case (block layout
+and grid geometry as set by `fv_newton_solver`, grid with more than one cell
+along z):
+
+- 3D without energy equation (4 fields per cell, pressure in slot 4): Vanka
+  multigrid, `precond = :vanka` with `vanka_prolong = :constant` (and
+  `vanka_omega`, default 0.5), the configuration that passes the D2 gate and
+  runs V5;
+- 3D with energy equation (5 fields per cell, pressure in slot 4): block LSC,
   `precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4`, the
   configuration of the I3 energy runs;
 - anything else (2D problems, matrices without block layout or geometry):
-  P1, `precond = :ilu0`.
+  ILU(0), `precond = :ilu0`.
 
 With `:auto` these fields are set by the resolution whatever was passed for
 them; to tune them, name `precond` explicitly. The other fields (tolerances,
-`strict`, multigrid knobs) are kept. Explicit choices: `precond = :ilu0` (P1,
-ILU(0) of the whole matrix) or `precond = :simple` (P2, block SIMPLE: ILU(0)
-of the velocity block, Schur approximation S̃ = C − D diag(A)⁻¹ G factorized by
-LU (`schur = :lu`: UMFPACK on CPU, cuDSS on GPU) or by ILU(0) (`schur =
-:ilu0`)). P2 needs the block layout of the matrix (`krylov_csr_matrix(...;
-nfields, pslot, nlocal)`, set by the FV Newton solver). A solve stops when the
+`strict`, multigrid knobs) are kept. Every block preconditioner needs the
+block layout of the matrix (`krylov_csr_matrix(...; nfields, pslot,
+nlocal)`, set by the FV Newton solver). A solve stops when the
 TRUE relative residual ‖b − A x‖/‖b‖ ≤ `rtol` (forward) or `rtol_transpose`
 (`transpose = true`, the adjoint), or after `maxiter` iterations; with
 `strict = true` a non-converged solve raises. Inside Newton this is an inexact
 Newton step with a fixed forcing term `rtol`.
 
-`border` selects the flow-rate border treatment of P1 (`:krylov` =
+`border` selects the flow-rate border treatment of ILU(0) (`:krylov` =
 preconditioner on the local block only, `:ilu` = border kept in the ILU(0));
-P2 leaves every unknown beyond `nlocal` to GMRES. `pivot_tol` is the
-relative pivot size |Uᵢᵢ| / maxⱼ|Aᵢⱼ| below which a pivot is counted as small
-([`lin_krylov_pivot`](@ref)); an exactly zero or non-finite pivot always raises.
+the block preconditioners leave every unknown beyond `nlocal` to GMRES.
+`pivot_tol` is the relative pivot size |Uᵢᵢ| / maxⱼ|Aᵢⱼ| below which a pivot
+is counted as small ([`lin_krylov_pivot`](@ref)); an exactly zero or
+non-finite pivot always raises.
 `trisolve` (GPU only): `:persistent` keeps the cuSPARSE triangular-solve
 analysis between solves, `:simple` redoes it at every application (slow,
 fallback). Works on CPU (`to = Array`) and, with `using CUDA, CUDSS`, on
 `CuArray`.
 
-`precond = :mg` (P3) is block SIMPLE with one aggregation-multigrid cycle for
-the velocity block and (`schur = :auto` → `:mg`) for S̃; `schur = :auto` means
-`:lu` for P2. It needs the block layout and the grid geometry of the matrix
-(both set by `fv_newton_solver`). Multigrid options: `mg_cycle` (`:W` or
+Block SIMPLE with multigrid (`precond = :mg`) uses one aggregation-multigrid
+cycle for the velocity block and (`schur = :auto` → `:mg`) for S̃;
+`schur = :auto` means `:lu` for block SIMPLE. It needs the block layout and
+the grid geometry of the matrix (both set by `fv_newton_solver`). Multigrid
+options: `mg_cycle` (`:W` or
 `:V`), `mg_smoother` (`:l1jacobi`, `:jacobi` or `:ilu0`), `mg_omega` (smoother
 damping, 0 = smoother default: 0.7 for `:jacobi`, 1 otherwise), `mg_sweeps`
 (pre- and post-smoothing sweeps), `mg_cycles` (cycles per block application),
 `mg_coarse` (largest coarsest level, solved by sparse LU), `mg_levels`
 (maximum number of levels), `mg_scale` (coarse-correction scaling).
 
-Outer block structure and Schur approximation of P2 / P3
-(src/solve/linear_solve_block_schur.jl; defaults = the SIMPLE above):
+Outer block structure and Schur approximation of block SIMPLE, with or
+without multigrid (src/solve/linear_solve_block_schur.jl; defaults = the
+SIMPLE above; block LSC is one combination):
 `block` (`:simple`, `:lower` or `:upper` block triangular), `schur_approx`
 (`:simple` S̃ = C − D diag(A)⁻¹ G, `:simplec` with the l1 row sum of A, `:lsc`
 least-squares commutator with diag(A) scaling, `:pcd` algebraic pressure
@@ -117,22 +138,21 @@ convection–diffusion), `schur_q` (`:auto`, `:diag`, `:rowsum`, or `:scalar`
 = `schur_qscale` · I, e.g. the cell volume (a velocity mass matrix): the Q of
 S̃ = C − D Q⁻¹ G and of the LSC middle term), `schur_shift` (σ ≥ 0: S̃ − σ diag(D Q⁻¹ G)), `lsc_alpha`
 (weight of C in the LSC middle term), `ablock` (velocity-block solver:
-`:auto` = ILU(0) for P2 and multigrid for P3, or `:ilu0`, `:mg`, `:lu` exact
-sparse LU).
+`:auto` = ILU(0) for `precond = :simple` and multigrid for `:mg`, or
+`:ilu0`, `:mg`, `:lu` exact sparse LU).
 
-`precond = :vanka` (P4, src/solve/linear_solve_mg_monolithic.jl) is a
-monolithic geometric multigrid on the coupled velocity–pressure block (all
+Vanka multigrid (`precond = :vanka`, src/solve/linear_solve_mg_monolithic.jl)
+is a geometric multigrid on the coupled velocity–pressure block (all
 unknowns of a cell coarsened together on 2 × 2 × 2 blocks, restriction by
-sums, prolongation `vanka_prolong = :linear` (trilinear, default) or
-`:constant`, Galerkin coarse operators R J P of the full saddle-point matrix)
-with an additive Vanka smoother (one local saddle-point solve per fluid
-pressure unknown, damping `vanka_omega`, default 0.5: with constant
-prolongation ω = 0.5 passes the D2 gate of the 3D benchmarks, ω = 0.7 fails
-it on the body-force duct); the extras are left to
-GMRES. It takes the same `mg_*` options as P3 (`mg_smoother` and `mg_omega`
-unused) and needs the block layout and the grid geometry. P3L, the setting of
-the 3D benchmarks before P4, stays available as `precond = :mg, block =
-:upper, schur_approx = :lsc, mg_cycles = 4`.
+sums, prolongation `vanka_prolong = :linear` (trilinear, default of an
+explicit `:vanka`) or `:constant`, Galerkin coarse operators R J P of the
+full saddle-point matrix) with an additive Vanka smoother (one local
+saddle-point solve per fluid pressure unknown, damping `vanka_omega`,
+default 0.5: with constant prolongation ω = 0.5 passes the D2 gate of the 3D
+benchmarks, ω = 0.7 fails it on the body-force duct); the extras are left to
+GMRES. It takes the same `mg_*` options as block SIMPLE with multigrid
+(`mg_smoother` and `mg_omega` unused) and needs the block layout and the
+grid geometry.
 """
 Base.@kwdef struct KrylovBackendTag <: LinearSolveBackend
     rtol::Float64 = 1e-6
@@ -196,9 +216,9 @@ _krylov_schur_kind(tag::KrylovBackendTag) =
 Square CSR matrix (1-based `Int32` indices, sorted columns, every diagonal
 stored) on the device of its arrays; the matrix type of the Krylov branch.
 `border` is the index of the flow-rate border unknown, or 0. Block layout (used
-by P2 only; 0 = unknown): unknowns `1:nlocal` are interleaved with `nfields`
+by the block preconditioners only; 0 = unknown): unknowns `1:nlocal` are interleaved with `nfields`
 fields per cell, field `pslot` being the pressure; unknowns beyond `nlocal` are
-extras. `geom` (used by P3 only; `nothing` = unknown) is the host geometry of
+extras. `geom` (used by the multigrid preconditioners only; `nothing` = unknown) is the host geometry of
 the cells: `(; dims = (Nx, Ny, Nz), solid::Vector{Bool})`, cell
 `c = i + (j-1) Nx + (k-1) Nx Ny` being cell `(i, j, k)`.
 """
@@ -227,8 +247,8 @@ SparseArrays.nnz(A::KrylovCSRMatrix) = length(A.colval)
 
 Upload a host CSR pattern (1-based, sorted columns) with zero values to the
 device of `to` (`Array` or `CuArray`). `nfields`, `pslot`, `nlocal`: block
-layout for the P2/P3 preconditioners; `geometry = (; dims = (Nx, Ny, Nz),
-solid)`: cell grid for the P3 aggregates (see [`KrylovCSRMatrix`](@ref)).
+layout for the block preconditioners; `geometry = (; dims = (Nx, Ny, Nz),
+solid)`: cell grid for the multigrid aggregates (see [`KrylovCSRMatrix`](@ref)).
 """
 function krylov_csr_matrix(to, rowptr::AbstractVector, colval::AbstractVector,
                            n::Integer; border::Integer = 0, nfields::Integer = 0,
@@ -324,12 +344,12 @@ end
 """
     lin_factorize(A::KrylovCSRMatrix; backend=KrylovBackendTag(), spd=false, pin_k0=0)
 
-Build the preconditioner of `A` (Krylov branch): ILU(0) (P1), block SIMPLE
-(P2), block SIMPLE with multigrid blocks (P3) or monolithic Vanka multigrid
-(P4), per `backend.precond`; `precond = :auto` (default) gives P4 with
-constant prolongation on a 3D FV Jacobian without energy equation, P3L
-(4 multigrid cycles per block) on a 3D one with energy equation and P1
-otherwise; the cache keeps the resolved tag (`cache.backend`). `pin_k0 > 0` is not supported (pin the operator
+Build the preconditioner of `A` (Krylov branch): ILU(0), block SIMPLE, block
+SIMPLE with multigrid blocks, block LSC or Vanka multigrid, per
+`backend.precond` (see [`KrylovBackendTag`](@ref)); `precond = :auto`
+(default) gives Vanka multigrid with constant prolongation on a 3D FV
+Jacobian without energy equation, block LSC (4 multigrid cycles per block)
+on a 3D one with energy equation and ILU(0) otherwise; the cache keeps the resolved tag (`cache.backend`). `pin_k0 > 0` is not supported (pin the operator
 rows instead, as the FV Newton problems do).
 """
 function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovBackendTag(),
@@ -342,7 +362,7 @@ function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovB
     tag.trisolve in (:persistent, :simple) ||
         throw(ArgumentError("trisolve must be :persistent or :simple, got :$(tag.trisolve)"))
     tag.precond in (:ilu0, :simple, :mg, :vanka) ||
-        throw(ArgumentError("precond must be :auto, :ilu0 (P1), :simple (P2), :mg (P3) or :vanka (P4), got :$(tag.precond)"))
+        throw(ArgumentError("precond must be :auto, :ilu0 (ILU(0)), :simple (block SIMPLE), :mg (block SIMPLE or block LSC with multigrid) or :vanka (Vanka multigrid), got :$(tag.precond)"))
     tag.vanka_omega > 0 || throw(ArgumentError("vanka_omega must be > 0, got $(tag.vanka_omega)"))
     tag.vanka_prolong in (:linear, :constant) ||
         throw(ArgumentError("vanka_prolong must be :linear or :constant, got :$(tag.vanka_prolong)"))
@@ -490,7 +510,7 @@ function _krylov_factor!(f::KrylovFactor)
         end
         _krylov_ilu0!(side)
         f.pivot = _krylov_pivot_report!(f.ratio, f.ratio_host, side, f.tag.pivot_tol,
-                                        "the full matrix (P1)")
+                                        "the full matrix (ILU(0) preconditioner)")
         _krylov_rebuild!(side, f.tag)
     end
     f.tstale = true
@@ -869,7 +889,7 @@ function _simple_refresh!(s::_KrylovSimple, tag::KrylovBackendTag)
         copyto!(A.F, A.A)
         _krylov_ilu0!(A)
         pivot = _krylov_pivot_report!(s.ratio, s.ratio_host, A, tag.pivot_tol,
-                                      "the velocity block (P2)")
+                                      "the velocity block (block SIMPLE)")
         _krylov_rebuild!(A, tag)
     elseif A isa _KrylovALU
         pivot = _krylov_ratio_report!(s.ratio, s.ratio_host, A.rowptr, A.diag, A.A, A.A,
@@ -879,7 +899,7 @@ function _simple_refresh!(s::_KrylovSimple, tag::KrylovBackendTag)
         # P3: diagonal ratio of A (the Jacobi smoothers divide by it), then the hierarchy
         L1 = A.levels[1]
         pivot = _krylov_ratio_report!(s.ratio, s.ratio_host, L1.rowptr, L1.diag, L1.A, L1.A,
-                                      L1.n, tag.pivot_tol, "the velocity-block diagonal (P3)")
+                                      L1.n, tag.pivot_tol, "the velocity-block diagonal (multigrid smoother)")
         _mg_refresh!(A, tag)
     end
     if s.schurkind === :ilu0
@@ -956,14 +976,14 @@ _simple_schur_solve!(x, c::_SchurCPU, b) = ldiv!(x, c.F, b)
 """
     lin_krylov_blocks(cache) -> NamedTuple or nothing
 
-Block sizes of a P2 / P3 (`precond = :simple` / `:mg`) Krylov cache: `(; nu,
+Block sizes of a block-preconditioned (`precond = :simple`, `:mg` or `:vanka`) Krylov cache: `(; nu,
 np, nnz_A, nnz_G, nnz_D, nnz_S, schur, mg_A, mg_S)` (velocity-like and pressure
 unknown counts, stored entries of each block and of the Schur approximation
 S̃, the Schur treatment used, and the multigrid hierarchy of A and of S̃ —
 `(; levels, sizes, nnz, operator_complexity, grid_complexity, cycle,
 smoother, omega, sweeps, cycles, scale)` — or `nothing`), and the block options
 in use (`ablock`, `block`, `schur_approx`, `schur_q`, `schur_shift`); `nothing`
-for P1.
+for ILU(0).
 """
 lin_krylov_blocks(cache::LinearSolveCache) =
     cache.factor.fwd.simple === nothing ? nothing : cache.factor.fwd.simple.info

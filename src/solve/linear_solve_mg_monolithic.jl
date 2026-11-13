@@ -618,7 +618,7 @@ function _simple_refresh!(s::_KrylovVanka, tag::KrylovBackendTag)
         ph = s.pr_host[l]
         copyto!(ph, L.pr)
         @inbounds for (t, r) in enumerate(ph)
-            r < 0 && throw(ErrorException("Vanka preconditioner (P4) failed: singular local block " *
+            r < 0 && throw(ErrorException("Vanka multigrid preconditioner failed: singular local block " *
                                           "of patch $t on level $l (size $(L.n)); use another " *
                                           "preconditioner or a direct backend for this case."))
             r < rmin && (rmin = r; tmin = base + t)
@@ -758,8 +758,8 @@ with the preconditioner M of a Krylov cache (one application per step):
 of one preconditioner application, e.g. one multigrid cycle).
 `local_block = true` iterates on the local block only (the extras of `b`,
 e.g. the flow-rate border, are zeroed and their rows ignored), which is the
-convergence factor of the block preconditioner itself (P2/P3/P4 leave the
-extras to GMRES; without a block preconditioner the option has no effect).
+convergence factor of the block preconditioner itself (the block
+preconditioners leave the extras to GMRES; without a block preconditioner the option has no effect).
 Uses the GMRES work vectors; no device allocation.
 """
 function lin_krylov_stationary(cache::LinearSolveCache, b::AbstractVector; iters::Int = 5,
