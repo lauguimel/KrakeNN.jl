@@ -152,6 +152,8 @@ export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!
        fv_index, fv_nunknowns,
        FV_BC_WALL, FV_BC_INLET, FV_BC_OUTLET, FV_BC_PERIODIC,
        FV_CELL_FLUID, FV_CELL_SOLID, FV_CELL_PINNED
+# 3D steady colocated FV residual (plan FV 3D, increment I1)
+export FVSteadyProblem, FVGrid3D, FVSteadyProblem3D, fv_ncells
 export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,
        fv_immersed_circle, fv_immersed_annulus
 # Coloured dual Jacobian + Newton on the steady FV residual (C2)
@@ -266,6 +268,11 @@ include("ad/gnf3d_adjoint_operator.jl")  # its JVP/VJP kernels, shared solvers, 
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
 include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities
 include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
+include("methods/inc_ns/fv_steady_residual_3d.jl") # 3D steady FV residual (KA kernel, generic eltype)
+include("methods/inc_ns/fv_newton_3d.jl") # 3D Jacobian pattern; Newton/assembly shared with 2D
+include("methods/inc_ns/fv_adjoint_3d.jl") # 3D steady adjoint: maps, law capture, wall force
+include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (device gather/scatter)
+export FVPIVObjective, fv_objective_gradient!
 export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---

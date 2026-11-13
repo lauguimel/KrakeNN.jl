@@ -157,6 +157,35 @@ is the initial guess of `Fx`), and read the force with `fv_flow_force(prob, cont
 flow (`fv_energy_solver`, `fv_energy_solve!`) accepts prescribed face
 velocities through `FVEnergy(face_velocity = (uf, vf))`.
 
+### 3D problems and the PIV objective
+
+The same `fv_steady_gradient` call works on a 3D problem
+(`fv_steady_problem(Nx, Ny, Nz; ...)`, isothermal for now): parameter maps
+`FVUniformViscosity`, `FVViscosityField` (`Nx Ny Nz` values),
+`FVSideVelocity(prob, side; shape = (x, y, z) -> (u, v, w))` on the six sides,
+`FVUniformSource(comp)` and `FVLawParameters(n)`; objectives `fv_flow_rate(prob, i)`,
+`fv_flow_force_objective(prob)` and `FVWallForce(dir; region)` (`dir = 1..3`,
+regions include `:T`, `:B`). For calibration against plane PIV,
+
+```julia
+ops = map(pl -> piv_operator(pl, zeros(Nx, Ny, Nz); h = (h, h, h)), planes)  # CuArray template on GPU
+obj = FVPIVObjective(prob, ops, data; mask, sigma_u = 0.05,
+                     terms = ((fv_flow_force_objective(prob), 1.0, dp_measured),   # (J_t - target)^2 / 2
+                              (FVWallForce(1; region = :solid), 0.1)))             # weight * J_t
+r   = fv_steady_gradient(solver, U, theta, obj; params = FVLawParameters(n))
+```
+
+sums `piv_misfit / sigma_u^2` over the planes and the weighted terms. The PIV
+planes and linear terms are evaluated on the solver backend without dual
+numbers or a host copy of the state; nonlinear terms (the wall force) use host
+duals. Upwind fluxes use `abs`, differentiated by ForwardDiff with the sign
+bit of the value (`abs'(+0.0) = 1`, `abs'(-0.0) = -1`): at a face with exactly
+zero mass flux the gradient is one of the two one-sided derivatives, not
+their mean, so finite-difference checks should avoid such symmetric states.
+On GPU the all-linear objective and its gradient allocate at most 1 KiB of
+device memory per call (a fixed amount, the same at every grid size; measured
+by `benchmarks/fv3d/i2_adjoint_measure.jl`).
+
 ## Validation
 
 Test files are in `test/analytical/`; each frozen threshold carries its date and

@@ -134,6 +134,13 @@ function run_incns_testset()
         include("analytical/incns_fv_densenet_test.jl")
         include("analytical/nn_law_gpu.jl")   # self-gated on CUDA.functional()
         include("analytical/incns_fv_jacobian_pattern_test.jl")
+        # 3D steady FV (plan I1, V0): reduction to 2D, coloured = dense Jacobian,
+        # MMS smoke, simple-shear law invariant, kernel inference (~30 s CPU)
+        include("analytical/incns_fv3d_test.jl")
+        # 3D discrete adjoint (plan I2, V3): composite PIV objective vs piv_misfit,
+        # adjoint vs centred FD for every map × objective, law contraction vs
+        # duals, `abs` convention at zero-flux faces (~25 s CPU)
+        include("analytical/incns_fv3d_adjoint_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,

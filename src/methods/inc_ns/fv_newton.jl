@@ -145,7 +145,7 @@ end
 
 # Pair rows are affine and assembled directly. Their long support must never
 # participate in column coloring; lambda columns retain their local FV rows.
-function fv_jacobian_coloring(S::SparseMatrixCSC, prob::FVSteadyProblem2D)
+function fv_jacobian_coloring(S::SparseMatrixCSC, prob::FVSteadyProblem)
     n = size(S,2) - (prob.flowrate !== nothing)
     colors, count = fv_jacobian_coloring(S[1:fv_nunknowns(prob.grid), 1:n])
     prob.flowrate === nothing || push!(colors,0)
@@ -265,14 +265,32 @@ end
     end
 end
 
+# Cell area (2D) / volume (3D): the scale of the momentum residual rows.
+@inline _fv_cell_measure(h, ::FVFieldLayout) = h * h
+
 @kernel function _fv_diag_shift_kernel!(nzval, @Const(diag), sigma, layout)
-    c = @index(Global)          # cell index; shift the two momentum rows
+    c = @index(Global)          # cell index; shift the momentum rows
+    b = _fv_cell_base(layout, c)
+    _fv_shift_momentum!(nzval, diag, b, sigma, layout)
+end
+# Momentum-row hooks by layout: the 2D bodies are the original two statements.
+@inline function _fv_shift_momentum!(nzval, diag, b, sigma, layout::FVFieldLayout)
     @inbounds begin
-        b = _fv_cell_base(layout, c)
         nzval[diag[b + _fv_velocity_slot(layout, 1)]] += sigma
         nzval[diag[b + _fv_velocity_slot(layout, 2)]] += sigma
     end
+    return nothing
 end
+@inline function _fv_momentum_sq(R, b, layout::FVFieldLayout)
+    @inbounds ru = R[b + _fv_velocity_slot(layout, 1)]; @inbounds rv = R[b + _fv_velocity_slot(layout, 2)]
+    return ru * ru + rv * rv
+end
+@inline function _fv_momentum_max(mi, R, b, layout::FVFieldLayout)
+    @inbounds ru = R[b + _fv_velocity_slot(layout, 1)]; @inbounds rv = R[b + _fv_velocity_slot(layout, 2)]
+    return max(mi, abs(ru), abs(rv))
+end
+@inline _fv_momentum_l2(l2, layout::FVFieldLayout) =
+    hypot(l2[_fv_velocity_slot(layout, 1)], l2[_fv_velocity_slot(layout, 2)])
 
 """
     fv_assemble_jacobian!(nzval, asm, U, prob; sync = true) -> nzval
@@ -287,7 +305,7 @@ compressed differentiation and filled from their lowered affine coefficients.
 Allocation-free on the device.
 """
 function fv_assemble_jacobian!(nzval, asm::FVJacobianAssembler{N}, U,
-                               prob::FVSteadyProblem2D; sync::Bool = true) where {N}
+                               prob::FVSteadyProblem; sync::Bool = true) where {N}
     length(U) == asm.n || throw(DimensionMismatch("length(U) = $(length(U)), expected $(asm.n)"))
     length(nzval) == asm.nnz || throw(DimensionMismatch("length(nzval) = $(length(nzval)), expected $(asm.nnz)"))
     backend = KernelAbstractions.get_backend(U)
@@ -316,10 +334,10 @@ end
     @inbounds for c in c0:c1
         if c <= ncell
             b = _fv_cell_base(layout, c)
-            ru = R[b + _fv_velocity_slot(layout, 1)]; rv = R[b + _fv_velocity_slot(layout, 2)]; rc = R[b + _fv_pressure_slot(layout)]
-            m2 += ru * ru + rv * rv
+            rc = R[b + _fv_pressure_slot(layout)]
+            m2 += _fv_momentum_sq(R, b, layout)
             c2 += rc * rc
-            mi = max(mi, abs(ru), abs(rv))
+            mi = _fv_momentum_max(mi, R, b, layout)
             ci = max(ci, abs(rc))
             for scalar in 1:_fv_nscalars(layout)
                 ci = max(ci, abs(R[b + _fv_scalar_slot(layout, scalar)]))
@@ -337,7 +355,7 @@ end
 
 # Keep the original Int kernel argument valid for compiler/unit callers.
 @inline _fv_norm_cells(ncell::Int) = (ncell, FVFieldLayout{0}())
-@inline _fv_norm_cells(cells::Tuple{Int,<:FVFieldLayout}) = cells
+@inline _fv_norm_cells(cells::Tuple{Int,<:AbstractFVFieldLayout}) = cells
 
 struct _FVEquationNormBuffers{D,H,V}
     dev::D
@@ -356,7 +374,7 @@ struct _FVNormBuffers{D,H,L,E}
 end
 
 function _FVNormBuffers(to, ncell::Int; per::Int = 256, nextra::Int = 0,
-                         layout::FVFieldLayout = FVFieldLayout{0}(), flow_index::Int = 0)
+                         layout::AbstractFVFieldLayout = FVFieldLayout{0}(), flow_index::Int = 0)
     nt = cld(ncell + nextra, per)
     nf = _fv_nfields(layout) + (flow_index != 0)
     eq = _FVEquationNormBuffers(to(zeros(Float64, 2nf, nt)), zeros(Float64, 2nf, nt),
@@ -428,8 +446,7 @@ function _fv_newton_report_norms(nb::_FVNormBuffers, R)
     m, c, ri = _fv_norms(nb, R)
     equations = _fv_equation_norms(nb, R)
     if nb.flow_index != 0 || !all(isone, nb.equations.host_scales)
-        m = hypot(equations.l2[_fv_velocity_slot(nb.layout, 1)],
-                  equations.l2[_fv_velocity_slot(nb.layout, 2)])
+        m = _fv_momentum_l2(equations.l2, nb.layout)
         c = equations.l2[_fv_pressure_slot(nb.layout)]
         ri = maximum(equations.inf)
     end
@@ -549,7 +566,7 @@ on the CPU, then the problem, the assembler and the Jacobian on the device of
 Nothing is factorized here: the first [`fv_newton!`](@ref) step does the one
 symbolic analysis.
 """
-function fv_newton_solver(prob::FVSteadyProblem2D; to = Array,
+function fv_newton_solver(prob::FVSteadyProblem; to = Array,
                           linsolve::LinearSolveBackend = CPUBackendTag(),
                           chunk::Int = 4)
     t_pattern = @elapsed S = fv_jacobian_pattern(prob)
@@ -569,8 +586,8 @@ function fv_newton_solver(prob::FVSteadyProblem2D; to = Array,
     dprob = fv_adapt(to, prob)
     vec0() = to(zeros(Float64, n))
     return FVNewtonSolver(dprob, asm, J, nzval, linsolve, nothing,
-                          vec0(), vec0(), vec0(), _FVNormBuffers(to, prob.grid.Nx * prob.grid.Ny;
-                              nextra=_fv_npairs(prob.immersed)+(prob.flowrate !== nothing), layout=prob.grid.layout,
+                          vec0(), vec0(), vec0(), _FVNormBuffers(to, fv_ncells(prob);
+                              nextra=_fv_nextra(prob), layout=prob.grid.layout,
                               flow_index=prob.flowrate === nothing ? 0 : _fv_force_index(prob)), 0, 0,
                           t_pattern, t_coloring,
                           (NaN, NaN, NaN), (NaN, NaN, NaN))
@@ -639,7 +656,7 @@ end
 
 Assemble `∂R/∂U` at `U` into `solver.J` (values only; pattern fixed).
 `shift > 0` adds `shift` to the diagonal of the two momentum rows of every cell
-(pseudo-transient term `h²/Δτ`).
+(pseudo-transient term `V/Δτ`, `V` the cell measure: `h²` in 2D, `h³` in 3D).
 """
 function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0)
     fv_assemble_jacobian!(s.nzval, s.asm, U, s.prob; sync = shift == 0)
@@ -647,7 +664,7 @@ function fv_jacobian!(s::FVNewtonSolver, U; shift::Real = 0.0)
     if shift != 0
         backend = KernelAbstractions.get_backend(U)
         _fv_diag_shift_kernel!(backend, 256)(s.nzval, s.asm.diag, Float64(shift), s.prob.grid.layout;
-                                             ndrange = s.prob.grid.Nx * s.prob.grid.Ny)
+                                             ndrange = fv_ncells(s.prob))
         KernelAbstractions.synchronize(backend)
     end
     return s.J
@@ -708,7 +725,8 @@ An initially converged state has zero accepted increment. These scales affect
 norms only; the physical residual and its Jacobian remain cell-integrated.
 
 Pseudo-transient continuation (off by default): with `dtau0` set, the momentum
-rows get the diagonal shift `h²/Δτ_k`, `Δτ_k = dtau0 ‖R₀‖₂ / ‖R_k‖₂` (switched
+rows get the diagonal shift `V/Δτ_k` (`V = h²` in 2D, `h³` in 3D, the
+scaling of the residual, so `dtau0` is the same physical pseudo-step in both), `Δτ_k = dtau0 ‖R₀‖₂ / ‖R_k‖₂` (switched
 evolution relaxation); once `Δτ_k ≥ dtau_max` the shift is dropped for good,
 so the last iterations are pure Newton (quadratic convergence).
 
@@ -771,7 +789,7 @@ function fv_newton!(s::FVNewtonSolver, U; atol::Real = 1e-12, rtol::Real = 1e-13
         sigma = 0.0
         if ptc
             dtau = Float64(dtau0) * r0 / r
-            dtau >= dtau_max ? (ptc = false) : (sigma = h * h / dtau)
+            dtau >= dtau_max ? (ptc = false) : (sigma = _fv_cell_measure(h, s.prob.grid.layout) / dtau)
         end
         t0 = time_ns()
         fv_jacobian!(s, U; shift = sigma)
