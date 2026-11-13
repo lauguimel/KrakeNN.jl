@@ -305,7 +305,8 @@ end
         @info "I3 Newton 3D vs 2D" iterations = st3.iterations gate = st3.gate du = maximum(abs, u3 - ext(u2)) dT = maximum(abs, T3 - ext(T2))
 
         # branch K: temperature joins the velocity block of P2 automatically
-        for (kname, tag) in (("ILU(0)", KrylovBackendTag(; rtol = 1e-10, rtol_transpose = 1e-11, strict = false)),
+        for (kname, tag) in (("ILU(0)", KrylovBackendTag(; precond = :ilu0, rtol = 1e-10, rtol_transpose = 1e-11,
+                                                         strict = false)),
                              ("block SIMPLE, Schur LU",
                               KrylovBackendTag(; precond = :simple, schur = :lu, rtol = 1e-10,
                                                rtol_transpose = 1e-11, strict = false)))

@@ -58,10 +58,16 @@ using KernelAbstractions
 """
     KrylovBackendTag(; rtol=1e-6, rtol_transpose=1e-10, restart=50, maxiter=2000,
                      orth=:cgs2, border=:krylov, pivot_tol=1e-10, strict=true,
-                     trisolve=:persistent, precond=:ilu0, schur=:lu)
+                     trisolve=:persistent, precond=:auto, schur=:auto)
 
 Linear-solve backend: restarted GMRES (`gnf_gmres!`, restart length `restart`)
-with a right preconditioner on the assembled matrix: `precond = :ilu0` (P1,
+with a right preconditioner on the assembled matrix. `precond = :auto`
+(default) is resolved per matrix by [`lin_factorize`](@ref): `:vanka` (P4,
+below) for a 3D isothermal FV Jacobian (block layout of 4 fields per cell with
+the pressure in slot 4, and a cell grid with more than one cell along z, as
+set by `fv_newton_solver` on a 3D problem without energy equation), `:ilu0`
+(P1) otherwise, so 2D problems, 3D problems with an energy equation and bare
+matrices keep ILU(0). Explicit choices: `precond = :ilu0` (P1,
 ILU(0) of the whole matrix) or `precond = :simple` (P2, block SIMPLE: ILU(0)
 of the velocity block, Schur approximation S̃ = C − D diag(A)⁻¹ G factorized by
 LU (`schur = :lu`: UMFPACK on CPU, cuDSS on GPU) or by ILU(0) (`schur =
@@ -110,9 +116,13 @@ unknowns of a cell coarsened together on 2 × 2 × 2 blocks, restriction by
 sums, prolongation `vanka_prolong = :linear` (trilinear, default) or
 `:constant`, Galerkin coarse operators R J P of the full saddle-point matrix)
 with an additive Vanka smoother (one local saddle-point solve per fluid
-pressure unknown, damping `vanka_omega`, default 0.7); the extras are left to
+pressure unknown, damping `vanka_omega`, default 0.5: with constant
+prolongation ω = 0.5 passes the D2 gate of the 3D benchmarks, ω = 0.7 fails
+it on the body-force duct); the extras are left to
 GMRES. It takes the same `mg_*` options as P3 (`mg_smoother` and `mg_omega`
-unused) and needs the block layout and the grid geometry.
+unused) and needs the block layout and the grid geometry. P3L, the setting of
+the 3D benchmarks before P4, stays available as `precond = :mg, block =
+:upper, schur_approx = :lsc, mg_cycles = 4`.
 """
 Base.@kwdef struct KrylovBackendTag <: LinearSolveBackend
     rtol::Float64 = 1e-6
@@ -124,7 +134,7 @@ Base.@kwdef struct KrylovBackendTag <: LinearSolveBackend
     pivot_tol::Float64 = 1e-10
     strict::Bool = true
     trisolve::Symbol = :persistent
-    precond::Symbol = :ilu0
+    precond::Symbol = :auto
     schur::Symbol = :auto
     mg_cycle::Symbol = :W
     mg_smoother::Symbol = :l1jacobi
@@ -141,8 +151,24 @@ Base.@kwdef struct KrylovBackendTag <: LinearSolveBackend
     lsc_alpha::Float64 = 1.0
     ablock::Symbol = :auto
     schur_qscale::Float64 = 0.0
-    vanka_omega::Float64 = 0.7
+    vanka_omega::Float64 = 0.5
     vanka_prolong::Symbol = :linear
+end
+
+# Preconditioner actually used for the matrix `A` (`precond = :auto` resolved):
+# P4 on a 3D isothermal FV Jacobian (4 fields per cell, pressure in slot 4,
+# geometry with Nz > 1), P1 otherwise (2D, 3D with energy, bare matrices).
+function _krylov_precond_kind(tag::KrylovBackendTag, A)
+    tag.precond === :auto || return tag.precond
+    return (A.nfields == 4 && A.pslot == 4 && A.nlocal > 0 && A.geom !== nothing &&
+            A.geom.dims[3] > 1) ? :vanka : :ilu0
+end
+
+# Copy of `tag` with the preconditioner `precond` (the resolved tag kept in the cache).
+function _krylov_with_precond(tag::KrylovBackendTag, precond::Symbol)
+    names = fieldnames(KrylovBackendTag)
+    nt = NamedTuple{names}(ntuple(i -> getfield(tag, i), length(names)))
+    return KrylovBackendTag(; merge(nt, (; precond))...)
 end
 
 # Schur treatment actually used (`:auto` resolved per preconditioner).
@@ -284,7 +310,10 @@ end
     lin_factorize(A::KrylovCSRMatrix; backend=KrylovBackendTag(), spd=false, pin_k0=0)
 
 Build the preconditioner of `A` (Krylov branch): ILU(0) (P1), block SIMPLE
-(P2) or block SIMPLE with multigrid blocks (P3), per `backend.precond`. `pin_k0 > 0` is not supported (pin the operator
+(P2), block SIMPLE with multigrid blocks (P3) or monolithic Vanka multigrid
+(P4), per `backend.precond`; `precond = :auto` (default) gives P4 on a 3D
+isothermal FV Jacobian and P1 otherwise, and the cache keeps the resolved tag
+(`cache.backend.precond`). `pin_k0 > 0` is not supported (pin the operator
 rows instead, as the FV Newton problems do).
 """
 function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovBackendTag(),
@@ -292,12 +321,12 @@ function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovB
     backend isa KrylovBackendTag ||
         throw(ArgumentError("a KrylovCSRMatrix needs backend = KrylovBackendTag(), got $(_lin_backend_name(backend))"))
     pin_k0 == 0 || throw(ArgumentError("KrylovBackendTag does not support pin_k0 > 0"))
-    tag = backend
+    tag = backend.precond === :auto ? _krylov_with_precond(backend, _krylov_precond_kind(backend, A)) : backend
     tag.border in (:krylov, :ilu) || throw(ArgumentError("border must be :krylov or :ilu, got :$(tag.border)"))
     tag.trisolve in (:persistent, :simple) ||
         throw(ArgumentError("trisolve must be :persistent or :simple, got :$(tag.trisolve)"))
     tag.precond in (:ilu0, :simple, :mg, :vanka) ||
-        throw(ArgumentError("precond must be :ilu0 (P1), :simple (P2), :mg (P3) or :vanka (P4), got :$(tag.precond)"))
+        throw(ArgumentError("precond must be :auto, :ilu0 (P1), :simple (P2), :mg (P3) or :vanka (P4), got :$(tag.precond)"))
     tag.vanka_omega > 0 || throw(ArgumentError("vanka_omega must be > 0, got $(tag.vanka_omega)"))
     tag.vanka_prolong in (:linear, :constant) ||
         throw(ArgumentError("vanka_prolong must be :linear or :constant, got :$(tag.vanka_prolong)"))

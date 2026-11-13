@@ -113,12 +113,13 @@ function fv5_linsolve()
     kind = lowercase(fv5_env("FV5_LINSOLVE", "krylov"))
     kind == "direct" && return fv3d_linsolve()
     kind == "krylov" || error("FV5_LINSOLVE must be krylov or direct, got $kind")
-    # FV5_PRECOND = p3l (default): block upper-triangular with the LSC Schur
-    # approximation and 4 multigrid cycles per block (P3L, gate D2 passed at 64³);
-    # p3: the earlier block SIMPLE with one cycle (P3), kept for comparison;
-    # p4: monolithic Vanka multigrid, constant prolongation, damping
-    # FV5_VANKA_OMEGA (0.5, D2 passed in both cases).
-    pc = lowercase(fv5_env("FV5_PRECOND", "p3l"))
+    # FV5_PRECOND = p4 (default): monolithic Vanka multigrid, constant
+    # prolongation, damping FV5_VANKA_OMEGA (0.5, D2 passed in both cases;
+    # stage d on the noisy twin: 143 s and 5.07 GiB on an H100, same fit as P3L);
+    # p3l: block upper-triangular with the LSC Schur approximation and 4
+    # multigrid cycles per block (P3L, gate D2 passed at 64³; 402 s, 6.94 GiB);
+    # p3: the earlier block SIMPLE with one cycle (P3), kept for comparison.
+    pc = lowercase(fv5_env("FV5_PRECOND", "p4"))
     pc in ("p3l", "p3", "p4") || error("FV5_PRECOND must be p3l, p3 or p4, got $pc")
     pc == "p4" && return KrylovBackendTag(; rtol = fv5_float("FV5_ETA", 1e-6),
                             rtol_transpose = fv5_float("FV5_ETA_T", 1e-10),

@@ -72,8 +72,9 @@
 # KrylovBackendTag): FV3D_MG_CYCLE (W | V), FV3D_MG_SMOOTHER (l1jacobi |
 # jacobi | ilu0; P3 only), FV3D_MG_SWEEPS (2), FV3D_MG_CYCLES (1),
 # FV3D_MG_COARSE (2000), FV3D_MG_OMEGA (0 = smoother default; P3 only),
-# FV3D_MG_SCALE (1); P4 only: FV3D_VANKA_OMEGA (0.7), FV3D_VANKA_PROLONG
-# (linear | constant).
+# FV3D_MG_SCALE (1); P4 only: FV3D_VANKA_OMEGA (0.5, the default of
+# KrylovBackendTag; 0.7 fails D2 on the body-force case), FV3D_VANKA_PROLONG
+# (linear | constant; D2 was passed with constant).
 # FV3D_TAG_EXTRA = any KrylovBackendTag options "name=value,…", applied last to
 # every K preconditioner (they override the label's and the FV3D_MG_* ones), e.g.
 #   FV3D_PRECONDS=lsc FV3D_TAG_EXTRA="mg_cycles=4"
@@ -117,7 +118,7 @@ const MG = (; mg_cycle = Symbol(get(ENV, "FV3D_MG_CYCLE", "W")),
             mg_coarse = parse(Int, get(ENV, "FV3D_MG_COARSE", "2000")),
             mg_omega = parse(Float64, get(ENV, "FV3D_MG_OMEGA", "0")),
             mg_scale = parse(Float64, get(ENV, "FV3D_MG_SCALE", "1")),
-            vanka_omega = parse(Float64, get(ENV, "FV3D_VANKA_OMEGA", "0.7")),
+            vanka_omega = parse(Float64, get(ENV, "FV3D_VANKA_OMEGA", "0.5")),
             vanka_prolong = Symbol(get(ENV, "FV3D_VANKA_PROLONG", "linear")))
 
 const EXTRA = fv3d_tag_opts(get(ENV, "FV3D_TAG_EXTRA", ""))   # fv3d_common.jl

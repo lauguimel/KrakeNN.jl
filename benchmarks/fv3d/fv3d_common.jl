@@ -64,7 +64,9 @@ Branch K tag of the multigrid block preconditioners: GMRES (restart 50, at most
 2000 iterations, non-strict: an unconverged solve is logged, not raised) with
 P3 multigrid blocks; `extra` defaults to P3L (block upper triangular, LSC
 Schur approximation, 4 multigrid cycles per block). Shared by V5
-(`fv5_linsolve`) and the I3 scripts (`FV3D_LINSOLVE=krylov`).
+(`fv5_linsolve`, options `FV5_PRECOND=p3l` / `p3`; the V5 default is P4) and
+the I3 scripts (`FV3D_LINSOLVE=krylov`, which keep P3L: their GPU receipts
+were run with it).
 """
 const FV3D_P3_BASE = (; restart = 50, maxiter = 2000, strict = false, trisolve = :persistent,
                       precond = :mg, schur = :mg, mg_cycle = :W, mg_smoother = :l1jacobi,

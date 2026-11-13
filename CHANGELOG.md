@@ -207,20 +207,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   an assembled `KrylovCSRMatrix`, forward and transposed solves, CPU and CUDA
   through `ext/KrakeNNCUDSSExt.jl`), selected by `fv_newton_solver(p; linsolve =
   KrylovBackendTag(...))` with the Newton and adjoint API unchanged.
-  Preconditioners: P1 ILU(0) (`precond = :ilu0`, default of the tag), P2 block
+  Preconditioners: P1 ILU(0) (`precond = :ilu0`), P2 block
   SIMPLE (`:simple`), P3 block SIMPLE with aggregation multigrid blocks (`:mg`),
   P3L block upper triangular with the least-squares commutator Schur
   approximation and multigrid blocks (`precond = :mg, block = :upper,
   schur_approx = :lsc`, also `:simplec`, `:pcd`, `schur_q`, `schur_shift`,
   `ablock` options), and P4 monolithic geometric multigrid with an additive
-  Vanka smoother (`precond = :vanka`, `vanka_omega`, `vanka_prolong`).
-  Diagnostics `lin_krylov_log`, `lin_krylov_pivot`, `lin_krylov_blocks`,
+  Vanka smoother (`precond = :vanka`, `vanka_omega`, `vanka_prolong`). The
+  default `precond = :auto` gives P4 with `vanka_omega = 0.5` on 3D
+  isothermal FV Jacobians and P1 elsewhere (2D problems, 3D problems with an
+  energy equation, matrices without block layout or grid geometry), so 2D
+  behaviour is unchanged; P3L stays available as an option. Diagnostics `lin_krylov_log`, `lin_krylov_pivot`, `lin_krylov_blocks`,
   `lin_krylov_stationary`. Memory is linear in the cells instead of the
   cells^(4/3) of the direct factors. P3L with 4 multigrid cycles per block is
   the setting used by the 3D benchmarks (29 / 28 / 34 forward GMRES iterations
   at 16³ / 24³ / 32³ on the flow-rate duct, H100). P4 with `vanka_omega = 0.5`
   and constant prolongation passes the D2 gate of `i4_krylov_measure.jl` at 32³,
-  48³ and 64³ in both benchmark cases. Tested against the direct branch in
+  48³ and 64³ in both benchmark cases (with 0.7 it fails on the body-force
+  case). At N = 32 with first-order upwind convection P4 stays usable up to
+  Re ≈ 250 (208 GMRES iterations) and fails at Re ≈ 415; P3L at Re ≈ 250 was
+  not measured to the end. Tested against the direct branch in
   `test/analytical/incns_fv3d_krylov_test.jl`.
 - 3D energy equation `FVEnergy3D` (`fv_steady_problem(Nx, Ny, Nz; energy)`):
   temperature as the fifth cell unknown, viscous heating, temperature-dependent
@@ -235,8 +241,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   the 3D adjoint, identifiability gate with a predicted model-error bias.
   Against the LBM data the Carreau fit recovers η(γ̇) within 2.4 % over the
   observed shear-rate range. On the noisy twin (stage d, H100) the same fit
-  takes 402 s under P3L instead of 1201 s under P3, and 143 s under P4 (peak 5.1
-  GiB instead of 6.9 GiB).
+  takes 402 s under P3L instead of 1201 s under P3, and 143 s under P4 (peak
+  5.07 GiB instead of 6.94 GiB); P4 is the V5 default (`FV5_PRECOND=p4`).
 
 ### Changed
 - The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl`.

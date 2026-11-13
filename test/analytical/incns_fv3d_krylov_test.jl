@@ -36,7 +36,12 @@
 #       fluid unknown covered, stored patch inverses exact, fluid pressure
 #       diagonals positive on every level, same checks on the hierarchy of
 #       Jᵀ), linear solves, Newton state, adjoint gradients and one FD check
-#       against branch D, stationary residual ratios of one cycle (logged).
+#       against branch D, stationary residual ratios of one cycle (logged);
+#       the default tag (`precond = :auto`) resolves to P4 with
+#       `vanka_omega = 0.5` on these 3D Jacobians and to P1 on a matrix
+#       without layout, without geometry or with Nz = 1 (the 2D rule).
+# Every P1 tag below sets `precond = :ilu0` explicitly: the default of the tag
+# is P4 on 3D FV Jacobians.
 using Test
 using LinearAlgebra
 using Random
@@ -45,7 +50,7 @@ using KrakeNN
 const _I4_NEWTON = (; atol = 1e-13, rtol = 1e-15, maxit = 60)
 # Newton / adjoint tag: tight tolerances so that K and D agree to ~1e-9;
 # strict = false so a round-off-limited last Newton step does not raise.
-const _I4_TAG = KrylovBackendTag(; rtol = 1e-10, rtol_transpose = 1e-11, strict = false)
+const _I4_TAG = KrylovBackendTag(; precond = :ilu0, rtol = 1e-10, rtol_transpose = 1e-11, strict = false)
 
 _i4_bc = (W = :periodic, E = :periodic, S = :wall, N = :wall, B = :wall, T = :wall)
 function _i4_solid(N)
@@ -84,7 +89,7 @@ _i4_restart!(s, base) = (copyto!(s.prob.nu, base.nu); copyto!(s.prob.bvel, base.
         sD = fv_newton_solver(p)
         U = _i4_solve!(sD, _i4_U0(p))
         U2 = U .+ 1e-3 .* randn(rng, length(U))          # a second state for the refactorization
-        tag = KrylovBackendTag(; rtol = 1e-10, rtol_transpose = 1e-10)
+        tag = KrylovBackendTag(; precond = :ilu0, rtol = 1e-10, rtol_transpose = 1e-10)
         sK = fv_newton_solver(p; linsolve = tag)
         @test sK.J isa KrylovCSRMatrix
         @test sK.J.border == (p.flowrate === nothing ? 0 : KrakeNN._fv_force_index(p))
@@ -125,7 +130,7 @@ _i4_restart!(s, base) = (copyto!(s.prob.nu, base.nu); copyto!(s.prob.bvel, base.
             @info "I4 Krylov solve ($pname, state $k)" iters_forward = lin_krylov_log(cK)[end-7].iters iters_transpose = lin_krylov_log(cK)[end].iters min_pivot_ratio = piv.min_ratio small_pivots = piv.n_small
         end
         # strict non-convergence raises; pin_k0 is refused
-        cS = lin_factorize(sK.J; backend = KrylovBackendTag(; rtol = 1e-15, maxiter = 1))
+        cS = lin_factorize(sK.J; backend = KrylovBackendTag(; precond = :ilu0, rtol = 1e-15, maxiter = 1))
         @test_throws ErrorException lin_solve!(cS, randn(rng, size(sD.J, 1)))
         @test_throws ArgumentError lin_factorize(sK.J; backend = tag, pin_k0 = 1)
     end
@@ -138,11 +143,15 @@ end
         sK = fv_newton_solver(p; linsolve = _I4_TAG)
         UK = _i4_solve!(sK, _i4_U0(p))
         @test norm(UK - UD, Inf) <= 1e-9 * norm(UD, Inf)
-        # default tag (rtol = 1e-6: inexact Newton) reaches the same state
-        s6 = fv_newton_solver(p; linsolve = KrylovBackendTag())
-        U6 = _i4_solve!(s6, _i4_U0(p))
-        @test norm(U6 - UD, Inf) <= 1e-9 * norm(UD, Inf)
-        @info "I4 Newton K vs D ($pname)" rel_tight = norm(UK - UD, Inf) / norm(UD, Inf) rel_default = norm(U6 - UD, Inf) / norm(UD, Inf) gmres_iters = [e.iters for e in lin_krylov_log(s6.cache)]
+        # rtol = 1e-6 (inexact Newton) reaches the same state, with the default
+        # tag (P4 on this 3D Jacobian) and with P1
+        for (tname, t6) in (("default (P4)", KrylovBackendTag()), ("P1", KrylovBackendTag(; precond = :ilu0)))
+            s6 = fv_newton_solver(p; linsolve = t6)
+            U6 = _i4_solve!(s6, _i4_U0(p))
+            @test norm(U6 - UD, Inf) <= 1e-9 * norm(UD, Inf)
+            @test s6.cache.backend.precond === (t6.precond === :auto ? :vanka : :ilu0)
+            @info "I4 Newton K vs D ($pname, rtol 1e-6, $tname)" rel_tight = norm(UK - UD, Inf) / norm(UD, Inf) rel_default = norm(U6 - UD, Inf) / norm(UD, Inf) gmres_iters = [e.iters for e in lin_krylov_log(s6.cache)]
+        end
     end
 end
 
@@ -181,7 +190,7 @@ end
     θcy = [0.05, 0.01, 2.0, 2.0, 0.5]
     cobjs = (("Fx", fv_flow_force_objective(cb)), ("wall force", FVWallForce(1; region = :solid)))
     for border in (:krylov, :ilu)
-        tag = KrylovBackendTag(; rtol = 1e-10, rtol_transpose = 1e-11, strict = false, border)
+        tag = KrylovBackendTag(; precond = :ilu0, rtol = 1e-10, rtol_transpose = 1e-11, strict = false, border)
         res = _i4_grad_pair(cb, FVLawParameters(5), θcy, cobjs; tag)
         @info "I4 adjoint K vs D (Carreau + flow rate, border = $border)" rel = [r[2] for r in res]
     end
@@ -767,6 +776,16 @@ end
     @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, vanka_omega = 0.0))
     @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, vanka_prolong = :bogus))
     @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, mg_cycle = :K))
+    # default tag: P4 with vanka_omega = 0.5 on the 3D Jacobian, P1 without layout,
+    # without geometry or on a grid with Nz = 1 (the rule of 2D problems)
+    cdef = lin_factorize(s0.J; backend = KrylovBackendTag())
+    @test cdef.backend.precond === :vanka && cdef.backend.vanka_omega == 0.5
+    @test lin_krylov_blocks(cdef).vanka.omega == 0.5
+    @test lin_factorize(bare; backend = KrylovBackendTag()).backend.precond === :ilu0
+    @test lin_factorize(nogeom; backend = KrylovBackendTag()).backend.precond === :ilu0
+    flat = KrylovCSRMatrix(s0.J.n, s0.J.rowptr, s0.J.colval, s0.J.nzval, s0.J.border, s0.J.nfields,
+                           s0.J.pslot, s0.J.nlocal, (; dims = (6, 20, 1), solid = s0.J.geom.solid))
+    @test lin_factorize(flat; backend = KrylovBackendTag()).backend.precond === :ilu0
     sDd = fv_newton_solver(p)
     fv_jacobian!(sDd, _i4_U0(p))
     cDd = lin_factorize(sDd.J; backend = CPUBackendTag(), spd = false)

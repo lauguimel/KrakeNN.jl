@@ -75,9 +75,12 @@
 #     preconditioner for restarted GMRES (no FGMRES needed);
 #   * cycle, coarsest level, knobs: as P3 (`mg_cycle`, `mg_sweeps`,
 #     `mg_cycles`, `mg_coarse`, `mg_levels`, `mg_scale`), damping
-#     `vanka_omega` (default 0.7: additive Vanka with multiplicity weights has
-#     its smoothing optimum around 0.7–0.8 in the local Fourier analyses of
-#     the literature; the overlap of the velocity patches needs the damping),
+#     `vanka_omega` (default 0.5: the local Fourier analyses of the literature
+#     put the smoothing optimum of additive Vanka with multiplicity weights
+#     around 0.7–0.8, but ω = 0.7 fails the D2 gate on the body-force duct
+#     while ω = 0.5 with constant prolongation passes it at 32³, 48³ and 64³
+#     in both benchmark cases; the
+#     overlap of the velocity patches needs the damping),
 #     coarsest level by the sparse LU hooks of P2 (UMFPACK / cuDSS);
 #   * flow-rate border (and any extra beyond `nlocal`): identity in the
 #     preconditioner, like P2/P3 and `border = :krylov`. The border is a

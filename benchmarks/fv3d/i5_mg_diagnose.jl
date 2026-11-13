@@ -98,8 +98,10 @@ const BASE = parse_opts(get(ENV, "FV3D_TAG_BASE", ""))
 const CONFIGS = parse_configs(get(ENV, "FV3D_TAGS", DEFAULT_TAGS))
 
 function make_tag(opts, N)
+    # precond = :ilu0 unless the configuration names one (the tag default,
+    # :auto, would be P4 on these 3D Jacobians)
     d = Dict{Symbol,Any}(:rtol => ETA, :rtol_transpose => ETA_T, :restart => RESTART,
-                         :maxiter => MAXITER, :strict => false)
+                         :maxiter => MAXITER, :strict => false, :precond => :ilu0)
     merge!(d, BASE, opts)
     return KrylovBackendTag(; fv3d_tag_resolve(d, N, NU0)...)
 end

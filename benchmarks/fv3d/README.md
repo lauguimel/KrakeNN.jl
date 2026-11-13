@@ -157,8 +157,9 @@ temperature: next two paragraphs.
 Branch K in the I3 scripts. The direct factorisation limits V0'
 energy to 48³ and V4 (a) to N = 32 on one 80 GB GPU. `FV3D_LINSOLVE=krylov`
 solves the Newton steps of `v0p_energy_mms.jl` and of `v4_heated_duct.jl` (a)
-with GMRES + P3L, the V5 tag (`fv3d_p3_tag` in `fv3d_common.jl`, also used by
-`fv5_linsolve`: block upper triangular, LSC Schur, 4 W-cycles of multigrid per
+with GMRES + P3L (`fv3d_p3_tag` in `fv3d_common.jl`, also the V5 option
+`FV5_PRECOND=p3l`; these scripts keep P3L, with which their receipts below were
+run, although the default of `KrylovBackendTag` is now P4: block upper triangular, LSC Schur, 4 W-cycles of multigrid per
 block, l1-Jacobi, forward η = 1e-6, restart 50, at most 2000 iterations);
 `FV3D_LINSOLVE=direct` (default) keeps cuDSS. The tag goes to
 `fv_newton_solver(p; linsolve)`; the thermal Newton and its gates are the
@@ -185,7 +186,10 @@ V0' energy to 64³: conduction orders 2.00 (both side sets), convection
 seam: restarted GMRES (`gnf_gmres!`, restart 50, classical Gram–Schmidt twice)
 right-preconditioned by ILU(0) of the assembled Jacobian (`KrylovCSRMatrix`,
 CSR on the device of the assembler). The Newton and adjoint API is unchanged:
-`fv_newton_solver(p; to, linsolve = KrylovBackendTag())`. GPU methods
+`fv_newton_solver(p; to, linsolve = KrylovBackendTag())`. That default tag
+(`precond = :auto`) now gives P4 (below, `vanka_omega = 0.5`) on a 3D
+isothermal problem and P1 on 2D problems and on 3D problems with an energy
+equation; P1 as described here is `precond = :ilu0`. GPU methods
 (cuSPARSE `ilu02!`, triangular solves with the analysis kept between
 applications, cuDSS LU of the P2 Schur matrix) are in `ext/KrakeNNCUDSSExt.jl`,
 so `using CUDA, CUDSS` is needed on GPU as for branch D; SpMV and the P2 block
@@ -332,7 +336,7 @@ at less memory than the direct solve.
   gathered from the CSR rows, inverted in place (Gauss–Jordan, partial
   pivoting, one thread per patch) at each refactorisation; a sweep adds
   ω / multiplicity times the local solutions (a velocity lies in up to three
-  patches), ω = `vanka_omega` (0.7), damped Jacobi on uncovered rows (solid
+  patches), ω = `vanka_omega` (default 0.5, was 0.7), damped Jacobi on uncovered rows (solid
   cells). Cycle and knobs as P3 (`mg_cycle` W, `mg_sweeps` 2, `mg_coarse`,
   `mg_levels`, `mg_cycles`, `mg_scale`), coarsest level by the P2 LU hooks
   (cuDSS / UMFPACK). The cycle is a fixed linear operator: restarted GMRES,
@@ -369,8 +373,19 @@ at less memory than the direct solve.
   lines that decide them are in its header. Not a gate.
 - Measured with damping ω = 0.5 and constant prolongation (knobs
   `FV3D_VANKA_OMEGA`, `FV3D_VANKA_PROLONG`): gate D2 passes at 32³, 48³ and 64³ in both cases (flow rate and body force). This
-  is the V5 option `FV5_PRECOND=p4` (`FV5_VANKA_OMEGA`, default 0.5); P3L
-  stays the default of V5 and of the I3 scripts.
+  is the V5 default `FV5_PRECOND=p4` (`FV5_VANKA_OMEGA`, default 0.5).
+- Default: P4 is the preconditioner of `KrylovBackendTag()` on 3D isothermal
+  problems (`precond = :auto`), with `vanka_omega = 0.5` (0.7 fails D2 on the
+  body-force case). The tag default prolongation is still trilinear
+  (`vanka_prolong = :linear`); the D2 passes above were measured with
+  `vanka_prolong = :constant`. P3L stays available (`precond = :mg, block =
+  :upper, schur_approx = :lsc, mg_cycles = 4`, V5 option `FV5_PRECOND=p3l`)
+  and remains the solver of the I3 scripts.
+- V5 twin calibration (stage d, H100): P4 143 s and 5.07 GiB GPU peak, P3L
+  402 s and 6.94 GiB, same fit.
+- Reynolds range (N = 32, first-order upwind convection): P4 stays usable up
+  to Re ≈ 250 (208 GMRES iterations) and fails at Re ≈ 415. P3L at Re ≈ 250
+  was not measured to the end.
 
 ### I5: diagnostic of the block preconditioners, block structure and Schur approximations
 
@@ -676,15 +691,17 @@ Deviations from the design above: the x-plane is stereo (the 2C x-plane
 would only see v and w, the secondary flow); ν∞ = 0.1 ν0, λ = 5, mean
 velocity 0.2 (see below); sheet σ = h/2
 (`FV5_SHEET`); a fourth plane (z = 0.6 Lz, 2C) is held out; the linear
-solver is GMRES + P3L (block upper triangular, LSC Schur, 4 multigrid
-cycles per block; `FV5_PRECOND=p3` restores P3, with which stages a–e were
-run; `FV5_LINSOLVE=direct` restores cuDSS, about 60 GB by the estimate above).
+solver is GMRES + P4 (monolithic Vanka multigrid, ω = 0.5, constant
+prolongation; default since the P4 rerun below); `FV5_PRECOND=p3l` gives P3L
+(block upper triangular, LSC Schur, 4 multigrid cycles per block),
+`FV5_PRECOND=p3` restores P3, with which stages a–e were first run;
+`FV5_LINSOLVE=direct` restores cuDSS, about 60 GB by the estimate above.
 Stage d on the noisy twin, rerun under P3L on an H100 (2026-11-12): same fit
 as under P3 (23 BFGS iterations, η max error 0.21 % over the observed range,
 no unconverged solve), wall 402 s instead of 1201 s, GPU peak 6.94 GiB
 instead of 6.31 GiB. The same twin under P4 (`FV5_PRECOND=p4`, ω = 0.5,
 constant prolongation, H100): same fit, wall 143 s instead of 402 s under
-P3L, GPU peak 5.1 GiB instead of 6.9 GiB.
+P3L, GPU peak 5.07 GiB instead of 6.94 GiB.
 
 LBM stability (first smoke run, stage a diverged with ν∞ = 0). The GNF
 kernel sets τ = 1/2 + 3 ν(γ̇) with no lower bound, so with ν∞ = 0 the
