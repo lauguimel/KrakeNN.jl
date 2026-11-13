@@ -140,6 +140,8 @@ function run_incns_testset()
         # dQ/dν = −Q/ν (~25 s CPU), and its opt-in GPU contract
         include("analytical/incns_fv_adjoint.jl")
         include("analytical/incns_fv_adjoint_gpu.jl")
+        # Plane-PIV observation operator for 3D fields: linear exactness, adjoint, FD gradient, duct.
+        include("analytical/plane_piv_3d.jl")
         # C5-S012 immersed geometry, wall closures and preservation of C1-C4.
         include("analytical/incns_fv_immersed.jl")
         include("analytical/incns_fv_immersed_mms.jl") # C5-S3: injected/solved local wall MMS

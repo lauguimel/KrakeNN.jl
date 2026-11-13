@@ -20,12 +20,14 @@ include("platform/contract.jl")
 include("platform/solution.jl")   # LBM, LBMSolution, solve
 include("platform/sample.jl")     # sample
 include("platform/observe.jl")    # observe, predict, Prediction, observables
+include("platform/piv_observation.jl") # plane-PIV observation operator + adjoint (3D)
 include("platform/state.jl")      # AbstractSimulationState, StateSnapshot, advance!
 export AbstractProblem, AbstractMethod, AbstractSolution, AbstractObservable, AbstractClosure
 export Capability, ForwardSolve, GPUExecution, SteadyAdjoint, TransientAdjoint, FiniteDiff, NeuralClosure, SteadyResidual, AssembledJacobian
 export capabilities
 export LBM, LBMSolution, solve, sample
 export observe, predict, Prediction, FieldProbe, LineProfile, FieldReduction
+export PIVPlane, PIVOperator, piv_operator, piv_apply, piv_apply_adjoint, piv_misfit
 export residual, adjoint_vjp
 export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldParams
 export ParameterSpace, loss, fit, CalibResult
