@@ -103,6 +103,16 @@ S̃ = C − D Q⁻¹ G and of the LSC middle term), `schur_shift` (σ ≥ 0: S̃
 (weight of C in the LSC middle term), `ablock` (velocity-block solver:
 `:auto` = ILU(0) for P2 and multigrid for P3, or `:ilu0`, `:mg`, `:lu` exact
 sparse LU).
+
+`precond = :vanka` (P4, src/solve/linear_solve_mg_monolithic.jl) is a
+monolithic geometric multigrid on the coupled velocity–pressure block (all
+unknowns of a cell coarsened together on 2 × 2 × 2 blocks, restriction by
+sums, prolongation `vanka_prolong = :linear` (trilinear, default) or
+`:constant`, Galerkin coarse operators R J P of the full saddle-point matrix)
+with an additive Vanka smoother (one local saddle-point solve per fluid
+pressure unknown, damping `vanka_omega`, default 0.7); the extras are left to
+GMRES. It takes the same `mg_*` options as P3 (`mg_smoother` and `mg_omega`
+unused) and needs the block layout and the grid geometry.
 """
 Base.@kwdef struct KrylovBackendTag <: LinearSolveBackend
     rtol::Float64 = 1e-6
@@ -131,6 +141,8 @@ Base.@kwdef struct KrylovBackendTag <: LinearSolveBackend
     lsc_alpha::Float64 = 1.0
     ablock::Symbol = :auto
     schur_qscale::Float64 = 0.0
+    vanka_omega::Float64 = 0.7
+    vanka_prolong::Symbol = :linear
 end
 
 # Schur treatment actually used (`:auto` resolved per preconditioner).
@@ -284,8 +296,11 @@ function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovB
     tag.border in (:krylov, :ilu) || throw(ArgumentError("border must be :krylov or :ilu, got :$(tag.border)"))
     tag.trisolve in (:persistent, :simple) ||
         throw(ArgumentError("trisolve must be :persistent or :simple, got :$(tag.trisolve)"))
-    tag.precond in (:ilu0, :simple, :mg) ||
-        throw(ArgumentError("precond must be :ilu0 (P1), :simple (P2) or :mg (P3), got :$(tag.precond)"))
+    tag.precond in (:ilu0, :simple, :mg, :vanka) ||
+        throw(ArgumentError("precond must be :ilu0 (P1), :simple (P2), :mg (P3) or :vanka (P4), got :$(tag.precond)"))
+    tag.vanka_omega > 0 || throw(ArgumentError("vanka_omega must be > 0, got $(tag.vanka_omega)"))
+    tag.vanka_prolong in (:linear, :constant) ||
+        throw(ArgumentError("vanka_prolong must be :linear or :constant, got :$(tag.vanka_prolong)"))
     tag.schur in (:auto, :lu, :ilu0, :mg) ||
         throw(ArgumentError("schur must be :auto, :lu, :ilu0 or :mg, got :$(tag.schur)"))
     tag.mg_cycle in (:V, :W) || throw(ArgumentError("mg_cycle must be :V or :W, got :$(tag.mg_cycle)"))
@@ -296,12 +311,13 @@ function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovB
         throw(ArgumentError("multigrid options: need mg_sweeps >= 0, mg_cycles >= 1, mg_coarse >= 1, " *
                             "mg_levels >= 1, mg_omega >= 0"))
     _bs_check_tag(tag)
-    simple = tag.precond in (:simple, :mg)
+    simple = tag.precond in (:simple, :mg, :vanka)     # block preconditioner (P2/P3/P4): no ILU of J
     simple && A.nfields == 0 &&
         throw(ArgumentError("precond = :$(tag.precond) needs the block layout of the matrix " *
                             "(krylov_csr_matrix(...; nfields, pslot, nlocal))"))
-    simple && (_krylov_ablock_kind(tag) === :mg || _krylov_schur_kind(tag) === :mg) && A.geom === nothing &&
-        throw(ArgumentError("multigrid (precond = :mg or schur = :mg) needs the grid geometry of the " *
+    simple && (tag.precond === :vanka || _krylov_ablock_kind(tag) === :mg ||
+               _krylov_schur_kind(tag) === :mg) && A.geom === nothing &&
+        throw(ArgumentError("multigrid (precond = :mg / :vanka, ablock = :mg or schur = :mg) needs the grid geometry of the " *
                             "matrix (krylov_csr_matrix(...; geometry))"))
     n = A.n
     hrp = Vector{Int32}(Array(A.rowptr))
@@ -319,7 +335,7 @@ function lin_factorize(A::KrylovCSRMatrix; backend::LinearSolveBackend = KrylovB
         end
     end
     fwd = _KrylovSide(A.rowptr, A.colval, _dev_int(A.colval, hd), A.nzval, true; factor = !simple)
-    simple && (fwd.simple = _simple_build(hrp, hcv, A.nfields, A.pslot, A.nlocal, fwd.A, tag, A.geom))
+    simple && (fwd.simple = _krylov_block_build(hrp, hcv, A.nfields, A.pslot, A.nlocal, fwd.A, tag, A.geom))
     nr = simple ? 0 : n
     ratio = fill!(similar(A.nzval, nr), 0.0)
     basis = similar(A.nzval, n, tag.restart + 1)
@@ -475,7 +491,7 @@ function _krylov_tside!(f::KrylovFactor)
                            _dev_int(side.colval, hdt), At, false; factor = !simple)
         if simple
             s = side.simple
-            f.tr.simple = _simple_build(rpt, cvt, s.nfields, s.pslot, s.nlocal, At, f.tag, s.geom)
+            f.tr.simple = _krylov_block_build(rpt, cvt, s.nfields, s.pslot, s.nlocal, At, f.tag, s.geom)
         end
         f.perm = _dev_int(side.colval, perm)
         f.tstale = true

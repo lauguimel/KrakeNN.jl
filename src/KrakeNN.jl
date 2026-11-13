@@ -129,6 +129,8 @@ include("solve/linear_solve_multigrid.jl")
 # Outer block structure (SIMPLE / block triangular) and Schur approximations
 # (SIMPLEC, LSC, PCD, shift) of P2 / P3; exact velocity-block LU.
 include("solve/linear_solve_block_schur.jl")
+# P4 of the Krylov branch: monolithic multigrid with an additive Vanka smoother.
+include("solve/linear_solve_mg_monolithic.jl")
 # NOT included: solve/linear_solve_cuda.jl and methods/inc_ns/cavity_mg_cuda.jl
 # (CUDSS is not a package dependency; they stay manual-load inside GPU jobs.
 #  Package users get the same cuDSS seam via ext/KrakeNNCUDSSExt.jl instead).
@@ -187,7 +189,7 @@ export solve_incns_simple, solve_incns_cavity, solve_incns_cavity_mg,
 export lin_factorize, lin_solve!, lin_refactorize!, lin_supports_transpose,
        LinearSolveCache, LinearSolveBackend, CPUBackendTag, CUDABackendTag,
        KrylovBackendTag, KrylovCSRMatrix, krylov_csr_matrix, lin_krylov_log, lin_krylov_pivot,
-       lin_krylov_blocks
+       lin_krylov_blocks, lin_krylov_stationary
 # LinearSolve.jl / cuDSS front-ends (ext-backed; see [weakdeps])
 export PoissonLinearSolve, solve_poisson_direct
 # Elliptic (Poisson) services

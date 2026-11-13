@@ -31,45 +31,55 @@
 # for the velocity block and one for S̃; mg_lu = P3s, P3 with the LU of S̃;
 # lsc = P3L, block upper triangular with the LSC Schur approximation, multigrid
 # for A and S̃; lsc_lu = P3Ls, P3L with the LU of S̃; see
-# src/solve/linear_solve_block_schur.jl):
+# src/solve/linear_solve_block_schur.jl; vanka = P4, one monolithic multigrid
+# cycle on the coupled velocity–pressure block with an additive Vanka smoother,
+# src/solve/linear_solve_mg_monolithic.jl):
 #   (1) Newton from rest with pseudo-transient continuation on branch K
 #       (forward GMRES tolerance FV3D_ETA, default 1e-6); GMRES iterations of
 #       every Newton step;
 #   (2) at the converged state, re-assembled J: one forward solve at η and one
 #       transposed solve at FV3D_ETA_T (default 1e-10): iterations, time,
-#       device bytes of the call; pivot report; P2 block sizes;
+#       device bytes of the call; pivot report; P2 block sizes; for P3/P4 the
+#       residual ratios of 8 steps of the stationary iteration
+#       x <- x + M⁻¹ (b − J x) on the local block (one preconditioner
+#       application per step: the convergence factor of one cycle, first
+#       step, last step and geometric mean, forward and transposed);
 #   (3) adjoint gradient w.r.t. the five Carreau parameters;
 #   (4) device memory in use after the build, the Newton solve and the adjoint,
 #       relative to the memory in use before the build (every earlier solver is
 #       released first: its device arrays freed and cuDSS objects finalized);
 #   (5) for N <= FV3D_DIRECT_MAX (default 32): branch D (cuDSS) once per
 #       (case, N), state and gradient compared with each K run.
-# D2 gates (on the preconditioners in FV3D_GATE, default mg when mg is in
-# FV3D_PRECONDS, else simple; the others are reported only): every K Newton
-# solve and every transposed solve converge; GMRES iterations at the largest N
-# <= 200 and growing at most linearly in N (for P1/P2 the forward solve of
-# step (2); for P3/P3s/P3L/P3Ls the largest of that count and of every
-# Newton-step solve: the step-(2) solve has a synthetic O(1) right-hand side,
-# also in the continuity rows, and at 48³–64³ with P3 it needs about twice the
-# worst Newton step, so it usually sets the gated count; both are printed);
-# device memory <= FV3D_MEM_GB (default 9) for N <= FV3D_MEM_NMAX
-# (default 48; every N for P1/P2); K vs D: state and gradient within 1e-6
-# relative (1e-8 for P3/P3s/P3L/P3Ls). For those one line
-# "D2 <label> <case>: PASS|FAIL (...)" per case sums the gate up. A NOTE line
-# flags every solve whose GMRES count exceeds the restart length.
+# D2 gates (on the preconditioners in FV3D_GATE, default the multigrid ones
+# (mg, lsc, lsc_lu, vanka) present in FV3D_PRECONDS, else simple; the others
+# are reported only): every K Newton solve and every transposed solve
+# converge; GMRES iterations at the largest N <= 200 and growing at most
+# linearly in N (for P1/P2 the forward solve of step (2); for
+# P3/P3s/P3L/P3Ls/P4 the largest of that count and of every Newton-step solve:
+# the step-(2) solve has a synthetic O(1) right-hand side, also in the
+# continuity rows, and at 48³–64³ with P3 it needs about twice the worst Newton
+# step, so it usually sets the gated count; both are printed); device memory
+# <= FV3D_MEM_GB (default 9) for N <= FV3D_MEM_NMAX (default 48; every N for
+# P1/P2); K vs D: state and gradient within 1e-6 relative (1e-8 for
+# P3/P3s/P3L/P3Ls/P4). For those one line "D2 <label> <case>: PASS|FAIL (...)"
+# per case sums the gate up. A NOTE line flags every solve whose GMRES count
+# exceeds the restart length.
 #
 #   FV3D_BACKEND=cuda FV3D_NS=24,32,48 julia --project=<env> benchmarks/fv3d/i4_krylov_measure.jl
 #   FV3D_BACKEND=cpu  FV3D_NS=6,8      julia --project benchmarks/fv3d/i4_krylov_measure.jl   (smoke)
 # Other knobs: FV3D_RESTART (50), FV3D_MAXITER (2000), FV3D_TRISOLVE
-# (persistent | simple), FV3D_CASES (flowrate,source). P3 knobs (see
+# (persistent | simple), FV3D_CASES (flowrate,source). P3/P4 knobs (see
 # KrylovBackendTag): FV3D_MG_CYCLE (W | V), FV3D_MG_SMOOTHER (l1jacobi |
-# jacobi | ilu0), FV3D_MG_SWEEPS (2), FV3D_MG_CYCLES (1), FV3D_MG_COARSE
-# (2000), FV3D_MG_OMEGA (0 = smoother default), FV3D_MG_SCALE (1).
+# jacobi | ilu0; P3 only), FV3D_MG_SWEEPS (2), FV3D_MG_CYCLES (1),
+# FV3D_MG_COARSE (2000), FV3D_MG_OMEGA (0 = smoother default; P3 only),
+# FV3D_MG_SCALE (1); P4 only: FV3D_VANKA_OMEGA (0.7), FV3D_VANKA_PROLONG
+# (linear | constant).
 # FV3D_TAG_EXTRA = any KrylovBackendTag options "name=value,…", applied last to
 # every K preconditioner (they override the label's and the FV3D_MG_* ones), e.g.
 #   FV3D_PRECONDS=lsc FV3D_TAG_EXTRA="mg_cycles=4"
 #   FV3D_PRECONDS=mg FV3D_TAG_EXTRA="block=upper,schur_approx=lsc,mg_cycles=4"
 #   FV3D_TAG_EXTRA="schur_q=scalar,schur_qscale=volume"   (Q = h³ I, per N)
+#   FV3D_PRECONDS=vanka FV3D_TAG_EXTRA="vanka_omega=0.5,vanka_prolong=constant"
 # Use FV3D_OUT to keep the TOML file of each variant.
 if lowercase(get(ENV, "FV3D_BACKEND", "cuda")) == "cuda"
     using CUDA
@@ -88,7 +98,7 @@ const DIRECT_MAX = parse(Int, get(ENV, "FV3D_DIRECT_MAX", FV3D_GPU ? "32" : "8")
 const MEM_GB = parse(Float64, get(ENV, "FV3D_MEM_GB", "9"))
 const CASES = split(get(ENV, "FV3D_CASES", "flowrate,source"), ','; keepempty = false)
 const PRECONDS = split(get(ENV, "FV3D_PRECONDS", "ilu0,simple"), ','; keepempty = false)
-const GATED_DEFAULT = filter(in(PRECONDS), ["mg", "lsc", "lsc_lu"])
+const GATED_DEFAULT = filter(in(PRECONDS), ["mg", "lsc", "lsc_lu", "vanka"])
 const GATED = split(get(ENV, "FV3D_GATE", isempty(GATED_DEFAULT) ? "simple" : join(GATED_DEFAULT, ",")), ',';
                     keepempty = false)
 const MEM_NMAX = parse(Int, get(ENV, "FV3D_MEM_NMAX", "48"))
@@ -106,22 +116,25 @@ const MG = (; mg_cycle = Symbol(get(ENV, "FV3D_MG_CYCLE", "W")),
             mg_cycles = parse(Int, get(ENV, "FV3D_MG_CYCLES", "1")),
             mg_coarse = parse(Int, get(ENV, "FV3D_MG_COARSE", "2000")),
             mg_omega = parse(Float64, get(ENV, "FV3D_MG_OMEGA", "0")),
-            mg_scale = parse(Float64, get(ENV, "FV3D_MG_SCALE", "1")))
+            mg_scale = parse(Float64, get(ENV, "FV3D_MG_SCALE", "1")),
+            vanka_omega = parse(Float64, get(ENV, "FV3D_VANKA_OMEGA", "0.7")),
+            vanka_prolong = Symbol(get(ENV, "FV3D_VANKA_PROLONG", "linear")))
 
 const EXTRA = fv3d_tag_opts(get(ENV, "FV3D_TAG_EXTRA", ""))   # fv3d_common.jl
 
 const PLABEL = Dict("ilu0" => "P1", "simple" => "P2", "simple_ilu" => "P2i", "mg" => "P3", "mg_lu" => "P3s",
-                    "lsc" => "P3L", "lsc_lu" => "P3Ls")
+                    "lsc" => "P3L", "lsc_lu" => "P3Ls", "vanka" => "P4")
 for pc in PRECONDS
     haskey(PLABEL, pc) ||
-        error("FV3D_PRECONDS: unknown preconditioner $pc (ilu0, simple, simple_ilu, mg, mg_lu, lsc, lsc_lu)")
+        error("FV3D_PRECONDS: unknown preconditioner $pc (ilu0, simple, simple_ilu, mg, mg_lu, lsc, lsc_lu, vanka)")
 end
-ismg(pc) = pc in ("mg", "mg_lu", "lsc", "lsc_lu")
+# multigrid preconditioners: gate on every Newton-step solve too
+ismg(pc) = pc in ("mg", "mg_lu", "lsc", "lsc_lu", "vanka")
 
 function ktag(pc, N)
     d = Dict{Symbol,Any}(:rtol => ETA, :rtol_transpose => ETA_T, :restart => RESTART,
                          :maxiter => MAXITER, :trisolve => TRISOLVE, :strict => false,
-                         :precond => pc == "ilu0" ? :ilu0 : ismg(pc) ? :mg : :simple,
+                         :precond => pc == "ilu0" ? :ilu0 : pc == "vanka" ? :vanka : ismg(pc) ? :mg : :simple,
                          :schur => pc == "simple_ilu" ? :ilu0 : pc in ("mg", "lsc") ? :mg : :lu)
     merge!(d, Dict{Symbol,Any}(pairs(MG)))
     pc in ("lsc", "lsc_lu") && merge!(d, Dict{Symbol,Any}(:block => :upper, :schur_approx => :lsc))
@@ -258,6 +271,13 @@ function run_branch(p, case, linsolve)
     bytes_fwd = fv3d_devalloc(() -> lin_solve!(x, s.cache, b))
     t_tr = @elapsed (lin_solve!(x, s.cache, b; transpose = true); fv3d_sync())
     bytes_tr = fv3d_devalloc(() -> lin_solve!(x, s.cache, b; transpose = true))
+    # multigrid preconditioners: stationary iteration of one application on the local block
+    stat = nothing
+    if isK && linsolve.precond in (:mg, :vanka)
+        stf = lin_krylov_stationary(s.cache, b; iters = 8, local_block = true)
+        stt = lin_krylov_stationary(s.cache, b; iters = 8, local_block = true, transpose = true)
+        stat = (; ratios = stf.ratios, factor = stf.factor, ratios_T = stt.ratios, factor_T = stt.factor)
+    end
     # (3) adjoint gradient w.r.t. the Carreau parameters
     obj = objective(p, case)
     t_grad = @elapsed (r = fv_steady_gradient(s, U, THETA, obj; params = FVLawParameters(5)); fv3d_sync())
@@ -296,6 +316,16 @@ function run_branch(p, case, linsolve)
         end
         if blk !== nothing && blk.mg_S !== nothing
             out["mg_S_sizes"] = blk.mg_S.sizes; out["mg_S_complexity"] = blk.mg_S.operator_complexity
+        end
+        if blk !== nothing && hasproperty(blk, :vanka)
+            vk = blk.vanka
+            out["vanka_sizes"] = vk.sizes; out["vanka_nnz"] = vk.nnz; out["vanka_patches"] = vk.patches
+            out["vanka_patch_max"] = vk.patch_max; out["vanka_complexity"] = vk.operator_complexity
+            out["vanka_prolong"] = String(vk.prolong); out["vanka_omega"] = vk.omega
+        end
+        if stat !== nothing
+            out["stationary_ratios"] = stat.ratios; out["stationary_factor"] = stat.factor
+            out["stationary_ratios_T"] = stat.ratios_T; out["stationary_factor_T"] = stat.factor_T
         end
     end
     release_all!(s)
@@ -355,6 +385,14 @@ for case in CASES
                             L, case, N, string(k["mg_A_sizes"]), k["mg_A_complexity"],
                             haskey(k, "mg_S_sizes") ? @sprintf("  S levels %s (operator complexity %.2f)",
                                                                string(k["mg_S_sizes"]), k["mg_S_complexity"]) : "")
+                haskey(k, "vanka_sizes") &&
+                    @printf("SUMMARY %-3s %-8s N=%3d  monolithic multigrid levels %s nnz %s patches %s (largest %s) operator complexity %.2f  prolongation %s  omega %.2f\n",
+                            L, case, N, string(k["vanka_sizes"]), string(k["vanka_nnz"]), string(k["vanka_patches"]),
+                            string(k["vanka_patch_max"]), k["vanka_complexity"], k["vanka_prolong"], k["vanka_omega"])
+                haskey(k, "stationary_factor") &&
+                    @printf("SUMMARY %-3s %-8s N=%3d  stationary factor of one application (local block, 8 steps): forward first %.3f tail %.3f mean %.3f | transposed first %.3f tail %.3f mean %.3f\n",
+                            L, case, N, k["stationary_ratios"][1], k["stationary_ratios"][end], k["stationary_factor"],
+                            k["stationary_ratios_T"][1], k["stationary_ratios_T"][end], k["stationary_factor_T"])
                 @printf("SUMMARY %-3s %-8s N=%3d  Re=%.1f  newton it=%d conv=%s %.1f s  gmres per newton step %s (max %d)  fwd it (synthetic rhs)=%d (%.2f s, %d B)  transp it=%d conv=%s (%.2f s, %d B)  adjoint it=%d %.1f s  pivot min %.1e small %d  mem build/solve/adjoint %.2f/%.2f/%.2f GiB (before %.2f)%s\n",
                         L, case, N, k["Re"], k["newton_iterations"], k["converged"], k["t_newton"],
                         string(k["newton_gmres_iters"]), nmax, k["forward_iters"], k["forward_seconds"],

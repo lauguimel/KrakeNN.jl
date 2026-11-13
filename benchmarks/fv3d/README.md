@@ -286,6 +286,85 @@ velocity block A and S̃ each get their own hierarchy (S̃ by default,
   Schur complement may itself make GMRES counts grow with N, whatever the
   block solvers; `FV3D_PRECONDS=mg,mg_lu,simple` separates the two effects.
 - CPU validation: testset (5) of `test/analytical/incns_fv3d_krylov_test.jl`.
+- Measured (flow-rate case, Re 50, H100, reported 2026-11-10): forward GMRES 75 / 94 / 146 at
+  16³ / 24³ / 32³; the stationary aggregation cycle has an asymptotic factor
+  ≈ 0.9 on the velocity block and up to 0.97 on S̃ (smooth errors poorly
+  corrected by piecewise-constant transfers). A block-triangular LSC
+  preconditioner with exact inner solves takes 26 / 26 iterations, 134 /
+  173 / 450 with the same aggregation cycles inside.
+
+### P4: monolithic multigrid with an additive Vanka smoother (not run yet)
+
+`precond = :vanka` (code in `src/solve/linear_solve_mg_monolithic.jl`, hooks
+`_krylov_block_build` and the tag fields `vanka_omega`, `vanka_prolong` in
+`linear_solve_krylov.jl`) drops the SIMPLE splitting: one multigrid cycle on
+the coupled velocity–pressure block of J is the preconditioner, the flow-rate
+border is left to GMRES as in P2/P3 (a rank-one bordering of the
+preconditioned operator: at most one extra GMRES iteration in exact
+arithmetic). Target set by the P3 measurement: about 30 iterations flat in N,
+at less memory than the direct solve.
+
+- Hierarchy: the P3 aggregation of the cell grid (2 × 2 × 2 blocks, solid and
+  fluid apart), all four unknowns of a cell coarsened together so every
+  level keeps the (u, v, w, p) block structure. Transfers: restriction by
+  sums (the finite-volume restriction), prolongation trilinear and
+  cell-centred (3/4 own block, 1/4 nearest block per axis, same field and
+  class; dropped and renormalised at walls, wrapped on periodic axes), so
+  the transfer orders add up to 3 > 2 (Wesseling–Khalil cell-centred
+  multigrid; the aggregation of P3 adds up to 2, hence its 0.9 factor).
+  `vanka_prolong = :constant` keeps P = Rᵀ for the A/B. Coarse operators
+  R J P (Petrov–Galerkin) of the full saddle-point block: summing continuity
+  rows cancels the interior mass fluxes of a block, the Rhie–Chow
+  (1, −4, 6, −4, 1)/4 pressure stencil on the trilinear interpolant keeps a
+  positive diagonal (3/8 · h d_f per axis per block in 1D) and a zero row
+  sum, the pinned row contributes to its block diagonal: the coarse C block
+  stays a stabilisation of the same kind, no rediscretisation. Patterns on
+  the host once (coarse stencil up to 5 × 5 × 5 cells, operator complexity
+  expected ≈ 2.1–2.3, grid complexity ≈ 1.14), values one thread per coarse
+  row on the device (binary search in the sorted row, no atomics).
+- Smoother: additive Vanka, one patch per fluid pressure unknown = the
+  pressure, the three velocities of its cell and the face-normal velocities
+  of its six neighbours (10 dofs; a single-cell 4 × 4 patch would be point
+  Jacobi on this collocated scheme, since the continuity row of a cell has
+  a zero coefficient on its own velocity in the interior). Local matrices
+  gathered from the CSR rows, inverted in place (Gauss–Jordan, partial
+  pivoting, one thread per patch) at each refactorisation; a sweep adds
+  ω / multiplicity times the local solutions (a velocity lies in up to three
+  patches), ω = `vanka_omega` (0.7), damped Jacobi on uncovered rows (solid
+  cells). Cycle and knobs as P3 (`mg_cycle` W, `mg_sweeps` 2, `mg_coarse`,
+  `mg_levels`, `mg_cycles`, `mg_scale`), coarsest level by the P2 LU hooks
+  (cuDSS / UMFPACK). The cycle is a fixed linear operator: restarted GMRES,
+  no FGMRES.
+- Transposed solve: a second hierarchy with the same rule on the gathered
+  Jᵀ (not the transpose of the forward hierarchy: the transfer orders are
+  what matters), same patches with the local matrices of Jᵀ.
+- Diagnostics: `lin_krylov_stationary(cache, b; iters, transpose,
+  local_block)` gives the residual ratios of the stationary iteration with
+  one application per step (the convergence factor of one cycle, first and
+  tail); the benchmark prints them per N for P3 and P4 ("SUMMARY ...
+  stationary factor"), with the hierarchy line (levels, nnz, patches,
+  operator complexity).
+- Memory per side (64³, estimated, not measured): fine values gathered
+  0.45 GB (flow-rate case only), coarse levels ≈ 0.8 GB at operator
+  complexity 2.2, transfers ≈ 0.1 GB, patch inverses 0.2 GB, work vectors
+  0.1 GB; with J, Jᵀ, both sides, the GMRES basis and the Newton/adjoint
+  vectors about 6–7 GB in all, against cuDSS factors growing like
+  cells^(4/3).
+- Benchmark: `FV3D_PRECONDS=vanka[,mg]`, knobs `FV3D_VANKA_OMEGA`,
+  `FV3D_VANKA_PROLONG` and the `FV3D_MG_*` of P3; the D2 count and the
+  `D2 P4 <case>` line follow the P3 rule.
+- CPU validation: testset (6) of `test/analytical/incns_fv3d_krylov_test.jl`
+  (hierarchy, patches, solves, Newton, adjoint, FD check).
+- Source-case diagnostic (written, not run): with constant prolongation P4
+  passes the flow-rate case but not the body-force case (GMRES at the 2000
+  cap at N = 32, transposed also at N = 48). `i4_vanka_diag.jl` takes the
+  converged state of the direct branch and prints, per case and N, the
+  per-level smoother and cycle factors, the singular values and eigenvalues
+  of the coarsest level, the dominant mode of the stationary iteration, the
+  GMRES(50) / GMRES-DR / GMRES(200) residual histories with the harmonic Ritz
+  values, the flow-rate matrix solved without its border, and variants
+  (ω 0.5, coarse scale 1.5, one level fewer, 4 sweeps). Hypotheses and the
+  lines that decide them are in its header. Not a gate.
 
 ### I5: diagnostic of the block preconditioners, block structure and Schur approximations
 

@@ -115,9 +115,17 @@ function fv5_linsolve()
     kind == "krylov" || error("FV5_LINSOLVE must be krylov or direct, got $kind")
     # FV5_PRECOND = p3l (default): block upper-triangular with the LSC Schur
     # approximation and 4 multigrid cycles per block (P3L, gate D2 passed at 64³);
-    # p3: the earlier block SIMPLE with one cycle (P3), kept for comparison.
+    # p3: the earlier block SIMPLE with one cycle (P3), kept for comparison;
+    # p4: monolithic Vanka multigrid, constant prolongation, damping
+    # FV5_VANKA_OMEGA (0.5, D2 passed in both cases).
     pc = lowercase(fv5_env("FV5_PRECOND", "p3l"))
-    pc in ("p3l", "p3") || error("FV5_PRECOND must be p3l or p3, got $pc")
+    pc in ("p3l", "p3", "p4") || error("FV5_PRECOND must be p3l, p3 or p4, got $pc")
+    pc == "p4" && return KrylovBackendTag(; rtol = fv5_float("FV5_ETA", 1e-6),
+                            rtol_transpose = fv5_float("FV5_ETA_T", 1e-10),
+                            restart = 50, maxiter = 2000, strict = false, trisolve = :persistent,
+                            precond = :vanka, schur = :lu, mg_cycle = :W, mg_smoother = :l1jacobi,
+                            mg_sweeps = 2, mg_cycles = 1, mg_coarse = 2000, mg_omega = 0.0, mg_scale = 1.0,
+                            vanka_omega = fv5_float("FV5_VANKA_OMEGA", 0.5), vanka_prolong = :constant)
     # same tag as before the helper: FV3D_P3_BASE (fv3d_common.jl) plus `extra`
     extra = pc == "p3l" ? FV3D_P3L_EXTRA : (; mg_cycles = 1)
     return fv3d_p3_tag(; rtol = fv5_float("FV5_ETA", 1e-6), rtol_transpose = fv5_float("FV5_ETA_T", 1e-10), extra)

@@ -28,7 +28,15 @@
 #       and one preconditioner application (forward and transposed side, exact
 #       inner solves) against a dense reference, linear solves with exact and
 #       with ILU / multigrid inner solves, Newton state and adjoint gradients
-#       against branch D.
+#       against branch D;
+#   (7) preconditioner P4 (`precond = :vanka`, monolithic multigrid with an
+#       additive Vanka smoother): hierarchy properties on the FV Jacobians
+#       (sum restriction, trilinear or constant prolongation with P 1 = 1,
+#       coarse operators = R A P, one patch per fluid pressure unknown, every
+#       fluid unknown covered, stored patch inverses exact, fluid pressure
+#       diagonals positive on every level, same checks on the hierarchy of
+#       Jᵀ), linear solves, Newton state, adjoint gradients and one FD check
+#       against branch D, stationary residual ratios of one cycle (logged).
 using Test
 using LinearAlgebra
 using Random
@@ -627,4 +635,161 @@ _i4_bs_tag(; kw...) = KrylovBackendTag(; rtol = 1e-10, rtol_transpose = 1e-10, k
                         tag = KrylovBackendTag(; precond = :mg, mg_coarse = 16, block = :upper,
                                                schur_approx = :lsc, schur_shift = 1.0, tagG...))
     @info "I4 adjoint block upper + LSC + shift vs D (Carreau + flow rate)" rel = [r[2] for r in res]
+end
+
+# ------------------------------------------------------------------ (7) P4 = monolithic Vanka multigrid
+const _I4_P4 = KrylovBackendTag(; precond = :vanka, mg_coarse = 16, rtol = 1e-10, rtol_transpose = 1e-11,
+                                strict = false)
+
+# Hierarchy checks of one monolithic Vanka preconditioner `sm` built on the
+# local block `Jloc` (host sparse matrix, `nf` fields per cell, pressure slot
+# `ps`) of the grid `geom`: level 1 = Jloc; on every level one patch per fluid
+# pressure unknown (at most 10 dofs, fluid only, every fluid unknown in some
+# patch) with the stored inverse equal to the inverse of the local matrix;
+# restriction by sums, prolongation rows summing to 1 with the own block
+# dominant, solid and fluid nodes never in the same coarse node, coarse
+# operators R A P; fluid pressure diagonals non-zero (positive when
+# `positive`) on every level. Returns the level sizes.
+function _i4_vanka_check(sm, Jloc, geom, nf, ps; positive = true)
+    nl = length(sm.levels)
+    @test nl >= 2
+    nloc = size(Jloc, 1)
+    A1 = KrakeNN._vanka_level_matrix(sm, 1)
+    @test norm(A1 - Jloc) <= 1e-13 * norm(Jloc)
+    nd = KrakeNN._mg_nodes(Int32[(i - 1) ÷ nf + 1 for i in 1:nloc], Int32[(i - 1) % nf + 1 for i in 1:nloc], geom)
+    sizes = Int[]
+    for l in 1:nl
+        Al = KrakeNN._vanka_level_matrix(sm, l)
+        n = size(Al, 1)
+        push!(sizes, n)
+        pres = [i for i in 1:n if nd.comp[i] == ps && nd.cls[i] == 0]
+        fluid = [i for i in 1:n if nd.cls[i] == 0]
+        @test all(Al[i, i] != 0 for i in pres)
+        positive && @test all(Al[i, i] > 0 for i in pres)
+        L = sm.levels[l]
+        if l == nl
+            @test L.np == 0 && L.coarse !== nothing
+            break
+        end
+        @test L.np == length(pres) && 1 <= L.M <= 10
+        covered = falses(n)
+        for t in 1:L.np
+            dofs, Mi = KrakeNN._vanka_patch(sm, l, t)
+            @test pres[t] in dofs && issorted(dofs) && allunique(dofs)
+            @test all(nd.cls[d] == 0 for d in dofs)
+            Mref = inv(Matrix(Al[dofs, dofs]))
+            @test norm(Mi - Mref) <= 1e-8 * norm(Mref)
+            covered[dofs] .= true
+        end
+        @test all(covered[fluid])
+        R = KrakeNN._vanka_restriction_matrix(sm, l)
+        P = KrakeNN._vanka_prolongation_matrix(sm, l)
+        Ac = KrakeNN._vanka_level_matrix(sm, l + 1)
+        agg, ndc, nc = KrakeNN._mg_aggregate(nd)
+        @test size(R) == (nc, n) && size(P) == (n, nc) && size(Ac) == (nc, nc)
+        @test all(==(1.0), KrakeNN.nonzeros(R))
+        @test R * ones(n) == [count(==(c), agg) for c in 1:nc]
+        @test norm(P * ones(nc) - ones(n)) <= 1e-13
+        @test all(P[a, agg[a]] >= maximum(P[a, :]) - 1e-12 for a in 1:n)
+        @test all(ndc.cls[agg[a]] == nd.cls[a] for a in 1:n)
+        @test norm(Matrix(Ac) - Matrix(R * Al * P)) <= 1e-12 * norm(Matrix(Ac))
+        nd = ndc
+    end
+    return sizes
+end
+
+@testset "Krylov P4 (monolithic Vanka multigrid): hierarchy, solves, Newton, gradient" begin
+    rng = MersenneTwister(59)
+    for (pname, p) in (("duct", _i4_duct()), ("Carreau + flow rate", _i4_carreau()))
+        sD = fv_newton_solver(p)
+        UD = _i4_solve!(sD, _i4_U0(p))
+        for (label, tg) in (("P4 W linear", KrylovBackendTag(; precond = :vanka, mg_coarse = 16, rtol = 1e-10,
+                                                           rtol_transpose = 1e-10)),
+                            ("P4 V constant", KrylovBackendTag(; precond = :vanka, mg_coarse = 16, mg_cycle = :V,
+                                                              vanka_prolong = :constant, mg_sweeps = 1,
+                                                              rtol = 1e-10, rtol_transpose = 1e-10)))
+            sK = fv_newton_solver(p; linsolve = tg)
+            fv_jacobian!(sD, UD); fv_jacobian!(sK, UD)
+            J = sD.J
+            nloc = sK.J.nlocal
+            cD = lin_factorize(J; backend = CPUBackendTag(), spd = false)
+            cK = lin_factorize(sK.J; backend = tg)
+            blk = lin_krylov_blocks(cK)
+            @test blk.schur === :none && blk.mg_A === nothing && blk.np == fv_ncells(p)
+            vk = blk.vanka
+            @test vk.levels >= 2 && vk.sizes[1] == nloc && issorted(vk.sizes; rev = true)
+            @test vk.prolong === tg.vanka_prolong && vk.periodic == (true, false, false)
+            @test vk.patches[1] == count(!, sK.J.geom.solid) && vk.patch_max[1] <= 10
+            @test lin_krylov_pivot(cK).min_ratio > 0
+            sizes = _i4_vanka_check(cK.factor.fwd.simple, J[1:nloc, 1:nloc], sK.J.geom, 4, 4)
+            @test sizes == vk.sizes
+            b = randn(rng, size(J, 1))
+            for state in 1:2
+                if state == 2                                   # refactorization: new values on every level
+                    U2 = UD .+ 1e-3 .* randn(rng, length(UD))
+                    fv_jacobian!(sD, U2); fv_jacobian!(sK, U2)
+                    lin_refactorize!(cD); lin_refactorize!(cK)
+                end
+                for tr in (false, true)
+                    Jop = tr ? transpose(sD.J) : sD.J
+                    xD = lin_solve!(cD, b; transpose = tr)
+                    xK = lin_solve!(cK, b; transpose = tr)
+                    @test norm(Jop * xK - b) <= 1e-10 * norm(b) * (1 + 1e-6)
+                    @test norm(xK - xD) <= 1e-5 * norm(xD)
+                    @test last(lin_krylov_log(cK)).converged
+                end
+            end
+            # hierarchy of the transposed side: the same rule on the local block of Jᵀ
+            Jt = KrakeNN.sparse(transpose(sD.J[1:nloc, 1:nloc]))
+            _i4_vanka_check(cK.factor.tr.simple, Jt, sK.J.geom, 4, 4; positive = false)
+            # stationary iteration of one application on the local block: finite ratios (logged, not gated)
+            st = lin_krylov_stationary(cK, b; iters = 6, local_block = true)
+            stt = lin_krylov_stationary(cK, b; iters = 6, local_block = true, transpose = true)
+            @test length(st.ratios) == 6 && all(isfinite, st.ratios) && all(isfinite, stt.ratios)
+            @test abs(st.norms[1] - norm(b[1:nloc])) <= 1e-12 * norm(b)
+            @info "I4 $label solve ($pname)" iters = [e.iters for e in lin_krylov_log(cK)] sizes = vk.sizes patches = vk.patches operator_complexity = vk.operator_complexity stationary_forward = st.ratios stationary_transposed = stt.ratios
+        end
+        # Newton with P4 reaches the branch-D state
+        sK = fv_newton_solver(p; linsolve = _I4_P4)
+        UK = _i4_solve!(sK, _i4_U0(p))
+        @test norm(UK - UD, Inf) <= 1e-9 * norm(UD, Inf)
+        @info "I4 Newton P4 vs D ($pname)" rel = norm(UK - UD, Inf) / norm(UD, Inf) gmres_iters = [e.iters for e in lin_krylov_log(sK.cache)]
+    end
+    # P4 needs the geometry and the block layout; option checks; the stationary helper needs a Krylov cache
+    p = _i4_duct()
+    s0 = fv_newton_solver(p; linsolve = KrylovBackendTag())
+    fv_jacobian!(s0, _i4_U0(p))
+    nogeom = KrylovCSRMatrix(s0.J.n, s0.J.rowptr, s0.J.colval, s0.J.nzval, s0.J.border, s0.J.nfields,
+                             s0.J.pslot, s0.J.nlocal)
+    @test_throws ArgumentError lin_factorize(nogeom; backend = KrylovBackendTag(; precond = :vanka))
+    bare = KrylovCSRMatrix(s0.J.n, s0.J.rowptr, s0.J.colval, s0.J.nzval, 0)
+    @test_throws ArgumentError lin_factorize(bare; backend = KrylovBackendTag(; precond = :vanka))
+    @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, vanka_omega = 0.0))
+    @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, vanka_prolong = :bogus))
+    @test_throws ArgumentError lin_factorize(s0.J; backend = KrylovBackendTag(; precond = :vanka, mg_cycle = :K))
+    sDd = fv_newton_solver(p)
+    fv_jacobian!(sDd, _i4_U0(p))
+    cDd = lin_factorize(sDd.J; backend = CPUBackendTag(), spd = false)
+    @test_throws ArgumentError lin_krylov_stationary(cDd, randn(MersenneTwister(1), size(sDd.J, 1)))
+    # adjoint gradients through P4 == through branch D
+    base = _i4_duct()
+    res = _i4_grad_pair(base, FVUniformViscosity(), [0.04],
+                        (("flow rate", fv_flow_rate(base, 2)), ("wall force", FVWallForce(1; region = :solid)));
+                        tag = _I4_P4)
+    @info "I4 adjoint P4 vs D (duct, uniform nu)" rel = [r[2] for r in res]
+    cb = _i4_carreau()
+    res = _i4_grad_pair(cb, FVLawParameters(5), [0.05, 0.01, 2.0, 2.0, 0.5],
+                        (("Fx", fv_flow_force_objective(cb)), ("wall force", FVWallForce(1; region = :solid)));
+                        tag = _I4_P4)
+    @info "I4 adjoint P4 vs D (Carreau + flow rate)" rel = [r[2] for r in res]
+    # one centred FD check through P4 Newton re-solves (uniform nu, flow rate)
+    map = FVUniformViscosity(); θ = [0.04]; obj = fv_flow_rate(base, 2)
+    (_, _, rK, _, UK) = first(_i4_grad_pair(base, map, θ, (("flow rate", obj),); tag = _I4_P4))
+    sfd = fv_newton_solver(base; linsolve = _I4_P4)
+    Jfd4(t) = (_i4_restart!(sfd, base); fv_set_params!(sfd, map, [t]);
+               fv_objective(obj, _i4_solve!(sfd, copy(UK)), sfd.prob))
+    gd = rK.grad[1]
+    err = minimum(abs((Jfd4(θ[1] + ε) - Jfd4(θ[1] - ε)) / (2ε) - gd) for ε in (4e-6, 8e-7))
+    @test err <= 2e-7 + 1e-6 * abs(gd)
+    @info "I4 adjoint via P4 vs centred FD (uniform nu, flow rate)" gd err
 end
