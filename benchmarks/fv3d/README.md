@@ -25,6 +25,8 @@ Every script:
 | `i2_adjoint_measure.jl` | I2: CPU/GPU parity of adjoint gradients (uniform ν, ν field, side velocity, x source, NN law parameters) for the composite PIV objective (3 planes + flow-rate/Fx + wall-force terms); device bytes of the objective and of the gradient; gradient cost vs median Newton iteration (finalize / factors reused) | parity 1e-12 relative (∞-norm), ≤ 1024 device bytes for the all-linear objective and gradient, the same at `FV3D_CHECK_N` and at the largest `FV3D_NS`, Newton converged | `FV3D_CHECK_N=8 FV3D_NS=32` (`FV3D_NS=32,48` for the cost curve) |
 | `i4_krylov_measure.jl` | I4 (input of D2): branch K (GMRES, `KrylovBackendTag`) with P1 = ILU(0), P2 = block SIMPLE and P3 = block SIMPLE with multigrid blocks (`mg`) and P3L = block upper triangular with LSC (`lsc`; other `KrylovBackendTag` options through `FV3D_TAG_EXTRA`) side by side on a Carreau duct with obstacle at Re 50, imposed flow rate and body force; GMRES iterations per Newton step, forward / transposed iterations, time, device bytes per solve (forward η = 1e-6, transposed 1e-10), pivot report, adjoint gradient, device memory of each branch measured alone; branch D (cuDSS) compared where it fits | on the gated preconditioners (`FV3D_GATE`, default P2): Newton and transposed solves converge; forward iterations ≤ 200 at the largest N and growing at most linearly in N; memory ≤ `FV3D_MEM_GB` (9); K vs D state and gradient 1e-6 | `FV3D_NS=24,32,48 FV3D_DIRECT_MAX=32 FV3D_PRECONDS=ilu0,simple` |
 | `i5_mg_diagnose.jl` | I5 (input of D2): diagnostic of the block preconditioners at the converged duct state, per `KrylovBackendTag` configuration (`FV3D_TAGS`): stationary multigrid reduction per level (a), GMRES on A (b), on S̃ (c), on the true Schur complement with exact A (e), on J (d), each also with exact inner solves | none (measurements only) | `FV3D_NS=16,24,32` |
+| `v0p_energy_mms.jl` | I3, V0' energy rows: manufactured temperature on N³, conduction (u = 0) and convection (V0' flow, viscous heating), side sets walls / periodic x, L2 and L∞ of T, orders | finest pair, L2 and L∞ of T: conduction ≥ 1.8, convection ≥ 0.9; with `FV3D_LINSOLVE=krylov`: every GMRES solve converges, K vs D state 1e-6 for N ≤ `FV3D_DIRECT_MAX` (24) | `FV3D_NS=12,16,24` (10 GB), `16,24,32,48` (80 GB); `FV3D_LINSOLVE=krylov FV3D_NS=16,24,32,48,64` (run on an 80 GB H100, peak 4.7 GB); `FV3D_CASES=` filters |
+| `v4_heated_duct.jl` | I3, V4: (a) heated periodic square duct vs a separated-variable reference (no LBM, see below); (b) 2D channel with obstacle, thermal CY law and heating vs its Nz = 3 extrusion on the device | (a) relative L2 and L∞ of θ ≤ 3 % at the finest N; (b) residual h × 2D to 1e-14, solves to 1e-7; with `FV3D_LINSOLVE=krylov` ((a) only): every GMRES solve converges, K vs D state 1e-6 for N ≤ `FV3D_DIRECT_MAX` (24) | `FV3D_NS=16,24 FV3D_EXT_N=32` (10 GB), `FV3D_NS=16,24,32 FV3D_EXT_N=64` (80 GB); `FV3D_LINSOLVE=krylov FV3D_NS=16,24,32,48 FV3D_EXT_N=64` (run on an 80 GB H100, peak 4.2 GB) |
 
 Run on the cluster (after `setup_fv3d.sh` on the login node, with
 `~/kraken_fv3d/src_fv3d` a git archive of `feat/fv-3d`), each as
@@ -40,6 +42,8 @@ FV3D_BACKEND=cpu julia --project benchmarks/fv3d/v2_small_lbm.jl               #
 FV3D_BACKEND=cpu FV3D_NS=6,8 julia --project benchmarks/fv3d/step2_measure.jl  # PASS (device checks skipped)
 FV3D_BACKEND=cpu FV3D_CHECK_N=6 FV3D_NS=8 julia --project benchmarks/fv3d/i2_adjoint_measure.jl  # not run yet
 FV3D_BACKEND=cpu FV3D_NS=6,8 julia --project benchmarks/fv3d/i4_krylov_measure.jl   # not run yet
+FV3D_BACKEND=cpu FV3D_NS=4,6 julia --project benchmarks/fv3d/v0p_energy_mms.jl     # not run yet
+FV3D_BACKEND=cpu FV3D_NS=4,6 FV3D_EXT_N=8 julia --project benchmarks/fv3d/v4_heated_duct.jl  # not run yet; (a) above 3 % expected at N = 6
 ```
 
 Notes.
@@ -95,6 +99,83 @@ now ≤ 1024 bytes for `fv_objective_gradient!` and `fv_steady_gradient`
 (prebuilt workspace and objective), and the bytes must be the SAME at the
 parity size and at the largest cost size: a small fixed amount (scalars moved
 through device memory) is tolerated, anything that grows with the grid is not.
+
+## 3D energy equation (increment I3)
+
+`src/methods/inc_ns/fv_energy_3d.jl` adds `FVEnergy3D`, the opt-in
+temperature equation div(uT) − α∇²T = 2σν S:S + q of the 3D problem
+(`fv_steady_problem(Nx, Ny, Nz; energy = FVEnergy3D(...))`), as additive
+methods on `FVSteadyProblem3D`; the 2D files are not changed and
+`energy = nothing` keeps the I1 path. The row is the 2D energy row face by
+face (face area h², cell volume h³, six sides, linear-upwind or upwind
+convection with the Rhie–Chow flux), θ = T − T_ref is the fifth cell unknown
+(`U[5:5:end]`, T_ref = mean of the prescribed wall temperatures), solid rows
+are storage identities. Also 3D: `FVStateTemperature` in GNF laws (η(γ̇, T)),
+`fv_thermal_continuation` (σ steps), the round-off floor and the scaled
+gates of the thermal Newton (`:tolerance` or `:roundoff_floor`, as in 2D;
+`thermal_scales` overrides the case-data scales), the law adjoint through T
+(`FVLawParameters`), `fv_mean_temperature` and `fv_temperature_l2`. Only wall
+and periodic flow sides take an energy equation; each fluid component must
+touch a prescribed temperature (checked at construction).
+
+Branch K takes the temperature without code change: the block SIMPLE puts
+every non-pressure field in the velocity block, so with energy U has
+4 × ncell unknowns and the Schur part stays the pressure. ILU(0) works on the
+whole matrix as before. Both are tested against branch D on the CPU.
+
+V4 reference. The plan asks for θ within 3 % of the 3D thermal LBM on a heated
+duct. The 3D thermal LBM driver covers closed cavities only (no periodic
+body-force duct, no volumetric heat source); a duct driver is estimated at
+half a day of development plus its GPU runs and was not written. `v4` (a)
+uses instead a separated-variable reference of the same duct (unidirectional
+flow, source q0 + q1 cos kx): θ0 and the complex x-mode Θ1 solved on a fine
+section grid (≥ 300 cells per side) by sparse LU on the CPU. This checks the
+convection, diffusion, source and wall terms in 3D against an independent
+solution, but not against another discretisation of the coupled flow.
+
+CPU validation: `test/analytical/incns_fv3d_thermal_test.jl` (in
+`runtests.jl` after the Krylov file): (a) z-uniform 3D residual = h × 2D
+residual with pins cleared, with and without heating and with a thermal law;
+(b) coloured = dense Jacobian on 4 × 5 × 6; (c) law adjoint through T vs
+centred FD (2e-7 + 1e-6 relative) and contraction vs duals (1e-12); (d)
+thermal Newton, 3D = extruded 2D, branch K, heating continuation; (e)
+argument checks. 159/159 pass (Aqua CPU, 2026-11-11).
+
+GPU results (H100, direct solver through CUDSS, 2026-11-11/12). V0' energy
+at N = 16, 24, 32, 48: L2 order of T on the last three pairs 2.00–2.01 for
+conduction (walls and periodic x) and 1.66 → 1.57 for convection (it
+decreases slowly with N; gate 0.9). V4 (a) duct at N = 16, 24, 32: θ
+relative L2 2.5e-3 at N = 32, order 1.99–2.00. V4 (b) 128 × 64 channel and
+its extrusion: residual and solve equal the 2D ones to 2e-15. Device memory
+measured (the earlier estimates, scaled from I1 step 2, were low): 48–58 GB
+for the 48³ cube, 27.9 GB for the N = 32 duct, 8 GB for the N = 24 duct.
+Branch K with temperature is tested on the CPU only. The scripts print the
+device memory in use after each solve.
+
+Branch K in the I3 scripts (not run yet). The direct factorisation limits V0'
+energy to 48³ and V4 (a) to N = 32 on one 80 GB GPU. `FV3D_LINSOLVE=krylov`
+solves the Newton steps of `v0p_energy_mms.jl` and of `v4_heated_duct.jl` (a)
+with GMRES + P3L, the V5 tag (`fv3d_p3_tag` in `fv3d_common.jl`, also used by
+`fv5_linsolve`: block upper triangular, LSC Schur, 4 W-cycles of multigrid per
+block, l1-Jacobi, forward η = 1e-6, restart 50, at most 2000 iterations);
+`FV3D_LINSOLVE=direct` (default) keeps cuDSS. The tag goes to
+`fv_newton_solver(p; linsolve)`; the thermal Newton and its gates are the
+same for both solvers (inexact Newton steps with forcing 1e-6), so the order
+and θ gates are unchanged. Per grid the scripts print the GMRES iterations of
+every Newton step and their maximum, the number of unconverged GMRES solves
+(any is a failure: the tag is non-strict, so the script counts them) and, for
+N ≤ `FV3D_DIRECT_MAX` (default 24), the relative max difference between the
+Krylov and the direct state (gate 1e-6). V4 (b) stays on the direct solver:
+its size is set by `FV3D_EXT_N` and its 1e-7 gate compares two direct
+solves. Memory of the Krylov branch: linear in cells (the earlier estimate
+of 20–35 GB at 64³ was high).
+
+Krylov branch on the GPU (H100, P3L tag): every gate passes. V4 (a) to
+N = 48: θ relative L2 1.09e-3, L∞ 1.15e-3, orders L2 1.99/2.00/2.02, peak
+device memory 4.2 GB (27.9 GB with cuDSS at N = 32), largest Newton 44 s.
+V0' energy to 64³: conduction orders 2.00 (both side sets), convection
+1.54 (walls) and 1.52 (periodic x) on the finest pair, peak device memory
+4.7 GB. The same rows on a 10 GB MIG slice up to N = 32 pass with 1.2 GB.
 
 ## 3D branch K: GMRES + ILU(0) or block SIMPLE (increment I4)
 

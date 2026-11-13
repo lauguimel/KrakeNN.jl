@@ -118,11 +118,9 @@ function fv5_linsolve()
     # p3: the earlier block SIMPLE with one cycle (P3), kept for comparison.
     pc = lowercase(fv5_env("FV5_PRECOND", "p3l"))
     pc in ("p3l", "p3") || error("FV5_PRECOND must be p3l or p3, got $pc")
-    extra = pc == "p3l" ? (; block = :upper, schur_approx = :lsc, mg_cycles = 4) : (; mg_cycles = 1)
-    return KrylovBackendTag(; rtol = fv5_float("FV5_ETA", 1e-6), rtol_transpose = fv5_float("FV5_ETA_T", 1e-10),
-                            restart = 50, maxiter = 2000, strict = false, trisolve = :persistent,
-                            precond = :mg, schur = :mg, mg_cycle = :W, mg_smoother = :l1jacobi,
-                            mg_sweeps = 2, mg_coarse = 2000, mg_omega = 0.0, mg_scale = 1.0, extra...)
+    # same tag as before the helper: FV3D_P3_BASE (fv3d_common.jl) plus `extra`
+    extra = pc == "p3l" ? FV3D_P3L_EXTRA : (; mg_cycles = 1)
+    return fv3d_p3_tag(; rtol = fv5_float("FV5_ETA", 1e-6), rtol_transpose = fv5_float("FV5_ETA_T", 1e-10), extra)
 end
 
 fv5_atol(c) = fv5_float("FV5_ATOL_REL", 1e-9) * c.force * c.h^3

@@ -28,15 +28,15 @@
 # Unknown ordering: cell c = i + (j-1) Nx + (k-1) Nx Ny,
 # index = nfields (c-1) + {1:u, 2:v, 3:w, 4:p, 5:scalar1, ...}.
 # Direction d: 1 = E (+x), 2 = W (-x), 3 = N (+y), 4 = S (-y), 5 = T (+z), 6 = B (-z).
-# Not in I1: immersed boundaries (voxel solids only), energy (I3). The adjoint
-# (I2) is in fv_adjoint_3d.jl.
+# Not available: immersed boundaries (voxel solids only). The adjoint (I2) is
+# in fv_adjoint_3d.jl, the opt-in energy equation (I3, slot 5) in fv_energy_3d.jl.
 
 """
     FVFieldLayout3D{NS}()
 
 Internal, isbits 3D cell layout: three velocity components (slots 1:3),
 pressure (slot 4) and `NS` scalar slots (5, 6, ...), identity rows unless a
-scalar model is active (none in increment I1).
+scalar model is active (slot 5 = temperature with [`FVEnergy3D`](@ref)).
 """
 struct FVFieldLayout3D{NS} <: AbstractFVFieldLayout
     function FVFieldLayout3D{NS}() where {NS}
@@ -120,7 +120,9 @@ cell `(i, j, k)`: `nfields (i - 1 + (j - 1) Nx + (k - 1) Nx Ny) + comp`.
   subtract `h³ s`.
 - `visc`: [`FVNewtonianViscosity`](@ref), [`FVGNFViscosity`](@ref) or
   [`FVLawViscosity`](@ref) (prescribed fields as `Nx × Ny × Nz` arrays).
-- `immersed`, `energy`: `nothing` in increment I1.
+- `immersed`: `nothing` (not available in 3D).
+- `energy`: `nothing`, or the lowered [`FVEnergy3D`](@ref) model (temperature
+  in slot 5; see fv_energy_3d.jl).
 - `flowrate`: `nothing`, or the lowered mean-x-velocity target with the
   global force unknown Fx (periodic x required), as in 2D.
 """
@@ -182,9 +184,12 @@ function _fv3_validate_viscosity(v::FVLawViscosity, g, nu)
         throw(ArgumentError("prescribed field count does not match the law"))
     isfinite(v.eps) && v.eps >= 0 && (v.eps > 0 || _fv_law_regular_at_rest(v.law, v.theta)) ||
         throw(ArgumentError("scalar law must be regular at rest: use eps > 0"))
-    all(f -> f isa AbstractArray{<:Any,3} && size(f) == (g.Nx, g.Ny, g.Nz), v.fields) ||
+    any(f -> f isa _FVAnyStateTemperature, v.fields) && _fv_nfields(g) < 5 &&
+        throw(ArgumentError("FVStateTemperature requires an active 3D energy model (FVEnergy3D)"))
+    all(f -> f isa _FVAnyStateTemperature ||
+             (f isa AbstractArray{<:Any,3} && size(f) == (g.Nx, g.Ny, g.Nz)), v.fields) ||
         throw(DimensionMismatch("3D law fields must be $(g.Nx) × $(g.Ny) × $(g.Nz) arrays " *
-                                "(state temperature is not available before I3)"))
+                                "or FVStateTemperature()"))
     return nothing
 end
 _fv3_validate_viscosity(v, g, nu) =
@@ -546,7 +551,7 @@ end
 
 """
     fv_steady_problem(Nx, Ny, Nz; h, nu, bc, boundary_velocity, solid, source, conv,
-                      T, rheology, gnf_eps, viscosity, u_mean_target) -> FVSteadyProblem3D
+                      T, rheology, gnf_eps, viscosity, u_mean_target, energy) -> FVSteadyProblem3D
 
 Host-side 3D steady FV problem (same keywords as the 2D builder, one more
 dimension). `bc` has keys `W, E, S, N, B, T` (x-, x+, y-, y+, z-, z+), values
@@ -558,7 +563,9 @@ ordering. `rheology`/`gnf_eps` build an [`FVGNFViscosity`](@ref); `viscosity`
 passes an explicit model ([`FVLawViscosity`](@ref) with `Nx × Ny × Nz` fields).
 `u_mean_target` replaces a uniform x source by the global force unknown Fx
 (periodic x). Cell centres are at `((i - 1/2) h, (j - 1/2) h, (k - 1/2) h)`.
-Immersed boundaries and energy are not available in increment I1.
+`energy = FVEnergy3D(...)` adds the steady temperature equation (slot 5; wall
+and periodic sides only); `energy = nothing` keeps the isothermal problem.
+Immersed boundaries are not available in 3D.
 """
 function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / Ny, nu = 1.0,
                            bc = (W = :wall, E = :wall, S = :wall, N = :wall, B = :wall, T = :wall),
@@ -568,7 +575,6 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
                            viscosity = nothing, u_mean_target = nothing,
                            immersed = nothing, energy = nothing)
     immersed === nothing || throw(ArgumentError("immersed boundaries are not available in the 3D FV residual"))
-    energy === nothing || throw(ArgumentError("the 3D energy equation belongs to increment I3"))
     Nx = Int(Nx); Ny = Int(Ny); Nz = Int(Nz)
     for (a, b) in ((:W, :E), (:S, :N), (:B, :T))
         (_fv_bc_code(getproperty(bc, a)) == FV_BC_PERIODIC) ==
@@ -577,7 +583,8 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
     end
     g = FVGrid3D(Nx, Ny, Nz, T(h), conv ? one(T) : zero(T),
                  _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S),
-                 _fv_bc_code(bc.T), _fv_bc_code(bc.B), FVFieldLayout3D{0}())
+                 _fv_bc_code(bc.T), _fv_bc_code(bc.B),
+                 energy === nothing ? FVFieldLayout3D{0}() : FVFieldLayout3D{1}())
     xc(i) = (i - 0.5) * h
     tag = fill(FV_CELL_FLUID, Nx, Ny, Nz)
     if solid !== nothing
@@ -617,8 +624,18 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
     srcv = if source === nothing
         zeros(T, n)
     elseif source isa AbstractVector
-        length(source) == n || throw(DimensionMismatch("source must have length $n"))
-        T.(source)
+        if length(source) == n
+            T.(source)
+        elseif energy !== nothing && length(source) == 4 * Nx * Ny * Nz
+            s = zeros(T, n)
+            for cell in 1:(Nx * Ny * Nz), c in 1:4
+                s[_fv_cell_index(g, cell, c)] = source[4 * (cell - 1) + c]
+            end
+            s
+        else
+            throw(DimensionMismatch(energy === nothing ? "source must have length $n" :
+                "source must have length $n (or $(4 * Nx * Ny * Nz) flow entries with energy)"))
+        end
     else
         s = zeros(T, n)
         for k in 1:Nz, j in 1:Ny, i in 1:Nx
@@ -634,8 +651,11 @@ function fv_steady_problem(Nx::Integer, Ny::Integer, Nz::Integer; h::Real = 1 / 
     visc = viscosity === nothing ?
         (rheology === nothing ? FVNewtonianViscosity() : FVGNFViscosity(rheology, T(gnf_eps))) : viscosity
     _fv3_validate_viscosity(visc, g, nuc)
+    thermal = _fv3_lower_energy(energy, g, tag, T)
+    _fv_has_state_temperature(visc) && thermal === nothing &&
+        throw(ArgumentError("state-temperature viscosity requires an active energy model"))
     flowrate = _fv3_lower_flowrate(u_mean_target, g, tag, srcv, T)
-    return FVSteadyProblem3D(g, tag, nuc, bvel, srcv, visc, nothing, nothing, flowrate)
+    return FVSteadyProblem3D(g, tag, nuc, bvel, srcv, visc, nothing, thermal, flowrate)
 end
 
 """
@@ -645,7 +665,7 @@ Copy the arrays of `prob` with `to` (e.g. `CuArray`, or `Array` back to host).
 """
 fv_adapt(to, p::FVSteadyProblem3D) =
     FVSteadyProblem3D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
-                      nothing, nothing, p.flowrate)
+                      nothing, _fv_adapt_energy(to, p.energy), p.flowrate)
 
 """
     fv_state(prob::FVSteadyProblem3D, u, v, w, p) -> Vector

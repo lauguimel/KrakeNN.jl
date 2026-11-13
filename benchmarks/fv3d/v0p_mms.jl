@@ -18,7 +18,7 @@
 # Gates (finest pair, L2 velocity): Stokes ≥ 1.8, NS ≥ 0.9. Pressure (Stokes):
 # target 1.5 reported, gate ≥ 1.27 = the 2D MMS pressure order 1.47 (x-periodic
 # Stokes, 20 → 40, test/analytical/incns_fv_steady_residual.jl) − 0.2.
-# Energy rows of V0' belong to increment I3.
+# Energy rows of V0': v0p_energy_mms.jl (increment I3).
 #
 #   FV3D_SIDES=walls,periodic_xyz restricts the side sets (default: all four).
 #   FV3D_BACKEND=cuda FV3D_NS=16,24,32,48 julia --project=<env> benchmarks/fv3d/v0p_mms.jl

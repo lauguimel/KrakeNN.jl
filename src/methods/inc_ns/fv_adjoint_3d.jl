@@ -226,7 +226,9 @@ end
     dw = (ww - wP) * 2 / h
     Gt = _fv3_first9(gP)
     @inbounds nuP = prob.nu[i, j, k]
-    nuw = _fv_wall_nu3(prob.visc, nuP, _fv3_face_grad(Gt, n, sx, du, dv, dw), i, j, k)
+    # bound to the state temperature when the law reads it (identity otherwise)
+    visc = _fv_bind_viscosity(prob.visc, U, g)
+    nuw = _fv_wall_nu3(visc, nuP, _fv3_face_grad(Gt, n, sx, du, dv, dw), i, j, k)
     t = _fv3_traction(nuw, n, sx, du, dv, dw, Gt)
     pf = pP
     if f.pressure === :linear

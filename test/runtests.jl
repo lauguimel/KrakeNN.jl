@@ -145,6 +145,10 @@ function run_incns_testset()
         # direct branch — solves (forward, transposed), Newton state, adjoint
         # gradients (both flow-rate border treatments) and one FD check
         include("analytical/incns_fv3d_krylov_test.jl")
+        # 3D energy equation (plan I3, step 5): z-extrusion = h x 2D energy rows,
+        # coloured = dense with energy rows, thermal law adjoint vs duals and FD,
+        # thermal Newton (branches D and K), heating continuation (~60 s CPU)
+        include("analytical/incns_fv3d_thermal_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,
