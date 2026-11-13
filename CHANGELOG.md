@@ -184,6 +184,59 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   signs), adjoint vs finite differences 2.7e-6; at 300x100 +3.1 %, +3.3 %,
   6.0 % (worst 10.7 %). Two grids only, Float64 only, no transient. See
   `docs/src/users/fv-thermal.md`.
+- Plane PIV observation operator for 3D fields: `PIVPlane`, `piv_operator`,
+  `piv_apply`, its exact adjoint `piv_apply_adjoint` and `piv_misfit` (in-plane
+  or stereo samples, Gaussian light-sheet thickness, interrogation window),
+  tested in `test/analytical/plane_piv_3d.jl`.
+- 3D steady colocated FV solver `FVGrid3D`, `FVSteadyProblem3D` through
+  `fv_steady_problem(Nx, Ny, Nz; ...)`, the 3D residual (same KernelAbstractions
+  kernel on CPU and GPU, generic element type, six sides that are walls with a
+  prescribed velocity or periodic, voxel solids, imposed mean flow rate, GNF and
+  learned laws), its coloured Jacobian pattern, and the 2D Newton solver,
+  assembly and discrete adjoint extended to 3D (maps `FVUniformViscosity`,
+  `FVViscosityField`, `FVSideVelocity`, `FVUniformSource`, `FVLawParameters`;
+  objectives flow rate, Fx, wall force). `FVPIVObjective` and
+  `fv_objective_gradient!` give a composite plane-PIV misfit with weighted terms
+  and its gradient on the device. The pseudo-transient shift is now `V/dtau`
+  with `V` the cell measure (`h^3` in 3D, `h^2` in 2D, unchanged). Validation:
+  z-uniform 3D residual equal to the 2D one, coloured equal to dense Jacobian,
+  MMS, adjoint against centred finite differences
+  (`test/analytical/incns_fv3d_test.jl`, `incns_fv3d_adjoint_test.jl`); GPU
+  scripts in `benchmarks/fv3d/`.
+- Krylov branch of the linear-solve seam, `KrylovBackendTag` (restarted GMRES on
+  an assembled `KrylovCSRMatrix`, forward and transposed solves, CPU and CUDA
+  through `ext/KrakeNNCUDSSExt.jl`), selected by `fv_newton_solver(p; linsolve =
+  KrylovBackendTag(...))` with the Newton and adjoint API unchanged.
+  Preconditioners: P1 ILU(0) (`precond = :ilu0`, default of the tag), P2 block
+  SIMPLE (`:simple`), P3 block SIMPLE with aggregation multigrid blocks (`:mg`),
+  P3L block upper triangular with the least-squares commutator Schur
+  approximation and multigrid blocks (`precond = :mg, block = :upper,
+  schur_approx = :lsc`, also `:simplec`, `:pcd`, `schur_q`, `schur_shift`,
+  `ablock` options), and P4 monolithic geometric multigrid with an additive
+  Vanka smoother (`precond = :vanka`, `vanka_omega`, `vanka_prolong`).
+  Diagnostics `lin_krylov_log`, `lin_krylov_pivot`, `lin_krylov_blocks`,
+  `lin_krylov_stationary`. Memory is linear in the cells instead of the
+  cells^(4/3) of the direct factors. P3L with 4 multigrid cycles per block is
+  the setting used by the 3D benchmarks (29 / 28 / 34 forward GMRES iterations
+  at 16³ / 24³ / 32³ on the flow-rate duct, H100). P4 with `vanka_omega = 0.5`
+  and constant prolongation passes the D2 gate of `i4_krylov_measure.jl` at 32³,
+  48³ and 64³ in both benchmark cases. Tested against the direct branch in
+  `test/analytical/incns_fv3d_krylov_test.jl`.
+- 3D energy equation `FVEnergy3D` (`fv_steady_problem(Nx, Ny, Nz; energy)`):
+  temperature as the fifth cell unknown, viscous heating, temperature-dependent
+  laws, heating continuation, round-off floor gate and the law adjoint through
+  the temperature, as in 2D. GPU (H100): V0' energy MMS second order for
+  conduction, V4 heated duct θ relative L2 1.09e-3 at N = 48 with the Krylov
+  branch (peak 4.2 GB), V0' energy to 64³ (peak 4.7 GB). Tested in
+  `test/analytical/incns_fv3d_thermal_test.jl`.
+- V5 benchmark, law recovery from plane PIV in 3D (`benchmarks/fv3d/v5*`): LBM
+  truth on a 96 × 48 × 48 duct with an off-centre obstacle and a Carreau–Yasuda
+  law, three noisy PIV planes plus flow rate, Carreau and TinyMLP fits through
+  the 3D adjoint, identifiability gate with a predicted model-error bias.
+  Against the LBM data the Carreau fit recovers η(γ̇) within 2.4 % over the
+  observed shear-rate range. On the noisy twin (stage d, H100) the same fit
+  takes 402 s under P3L instead of 1201 s under P3, and 143 s under P4 (peak 5.1
+  GiB instead of 6.9 GiB).
 
 ### Changed
 - The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl`.
@@ -220,6 +273,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   downstream of obstacles; backflow through it is not supported (#126).
 
 ### Fixed
+- `run_gnf_duct_obstacle_3d` stops with `converged = false` at the first
+  convergence check where the velocity change is not finite, instead of
+  running to `max_steps` after a divergence.
 - Parabolic inlets now deliver the nominal flow rate between half-way walls. The
   profile of `run_cylinder_libb_2d`, `parabolic_face_profile_2d`,
   `run_sphere_libb_3d`, `run_conformation_sphere_libb_3d` and the AD cylinder and

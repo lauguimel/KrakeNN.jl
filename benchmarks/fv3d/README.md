@@ -1,7 +1,8 @@
-# 3D steady FV solver — GPU receipts of increment I1
+# 3D steady FV solver — benchmarks and GPU receipts
 
-Scripts for increment I1 of the 3D steady finite-volume plan
-(`src/methods/inc_ns/fv_steady_residual_3d.jl`, `fv_newton_3d.jl`). The CPU
+Scripts of the 3D steady finite-volume plan, increments I1 to I5 and the V5
+inverse case (`src/methods/inc_ns/fv_steady_residual_3d.jl`, `fv_newton_3d.jl`,
+`fv_adjoint_3d.jl`, `fv_energy_3d.jl`, `src/solve/linear_solve_*.jl`). The CPU
 part of the validation (V0: reduction to 2D, coloured = dense Jacobian, MMS
 smoke, simple-shear law invariant, kernel inference) is the test file
 `test/analytical/incns_fv3d_test.jl`.
@@ -23,7 +24,7 @@ Every script:
 | `v2_small_lbm.jl` | V2-small: cavity vs `run_cavity_3d`; GNF plane channel vs `run_gnf_channel_3d` | relative L2 velocity deviation ≤ 3 % per case | `FV3D_LBM_N=24 FV3D_RE=100 FV3D_LBM_STEPS=60000 FV3D_GNF_N=32 FV3D_GNF_STEPS=120000` |
 | `step2_measure.jl` | step 2: CPU/GPU parity + zero device allocation; colours, nnz, memory, first factorisation, time per Newton iteration (cavity Re 100, Newtonian and GNF) | parity 1e-12, 0 device bytes, Newton converged | `FV3D_NS=32,48,64 FV3D_CHECK_N=8` |
 | `i2_adjoint_measure.jl` | I2: CPU/GPU parity of adjoint gradients (uniform ν, ν field, side velocity, x source, NN law parameters) for the composite PIV objective (3 planes + flow-rate/Fx + wall-force terms); device bytes of the objective and of the gradient; gradient cost vs median Newton iteration (finalize / factors reused) | parity 1e-12 relative (∞-norm), ≤ 1024 device bytes for the all-linear objective and gradient, the same at `FV3D_CHECK_N` and at the largest `FV3D_NS`, Newton converged | `FV3D_CHECK_N=8 FV3D_NS=32` (`FV3D_NS=32,48` for the cost curve) |
-| `i4_krylov_measure.jl` | I4 (input of D2): branch K (GMRES, `KrylovBackendTag`) with P1 = ILU(0), P2 = block SIMPLE and P3 = block SIMPLE with multigrid blocks (`mg`) and P3L = block upper triangular with LSC (`lsc`; other `KrylovBackendTag` options through `FV3D_TAG_EXTRA`) side by side on a Carreau duct with obstacle at Re 50, imposed flow rate and body force; GMRES iterations per Newton step, forward / transposed iterations, time, device bytes per solve (forward η = 1e-6, transposed 1e-10), pivot report, adjoint gradient, device memory of each branch measured alone; branch D (cuDSS) compared where it fits | on the gated preconditioners (`FV3D_GATE`, default P2): Newton and transposed solves converge; forward iterations ≤ 200 at the largest N and growing at most linearly in N; memory ≤ `FV3D_MEM_GB` (9); K vs D state and gradient 1e-6 | `FV3D_NS=24,32,48 FV3D_DIRECT_MAX=32 FV3D_PRECONDS=ilu0,simple` |
+| `i4_krylov_measure.jl` | I4 (input of D2): branch K (GMRES, `KrylovBackendTag`) with P1 = ILU(0), P2 = block SIMPLE and P3 = block SIMPLE with multigrid blocks (`mg`) and P3L = block upper triangular with LSC (`lsc`), P4 = monolithic Vanka multigrid (`vanka`; other `KrylovBackendTag` options through `FV3D_TAG_EXTRA`) side by side on a Carreau duct with obstacle at Re 50, imposed flow rate and body force; GMRES iterations per Newton step, forward / transposed iterations, time, device bytes per solve (forward η = 1e-6, transposed 1e-10), pivot report, adjoint gradient, device memory of each branch measured alone; branch D (cuDSS) compared where it fits | on the gated preconditioners (`FV3D_GATE`, default the multigrid ones present in `FV3D_PRECONDS`, else P2): Newton and transposed solves converge; forward iterations ≤ 200 at the largest N and growing at most linearly in N; memory ≤ `FV3D_MEM_GB` (9); K vs D state and gradient 1e-6 | `FV3D_NS=24,32,48 FV3D_DIRECT_MAX=32 FV3D_PRECONDS=ilu0,simple` |
 | `i5_mg_diagnose.jl` | I5 (input of D2): diagnostic of the block preconditioners at the converged duct state, per `KrylovBackendTag` configuration (`FV3D_TAGS`): stationary multigrid reduction per level (a), GMRES on A (b), on S̃ (c), on the true Schur complement with exact A (e), on J (d), each also with exact inner solves | none (measurements only) | `FV3D_NS=16,24,32` |
 | `v0p_energy_mms.jl` | I3, V0' energy rows: manufactured temperature on N³, conduction (u = 0) and convection (V0' flow, viscous heating), side sets walls / periodic x, L2 and L∞ of T, orders | finest pair, L2 and L∞ of T: conduction ≥ 1.8, convection ≥ 0.9; with `FV3D_LINSOLVE=krylov`: every GMRES solve converges, K vs D state 1e-6 for N ≤ `FV3D_DIRECT_MAX` (24) | `FV3D_NS=12,16,24` (10 GB), `16,24,32,48` (80 GB); `FV3D_LINSOLVE=krylov FV3D_NS=16,24,32,48,64` (run on an 80 GB H100, peak 4.7 GB); `FV3D_CASES=` filters |
 | `v4_heated_duct.jl` | I3, V4: (a) heated periodic square duct vs a separated-variable reference (no LBM, see below); (b) 2D channel with obstacle, thermal CY law and heating vs its Nz = 3 extrusion on the device | (a) relative L2 and L∞ of θ ≤ 3 % at the finest N; (b) residual h × 2D to 1e-14, solves to 1e-7; with `FV3D_LINSOLVE=krylov` ((a) only): every GMRES solve converges, K vs D state 1e-6 for N ≤ `FV3D_DIRECT_MAX` (24) | `FV3D_NS=16,24 FV3D_EXT_N=32` (10 GB), `FV3D_NS=16,24,32 FV3D_EXT_N=64` (80 GB); `FV3D_LINSOLVE=krylov FV3D_NS=16,24,32,48 FV3D_EXT_N=64` (run on an 80 GB H100, peak 4.2 GB) |
@@ -41,9 +42,9 @@ FV3D_BACKEND=cpu julia --project benchmarks/fv3d/v1_duct_cavity.jl             #
 FV3D_BACKEND=cpu julia --project benchmarks/fv3d/v2_small_lbm.jl               # FAIL expected: N = 5 LBM is too coarse
 FV3D_BACKEND=cpu FV3D_NS=6,8 julia --project benchmarks/fv3d/step2_measure.jl  # PASS (device checks skipped)
 FV3D_BACKEND=cpu FV3D_CHECK_N=6 FV3D_NS=8 julia --project benchmarks/fv3d/i2_adjoint_measure.jl  # not run yet
-FV3D_BACKEND=cpu FV3D_NS=6,8 julia --project benchmarks/fv3d/i4_krylov_measure.jl   # not run yet
-FV3D_BACKEND=cpu FV3D_NS=4,6 julia --project benchmarks/fv3d/v0p_energy_mms.jl     # not run yet
-FV3D_BACKEND=cpu FV3D_NS=4,6 FV3D_EXT_N=8 julia --project benchmarks/fv3d/v4_heated_duct.jl  # not run yet; (a) above 3 % expected at N = 6
+FV3D_BACKEND=cpu FV3D_NS=6,8 julia --project benchmarks/fv3d/i4_krylov_measure.jl   # CPU smoke not recorded (GPU runs below)
+FV3D_BACKEND=cpu FV3D_NS=4,6 julia --project benchmarks/fv3d/v0p_energy_mms.jl     # CPU smoke not recorded (GPU runs below)
+FV3D_BACKEND=cpu FV3D_NS=4,6 FV3D_EXT_N=8 julia --project benchmarks/fv3d/v4_heated_duct.jl  # CPU smoke not recorded (GPU runs below); (a) above 3 % expected at N = 6
 ```
 
 Notes.
@@ -149,10 +150,10 @@ relative L2 2.5e-3 at N = 32, order 1.99–2.00. V4 (b) 128 × 64 channel and
 its extrusion: residual and solve equal the 2D ones to 2e-15. Device memory
 measured (the earlier estimates, scaled from I1 step 2, were low): 48–58 GB
 for the 48³ cube, 27.9 GB for the N = 32 duct, 8 GB for the N = 24 duct.
-Branch K with temperature is tested on the CPU only. The scripts print the
-device memory in use after each solve.
+The scripts print the device memory in use after each solve. Branch K with
+temperature: next two paragraphs.
 
-Branch K in the I3 scripts (not run yet). The direct factorisation limits V0'
+Branch K in the I3 scripts. The direct factorisation limits V0'
 energy to 48³ and V4 (a) to N = 32 on one 80 GB GPU. `FV3D_LINSOLVE=krylov`
 solves the Newton steps of `v0p_energy_mms.jl` and of `v4_heated_duct.jl` (a)
 with GMRES + P3L, the V5 tag (`fv3d_p3_tag` in `fv3d_common.jl`, also used by
@@ -236,7 +237,7 @@ kernels are KernelAbstractions kernels in the core file.
   flow rate, one FD check; for P2 with Schur LU and Schur ILU(0): S̃ against a
   dense C − D diag(A)⁻¹ G, solves, Newton state, adjoint gradients).
 
-### P3: block SIMPLE with multigrid blocks (not run yet)
+### P3: block SIMPLE with multigrid blocks
 
 `precond = :mg` (code in `src/solve/linear_solve_multigrid.jl`) keeps the
 block SIMPLE of P2 and replaces both block solves by one multigrid cycle: the
@@ -293,7 +294,7 @@ velocity block A and S̃ each get their own hierarchy (S̃ by default,
   preconditioner with exact inner solves takes 26 / 26 iterations, 134 /
   173 / 450 with the same aggregation cycles inside.
 
-### P4: monolithic multigrid with an additive Vanka smoother (not run yet)
+### P4: monolithic multigrid with an additive Vanka smoother
 
 `precond = :vanka` (code in `src/solve/linear_solve_mg_monolithic.jl`, hooks
 `_krylov_block_build` and the tag fields `vanka_omega`, `vanka_prolong` in
@@ -353,9 +354,9 @@ at less memory than the direct solve.
 - Benchmark: `FV3D_PRECONDS=vanka[,mg]`, knobs `FV3D_VANKA_OMEGA`,
   `FV3D_VANKA_PROLONG` and the `FV3D_MG_*` of P3; the D2 count and the
   `D2 P4 <case>` line follow the P3 rule.
-- CPU validation: testset (6) of `test/analytical/incns_fv3d_krylov_test.jl`
+- CPU validation: testset (7) of `test/analytical/incns_fv3d_krylov_test.jl`
   (hierarchy, patches, solves, Newton, adjoint, FD check).
-- Source-case diagnostic (written, not run): with constant prolongation P4
+- Source-case diagnostic: with constant prolongation and ω = 0.7, P4
   passes the flow-rate case but not the body-force case (GMRES at the 2000
   cap at N = 32, transposed also at N = 48). `i4_vanka_diag.jl` takes the
   converged state of the direct branch and prints, per case and N, the
@@ -365,6 +366,10 @@ at less memory than the direct solve.
   values, the flow-rate matrix solved without its border, and variants
   (ω 0.5, coarse scale 1.5, one level fewer, 4 sweeps). Hypotheses and the
   lines that decide them are in its header. Not a gate.
+- Measured with damping ω = 0.5 and constant prolongation (knobs
+  `FV3D_VANKA_OMEGA`, `FV3D_VANKA_PROLONG`): gate D2 passes at 32³, 48³ and 64³ in both cases (flow rate and body force). This
+  is the V5 option `FV5_PRECOND=p4` (`FV5_VANKA_OMEGA`, default 0.5); P3L
+  stays the default of V5 and of the I3 scripts.
 
 ### I5: diagnostic of the block preconditioners, block structure and Schur approximations
 
@@ -655,7 +660,7 @@ python3 benchmarks/fv3d/v5_figure.py <FV5_OUT> --data noisy [--plane z_mid] [--f
 Cost reasoning (none of it measured). Memory: the P3 multigrid hierarchy and
 the GMRES basis grow linearly with the number of cells (221k here, twice
 48³); the i4 gate asks P3 to stay under 9 GB at 48³, so ≤ 18 GB is that
-bound scaled, not a measurement (P3 has not run on a GPU yet). Run stage c
+bound scaled, not a measurement (written before P3 ran on a GPU). Run stage c
 first: its `SUMMARY v5c cost` line gives the peak memory and the time of one
 solve and one gradient, from which d and e follow. Time: one evaluation is a
 warm Newton solve (3–6 iterations near the optimum) plus one adjoint
@@ -676,7 +681,9 @@ run; `FV5_LINSOLVE=direct` restores cuDSS, about 60 GB by the estimate above).
 Stage d on the noisy twin, rerun under P3L on an H100 (2026-11-12): same fit
 as under P3 (23 BFGS iterations, η max error 0.21 % over the observed range,
 no unconverged solve), wall 402 s instead of 1201 s, GPU peak 6.94 GiB
-instead of 6.31 GiB.
+instead of 6.31 GiB. The same twin under P4 (`FV5_PRECOND=p4`, ω = 0.5,
+constant prolongation, H100): same fit, wall 143 s instead of 402 s under
+P3L, GPU peak 5.1 GiB instead of 6.9 GiB.
 
 LBM stability (first smoke run, stage a diverged with ν∞ = 0). The GNF
 kernel sets τ = 1/2 + 3 ν(γ̇) with no lower bound, so with ν∞ = 0 the
