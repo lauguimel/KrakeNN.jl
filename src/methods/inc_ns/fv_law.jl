@@ -111,6 +111,7 @@ end
 @inline _fv_law_number_type(::Type{T}) where {T<:Number} = T
 @inline _fv_law_number_type(::Type{<:ClassicalLaw}) = Bool
 @inline _fv_law_number_type(::Type{TinyMLP{N,H,L,T}}) where {N,H,L,T} = T
+@inline _fv_law_number_type(::Type{DenseNet{N,W,A,T}}) where {N,W,A,T} = T
 @inline _fv_law_number_type(::Type{LearnedViscosity{M,B,T,G}}) where {M,B,T,G} =
     promote_type(T, _fv_law_number_type(M), _fv_law_number_type(G))
 # Explicit: the generic fallback below splats too many field types (e.g. the

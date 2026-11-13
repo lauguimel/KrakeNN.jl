@@ -21,7 +21,8 @@
 #   l2_rel_norm  = ||diff||_2 / ||reference||_2
 module E5Compare
 
-using KrakeNN, LinearAlgebra, Printf, Statistics, TOML, SparseArrays
+using KrakeNN, LinearAlgebra, Printf, Statistics, TOML
+using KrakeNN.SparseArrays
 
 const BACKEND = lowercase(get(ENV, "KRAKEN_E5_BACKEND", "cpu"))
 BACKEND in ("cpu", "cuda") || error("KRAKEN_E5_BACKEND must be cpu or cuda, got $BACKEND")

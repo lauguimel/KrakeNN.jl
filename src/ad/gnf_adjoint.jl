@@ -195,7 +195,7 @@ function gnf_linearise(f, tau, is_solid::AbstractMatrix{Bool}, closure, Fx, Fy=0
     Nx, Ny = size(solid)
     size(fh) == (Nx, Ny, 9) || throw(DimensionMismatch("f must be $(Nx)×$(Ny)×9"))
     Fxh = _gnf_host_field(Fx, Nx, Ny); Fyh = _gnf_host_field(Fy, Nx, Ny)
-    cl = gnf_convert_closure(Float64, closure)
+    cl = _gnf_host_closure(gnf_convert_closure(Float64, closure))
     fa = similar(fh)
     stream_periodic_x_wall_y_2d!(fa, fh, Nx, Ny)
     B = zeros(Nx, Ny, 10, 11)

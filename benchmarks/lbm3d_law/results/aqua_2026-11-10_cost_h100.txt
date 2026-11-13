@@ -1,0 +1,19 @@
+# 3D GNF adjoint cost, Aqua batch job 27837346 (gpu1n007, full H100 80GB, Float64, 16 host threads), commit b1ddde25f, KRAKEN_GNF3D_N=32,64
+cost status=0
+3D GNF adjoint cost, CUDA NVIDIA H100 80GB HBM3, 16 host threads
+N=32 forward: 15000 steps, converged=true, 3.81 s, 129.0 MLUPS (fluid 30096 of 32768 nodes)
+N=32 linearise: 0.44 s on 16 threads (host blocks 0.11 GB)
+N=32 operator: copy 0.33 s (device blocks 0.10 GB), vjp 0.200 ms
+N=32 adjoint gmres: converged=true, 1813 iters, relres 9.93e-11, 16.27 s; pullback 0.005 s
+N=32 adjoint kstep: converged=true, 6 iters, relres 3.89e-11, 2.92 s; pullback 0.005 s
+N=32 gradient gap kstep vs gmres: 3.12e-11
+N=32 memory: device used (sampled max) 2.64 GB, host maxrss 2.44 GB
+N=64 forward: 56500 steps, converged=true, 20.66 s, 717.0 MLUPS (fluid 248912 of 262144 nodes)
+N=64 linearise: 2.55 s on 16 threads (host blocks 0.88 GB)
+N=64 operator: copy 0.48 s (device blocks 0.84 GB), vjp 0.665 ms
+N=64 adjoint gmres: converged=true, 14703 iters, relres 1.00e-10, 323.25 s; pullback 0.051 s
+N=64 adjoint kstep: converged=true, 17 iters, relres 7.92e-11, 18.86 s; pullback 0.040 s
+N=64 gradient gap kstep vs gmres: 1.07e-10
+N=64 memory: device used (sampled max) 11.23 GB, host maxrss 5.17 GB
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 9:33.10
+	Exit status: 0

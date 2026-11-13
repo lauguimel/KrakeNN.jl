@@ -1,7 +1,8 @@
 # T2 CUDA/cuDSS energy contract. Same analytical thresholds as the CPU file.
 # This gate is skipped locally without CUDA; KRAKEN_REQUIRE_GPU=1 makes
 # missing CUDA/CUDSS an error, so a cluster receipt cannot silently skip it.
-using Test, KrakeNN, LinearAlgebra, Random, SparseArrays
+using Test, KrakeNN, LinearAlgebra, Random
+using KrakeNN.SparseArrays
 
 const _FVE_GPU_OK=(try
     @eval Main using CUDA, CUDSS

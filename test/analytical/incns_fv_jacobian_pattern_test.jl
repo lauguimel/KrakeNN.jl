@@ -6,7 +6,8 @@
 # within 1e-12*maxabs(Jref). These are derivative-consistency gates, not a
 # continuum-accuracy claim. The reference seeds every state column separately,
 # never consulting the declared sparsity or colours, including M3 pair rows.
-using Test, KrakeNN, ForwardDiff, Random, SparseArrays
+using Test, KrakeNN, ForwardDiff, Random
+using KrakeNN.SparseArrays
 
 function _fvt0b_dense_jacobian(p, U)
     # Reuse its dual type to avoid compiling a second copy of the same kernel.

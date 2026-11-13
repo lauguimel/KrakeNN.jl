@@ -1,0 +1,228 @@
+# I1, Aqua job 27832408 (gpu1n001, H100 MIG slice, Float64), base 792d53766 + working tree
+lbm3d_law_test status=0
+lbm_law_test status=0
+gnf3d_channel_order status=0
+gnf3d_parity status=0
+I1 DONE
+== lbm3d_law_test
+┌ Info: LBM3D law (a) CY bit identity
+│   q_w = 0.5
+│   steps = 1200
+│   nu_range = (0.155842783090804, 0.16965402676006858)
+└   max_abs_f_diff = 0.0
+┌ Info: LBM3D law (a) CY bit identity
+│   q_w = 0.3
+│   steps = 1100
+│   nu_range = (0.15584020480398963, 0.16965424288507158)
+└   max_abs_f_diff = 0.0
+┌ Info: LBM3D law (b) DenseNet channel
+│   N = 16
+│   lbm_steps = 8100
+│   t_lbm = 2.6973068714141846
+│   nu_range = (0.07733399185629615, 0.09650536787344093)
+│   rel_L2_u = 0.005046956610824863
+└   mean_u_gap = 0.0054942255658694894
+┌ Info: LBM3D law (b) DenseNet channel
+│   N = 32
+│   lbm_steps = 30400
+│   t_lbm = 6.108927011489868
+│   nu_range = (0.07732746704371644, 0.09827660346440285)
+│   rel_L2_u = 0.0012598526262610074
+└   mean_u_gap = 0.0013736052128387663
+┌ Info: LBM3D law (b) second-order check
+│   gap_ratio = 4.00598967341381
+└   mean_gap_ratio = 3.999857829976364
+Test Summary:  | Pass  Total   Time
+lbm3d_law_test |   25     25  26.2s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:26.59
+== lbm_law_test
+┌ Info: LBM law (a) CY pullback vs analytic route
+└   relative = 0.0
+┌ Info: LBM law (b, d) DenseNet channel
+│   Ny = 16
+│   lbm_steps = 9180
+│   nu_range = (0.07733404092767732, 0.09653829660093777)
+│   rel_L2_u = 0.008511753538829395
+│   mean_u_gap = 0.009283398299620934
+│   grad_gap = 0.012299558661645008
+│   t_lin = 0.22112298011779785
+│   t_adjoint = 0.004359006881713867
+└   t_grad = 1.3113021850585938e-5
+┌ Info: LBM law (b, d) DenseNet channel
+│   Ny = 32
+│   lbm_steps = 39300
+│   nu_range = (0.0773274644817021, 0.09828004104078158)
+│   rel_L2_u = 0.0021216860928833007
+│   mean_u_gap = 0.002316166332912295
+│   grad_gap = 0.0030885221369313567
+│   t_lin = 0.0004839897155761719
+│   t_adjoint = 0.017792940139770508
+└   t_grad = 2.6226043701171875e-5
+┌ Info: LBM law (c) adjoint vs FD
+│   direction = 1
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (2.680266895498024e-5, 2.7997115836969203e-7, 1.5243676784060637e-8, 5.5575939104130225e-8)
+┌ Info: LBM law (c) adjoint vs FD
+│   direction = 2
+│   steps = (0.01, 0.001, 0.0001, 1.0e-5)
+└   rel_err = (1.886956074310226e-6, 6.143002074757917e-9, 1.2483646223872834e-8, 2.4549622262319764e-8)
+Test Summary: | Pass  Total   Time
+lbm_law_test  |   36     36  43.6s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:44.05
+== gnf3d_channel_order
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.5
+│   N = 16
+│   H = 16.0
+│   error_u = 0.004631963109416719
+│   error_nu = 1.228353982184114e-6
+│   steps = 7000
+└   seconds = 7.367860527
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.5
+│   N = 32
+│   H = 32.0
+│   error_u = 0.0011582846708748805
+│   error_nu = 7.844063414121485e-8
+│   steps = 15800
+└   seconds = 2.908461907
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.5
+│   N = 64
+│   H = 64.0
+│   error_u = 0.00028960996811013933
+│   error_nu = 7.946971505126868e-9
+│   steps = 47600
+└   seconds = 13.493108013
+┌ Info: GNF3D observed orders
+│   law = :carreau
+│   q_w = 0.5
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.3
+│   N = 16
+│   H = 15.6
+│   error_u = 0.007045039903662932
+│   error_nu = 1.26613171787607e-6
+│   steps = 5400
+└   seconds = 0.477788811
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.3
+│   N = 32
+│   H = 31.6
+│   error_u = 0.001728678038458421
+│   error_nu = 7.570387178269919e-8
+│   steps = 17800
+└   seconds = 2.533028615
+┌ Info: GNF3D channel accuracy
+│   law = :carreau
+│   q_w = 0.3
+│   N = 64
+│   H = 63.6
+│   error_u = 0.0004281689183901035
+│   error_nu = 7.88849611890954e-9
+│   steps = 56200
+└   seconds = 15.45441335
+┌ Info: GNF3D observed orders
+│   law = :carreau
+│   q_w = 0.3
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+┌ Info: GNF3D channel accuracy
+│   law = :power_thin
+│   q_w = 0.5
+│   N = 16
+│   H = 16.0
+│   error_u = 0.0027428874359226503
+│   error_nu = 0.00020155498974251427
+│   steps = 4800
+└   seconds = 1.604407238
+┌ Info: GNF3D channel accuracy
+│   law = :power_thin
+│   q_w = 0.5
+│   N = 32
+│   H = 32.0
+│   error_u = 0.0006856086410665703
+│   error_nu = 0.0001149211469965977
+│   steps = 15200
+└   seconds = 2.053555805
+┌ Info: GNF3D channel accuracy
+│   law = :power_thin
+│   q_w = 0.5
+│   N = 64
+│   H = 64.0
+│   error_u = 0.00017139586652480804
+│   error_nu = 5.6249647613309716e-5
+│   steps = 46000
+└   seconds = 12.497190916
+┌ Info: GNF3D observed orders
+│   law = :power_thin
+│   q_w = 0.5
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+┌ Info: GNF3D channel accuracy
+│   law = :power_thick
+│   q_w = 0.5
+│   N = 16
+│   H = 16.0
+│   error_u = 0.0029855784137358065
+│   error_nu = 0.00011115502510479063
+│   steps = 3400
+└   seconds = 0.28114664
+┌ Info: GNF3D channel accuracy
+│   law = :power_thick
+│   q_w = 0.5
+│   N = 32
+│   H = 32.0
+│   error_u = 0.0007822844980299231
+│   error_nu = 2.7674811729575808e-5
+│   steps = 10800
+└   seconds = 1.45383932
+┌ Info: GNF3D channel accuracy
+│   law = :power_thick
+│   q_w = 0.5
+│   N = 64
+│   H = 64.0
+│   error_u = 0.00020247376668795252
+│   error_nu = 6.519476416762193e-6
+│   steps = 34000
+└   seconds = 8.96132041
+┌ Info: GNF3D observed orders
+│   law = :power_thick
+│   q_w = 0.5
+│   orders = 2-element Vector{Float64}: …
+│   errors = 3-element Vector{Float64}: …
+└   nu_errors = 3-element Vector{Float64}: …
+Test Summary:       | Pass  Total     Time
+gnf3d_channel_order |  156    156  1m14.0s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:14.40
+== gnf3d_parity
+┌ Info: GNF3D constant-viscosity parity
+│   rheology = Newtonian{Float64, IsothermalCoupling}(0.1, IsothermalCoupling())
+└   delta = 0.0
+┌ Info: GNF3D constant-viscosity parity
+│   rheology = PowerLaw{Float64, IsothermalCoupling}(0.1, 1.0, 1.0e-6, 10.0, IsothermalCoupling())
+└   delta = 0.0
+┌ Info: GNF3D rotated channel
+│   delta_u = 1.705180430044476e-14
+└   delta_nu = 2.096706523796814e-14
+┌ Info: GNF3D rotated channel
+│   delta_u = 1.5428279190783758e-14
+└   delta_nu = 2.3530741413456586e-14
+┌ Info: GNF3D Zou-He local rates
+│   error_u = 0.006012940299086424
+│   error_nu = 0.0002799217216555376
+│   flux_spread = 5.123438887302248e-10
+└   steps = 5800
+Test Summary: | Pass  Total   Time
+gnf3d_parity  |   26     26  17.5s
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:17.95

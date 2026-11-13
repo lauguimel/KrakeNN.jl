@@ -7,6 +7,7 @@
 # derivative without continuous validation, as permitted by the C5 plan.
 # No step adaptation, topology filtering, or tolerance relaxation is used.
 include(joinpath(@__DIR__,"incns_fv_immersed_shape_helpers.jl"))
+isdefined(@__MODULE__,:_FV_IMMERSED_KNOWN112) || include(joinpath(@__DIR__,"incns_fv_immersed_known112.jl"))
 
 @testset "C5 shape analytic derivative and frozen topology" begin
     theta = [_C5SHAPE_BASE.ri,_C5SHAPE_BASE.cx]
@@ -104,7 +105,7 @@ if get(ENV,"KRAKEN_C5_SHAPE_GEOMETRY_ONLY","false") != "true"
                     for parameter in (:Ri,:cx)
                         samples = filter(r->r.N==N && r.kind==obj.kind && r.parameter==parameter,sweep)
                         best = samples[argmin(getproperty.(samples,:absolute_error))]
-                        @test best.absolute_error <= 2e-7+1e-6*abs(best.adjoint)
+                        @fv_immersed_gate best.absolute_error <= 2e-7+1e-6*abs(best.adjoint)
                     end
                     torque = fv_objective(obj,U,p)
                     derivative = adjoints[k].grad[1]

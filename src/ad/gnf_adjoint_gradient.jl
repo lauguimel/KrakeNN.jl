@@ -125,7 +125,7 @@ Solves the gauge-bordered adjoint system for the right-hand side `b` = ∂J/∂w
 start (projected on the active space and on ĉ⊥). Returns λ (length n, λ ⊥ ĉ up
 to the solver tolerance), the border unknown η and the `gnf_gmres!` info.
 """
-function gnf_adjoint_solve(op::GNFStepOperator, b; tol::Real=1e-6, restart::Integer=1000,
+function gnf_adjoint_solve(op::AbstractGNFStepOperator, b; tol::Real=1e-6, restart::Integer=1000,
                            maxiter::Integer=100_000, orth::Symbol=:mgs2, deflate::Integer=0,
                            λ0=nothing, max_wall::Real=Inf, ritz::Bool=false,
                            verbose::Bool=false, snapshots=())

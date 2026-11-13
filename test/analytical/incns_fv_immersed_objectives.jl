@@ -3,6 +3,7 @@
 # accumulated face terms. Adjoint/centred-FD gate: 1e-6 relative, 2e-7 absolute
 # (C4 derivative gate, with a fixed two-step truncation/cancellation check).
 using Test, KrakeNN, ForwardDiff, LinearAlgebra, Random
+isdefined(@__MODULE__,:_FV_IMMERSED_KNOWN112) || include(joinpath(@__DIR__,"incns_fv_immersed_known112.jl"))
 
 _c5obj_cross(a, b) = a[1] * b[2] - a[2] * b[1]
 function _c5obj_interior_flux(U, p, i, j, d)
@@ -202,7 +203,7 @@ end
             best = minimum(errors)
             push!(abs_errors, best)
             push!(rel_errors, best / max(abs(result.grad[k]), 1e-12))
-            @test best <= 2e-7 + 1e-6 * abs(result.grad[k])
+            @fv_immersed_gate best <= 2e-7 + 1e-6 * abs(result.grad[k])
         end
         @info "C5 objective adjoint vs centred FD" kind objective=typeof(obj) gradient=Tuple(result.grad) abs_errors=Tuple(abs_errors) rel_errors=Tuple(rel_errors)
     end

@@ -7,6 +7,16 @@
 # ============================================================
 
 """
+    AbstractGNFStepOperator
+
+Supertype of the linearised GNF step operators (2D `GNFStepOperator`, 3D
+`GNF3DStepOperator`). The adjoint solvers (`gnf_adjoint_solve`,
+`gnf_adjoint_kstep_solve`, `gnf_adjoint_fixed_point`, diagnostics) only use
+the fields `n`, `active`, `chat` and the products `gnf_jvp!` / `gnf_vjp!`.
+"""
+abstract type AbstractGNFStepOperator end
+
+"""
     GNFStepOperator(lin::GNFLinearisation; backend=CPU(), T=Float64)
 
 Device copy of the 10 × 10 blocks, solid mask, active mask (`active`, in T),
@@ -15,7 +25,7 @@ all-ones mask (`ones`, for unprojected products) and gauge vector `chat`
 Float32 products can be used with a Float64 gauge vector.
 """
 struct GNFStepOperator{T, TB<:AbstractArray{T,4}, TS<:AbstractMatrix{Bool},
-                       TV<:AbstractVector{T}, TC<:AbstractVector{Float64}}
+                       TV<:AbstractVector{T}, TC<:AbstractVector{Float64}} <: AbstractGNFStepOperator
     Nx::Int
     Ny::Int
     n::Int
@@ -154,11 +164,11 @@ Callable `A(y, x)` applying the gauge-bordered adjoint operator to vectors of
 length n + 1: y[1:n] = x − P Aᵀ P x + ĉ x[n+1] (identity on inactive
 components), y[n+1] = ĉᵀ x[1:n].
 """
-struct GNFBorderedAdjoint{TO<:GNFStepOperator, TV<:AbstractVector{Float64}}
+struct GNFBorderedAdjoint{TO<:AbstractGNFStepOperator, TV<:AbstractVector{Float64}}
     op::TO
     tmp::TV
 end
-GNFBorderedAdjoint(op::GNFStepOperator) = GNFBorderedAdjoint(op, similar(op.chat))
+GNFBorderedAdjoint(op::AbstractGNFStepOperator) = GNFBorderedAdjoint(op, similar(op.chat))
 
 function (A::GNFBorderedAdjoint)(y, x)
     n = A.op.n
