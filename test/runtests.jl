@@ -134,12 +134,29 @@ function run_incns_testset()
         include("analytical/incns_fv_densenet_test.jl")
         include("analytical/nn_law_gpu.jl")   # self-gated on CUDA.functional()
         include("analytical/incns_fv_jacobian_pattern_test.jl")
+        # 3D steady FV (plan I1, V0): reduction to 2D, coloured = dense Jacobian,
+        # MMS smoke, simple-shear law invariant, kernel inference (~30 s CPU)
+        include("analytical/incns_fv3d_test.jl")
+        # 3D discrete adjoint (plan I2, V3): composite PIV objective vs piv_misfit,
+        # adjoint vs centred FD for every map × objective, law contraction vs
+        # duals, `abs` convention at zero-flux faces (~25 s CPU)
+        include("analytical/incns_fv3d_adjoint_test.jl")
+        # 3D branch K (plan I4): GMRES + ILU(0) on the assembled Jacobian vs the
+        # direct branch — solves (forward, transposed), Newton state, adjoint
+        # gradients (both flow-rate border treatments) and one FD check
+        include("analytical/incns_fv3d_krylov_test.jl")
+        # 3D energy equation (plan I3, step 5): z-extrusion = h x 2D energy rows,
+        # coloured = dense with energy rows, thermal law adjoint vs duals and FD,
+        # thermal Newton (branches D and K), heating continuation (~60 s CPU)
+        include("analytical/incns_fv3d_thermal_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,
         # dQ/dν = −Q/ν (~25 s CPU), and its opt-in GPU contract
         include("analytical/incns_fv_adjoint.jl")
         include("analytical/incns_fv_adjoint_gpu.jl")
+        # Plane-PIV observation operator for 3D fields: linear exactness, adjoint, FD gradient, duct.
+        include("analytical/plane_piv_3d.jl")
         # C5-S012 immersed geometry, wall closures and preservation of C1-C4.
         include("analytical/incns_fv_immersed.jl")
         include("analytical/incns_fv_immersed_mms.jl") # C5-S3: injected/solved local wall MMS

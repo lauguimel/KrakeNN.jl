@@ -67,8 +67,10 @@ this benchmark.
 At `β = 0.3` (`R = 50`) KrakeNN's `C_d` is −1.33 % from rheoTool at `Wi = 0.5` and
 +1.24 % at `Wi = 1`, outside the 1 % band that holds at `β = 0.59`. The rheoTool
 `β = 0.3`, `Wi = 1` reference is not steady at `t = 20` (`C_d` 109.7 → 106.8 → 107.3
-over `t = 15–20`), so that cell is not a validation point. At `β ≤ 0.1` KrakeNN returns
-NaN and rheoTool aborts, a regime neither code handles, not a KrakeNN-specific defect.
+over `t = 15–20`), so that cell is not a validation point. At `β ≤ 0.1` rheoTool
+aborts. KrakeNN no longer returns NaN there (an anti-damped period-2 mode at the outlet
+corner was fixed in #121), but no grid study exists for these runs, so their `C_d` values
+are not validated.
 
 ### Stability is not the same as convergence
 
@@ -126,7 +128,7 @@ CI-reproducible — they require an A100-class run.
 - **Quantitative gate: passed.** `C_d` matches fine-mesh rheoTool to ≤ 1 % at
   `Wi ∈ {0.1, 0.5, 1.0}`, `R = 50`, `Re = 1`, `β = 0.59`, default walls (half-way channel, interpolated cylinder), Float64.
 - **`β = 0.3`:** −1.33 % (`Wi = 0.5`) and +1.24 % (`Wi = 1`, unsteady rheoTool
-  reference) — outside the 1 % band; shared divergence at `β ≤ 0.1`.
+  reference) — outside the 1 % band; at `β ≤ 0.1` rheoTool aborts and KrakeNN's `C_d` is not validated.
 - **Stable (NaN-free) to `Wi = 10`**, but high-Wi `C_d` is resolution-divergent and
   unconverged — validated only for `Wi ≤ 1` (the qualitative min+upturn is
   reproduced).

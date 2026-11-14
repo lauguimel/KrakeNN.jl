@@ -90,7 +90,7 @@ The solved global x body force `Fx` of a problem with `u_mean_target`.
 Its state gradient selects the final global unknown; its explicit parameter
 derivative is zero. Fixed-force problems have no such unknown and are rejected.
 """
-function fv_flow_force_objective(prob::FVSteadyProblem2D)
+function fv_flow_force_objective(prob::FVSteadyProblem)
     prob.flowrate === nothing && throw(ArgumentError("a force objective requires u_mean_target"))
     return FVLinearFunctional([_fv_force_index(prob)], [1.0])
 end

@@ -299,4 +299,129 @@ function _fv_device_csr(::KrakeNN.CUDABackendTag, rowptr::AbstractVector,
     return J, J.nzVal
 end
 
+# ---------------------------------------------------------------------------
+# Krylov branch (`KrylovBackendTag`) on CuArray: cuSPARSE ILU(0) (`ilu02!`),
+# triangular solves (SpSV) and SpMV. The generic driver (pivot check, border,
+# transpose gather, GMRES) is in src/solve/linear_solve_krylov.jl.
+# ---------------------------------------------------------------------------
+@static if isdefined(CUDA, :cuSPARSE)
+    const _CS = CUDA.cuSPARSE
+else
+    const _CS = CUDA.CUSPARSE
+end
+
+const _KSide = KrakeNN._KrylovSide{<:CuVector{Int32},<:CuVector{Float64}}
+
+# Persistent SpSV state for one triangle of the factor: the analysis is done
+# once per factorization and reused by every preconditioner application
+# (`sv!` redoes it at each call). X and Y are fixed work vectors of the side.
+mutable struct _KrylovSpSV
+    descA::Any
+    descX::Any
+    descY::Any
+    spsv::Any
+    buf::CuVector{UInt8}
+    F::Any                      # keeps the wrapped factor alive
+end
+
+function _krylov_spsv(F::CuSparseMatrixCSR{Float64,Int32}, X::CuVector{Float64},
+                      Y::CuVector{Float64}, uplo::Char, diag::Char)
+    descA = _CS.CuSparseMatrixDescriptor(F, 'O')
+    cu_uplo = Ref{_CS.cusparseFillMode_t}(uplo)
+    cu_diag = Ref{_CS.cusparseDiagType_t}(diag)
+    _CS.cusparseSpMatSetAttribute(descA, 'F', cu_uplo, Csize_t(sizeof(cu_uplo)))
+    _CS.cusparseSpMatSetAttribute(descA, 'D', cu_diag, Csize_t(sizeof(cu_diag)))
+    descX = _CS.CuDenseVectorDescriptor(X)
+    descY = _CS.CuDenseVectorDescriptor(Y)
+    spsv = _CS.CuSparseSpSVDescriptor()
+    alg = _CS.CUSPARSE_SPSV_ALG_DEFAULT
+    out = Ref{Csize_t}()
+    _CS.cusparseSpSV_bufferSize(_CS.handle(), 'N', Ref{Float64}(1.0), descA, descX, descY,
+                                Float64, alg, spsv, out)
+    buf = CuVector{UInt8}(undef, max(Int(out[]), 1))
+    _CS.cusparseSpSV_analysis(_CS.handle(), 'N', Ref{Float64}(1.0), descA, descX, descY,
+                              Float64, alg, spsv, buf)
+    return _KrylovSpSV(descA, descX, descY, spsv, buf, F)
+end
+
+_krylov_spsv_solve!(s::_KrylovSpSV) =
+    _CS.cusparseSpSV_solve(_CS.handle(), 'N', Ref{Float64}(1.0), s.descA, s.descX, s.descY,
+                           Float64, _CS.CUSPARSE_SPSV_ALG_DEFAULT, s.spsv)
+
+# release an SpSV buffer now rather than at the next GC
+_krylov_free!(buf) = (isdefined(CUDA, :unsafe_free!) ? CUDA.unsafe_free!(buf) : nothing; nothing)
+
+mutable struct _KrylovGPUHandle
+    Acsr::CuSparseMatrixCSR{Float64,Int32}
+    Fcsr::CuSparseMatrixCSR{Float64,Int32}
+    mode::Symbol
+    L::Union{Nothing,_KrylovSpSV}
+    U::Union{Nothing,_KrylovSpSV}
+end
+
+_krylov_csr(side, vals) = CuSparseMatrixCSR{Float64,Int32}(side.rowptr, side.colval, vals,
+                                                           (side.n, side.n))
+
+function KrakeNN._krylov_ilu0!(side::_KSide)
+    M = _krylov_csr(side, side.F)
+    _CS.ilu02!(M, 'O')                           # in place on the wrapped values
+    M.nzVal === side.F || copyto!(side.F, M.nzVal)
+    return side
+end
+
+function KrakeNN._krylov_rebuild!(side::_KSide, tag)
+    old = side.handle
+    if old isa _KrylovGPUHandle
+        old.L === nothing || _krylov_free!(old.L.buf)
+        old.U === nothing || _krylov_free!(old.U.buf)
+    end
+    Acsr = _krylov_csr(side, side.A)
+    Fcsr = _krylov_csr(side, side.F)
+    L = U = nothing
+    if tag.trisolve === :persistent
+        L = _krylov_spsv(Fcsr, side.t0, side.t1, 'L', side.first_unit ? 'U' : 'N')
+        U = _krylov_spsv(Fcsr, side.t1, side.t2, 'U', side.first_unit ? 'N' : 'U')
+    end
+    side.handle = _KrylovGPUHandle(Acsr, Fcsr, tag.trisolve, L, U)
+    return side
+end
+
+function KrakeNN._krylov_precond!(z, side::_KSide, v)
+    h = side.handle::_KrylovGPUHandle
+    side.t0 .= v
+    if h.mode === :persistent
+        _krylov_spsv_solve!(h.L)            # t0 -> t1
+        _krylov_spsv_solve!(h.U)            # t1 -> t2
+    else
+        _CS.sv!('N', 'L', side.first_unit ? 'U' : 'N', 1.0, h.Fcsr, side.t0, side.t1, 'O')
+        _CS.sv!('N', 'U', side.first_unit ? 'N' : 'U', 1.0, h.Fcsr, side.t1, side.t2, 'O')
+    end
+    z .= side.t2
+    return z
+end
+
+# SpMV: the generic KernelAbstractions kernel of src/solve/linear_solve_krylov.jl
+# (one thread per row). The former `mul!(t3, Acsr, z)` went through cuSPARSE
+# SpMV, whose CUDA.jl wrapper allocates its workspace on every call (one call
+# per GMRES iteration).
+
+# P2 Schur approximation S̃ factorized by cuDSS LU (non-symmetric). The CSR
+# matrix shares the device arrays of the SIMPLE preconditioner, so a refresh
+# only rewrites `Sval` and calls the numeric refactorization.
+struct _SchurGPU
+    S::CuSparseMatrixCSR{Float64,Int32}
+    cache::KrakeNN.LinearSolveCache
+end
+
+function KrakeNN._simple_schur_lu(Srp::CuVector{Int32}, Scv::CuVector{Int32},
+                                  Sval::CuVector{Float64}, np::Int)
+    S = CuSparseMatrixCSR{Float64,Int32}(Srp, Scv, Sval, (np, np))
+    return _SchurGPU(S, lin_factorize(KrakeNN.CUDABackendTag(), S; spd = false))
+end
+
+KrakeNN._simple_schur_refactor!(c::_SchurGPU) = (_cudss_refactor_numeric!(c.cache); c)
+
+KrakeNN._simple_schur_solve!(x, c::_SchurGPU, b) =
+    _lin_solve_into!(KrakeNN.CUDABackendTag(), x, c.cache, b, false)
+
 end # module KrakeNNCUDSSExt

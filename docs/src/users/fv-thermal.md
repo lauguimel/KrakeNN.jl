@@ -157,6 +157,108 @@ is the initial guess of `Fx`), and read the force with `fv_flow_force(prob, cont
 flow (`fv_energy_solver`, `fv_energy_solve!`) accepts prescribed face
 velocities through `FVEnergy(face_velocity = (uf, vf))`.
 
+### 3D problems and the PIV objective
+
+The same `fv_steady_gradient` call works on a 3D problem
+(`fv_steady_problem(Nx, Ny, Nz; ...)`, isothermal for now): parameter maps
+`FVUniformViscosity`, `FVViscosityField` (`Nx Ny Nz` values),
+`FVSideVelocity(prob, side; shape = (x, y, z) -> (u, v, w))` on the six sides,
+`FVUniformSource(comp)` and `FVLawParameters(n)`; objectives `fv_flow_rate(prob, i)`,
+`fv_flow_force_objective(prob)` and `FVWallForce(dir; region)` (`dir = 1..3`,
+regions include `:T`, `:B`). For calibration against plane PIV,
+
+```julia
+ops = map(pl -> piv_operator(pl, zeros(Nx, Ny, Nz); h = (h, h, h)), planes)  # CuArray template on GPU
+obj = FVPIVObjective(prob, ops, data; mask, sigma_u = 0.05,
+                     terms = ((fv_flow_force_objective(prob), 1.0, dp_measured),   # (J_t - target)^2 / 2
+                              (FVWallForce(1; region = :solid), 0.1)))             # weight * J_t
+r   = fv_steady_gradient(solver, U, theta, obj; params = FVLawParameters(n))
+```
+
+sums `piv_misfit / sigma_u^2` over the planes and the weighted terms. The PIV
+planes and linear terms are evaluated on the solver backend without dual
+numbers or a host copy of the state; nonlinear terms (the wall force) use host
+duals. Upwind fluxes use `abs`, differentiated by ForwardDiff with the sign
+bit of the value (`abs'(+0.0) = 1`, `abs'(-0.0) = -1`): at a face with exactly
+zero mass flux the gradient is one of the two one-sided derivatives, not
+their mean, so finite-difference checks should avoid such symmetric states.
+On GPU the all-linear objective and its gradient allocate at most 1 KiB of
+device memory per call (a fixed amount, the same at every grid size; measured
+by `benchmarks/fv3d/i2_adjoint_measure.jl`).
+
+### 3D problems without a direct factorisation: `KrylovBackendTag`
+
+The direct factors of a 3D Jacobian grow faster than the grid (about 25 GB at
+48³). `KrylovBackendTag()` replaces them by restarted GMRES on the assembled
+Jacobian, behind the same calls. GMRES needs a preconditioner, an approximate
+inverse of the Jacobian that is cheap to apply; the tag offers five:
+
+- Vanka multigrid (`precond = :vanka`): a coupled (monolithic) multigrid with
+  a Vanka smoother, i.e. one multigrid cycle on the whole velocity–pressure
+  system, whose smoother solves, cell by cell, the small local system made of
+  the cell's velocities and its pressure (constant prolongation with
+  `vanka_prolong = :constant`, damping `vanka_omega`, default 0.5).
+- Block LSC (`precond = :mg, block = :upper, schur_approx = :lsc,
+  mg_cycles = 4`): a block-triangular preconditioner with an LSC
+  Schur-complement approximation, i.e. the velocity block is solved by
+  aggregation multigrid (4 cycles) and the pressure through the
+  least-squares commutator (LSC) approximation of the Schur complement.
+- ILU(0) (`precond = :ilu0`): an incomplete LU factorisation of the whole
+  Jacobian that keeps only its sparsity pattern.
+- Block SIMPLE (`precond = :simple`): ILU(0) of the velocity block and an LU
+  of the SIMPLE Schur approximation C − D diag(A)⁻¹ G for the pressure
+  (`schur = :ilu0` replaces that LU by an ILU(0)).
+- Block SIMPLE with multigrid (`precond = :mg`): the same splitting with one
+  aggregation-multigrid cycle for each block.
+
+The default (`precond = :auto`) picks one from the Jacobian:
+
+- 3D problems without energy equation: Vanka multigrid with
+  `vanka_prolong = :constant` and `vanka_omega = 0.5`;
+- 3D problems with an energy equation: block LSC with `mg_cycles = 4`;
+- 2D problems: ILU(0), as before.
+
+With the default, these fields are set by the choice; to tune them, name
+`precond` explicitly (an explicit `precond = :vanka` uses trilinear
+prolongation unless `vanka_prolong = :constant` is given).
+
+What was measured on the 3D benchmarks (`benchmarks/fv3d/README.md`):
+
+- Vanka multigrid with `vanka_omega = 0.5` and constant prolongation passes
+  the D2 gate (GMRES iterations, memory, agreement with the direct solve) at
+  32³, 48³ and 64³ on the flow-rate duct and on the body-force duct; with
+  `vanka_omega = 0.7` it fails on the body-force duct.
+- Block LSC on the 3D energy cases: heated duct to N = 48 and the
+  manufactured energy solution to 64³ pass their gates, GPU peak 4.7 GB.
+- Law calibration on the V5 twin (H100): 143 s and 5.07 GiB GPU peak with
+  Vanka multigrid, 402 s and 6.94 GiB with block LSC, same fitted law.
+
+Range of the default: the Vanka multigrid default is reliable up to
+Re ≈ 250 at N = 32 with first-order upwind convection (measured: 208 GMRES
+iterations per solve). Beyond that, Newton or GMRES fail (measured failure at
+Re ≈ 415); block LSC at Re ≈ 250 was not measured to the end. Second-order
+convection and pseudo-transient continuation for this path are planned for
+v0.8.
+
+```julia
+solver = fv_newton_solver(prob; to = CuArray,
+                          linsolve = KrylovBackendTag(precond = :simple))   # `using CUDA, CUDSS`
+st = fv_newton!(solver, U; atol = 1e-10, dtau0 = 1.0, dtau_max = 1e4)
+r  = fv_steady_gradient(solver, U, theta, obj; params = FVLawParameters(n))
+lin_krylov_log(solver.cache)    # iterations, residual, time of every solve
+```
+
+Each Newton step is solved to `rtol = 1e-6` (an inexact Newton step; the
+Newton iteration still converges to the requested residual) and the adjoint
+(transposed) solve to `rtol_transpose = 1e-10`, both measured on the true
+residual. With an imposed flow rate (`u_mean_target`), the border unknown is
+left out of the preconditioner by default (`border = :krylov`; always with
+`:simple`, `:mg` and `:vanka`). A zero or non-finite ILU(0) pivot raises an
+error: switch preconditioner or use the direct backend for that case. ILU(0)
+alone stalls on 32³ ducts with an imposed flow rate; the iteration counts and
+memory of every preconditioner are measured by
+`benchmarks/fv3d/i4_krylov_measure.jl`.
+
 ## Validation
 
 Test files are in `test/analytical/`; each frozen threshold carries its date and
