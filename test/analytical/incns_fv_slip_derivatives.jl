@@ -117,3 +117,34 @@ end
             label = "inclined Navier")
     end
 end
+
+# CPU inference guard of the slip residual kernel (not a GPU validation): the
+# local slip solve used to iterate on duals nested inside the state duals,
+# which does not infer and made the GPU compiler reject the kernel
+# (InvalidIRError, Aqua A100 2026-11-14). Same check as the M3 kernels.
+isdefined(@__MODULE__, :_fvc4_kernel_issues) ||
+    include(joinpath(@__DIR__, "incns_fv_adjoint_compiler.jl"))
+@testset "FV wall slip residual kernel inference" begin
+    DJ = ForwardDiff.Dual{FVJacobianTag,Float64,4}
+    DP = ForwardDiff.Dual{KrakeNN.FVParamTag,Float64,2}
+    cases = (("channel Navier", _sl_channel(16; law = FVNavierSlip(0.1), conv = true)),
+             ("immersed cubic central", _isl_problem(0; law = _SlipCubic(0.02, 0.002), conv = true,
+                                                     convection = :central)))
+    for (label, p) in cases
+        qcut, wvel, closure = KrakeNN._fv_immersed_args(p.immersed)
+        fp = KrakeNN._fv_face_pair(p.immersed)
+        n = fv_nunknowns(p)
+        θ = fv_slip_parameters(p.slip.law)
+        pθ = fv_with_slip_parameters(p, DP.(θ, Ref(ForwardDiff.Partials((1.0, 0.0)))))
+        # state duals (Jacobian columns), then slip-law parameter duals (adjoint)
+        for (payload, U, q) in (("state", fill(DJ(0.1), n), p), ("law parameters", fill(0.1, n), pθ))
+            @testset "$label $payload" begin
+                T = promote_type(eltype(U), KrakeNN._fv_slip_eltype(q.slip))
+                args = (zeros(T, n), U, q.tag, q.nu, q.bvel, q.src, q.grid, q.visc,
+                        qcut, wvel, closure, fp, q.slip)
+                @test isempty(_fvc4_kernel_issues(KrakeNN._fv_slip_residual_kernel!, args,
+                                                  (q.grid.Nx, q.grid.Ny)))
+            end
+        end
+    end
+end

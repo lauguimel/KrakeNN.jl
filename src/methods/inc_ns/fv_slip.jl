@@ -19,10 +19,10 @@
 #   along the wall is neglected, which is exact for flow parallel to a straight
 #   wall and first order where the slip varies along the wall.
 # τ_w = ν_w(γ) γ with the residual's own wall viscosity hook (simple shear),
-# then s solves s = f(ν_w(γ) γ) by a safeguarded Newton iteration. Every
-# iteration runs on the full number type, so the converged s carries the exact
-# implicit-function derivatives for every outer dual (Jacobian columns,
-# parameter maps, nested adjoint duals). The wall velocity of the face becomes
+# then s solves s = f(ν_w(γ) γ) by a safeguarded Newton iteration on primal
+# values, closed by one Newton step on the full number type, so s carries the
+# exact first implicit-function derivatives for every outer dual (Jacobian
+# columns, parameter maps); see `_fv_slip_solve`. The wall velocity of the face becomes
 # u_wall + s t; the existing ghost, convection and mass closures then read it.
 # On grid-aligned faces the viscous traction is ν_w ∂u_t/∂n tangentially (the
 # cross term is dropped so the traction equals the τ_w of the slip law) and
@@ -34,13 +34,16 @@
 Supertype of the wall slip laws of [`FVSlipWalls`](@ref). A law `L` defines
 
 - `fv_slip_velocity(law, τ)`: the slip velocity for the wall shear stress `τ`
-  (odd, non-decreasing, generic in the number type: it is evaluated on nested
+  (odd, non-decreasing, generic in the number type: it is evaluated on
   `ForwardDiff.Dual`s and on the GPU, so the law must be isbits);
 - `fv_slip_parameters(law) -> Vector`: its parameters θ;
 - `fv_slip_law(law, θ)`: the same law with parameters θ (any number type).
 
 The number type of a law is the promotion of its numeric fields; a law with
 non-numeric fields (e.g. a network) overloads `KrakeNN._fv_slip_law_eltype`.
+The local slip iteration uses the law with primal parameters, rebuilt from its
+fields by the default constructor; a law that cannot be rebuilt that way
+overloads `KrakeNN._fv_slip_primal_law`.
 """
 abstract type FVSlipLaw end
 
@@ -177,40 +180,64 @@ ForwardDiff.:(≺)(::Type{_FVSlipTag}, ::Type{_FVSurfaceTangentTag}) = false
 @inline _fv_slip_wall_tau(visc, nuf, γ, i, j) =
     _fv_wall_nu(visc, nuf, zero(γ), γ, zero(γ), zero(γ), i, j) * γ
 
+# Law with every numeric field replaced by its primal value (law parameters
+# carry duals in the parameter adjoint). Rebuilt from its fields with the
+# default constructor; a law that cannot be rebuilt that way overloads this.
+@generated function _fv_slip_primal_law(l::L) where {L}
+    _fv_slip_law_eltype(L) <: ForwardDiff.Dual || return :l
+    args = [:(_fv_ib_primal(getfield(l, $k))) for k in 1:fieldcount(L)]
+    return :($(Base.typename(L).wrapper)($(args...)))
+end
+
+# g(s) = s - f(τ_w(κ (a - s))) and dg/ds at a primal s, by one Float64 dual.
+@inline function _fv_slip_local(law, visc, nuf, κ, a, s, i, j)
+    sd = ForwardDiff.Dual{_FVSlipTag}(s, one(s))
+    gd = sd - fv_slip_velocity(law, _fv_slip_wall_tau(visc, nuf, κ * (a - sd), i, j))
+    return _fv_ib_primal(ForwardDiff.value(gd)), _fv_ib_primal(ForwardDiff.partials(gd, 1))
+end
+
 """
-Root s of s = f(ν_w(γ) γ), γ = κ (a - s), bracketed by 0 and a. Newton with
-the exact derivative (nested dual), bisection when a step leaves the bracket.
+Root s of s = f(ν_w(γ) γ), γ = κ (a - s), bracketed by 0 and a. The iteration
+runs on primal values only: Newton with the exact derivative dg/ds (one
+Float64 dual), bisection when a step leaves the bracket. One final Newton
+step on the full number type, with the primal dg/ds, returns the root with
+the exact first derivatives of the implicit function for every outer dual
+(∂s/∂p = -(∂g/∂p)/(∂g/∂s)). Second derivatives through s, which nested outer
+duals would need, are not exact; no caller uses them.
+
+Keeping the iteration primal avoids duals nested inside duals: ForwardDiff's
+operations on them (e.g. unary minus) do not infer to concrete types, which
+the GPU compiler rejects (InvalidIRError). With a primal viscosity model the
+whole solve stays concrete. A viscosity model bound to dual arrays still
+nests duals in the primal iteration; that works on the CPU only.
 """
 @inline function _fv_slip_solve(b::_FVSlipBound, a0, κ0, nuf0, i, j)
     law = b.walls.law; visc = b.visc
     z = zero(a0) + zero(κ0) + zero(nuf0) + _fv_slip_law_zero(law) + _fv_visc_zero(visc)
     a = a0 + z; κ = κ0 + z; nuf = nuf0 + z
-    ap = _fv_ib_primal(a)
+    lawp = _fv_slip_primal_law(law)
+    ap = _fv_ib_primal(a); κp = _fv_ib_primal(κ); nufp = _fv_ib_primal(nuf)
     tol = 8 * eps(typeof(float(ap))) * max(abs(ap), floatmin(typeof(float(ap))))
     lo = ap < 0 ? ap : zero(ap)
     hi = ap < 0 ? zero(ap) : ap
-    s = z
+    sp = zero(ap)
+    gp, dp = _fv_slip_local(lawp, visc, nufp, κp, ap, sp, i, j)
     for _ in 1:b.walls.maxit
-        sd = ForwardDiff.Dual{_FVSlipTag}(s, one(s))
-        γ = κ * (a - sd)
-        gd = sd - fv_slip_velocity(law, _fv_slip_wall_tau(visc, nuf, γ, i, j))
-        gv = ForwardDiff.value(gd)
-        dg = ForwardDiff.partials(gd, 1)
-        sp = _fv_ib_primal(s)
-        gp = _fv_ib_primal(gv)
         gp > 0 ? (hi = sp) : (lo = sp)
-        dp = _fv_ib_primal(dg)
-        step = gv / dg
-        snew = s - step
-        np = _fv_ib_primal(snew)
-        if dp > 0 && lo <= np <= hi && isfinite(np)
-            s = snew
-            abs(_fv_ib_primal(step)) <= tol && break
+        step = gp / dp
+        snew = sp - step
+        done = false
+        if dp > 0 && lo <= snew <= hi && isfinite(snew)
+            sp = snew
+            done = abs(step) <= tol
         else
-            s = zero(s) + (lo + hi) / 2
+            sp = (lo + hi) / 2
         end
+        gp, dp = _fv_slip_local(lawp, visc, nufp, κp, ap, sp, i, j)
+        done && break
     end
-    return s
+    g = sp - fv_slip_velocity(law, _fv_slip_wall_tau(visc, nuf, κ * (a - sp), i, j))
+    return z + (sp - g / dp)
 end
 
 # Grid-aligned slip face (domain side or masked solid): tangential component

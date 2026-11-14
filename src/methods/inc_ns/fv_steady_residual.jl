@@ -369,7 +369,9 @@ end
                                 qcut = nothing, wvel = nothing, closure = nothing, slip = nothing)
     uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)); vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)); pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
     kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
-    zb = _fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel)
+    # Slip walls promote the wall branch to the slip-law number type; promote
+    # every branch alike so the face values have one concrete type (GPU).
+    zb = _fv_slip_promote(_fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel), slip)
     if kind == _FV_F_INT
         uN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 1)); vN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 2)); pN = _fv_val(U, g, ii, jj, _fv_pressure_slot(g.layout))
         return (uP + uN) / 2 + zb, (vP + vN) / 2 + zb, (pP + pN) / 2 + zb
