@@ -1,0 +1,70 @@
+#!/bin/bash -l
+#PBS -N kraken_t3d
+#PBS -l select=1:ncpus=8:ngpus=1:mem=64GB:gpu_id=A100
+#PBS -l walltime=01:00:00
+#PBS -j oe
+#PBS -m n
+# 3D GNF step tests for the C1/C6/N1 changes (.orchestrator/3d-kernel-plan.md), GPU required:
+# the new equality test, the four existing tests named in the plan (section 4), then
+# gnf3d_parity.jl and gnf3d_channel_order.jl (they also call the 3D step).
+# Same environment as profile3d.pbs ($WORKDIR/env develops $WORKDIR/src); run profile3d.pbs
+# once first if env/Manifest.toml is missing (this script does not build it).
+# H100: qsub -P UXJFSK0637 -l select=1:ncpus=8:ngpus=1:mem=64GB:gpu_id=H100 -l walltime=01:00:00 -v WORKDIR=$HOME/kraken_perf3d_int tests3d.pbs
+# Settings through -v: WORKDIR, JULIA_BIN, T3D_FILES (space-free list separated by '/', paths
+# relative to $WORKDIR/src/test; default the seven files below).
+set -o pipefail
+W=${WORKDIR:-$HOME/kraken_perf3d_int}
+SRC=$W/src
+cd "$W" || exit 2
+LOGDIR=$W/logs
+mkdir -p "$LOGDIR"
+TAG=${PBS_JOBID%%.*}
+TAG=${TAG:-manual}
+
+HOSTNAME_S=$(hostname -s)
+echo "kraken_t3d job ${PBS_JOBID:-none} on $HOSTNAME_S, start $(date -Is)"
+case "$HOSTNAME_S" in
+    gpu0n001*) echo "refusing gpu0n001: cuInit fails on that node"; exit 4 ;;
+esac
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || exit 1
+
+if [ -z "${JULIA_BIN:-}" ]; then
+    JULIA_BIN=$(ls -d "$HOME"/.julia/juliaup/julia-1.11*/bin/julia 2>/dev/null | sort -V | tail -n 1)
+fi
+if [ -z "$JULIA_BIN" ] || [ ! -x "$JULIA_BIN" ]; then
+    echo "no Julia 1.11 binary under ~/.julia/juliaup; pass -v JULIA_BIN=/path/to/bin/julia"
+    exit 6
+fi
+[ -f env/Manifest.toml ] || { echo "env/Manifest.toml missing: run profile3d.pbs once first"; exit 3; }
+
+export JULIA_DEPOT_PATH=$W/depot
+export JULIA_CUDA_USE_COMPAT=false
+export JULIA_PKG_OFFLINE=true
+export JULIA_PKG_PRECOMPILE_AUTO=0
+export JULIA_NUM_THREADS=1
+export KRAKEN_REQUIRE_GPU=1
+
+# The developed KrakeNN Project.toml gained an [extensions] entry (KrakeNNCUDAExt): resolve
+# env/ once, online, before the tests (the tests themselves stay offline).
+# gnf3d_parity.jl and gnf3d_channel_order.jl do `using KernelAbstractions`, which env/ does
+# not list: add it once, keeping every installed version (PRESERVE_ALL).
+echo "== Pkg.resolve $(date -Is)"
+JULIA_PKG_OFFLINE=false "$JULIA_BIN" --startup-file=no --project=env -e 'using Pkg; Pkg.resolve();
+haskey(Pkg.project().dependencies, "KernelAbstractions") ||
+    Pkg.add("KernelAbstractions"; preserve=Pkg.PRESERVE_ALL)' ||
+    { echo "Pkg.resolve failed"; exit 7; }
+
+FILES=${T3D_FILES:-analytical/gnf3d_lean_step_equality.jl/ad/gnf3d_setup_equality_test.jl/ad/gnf3d_adjoint_test.jl/analytical/lbm3d_law_test.jl/analytical/gnf3d_adjoint_gpu.jl/analytical/gnf3d_parity.jl/analytical/gnf3d_channel_order.jl}
+# Pairs "dir/file.jl" from the '/'-separated list.
+read -r -a PARTS <<< "$(echo "$FILES" | tr '/' ' ')"
+FAIL=0
+for ((n = 0; n + 1 < ${#PARTS[@]}; n += 2)); do
+    f="${PARTS[n]}/${PARTS[n+1]}"
+    echo "== $f $(date -Is)"
+    "$JULIA_BIN" --startup-file=no --project=env "$SRC/test/$f" 2>&1 | tee "$LOGDIR/t3d_$(basename "$f" .jl)_$TAG.txt"
+    st=${PIPESTATUS[0]}
+    echo "T3D file=$f exit=$st"
+    [ "$st" -eq 0 ] || FAIL=1
+done
+echo "kraken_t3d end $(date -Is), any failure: $FAIL"
+exit "$FAIL"

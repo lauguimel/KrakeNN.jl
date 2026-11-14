@@ -396,10 +396,38 @@ const _TRT_GNF_LIBB_GUO_FIELD_SPEC_Z_PERIODIC_3D = LBMSpec(
     stencil = :D3Q19,
 )
 
+# Register-diet variant (C6): same pull, LI-BB and solid handling; the lean
+# collision brick writes the moments itself (no WriteMoments_3D).
+const _TRT_GNF_LIBB_GUO_FIELD_LEAN_SPEC_3D = LBMSpec(
+    PullHalfwayBB_3D(), SolidInert_3D(),
+    ApplyLiBBPrePhase_3D(),
+    Moments_3D(), CollideTRTGNFGuoFieldLean_3D();
+    stencil = :D3Q19,
+)
+
+const _TRT_GNF_LIBB_GUO_FIELD_LEAN_SPEC_Z_PERIODIC_3D = LBMSpec(
+    PullHalfwayBB_3D{true}(), SolidInert_3D(),
+    ApplyLiBBPrePhase_3D(),
+    Moments_3D(), CollideTRTGNFGuoFieldLean_3D();
+    stencil = :D3Q19,
+)
+
+function _gnf3d_step_spec(periodic_z::Bool, variant::Symbol)
+    if variant === :reference
+        return periodic_z ? _TRT_GNF_LIBB_GUO_FIELD_SPEC_Z_PERIODIC_3D :
+                            _TRT_GNF_LIBB_GUO_FIELD_SPEC_3D
+    elseif variant === :lean
+        return periodic_z ? _TRT_GNF_LIBB_GUO_FIELD_LEAN_SPEC_Z_PERIODIC_3D :
+                            _TRT_GNF_LIBB_GUO_FIELD_LEAN_SPEC_3D
+    end
+    throw(ArgumentError("variant must be :reference or :lean, got $(repr(variant))"))
+end
+
 """
     fused_trt_gnf_libb_guo_field_step_3d!(f_out, f_in, rho, ux, uy, uz, is_solid,
         q_wall, uw_x, uw_y, uw_z, Fx, Fy, Fz, sp_field, sm_field,
-        Nx, Ny, Nz, rheology; Λ=3/16, periodic_z=false)
+        Nx, Ny, Nz, rheology; Λ=3/16, periodic_z=false,
+        workgroupsize=:auto, variant=:lean, maxregs=:auto)
 
 Advance D3Q19 populations with LI-BB, local GNF TRT relaxation, and Guo forcing.
 The written velocity includes `F/(2rho)`. Strain uses the Guo-corrected stress
@@ -410,21 +438,60 @@ viscosity's TRT rates before the first call. Solid-cell rates remain untouched.
 Supported models are isothermal Newtonian, PowerLaw, CarreauYasuda, and Cross;
 parameters are converted to `eltype(f_in)` on the host. `periodic_z=true` wraps
 z links while retaining the existing x/y halfway-BB fallback.
+
+Launch and code-generation options (performance only):
+- `workgroupsize = :auto` (default): `_gnf3d_step_workgroup(backend, eltype(f_in))`,
+  `(32, 4, 2)` on CUDA in Float64 (H100 sweep, job 28150951, best with the cap 128),
+  the backend's automatic choice otherwise (CUDA Float32: auto beat 32x4x2 with
+  cap 96; CPU, Metal unchanged). `nothing` = the backend's automatic choice; a
+  tuple, e.g. `(64, 4, 1)`, is passed as is. Each thread runs the same code on
+  the same cell whatever the shape, so results do not depend on it.
+- `variant = :lean` (default, decision 2026-11-13) uses
+  `CollideTRTGNFGuoFieldLean_3D`; `variant = :reference` uses
+  `CollideTRTGNFGuoField_3D`. Lean is the same arithmetic
+  with fewer registers live across the viscosity law; equal to the reference
+  within relative tolerance 1e-12 in Float64 (GPU round-off differs), checked by `test/analytical/gnf3d_lean_step_equality.jl`).
+- `maxregs = :auto` (default): register cap per thread on CUDA,
+  `_gnf3d_step_maxregs(eltype(f_in))` = 128 (Float64) / 96 (Float32), chosen from
+  the Aqua sweep (H100/A100, Carreau-Yasuda Float64 about 1.5x faster than
+  uncapped). `nothing` or `0` = no cap; an integer = that cap. Ignored on
+  non-CUDA backends (see `lbm_launch!`).
 """
 function fused_trt_gnf_libb_guo_field_step_3d!(f_out, f_in, ρ, ux, uy, uz, is_solid,
                                              q_wall, uw_link_x, uw_link_y, uw_link_z,
                                              Fx_field, Fy_field, Fz_field,
                                              sp_field, sm_field, Nx, Ny, Nz, rheology;
-                                             Λ::Real=3/16, periodic_z::Bool=false)
+                                             Λ::Real=3/16, periodic_z::Bool=false,
+                                             workgroupsize=:auto,
+                                             variant::Symbol=:lean,
+                                             maxregs=:auto)
     backend = KernelAbstractions.get_backend(f_in)
     ET = eltype(f_in)
     model = _gnf3d_rheology(ET, rheology)
-    spec = periodic_z ? _TRT_GNF_LIBB_GUO_FIELD_SPEC_Z_PERIODIC_3D :
-                        _TRT_GNF_LIBB_GUO_FIELD_SPEC_3D
-    kernel! = build_lbm_kernel(backend, spec)
-    # Canonical arguments first; collision-only arguments follow declaration order.
-    kernel!(f_out, ρ, ux, uy, uz, f_in, is_solid,
-            q_wall, uw_link_x, uw_link_y, uw_link_z, Nx, Ny, Nz,
-            Fx_field, Fy_field, Fz_field, model, sp_field, sm_field, ET(Λ);
-            ndrange=(Nx, Ny, Nz))
+    spec = _gnf3d_step_spec(periodic_z, variant)
+    # Canonical arguments first; collision-only arguments follow declaration order
+    # (the same list for both variants, see test/analytical/gnf3d_lean_step_equality.jl).
+    lbm_launch!(backend, spec, f_out, ρ, ux, uy, uz, f_in, is_solid,
+                q_wall, uw_link_x, uw_link_y, uw_link_z, Nx, Ny, Nz,
+                Fx_field, Fy_field, Fz_field, model, sp_field, sm_field, ET(Λ);
+                ndrange=(Nx, Ny, Nz),
+                workgroupsize=(workgroupsize === :auto ?
+                               _gnf3d_step_workgroup(backend, ET) : workgroupsize),
+                maxregs=_gnf3d_resolve_maxregs(ET, maxregs))
+end
+
+# Default workgroup of the 3D GNF step: backend's automatic choice, except CUDA
+# Float64 = (32, 4, 2) (method in ext/KrakeNNCUDAExt.jl, H100 sweep job 28150951).
+_gnf3d_step_workgroup(backend, ::Type) = nothing
+
+# Register cap of the 3D GNF step on CUDA (measured on Aqua H100/A100, profile3d
+# sweep, 2026-11). Other element types: no cap.
+_gnf3d_step_maxregs(::Type{Float64}) = 128
+_gnf3d_step_maxregs(::Type{Float32}) = 96
+_gnf3d_step_maxregs(::Type) = nothing
+
+function _gnf3d_resolve_maxregs(::Type{ET}, maxregs) where {ET}
+    maxregs === :auto && return _gnf3d_step_maxregs(ET)
+    (maxregs === nothing || (maxregs isa Integer && maxregs >= 0)) && return maxregs
+    throw(ArgumentError("maxregs must be :auto, nothing or an integer >= 0, got $(repr(maxregs))"))
 end

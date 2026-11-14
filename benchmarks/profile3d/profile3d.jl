@@ -31,6 +31,23 @@
 #   KRAKEN_PF_COPY_GBPS  measured copy bandwidth (A100 1383, H100 3029) for frac2q (optional)
 #   KRAKEN_PF_OUT        folder for the SASS dumps (default ./results)
 #   KRAKEN_PF_TAG        suffix of the SASS file names (default manual)
+# Step C1/C6/N1 sweep (kind=sweep lines; kernel-only timing of every combination):
+#   KRAKEN_PF_VARIANTS   collision variants, from reference, lean (default reference)
+#   KRAKEN_PF_WG         workgroup sizes, entries separated by ';' or '/', each "a,b,c" or
+#                        "axbxc" or auto (default auto = KernelAbstractions/CUDA choice);
+#                        for qsub -v use the comma-free form, e.g. auto/256x1x1/128x2x1/64x4x1/32x4x2/32x8x1
+#   KRAKEN_PF_MAXREGS    register caps, 0 = none (default 0). Passed as `maxregs` to
+#                        fused_trt_gnf_libb_guo_field_step_3d! (src launch path,
+#                        KrakeNN.lbm_launch! + ext/KrakeNNCUDAExt.jl). Production now caps
+#                        by default (maxregs = :auto: 128 Float64, 96 Float32); every
+#                        launch of this script passes its cap explicitly, 0 = uncapped,
+#                        so time_step/time_kernel/equal lines stay uncapped as before.
+#   KRAKEN_PF_EQ         1 (default): one step from the same state with each variant (and,
+#                        for by-value rows, with the device-array law), compared with the
+#                        reference (kind=equal lines: count of differing values, max |diff|)
+# Lists (ROWS, VARIANTS, MAXREGS) accept ',' or '/' as separator (qsub -v splits on ',').
+# Rows cyv_* / netv_* = the same law with its parameters held by value
+# (KrakeNN.lbm_law_by_value, plan row N1).
 
 using KrakeNN
 using CUDA                       # top level only, never inside a function
@@ -39,7 +56,11 @@ using Printf, Random
 const KA = KrakeNN.KernelAbstractions
 
 _pf_env(key, default) = (v = strip(get(ENV, key, "")); isempty(v) ? String(default) : String(v))
-_pf_list(s) = [String(strip(x)) for x in split(s, ',') if !isempty(strip(x))]
+_pf_list(s) = [String(strip(x)) for x in split(s, r"[,/]") if !isempty(strip(x))]
+_pf_wg(x) = lowercase(x) == "auto" ? nothing :
+    Tuple(parse(Int, strip(t)) for t in split(x, r"[,x]") if !isempty(strip(t)))
+const WGS = [_pf_wg(String(strip(x))) for x in split(_pf_env("KRAKEN_PF_WG", "auto"), r"[;/]")
+             if !isempty(strip(x))]
 
 const N = parse(Int, _pf_env("KRAKEN_PF_N", "192"))
 const ROWS = _pf_list(_pf_env("KRAKEN_PF_ROWS", "cy_f64,net_f64,cy_f32,net_f32"))
@@ -52,12 +73,20 @@ const SETUP_N = lowercase(_pf_env("KRAKEN_PF_SETUP_N", "256"))
 const COPY_GBPS = parse(Float64, _pf_env("KRAKEN_PF_COPY_GBPS", "NaN"))
 const OUT = _pf_env("KRAKEN_PF_OUT", joinpath(pwd(), "results"))
 const TAG = _pf_env("KRAKEN_PF_TAG", "manual")
+const VARIANTS = Symbol.(_pf_list(_pf_env("KRAKEN_PF_VARIANTS", "reference")))
+const MAXREGS = parse.(Int, _pf_list(_pf_env("KRAKEN_PF_MAXREGS", "0")))
+const CHECK_EQ = _pf_env("KRAKEN_PF_EQ", "1") == "1"
 
 MODE in ("full", "ncu") || error("KRAKEN_PF_MODE must be full or ncu, got $MODE")
 CASE in ("box", "channel") || error("KRAKEN_PF_CASE must be box or channel, got $CASE")
 const ROW_DEFS = Dict("cy_f64" => (Float64, "carreau_yasuda"), "net_f64" => (Float64, "densenet"),
                       "cy_f32" => (Float32, "carreau_yasuda"), "net_f32" => (Float32, "densenet"),
-                      "netc_f32" => (Float32, "densenet_f64consts"))
+                      "netc_f32" => (Float32, "densenet_f64consts"),
+                      "cyv_f64" => (Float64, "carreau_yasuda"), "netv_f64" => (Float64, "densenet"),
+                      "cyv_f32" => (Float32, "carreau_yasuda"), "netv_f32" => (Float32, "densenet"))
+row_byvalue(row) = startswith(row, "cyv_") || startswith(row, "netv_")
+all(v -> v in (:reference, :lean), VARIANTS) ||
+    error("KRAKEN_PF_VARIANTS: reference or lean, got $VARIANTS")
 for r in ROWS
     haskey(ROW_DEFS, r) || error("KRAKEN_PF_ROWS: unknown row $r (known: $(join(sort(collect(keys(ROW_DEFS))), ',')))")
 end
@@ -77,6 +106,22 @@ else
 end
 
 pf(fields...) = (println("PF ", join(fields, " ")); flush(stdout))
+
+# Short error field for the PF line (no spaces, cut) plus, once per distinct message, the
+# full error and backtrace on stderr, tagged with the same err_id.
+const _PF_ERRS = Dict{String,Int}()
+function pf_err(err, bt=nothing; n=200)
+    msg = sprint(showerror, err)
+    id = get!(_PF_ERRS, msg) do
+        k = length(_PF_ERRS) + 1
+        println(stderr, "PF_ERROR err_id=$k full message:")
+        bt === nothing ? showerror(stderr, err) : showerror(stderr, err, bt)
+        println(stderr)
+        flush(stderr)
+        k
+    end
+    return "err_id=$id error=$(replace(first(msg, n), r"\s" => ""))"
+end
 _v(x) = replace(string(x), ' ' => "")
 _tup(t) = join(t, "x")
 
@@ -85,7 +130,9 @@ pf("info", "gpu=$(_v(CUDA.name(CUDA.device())))", "julia=$(VERSION)",
    "N=$N", "case=$CASE", "mode=$MODE", "rows=$(join(ROWS, ','))",
    "nvtx=$(NVTXM === nothing ? "missing" : "found")",
    "nvtx_active=$(NVTXM !== nothing && NVTXM.isactive())",
-   "cc_module=$(nameof(CC))")
+   "cc_module=$(nameof(CC))", "variants=$(join(VARIANTS, ','))",
+   "wg=$(join([w === nothing ? "auto" : _tup(w) for w in WGS], ';'))",
+   "maxregs=$(join(MAXREGS, ','))")
 
 # ------------------------------------------------------------------ laws (throughput.jl tp_closure)
 
@@ -105,6 +152,8 @@ function pf_closure(::Type{T}, law::String, gamma_scale::Real) where {T}
     end
     return KrakeNN.gnf_convert_closure(T, c)
 end
+pf_closure(row::String) = (cl = pf_closure(ROW_DEFS[row][1], ROW_DEFS[row][2], N^2);
+                           row_byvalue(row) ? KrakeNN.lbm_law_by_value(cl) : cl)
 
 function pf_solid(n)
     s = fill(false, n, n, n)
@@ -132,29 +181,49 @@ function swap!(p::PingPong)
     return nothing
 end
 
-full_step!(s, p) = (KrakeNN._gnf3d_periodic_step!(s, p.b, p.a); swap!(p))
+# Full step (kernel + ghost wrap) with the FIRST variant and workgroup of the lists, no
+# register cap. Every launch here passes variant, workgroup (nothing = KA automatic)
+# and cap explicitly, so the production defaults (lean, CUDA F64 32x4x2, cap :auto)
+# do not change what this script measures.
+full_step!(s, p) = (KrakeNN._gnf3d_periodic_step!(s, p.b, p.a; variant=VARIANTS[1],
+                                                  workgroupsize=WGS[1], maxregs=0); swap!(p))
 
 # Kernel alone, as _gnf3d_periodic_step! calls it (throughput.jl gnf3d_kernel row).
-function kernel_step!(s, p)
+# maxregs = 0 (default here): no register cap; > 0: that cap (CUDA launch of the ext).
+function kernel_step!(s, p; variant::Symbol=:reference, workgroupsize=nothing, model=s.model,
+                      maxregs::Int=0)
     nd = s.dims
     fused_trt_gnf_libb_guo_field_step_3d!(p.b, p.a, s.rho, s.ux, s.uy, s.uz, s.is_solid,
-        s.q_wall, s.uw, s.uw, s.uw, s.Fx, s.Fy, s.Fz, s.sp, s.sm, nd[1], nd[2], nd[3], s.model;
-        Λ=s.Λ)
+        s.q_wall, s.uw, s.uw, s.uw, s.Fx, s.Fy, s.Fz, s.sp, s.sm, nd[1], nd[2], nd[3], model;
+        Λ=s.Λ, variant, workgroupsize, maxregs)
     swap!(p)
 end
 
-# ------------------------------------------------------------------ introspection
-
-# The raw KernelAbstractions kernel is captured by the closure that build_lbm_kernel caches
-# (src/kernels/dsl/lbm_builder.jl:104): find the captured field that is a KA.Kernel.
-function raw_ka_kernel(wrapped)
-    for n in fieldnames(typeof(wrapped))
-        v = getfield(wrapped, n)
-        v isa Core.Box && (v = v.contents)
-        v isa KA.Kernel && return v
-    end
-    error("no KA.Kernel captured in $(typeof(wrapped))")
+# Arguments of the step kernel, in the order fused_trt_gnf_libb_guo_field_step_3d! passes them.
+function step_args(s, p, model)
+    ET = eltype(p.a)
+    nd = s.dims
+    return (p.b, s.rho, s.ux, s.uy, s.uz, p.a, s.is_solid,
+            s.q_wall, s.uw, s.uw, s.uw, nd[1], nd[2], nd[3],
+            s.Fx, s.Fy, s.Fz, KrakeNN._gnf3d_rheology(ET, model), s.sp, s.sm, ET(s.Λ))
 end
+
+step_raw_kernel(variant) =
+    KrakeNN.lbm_raw_kernel(BACKEND, KrakeNN._gnf3d_step_spec(false, variant))
+
+# Compiled kernel and launch shape of one (variant, workgroup, register cap) combination,
+# exactly as KrakeNN.lbm_launch! launches it: KrakeNN.lbm_cuda_launch_config
+# (ext/KrakeNNCUDAExt.jl, the steps of CUDACore.CUDAKernels.launch_tuple plus the compiler
+# option maxregs; maxregs = 0 = the plain KernelAbstractions launch).
+# World age: the step kernel is defined by Core.eval inside build_lbm_kernel
+# (src/kernels/dsl/lbm_builder.jl) while main() runs, so its method is newer than the
+# world main() runs in; kernel_compile looks the method up in the current world and
+# fails with a MethodError. Every direct compile/reflection of the kernel here goes
+# through Base.invokelatest, as the src launch does.
+step_config_latest(rk, args, ndr, wg, maxregs) =
+    Base.invokelatest(KrakeNN.lbm_cuda_launch_config, rk, args, ndr, wg, maxregs)
+
+# ------------------------------------------------------------------ introspection
 
 kernel_label(k) = _v(first(string(k.f), 60))
 
@@ -181,40 +250,26 @@ function report_hostkernel(row, kind, k; threads_used=nothing, extra=String[])
        "threads=$th", "occupancy=$occ", "active_blocks_per_sm=$act", extra...)
 end
 
-# Same steps as CUDACore.CUDAKernels.launch_tuple (CUDA.jl 6.4): launch_config, mkcontext,
-# kernel_call, kernel_compile (cached, so this returns the HostKernel the launches use),
-# launch_configuration(max_threads=prod(ndrange)), threads_to_workgroupsize.
-function introspect_step(row, s, p)
+_wgs(wg) = wg === nothing ? "auto" : _tup(wg)
+
+# Registers, spills, occupancy and launch shape of the step kernel for one
+# (variant, workgroup, register cap) combination, compiled as it is launched
+# (step_config_latest).
+# The raw kernel comes from KrakeNN.lbm_raw_kernel (the closure-field search of the C0
+# version failed: "no KA.Kernel captured", results/pf_plain_h100_28089422.txt).
+function introspect_step(row, s, p; variant::Symbol=VARIANTS[1], wg=WGS[1], maxregs::Int=0,
+                         kind="step_kernel", model=s.model)
     try
-        ET = eltype(p.a)
-        model = KrakeNN._gnf3d_rheology(ET, s.model)
-        spec = KrakeNN._TRT_GNF_LIBB_GUO_FIELD_SPEC_3D
-        rk = raw_ka_kernel(KrakeNN.build_lbm_kernel(BACKEND, spec))
-        nd = s.dims
-        args = (p.b, s.rho, s.ux, s.uy, s.uz, p.a, s.is_solid,
-                s.q_wall, s.uw, s.uw, s.uw, nd[1], nd[2], nd[3],
-                s.Fx, s.Fy, s.Fz, model, s.sp, s.sm, ET(s.Λ))
-        ndrange = (nd[1], nd[2], nd[3])
-        ndr, _, iterspace, _ = KA.launch_config(rk, ndrange, nothing)
-        ctx = KA.mkcontext(rk, ndr, iterspace)
-        call = CC.kernel_call(rk.f, (ctx, args...))
-        bk = KA.backend(rk)
-        hk = CC.kernel_compile(call; always_inline=bk.always_inline, fastmath=bk.fastmath,
-                               maxthreads=nothing)
-        cfg = CC.launch_configuration(hk.fun; max_threads=prod(ndr))
-        threads = bk.prefer_blocks ? cld(prod(ndr), max(cld(prod(ndr), min(prod(ndr), cfg.threads)), cfg.blocks)) :
-                                     cfg.threads
-        wg = CC.CUDAKernels.threads_to_workgroupsize(threads, ndr)
-        _, iters2 = KA.partition(rk, ndr, wg)
-        blocks = length(KA.blocks(iters2))
-        live = prod(ndr) / (blocks * prod(wg))
-        report_hostkernel(row, "step_kernel", hk; threads_used=prod(wg),
-                          extra=["workgroup=$(_tup(wg))", "grid_blocks=$blocks",
-                                 "ndrange=$(_tup(ndr))", @sprintf("live_lane_frac=%.3f", live),
-                                 "prefer_blocks=$(bk.prefer_blocks)"])
-        return hk
+        c = step_config_latest(step_raw_kernel(variant), step_args(s, p, model), s.dims, wg, maxregs)
+        live = prod(c.ndrange) / (c.blocks * prod(c.workgroupsize))
+        report_hostkernel(row, kind, c.kernel; threads_used=prod(c.workgroupsize),
+                          extra=["variant=$variant", "wg_req=$(_wgs(wg))", "maxregs=$maxregs",
+                                 "workgroup=$(_tup(c.workgroupsize))", "grid_blocks=$(c.blocks)",
+                                 "ndrange=$(_tup(c.ndrange))", @sprintf("live_lane_frac=%.3f", live)])
+        return c.kernel
     catch err
-        pf("row=$row", "kind=step_kernel", "error=$(_v(first(sprint(showerror, err), 200)))")
+        pf("row=$row", "kind=$kind", "variant=$variant", "wg_req=$(_wgs(wg))", "maxregs=$maxregs",
+           pf_err(err, catch_backtrace()))
         return nothing
     end
 end
@@ -240,7 +295,7 @@ function count_sass(row, idx, k)
         tt = typeof(k).parameters[2]
         path = joinpath(OUT, "sass_$(row)_$(idx)_$TAG.txt")
         open(path, "w") do io
-            CUDA.code_sass(io, k.f, tt)
+            Base.invokelatest(CUDA.code_sass, io, k.f, tt)   # world age, see step_config_latest
         end
         txt = read(path, String)
         ldl = count(r"\bLDL\b", txt)
@@ -250,7 +305,7 @@ function count_sass(row, idx, k)
         return ["sass_LDL=$ldl", "sass_STL=$stl", "sass_LDG=$ldg", "sass_STG=$stg",
                 "sass_file=$(basename(path))"]
     catch err
-        return ["sass=error:$(_v(first(sprint(showerror, err), 120)))"]
+        return ["sass=error", pf_err(err, catch_backtrace(); n=120)]
     end
 end
 
@@ -267,7 +322,7 @@ function introspect_new(row, before)
         try
             report_hostkernel(row, kernel_kind(k), k; extra=vcat(["cache_idx=$idx"], count_sass(row, idx, k)))
         catch err
-            pf("row=$row", "kind=cache", "cache_idx=$idx", "error=$(_v(first(sprint(showerror, err), 160)))")
+            pf("row=$row", "kind=cache", "cache_idx=$idx", pf_err(err, catch_backtrace(); n=160))
         end
     end
 end
@@ -301,13 +356,79 @@ end
 
 finite_ok(s, p) = all(isfinite, p.a) && all(isfinite, s.sp) && all(isfinite, s.ux)
 
+# One kernel step from the same state (populations, rates) per configuration; outputs
+# compared with the first one (reference variant; device-array law for by-value rows).
+function equality_check(row, s, p)
+    T, law = ROW_DEFS[row]
+    configs = Any[("reference", :reference, s.model)]
+    for v in VARIANTS
+        v === :reference || push!(configs, (string(v), v, s.model))
+    end
+    if row_byvalue(row)
+        arr = KrakeNN._gnf3d_rheology(T, pf_closure(T, law, N^2))
+        configs[1] = ("reference_array_theta", :reference, arr)
+        push!(configs, ("reference_by_value", :reference, s.model))
+        for v in VARIANTS
+            v === :reference || push!(configs, ("$(v)_by_value", v, s.model))
+        end
+    end
+    sp0, sm0 = copy(s.sp), copy(s.sm)
+    outs = Any[]
+    for (label, v, model) in configs
+        copyto!(s.sp, sp0)
+        copyto!(s.sm, sm0)
+        kernel_step!(s, p; variant=v, model)
+        swap!(p)                     # p.a stays the common input state
+        push!(outs, (label, map(copy, (p.b, s.sp, s.sm, s.rho, s.ux, s.uy, s.uz))))
+    end
+    CUDA.synchronize()
+    names = ("f", "sp", "sm", "rho", "ux", "uy", "uz")
+    base_label, ref = outs[1]
+    for (label, o) in outs[2:end], (nm, a, b) in zip(names, ref, o)
+        ndiff = count(.!isequal.(a, b))
+        md = Float64(maximum(abs.(a .- b)))
+        pf("row=$row", "kind=equal", "base=$base_label", "cmp=$label", "array=$nm",
+           "n_diff=$ndiff", @sprintf("max_abs_diff=%.3e", md),
+           @sprintf("max_abs_base=%.3e", Float64(maximum(abs, a))))
+    end
+    copyto!(s.sp, sp0)
+    copyto!(s.sm, sm0)
+    return nothing
+end
+
+# Kernel-only timing of every (variant, workgroup, register cap) combination.
+function sweep(row, s, p, T, law)
+    cells = (N + 2)^3
+    b2q = 38 * sizeof(T)
+    for v in VARIANTS, wg in WGS, mr in MAXREGS
+        hk = introspect_step(row, s, p; variant=v, wg, maxregs=mr, kind="sweep_kernel")
+        hk === nothing && continue
+        f! = () -> kernel_step!(s, p; variant=v, workgroupsize=wg, maxregs=mr)
+        t = try
+            f!()                     # first launch outside the timing
+            time_steps(f!, STEPS)
+        catch err
+            pf("row=$row", "kind=sweep", "variant=$v", "wg=$(_wgs(wg))", "maxregs=$mr",
+               pf_err(err, catch_backtrace()))
+            continue
+        end
+        ml = cells * STEPS / t / 1e6
+        f2q = isnan(COPY_GBPS) ? "NaN" : @sprintf("%.3f", ml * b2q / 1e3 / COPY_GBPS)
+        pf("row=$row", "kind=sweep", "T=$T", "law=$law", "variant=$v", "wg=$(_wgs(wg))",
+           "maxregs=$mr", "regs=$(CC.registers(hk))", "local_B=$(getfield(CC.memory(hk), :local))",
+           "N=$N", "steps=$STEPS", @sprintf("seconds=%.4f", t), @sprintf("MLUPS=%.1f", ml),
+           "frac2q=$f2q", "finite=$(finite_ok(s, p))")
+    end
+end
+
 function run_row(row, s0, p, before_setup)
     T, law = ROW_DEFS[row]
-    cl = pf_closure(T, law, N^2)
+    cl = pf_closure(row)
     s = merge(s0, (; model=KrakeNN._gnf3d_rheology(T, cl)))
     for _ in 1:WARMUP
         full_step!(s, p)
     end
+    MODE == "full" && CHECK_EQ && equality_check(row, s, p)
     CUDA.synchronize()
     pf("row=$row", "kind=warmup", "T=$T", "law=$law", "steps=$WARMUP", "finite=$(finite_ok(s, p))")
 
@@ -320,18 +441,21 @@ function run_row(row, s0, p, before_setup)
         cells = (N + 2)^3
         useful = N^3
         t_full = time_steps(() -> full_step!(s, p), STEPS)
-        t_kern = time_steps(() -> kernel_step!(s, p), STEPS)
+        t_kern = time_steps(() -> kernel_step!(s, p; variant=VARIANTS[1], workgroupsize=WGS[1]), STEPS)
         mlups(t, c) = c * STEPS / t / 1e6
         b2q = 38 * sizeof(T)
         f2q(t) = isnan(COPY_GBPS) ? "NaN" : @sprintf("%.3f", mlups(t, cells) * b2q / 1e3 / COPY_GBPS)
         for (kind, t) in (("time_step", t_full), ("time_kernel", t_kern))
-            pf("row=$row", "kind=$kind", "T=$T", "law=$law", "N=$N", "steps=$STEPS",
+            # Both use the FIRST variant and workgroup of the lists, never a register cap.
+            pf("row=$row", "kind=$kind", "T=$T", "law=$law", "variant=$(VARIANTS[1])",
+               "wg=$(_wgs(WGS[1]))", "maxregs=0", "N=$N", "steps=$STEPS",
                @sprintf("seconds=%.4f", t), @sprintf("ns_per_cell=%.4f", t / STEPS / cells * 1e9),
                @sprintf("MLUPS=%.1f", mlups(t, cells)), @sprintf("MLUPS_useful=%.1f", mlups(t, useful)),
                "bytes_2q=$b2q", "frac2q=$(f2q(t))")
         end
         pf("row=$row", "kind=wrap_share", @sprintf("frac=%.3f", 1 - t_kern / t_full),
            "finite=$(finite_ok(s, p))")
+        sweep(row, s, p, T, law)
     end
 
     # (c) NVTX range (ncu --nvtx-include "<row>/")

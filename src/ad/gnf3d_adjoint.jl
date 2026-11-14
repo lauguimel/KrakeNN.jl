@@ -257,10 +257,13 @@ function _gnf3d_periodic_setup(is_solid::AbstractArray{Bool,3}, closure, F, nu_i
             sp, sm, dims, nx, ny, nz, model, Λ=FT(Λ), F=(Fx, Fy, Fz), axes3)
 end
 
-function _gnf3d_periodic_step!(s, f_out, f_in)
+# `workgroupsize`, `variant`, `maxregs`: launch/code-generation options of the step
+# kernel (defaults = production, see fused_trt_gnf_libb_guo_field_step_3d!).
+function _gnf3d_periodic_step!(s, f_out, f_in; workgroupsize=:auto, variant::Symbol=:lean,
+                               maxregs=:auto)
     fused_trt_gnf_libb_guo_field_step_3d!(f_out, f_in, s.rho, s.ux, s.uy, s.uz, s.is_solid,
         s.q_wall, s.uw, s.uw, s.uw, s.Fx, s.Fy, s.Fz, s.sp, s.sm,
-        s.dims[1], s.dims[2], s.dims[3], s.model; Λ=s.Λ)
+        s.dims[1], s.dims[2], s.dims[3], s.model; Λ=s.Λ, workgroupsize, variant, maxregs)
     for a in (f_out, s.sp, s.sm)
         _wrap_gnf_periodic_3d!(a, s.axes3)
     end

@@ -12,6 +12,10 @@
 # Settings through -v: WORKDIR (default ~/kraken_perf3d_int, source synced at $WORKDIR/src),
 # WALL_S (walltime in s, default 2700), JULIA_BIN, NCU_MODULE (default CUDA/12.8.0),
 # SKIP_NCU=1, KRAKEN_PF_* (profile3d.jl header).
+# Sweep C1/C6/N1 (no ncu): -v ...,SKIP_NCU=1,KRAKEN_PF_SETUP_N=none,KRAKEN_PF_VARIANTS=reference/lean,
+#   KRAKEN_PF_WG=auto/256x1x1/128x2x1/64x4x1/32x4x2/32x8x1,KRAKEN_PF_MAXREGS=0/128/96,
+#   KRAKEN_PF_ROWS=cy_f64/net_f64/cyv_f64/netv_f64/cy_f32/net_f32/netv_f32
+#   (lists use '/' because qsub -v splits on ',').
 # Order: plain run (registers/spills/timing/SETUP_TIME), then ncu on the step kernel of every
 # row, then ncu on the 6 ghost-wrap broadcasts of f_out of row cy_f64. Each ncu run has a
 # timeout so the job ends before the walltime. No background job, no bare `wait`.
@@ -160,7 +164,7 @@ run_ncu() {
 # 2a. Step kernel, 3 launches per row (one per step of the NVTX range), all rows in one run.
 INCLUDES=()
 NROWS=0
-for r in ${ROWS//,/ }; do
+for r in $(echo "$ROWS" | tr ",/" "  "); do
     INCLUDES+=(--nvtx-include "$r/")
     NROWS=$((NROWS + 1))
 done
@@ -170,7 +174,7 @@ NCU_STATUS=$?
 # one run per row.
 if [ "$NCU_STATUS" -eq 0 ] && ! grep -q "lbm_gen_kernel" "$RES/ncu_steps_$TAG.details.csv"; then
     echo "ncu steps: no step kernel in the report; one ncu run per row"
-    for r in ${ROWS//,/ }; do
+    for r in $(echo "$ROWS" | tr ",/" "  "); do
         run_ncu "step_$r" "$r" lbm_gen_kernel 3 --nvtx-include "$r/" || break
     done
 fi

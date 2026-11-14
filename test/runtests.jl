@@ -325,6 +325,7 @@ include("platform/weakdeps_metadata_test.jl")
     include("ad/gnf3d_setup_equality_test.jl") # device-built 3D periodic setup == host reference, bitwise (CPU; CUDA if functional)
     include("analytical/lbm3d_law_test.jl")  # ClassicalLaw/DenseNet in the 3D GNF step, vs FV
     include("analytical/gnf3d_adjoint_gpu.jl") # its CUDA parity, self-gated on CUDA.functional()
+    include("analytical/gnf3d_lean_step_equality.jl") # 3D GNF step: lean variant / by-value law / register cap vs reference, rtol 1e-12 (F64); workgroup bitwise; CUDA part self-gated
     include("analytical/gnf3d_duct_obstacle.jl")
     include("test_viscoelastic.jl")
     include("test_viscoelastic_krk.jl")
