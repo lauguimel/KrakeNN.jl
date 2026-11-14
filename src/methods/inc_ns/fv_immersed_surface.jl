@@ -6,7 +6,10 @@ struct FVImmersedSurface{A,B}
     wall::B
     given_viscosity::Bool
     min_transversality::Float64
+    open_walls::Bool         # profile walls crossing open domain sides (fv_immersed_walls)
 end
+FVImmersedSurface(values, wall, given_viscosity, min_transversality) =
+    FVImmersedSurface(values, wall, given_viscosity, min_transversality, false)
 
 # This directional derivative is the innermost differentiation, outside
 # parameter duals in the number representation. Explicit tag ordering avoids
@@ -26,36 +29,44 @@ end
 
 """Complete outward nominal-wall momentum and mass flux used by the residual.
 
-Pressure, viscous stress and upwind convection use precisely the residual
+Pressure, viscous stress and convection (upwind, or the face value with
+`convection = :central`) use precisely the residual
 closure. The physical-cut traction is deliberately a separate reconstruction.
 """
 @inline function _fv_wall_flux_components(U, tag, nu, bvel, g, i, j, d, visc,
-                                        qcut, wvel, closure, gP, face_pair = nothing)
+                                        qcut, wvel, closure, gP, face_pair = nothing, slip = nothing)
     h = g.h
     isx, sx = d <= 2, (d == 1 || d == 3) ? 1 : -1
     uw, vw, ua, va, pf, uf, vf, dun, dvn =
-        _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
+        _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure, slip)
     consistent = _fv_immersed_face(g, qcut, i, j, d) && closure.mass != 2
     mass = h * sx * (consistent ? (isx ? uf : vf) : (isx ? uw : vw))
     mass = _fv_corrected_wall_mass(mass, U, g, i, j, d, face_pair)
-    gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure)
-    tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure)
-    au = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)) + _fv_negp(mass) * ua)
-    av = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)) + _fv_negp(mass) * va)
+    gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure, slip)
+    tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure, slip)
+    if g.convection == FV_CONV_CENTRAL
+        # face value: prescribed wall value, or the P/ghost mean at a cut face
+        au = g.conv * mass * uf
+        av = g.conv * mass * vf
+    else
+        au = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)) + _fv_negp(mass) * ua)
+        av = g.conv * (_fv_posp(mass) * _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)) + _fv_negp(mass) * va)
+    end
     return au, av, tx, ty, pf, mass
 end
 
 @inline function _fv_wall_momentum_flux(U, tag, nu, bvel, g, i, j, d, visc,
-                                        qcut, wvel, closure, gP, face_pair = nothing)
+                                        qcut, wvel, closure, gP, face_pair = nothing, slip = nothing)
     au, av, tx, ty, pf, mass = _fv_wall_flux_components(U, tag, nu, bvel, g, i, j, d,
-                                                       visc, qcut, wvel, closure, gP, face_pair)
+                                                       visc, qcut, wvel, closure, gP, face_pair, slip)
     h, sx, isx = g.h, (d == 1 || d == 3) ? 1 : -1, d <= 2
     return au - h * tx + (isx ? h * sx * pf : zero(pf)),
            av - h * ty + (isx ? zero(pf) : h * sx * pf), mass
 end
 _fv_adapt_surface(to, ::Nothing) = nothing
 _fv_adapt_surface(to, s::FVImmersedSurface) =
-    FVImmersedSurface(to(s.values), to(s.wall), s.given_viscosity, s.min_transversality)
+    FVImmersedSurface(to(s.values), to(s.wall), s.given_viscosity, s.min_transversality,
+                      s.open_walls)
 
 function _fv_immersed_surface(qcut, circles, annular, h, velocity, tangent, viscosity, threshold)
     _, Nx, Ny = size(qcut)

@@ -2,7 +2,8 @@
 function _fv_heating_problem(p, sigma)
     e = p.energy
     energy = _FVEnergyData(e.alpha, typeof(e.sigma)(sigma), e.sigma_nom,
-                           e.boundary, e.dirichlet, e.scheme, e.source, e.Tref)
+                           e.boundary, e.dirichlet, e.scheme, e.source, e.Tref,
+                           e.solid, e.solid_dirichlet)
     return _fv_with(p; energy)
 end
 
@@ -92,7 +93,7 @@ function fv_thermal_continuation(prob::FVSteadyProblem2D; U0=nothing,
     singular_iterations > 0 || throw(ArgumentError("singular_iterations must be positive"))
     p = prob.nu isa Array ? prob : fv_adapt(Array,prob)
     e = p.energy
-    walls = [e.boundary[d] for d in 1:4 if e.dirichlet[d]]
+    walls = _fv_energy_prescribed_temperatures(e)
     Tw = first(walls)
     all(==(Tw),walls) || throw(ArgumentError("isothermal continuation start requires equal imposed temperatures"))
     all(iszero,e.source) || throw(ArgumentError("isothermal continuation start requires zero independent energy source"))

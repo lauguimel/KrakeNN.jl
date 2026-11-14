@@ -120,7 +120,10 @@ function _fv_lower_mass(b, g, tag, wall_flux)
             1 <= ii <= g.Nx && 1 <= jj <= g.Ny ||
                 _fv_ib_error("immersed face touches the domain boundary", (i, j), (ii, jj))
             tag[ii, jj] == FV_CELL_SOLID || _fv_ib_error("cut neighbour must be solid", (i, j), (ii, jj))
-            touch = d <= 2 ? (j == 1 || j == g.Ny) : (i == 1 || i == g.Nx)
+            # Profile walls (fv_immersed_walls) cross the domain sides by
+            # construction; only their physical cut must stay inside.
+            open_walls = b.surface !== nothing && b.surface.open_walls
+            touch = open_walls ? false : d <= 2 ? (j == 1 || j == g.Ny) : (i == 1 || i == g.Nx)
             x, y = (i - 1//2 + q * (ii-i)) * g.h, (j - 1//2 + q * (jj-j)) * g.h
             touch |= !(_fv_ib_primal(x) > 0 && _fv_ib_primal(x) < g.Nx*g.h &&
                        _fv_ib_primal(y) > 0 && _fv_ib_primal(y) < g.Ny*g.h)
@@ -160,7 +163,8 @@ function _fv_lower_mass(b, g, tag, wall_flux)
             push!(errors, inherited ? b.mass.quadrature_error[k] : zero(q))
         end
     end
-    fallback && np > 0 && @warn "M3 physical wall_flux uses circle quadrature; supply exact wall_flux for an analytical target" error_estimate=_fv_ib_primal.(errors)
+    quiet = b.surface !== nothing && b.surface.open_walls && all(e -> iszero(_fv_ib_primal(e)), errors)
+    fallback && np > 0 && !quiet && @warn "M3 physical wall_flux uses circle quadrature; supply exact wall_flux for an analytical target" error_estimate=_fv_ib_primal.(errors)
     T = promote_type(eltype(b.qcut), eltype(b.wvel), typeof(g.h), map(typeof, targets)...)
     Q = T[targets...]; err = T[errors...]
     A = T[length(f) * g.h for f in faces]
@@ -203,11 +207,11 @@ end
 end
 
 @inline function _fv_mass_pair_residual(U, bvel, g, qcut, wvel, closure,
-                                      faceptr, faces, Q, A, k)
+                                      faceptr, faces, Q, A, k, slip = nothing)
     @inbounds value = -Q[k] - A[k]*U[fv_nunknowns(g)+k]
     @inbounds for l in faceptr[k]:faceptr[k+1]-1
         d, i, j = faces[1,l], faces[2,l], faces[3,l]
-        _, _, _, _, _, uf, vf, _, _ = _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
+        _, _, _, _, _, uf, vf, _, _ = _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure, slip)
         value += g.h * ((d == 1 || d == 3) ? 1 : -1) * (d <= 2 ? uf : vf)
     end
     return value
@@ -220,11 +224,27 @@ end
         closure, faceptr, faces, Q, A, k)
 end
 
+# Slip walls: separate launcher, the original one keeps its signature.
+@kernel function _fv_slip_mass_residual_kernel!(R, @Const(U), @Const(bvel), g,
+        @Const(qcut), @Const(wvel), closure, @Const(faceptr), @Const(faces), @Const(Q), @Const(A),
+        @Const(nu), visc, slip)
+    k = @index(Global)
+    sb = _fv_bind_slip(slip, nu, _fv_bind_viscosity(visc, U, g))
+    @inbounds R[fv_nunknowns(g)+k] = _fv_mass_pair_residual(U, bvel, g, qcut, wvel,
+        closure, faceptr, faces, Q, A, k, sb)
+end
+
 function _fv_mass_residual!(R, U, prob, backend, workgroup)
     m = _fv_mass(prob.immersed)
     m === nothing && return
     isempty(m.Q) && return
     b = prob.immersed
+    if prob.slip !== nothing
+        _fv_slip_mass_residual_kernel!(backend, workgroup)(R, U, prob.bvel, prob.grid,
+            b.qcut, b.wvel, b.closure, m.faceptr, m.faces, m.Q, m.A, prob.nu, prob.visc,
+            prob.slip; ndrange=length(m.Q))
+        return
+    end
     _fv_mass_residual_kernel!(backend, workgroup)(R, U, prob.bvel, prob.grid,
         b.qcut, b.wvel, b.closure, m.faceptr, m.faces, m.Q, m.A; ndrange=length(m.Q))
 end
@@ -241,6 +261,10 @@ function _fv_mass_pattern!(I, J, prob)
             push!(I, ru, rv); push!(J, n+k, n+k)
             if prob.tag[i,j] != FV_CELL_PINNED
                 push!(I, fv_index(g, i, j, _fv_pressure_slot(g.layout))); push!(J, n+k)
+            end
+            # The energy wall face convects the same lambda-corrected mass flux.
+            if prob.energy !== nothing
+                push!(I, fv_index(g, i, j, _fv_scalar_slot(g.layout, 1))); push!(J, n+k)
             end
         end
         for l in m.rowptr[k]:m.rowptr[k+1]-1
@@ -271,9 +295,10 @@ end
     end
 end
 
-function _fv_mass_jacobian!(nzval, asm, prob, backend)
+function _fv_mass_jacobian!(nzval, asm, prob, backend, U = nothing)
     m = _fv_mass(prob.immersed)
     m === nothing && return
+    U === nothing || _fv_slip_mass_rowval!(m, U, prob, backend)
     _fv_mass_jacobian_kernel!(backend, 256)(nzval, asm.nzrow, asm.nzcol,
         fv_nunknowns(prob.grid), m.rowptr, m.rowcol, m.rowval; ndrange=asm.nnz)
 end

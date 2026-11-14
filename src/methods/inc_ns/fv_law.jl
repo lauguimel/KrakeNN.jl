@@ -296,7 +296,8 @@ end
                               lambda[b + _fv_pressure_slot(g.layout)] * pc[d])
     end
     if energy !== nothing
-        rt = _fv_energy_cell(U, tag, nu, bvel, g, i, j, v, energy, energy_source)
+        rt = _fv_energy_cell(U, tag, nu, bvel, g, i, j, v, energy, energy_source, Val(false),
+                             qcut, wvel, closure, face_pair)
         pt = ForwardDiff.partials(rt)
         @inbounds for d in 1:N
             sensitivity[c, d] -= lambda[b + _fv_scalar_slot(g.layout, 1)] * pt[d]
@@ -356,6 +357,10 @@ function _fv_param_cotangent!(ws::FVAdjointWorkspace, m::FVLawParameters,
     law_gradient === :duals && return _fv_param_cotangent_duals!(ws, m, s, U, theta)
     theta === nothing && throw(ArgumentError("theta is required for FVLawParameters"))
     prob = s.prob
+    # The capture assumes one law evaluation per face; a slip wall evaluates
+    # the wall viscosity inside its local solve as well.
+    _fv_slip(prob) === nothing || throw(ArgumentError(
+        "slip walls require law_gradient = :duals for FVLawParameters"))
     _fv_check_nparams(m, prob, theta)
     w = ws.law
     copyto!(w.theta, theta)

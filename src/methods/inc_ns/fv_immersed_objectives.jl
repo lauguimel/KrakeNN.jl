@@ -62,7 +62,7 @@ function _fv_surface_force_face(f, U, prob, i, j, d, nuP, nuO)
         (s[3, d, i, j], s[4, d, i, j]), (s[6, d, i, j], s[7, d, i, j]), nuw;
         min_transversality=surface.min_transversality)
     T = promote_type(eltype(U), typeof(nuP), typeof(opposite), eltype(s),
-                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed), _fv_slip_eltype(prob.slip))
     return r.traction[f.dir] * s[5, d, i, j] + zero(T)
 end
 

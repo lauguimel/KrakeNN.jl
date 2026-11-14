@@ -146,6 +146,8 @@ include("methods/inc_ns/fv_energy.jl")            # Opt-in one-way temperature t
 include("methods/inc_ns/fv_immersed.jl")   # C5: analytic cut geometry and ghost-wall closures
 include("methods/inc_ns/fv_immersed_surface.jl") # C5: local physical-cut reconstruction
 include("methods/inc_ns/fv_immersed_mass.jl") # C5: augmented body/region mass constraints
+include("methods/inc_ns/fv_immersed_walls.jl") # generic profile/circle immersed walls
+include("methods/inc_ns/fv_slip.jl")   # wall slip laws (Navier, generic f(τ_w; θ))
 include("methods/inc_ns/fv_newton.jl")   # C2: coloured dual Jacobian + Newton on the seam
 include("methods/inc_ns/fv_flowrate.jl") # Optional mean-flow constraint and force unknown
 include("methods/inc_ns/fv_gnf.jl")   # C3: generalised-Newtonian face viscosity + its Jacobian pattern
@@ -165,7 +167,10 @@ export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!
 # 3D steady colocated FV residual (plan FV 3D, increment I1)
 export FVSteadyProblem, FVGrid3D, FVSteadyProblem3D, fv_ncells, FVEnergy3D
 export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,
-       fv_immersed_circle, fv_immersed_annulus
+       fv_immersed_circle, fv_immersed_annulus,
+       FVImmersedWall, FVProfileWall, FVCircleWall, fv_immersed_walls, fv_immersed_wall_heat
+export FVSlipLaw, FVNavierSlip, FVSlipWalls, fv_slip_velocity, fv_slip_parameters, fv_slip_law,
+       fv_with_slip_parameters
 # Coloured dual Jacobian + Newton on the steady FV residual (C2)
 export fv_jacobian_pattern, fv_jacobian_coloring, FVJacobianTag, FVJacobianAssembler,
        fv_jacobian_assembler, fv_assemble_jacobian!, fv_jacobian_chunk,

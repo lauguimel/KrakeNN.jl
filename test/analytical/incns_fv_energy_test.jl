@@ -264,6 +264,7 @@ end
         @test_throws ArgumentError FVEnergy(;alpha=0.2,sigma=-1.0)
         @test_throws ArgumentError FVEnergy(;alpha=0.2,scheme=:central)
         @test_throws ArgumentError FVEnergy(;alpha=0.2,bottom=Inf)
+        # An inlet without an inflow temperature (open sides: incns_fv_energy_open_bc_test.jl).
         @test_throws ArgumentError fv_steady_problem(4,4;bc=(W=:inlet,E=:outlet,S=:wall,N=:wall),
             energy=FVEnergy(;alpha=0.2,bottom=1.0))
         @test_throws ArgumentError fv_steady_problem(4,4;bc=_FVE_BC,
