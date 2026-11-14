@@ -8,15 +8,15 @@ and wall/heating inputs use the fluid-cell temperature.
 """
 struct FVStateTemperature end
 
-_fv_law_input_backend(f::AbstractMatrix, theta) =
+_fv_law_input_backend(f::AbstractArray, theta) =
     typeof(KernelAbstractions.get_backend(f)) === typeof(KernelAbstractions.get_backend(theta))
 _fv_law_input_backend(::FVStateTemperature, theta) = true
-_fv_law_input_shape(f::AbstractMatrix, shape) = size(f) == shape
+_fv_law_input_shape(f::AbstractArray, shape) = size(f) == shape
 _fv_law_input_shape(::FVStateTemperature, shape) = true
-_fv_adapt_law_input(to, f::AbstractMatrix) = to(f)
+_fv_adapt_law_input(to, f::AbstractArray) = to(f)
 _fv_adapt_law_input(to, f::FVStateTemperature) = f
 _fv_law_input_eltype(::Type{FVStateTemperature}) = Bool
-_fv_law_input_eltype(::Type{F}) where {F<:AbstractMatrix} = eltype(F)
+_fv_law_input_eltype(::Type{F}) where {F<:AbstractArray} = eltype(F)
 
 """
     FVLawViscosity(law::AbstractScalarLaw, theta, fields=(); eps=1e-3)
@@ -61,11 +61,12 @@ function FVLawViscosity(law::AbstractScalarLaw, theta::AbstractVector,
         throw(DimensionMismatch("theta must have $(law_nparams(law)) parameters"))
     length(fields) == law_ninputs(law)-1 ||
         throw(ArgumentError("law requires $(law_ninputs(law)-1) extra inputs, got $(length(fields))"))
-    all(f -> f isa Union{AbstractMatrix,FVStateTemperature}, fields) ||
+    # Cell matrices in 2D, Nx × Ny × Nz arrays in 3D (shape checked per problem).
+    all(f -> f isa Union{AbstractMatrix,AbstractArray{<:Any,3},FVStateTemperature}, fields) ||
         throw(ArgumentError("law inputs must be cell matrices or FVStateTemperature selectors"))
     all(f -> _fv_law_input_backend(f, theta), fields) ||
         throw(ArgumentError("theta and prescribed fields must use the same backend"))
-    matrices = filter(f -> f isa AbstractMatrix, fields)
+    matrices = filter(f -> f isa AbstractArray, fields)
     isempty(matrices) || all(f -> size(f) == size(first(matrices)), matrices) ||
         throw(DimensionMismatch("prescribed fields must have the same cell shape"))
     isfinite(eps) && eps >= 0 || throw(ArgumentError("eps must be finite and nonnegative"))
@@ -228,7 +229,14 @@ end
 end
 @inline _fv_heating_viscosity(v::FVLawViscosity{<:_FVLawCapture{5}}) =
     _fv_face_viscosity(v, 5)
-@inline function _fv_law_invariant(c::_FVLawCapture{N}, theta, I1, fields) where {N}
+# The 3D residual promotes its velocity differences with the viscosity zero, so
+# the invariant can arrive as a slot dual with zero partials: strip it (the law
+# inputs depend on U only, never on the slots).
+@inline _fv_capture_strip(x::ForwardDiff.Dual{FVParamTag}) = ForwardDiff.value(x)
+@inline _fv_capture_strip(x) = x
+@inline function _fv_law_invariant(c::_FVLawCapture{N}, theta, I1r, fieldsr) where {N}
+    I1 = _fv_capture_strip(I1r)
+    fields = map(_fv_capture_strip, fieldsr)
     # Preserve the original invariant evaluation, including Carreau at rest.
     nu = _fv_law_invariant(c.law, theta, I1, fields)
     x = (gnf_shear_rate(I1), fields...)
@@ -242,6 +250,7 @@ end
 _fv_law_slots(::Nothing) = Val(4)
 _fv_law_slots(::_FVEnergyData) = Val(5)
 _fv_law_slot_count(::Val{N}) where {N} = N
+_fv_law_problem_slots(p::FVSteadyProblem2D) = _fv_law_slots(p.energy)
 
 struct _FVLawCotangentWorkspace{V,X,S,P}
     theta::V
@@ -253,9 +262,9 @@ struct _FVLawCotangentWorkspace{V,X,S,P}
 end
 function _fv_law_workspace(s::FVNewtonSolver, m::FVLawParameters)
     law = s.prob.visc.law
-    nc = s.prob.grid.Nx * s.prob.grid.Ny
+    nc = fv_ncells(s.prob)
     per = 64
-    slots = _fv_law_slot_count(_fv_law_slots(s.prob.energy))
+    slots = _fv_law_slot_count(_fv_law_problem_slots(s.prob))
     theta = similar(s.R, Float64, m.nparams)
     inputs = similar(s.R, Float64, nc, slots, law_ninputs(law))
     sensitivity = similar(s.R, Float64, nc, slots)
@@ -293,6 +302,17 @@ end
             sensitivity[c, d] -= lambda[b + _fv_scalar_slot(g.layout, 1)] * pt[d]
         end
     end
+end
+
+function _fv_law_capture!(backend, w, U, λ, prob::FVSteadyProblem2D, v)
+    qcut, wvel, closure = _fv_immersed_args(prob.immersed)
+    g = prob.grid
+    energy, energy_source = _fv_energy_args(prob.energy)
+    _fv_law_capture_kernel!(backend, 64)(w.inputs, w.sensitivity, U, λ,
+        prob.tag, prob.nu, prob.bvel, prob.src, g, v, qcut, wvel, closure,
+        _fv_face_pair(prob.immersed), energy, energy_source, _fv_law_slots(prob.energy);
+        ndrange = (g.Nx, g.Ny))
+    return nothing
 end
 
 # Allocation-free AbstractVector interface to one exclusive tile accumulator.
@@ -341,16 +361,10 @@ function _fv_param_cotangent!(ws::FVAdjointWorkspace, m::FVLawParameters,
     copyto!(w.theta, theta)
     # Read the current prescribed fields, including replacements by fv_set_params!.
     v = FVLawViscosity(prob.visc.law, w.theta, prob.visc.fields, prob.visc.eps)
-    qcut, wvel, closure = _fv_immersed_args(prob.immersed)
-    g = prob.grid
-    energy, energy_source = _fv_energy_args(prob.energy)
     backend = KernelAbstractions.get_backend(U)
-    _fv_law_capture_kernel!(backend, 64)(w.inputs, w.sensitivity, U, ws.λ,
-        prob.tag, prob.nu, prob.bvel, prob.src, g, v, qcut, wvel, closure,
-        _fv_face_pair(prob.immersed), energy, energy_source, _fv_law_slots(prob.energy);
-        ndrange = (g.Nx, g.Ny))
+    _fv_law_capture!(backend, w, U, ws.λ, prob, v)
     _fv_law_pullback_kernel!(backend, 64)(w.partials, w.inputs, w.sensitivity,
-        v.law, w.theta, g.Nx * g.Ny, w.per, Val(law_ninputs(v.law));
+        v.law, w.theta, fv_ncells(prob), w.per, Val(law_ninputs(v.law));
         ndrange = size(w.partials, 1))
     if m.nparams > 0
         _fv_law_reduce_kernel!(backend, 64)(w.gradient, w.partials; ndrange = m.nparams)

@@ -35,7 +35,7 @@ end
 Read the solved uniform x body force for a problem with `u_mean_target`.
 The scalar copy is host-side; this getter is not part of Newton iterations.
 """
-function fv_flow_force(p::FVSteadyProblem2D, U)
+function fv_flow_force(p::FVSteadyProblem, U)
     p.flowrate === nothing && throw(ArgumentError("Fx is an unknown only with u_mean_target"))
     return only(Array(view(U, _fv_force_index(p):_fv_force_index(p))))
 end

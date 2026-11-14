@@ -20,12 +20,14 @@ include("platform/contract.jl")
 include("platform/solution.jl")   # LBM, LBMSolution, solve
 include("platform/sample.jl")     # sample
 include("platform/observe.jl")    # observe, predict, Prediction, observables
+include("platform/piv_observation.jl") # plane-PIV observation operator + adjoint (3D)
 include("platform/state.jl")      # AbstractSimulationState, StateSnapshot, advance!
 export AbstractProblem, AbstractMethod, AbstractSolution, AbstractObservable, AbstractClosure
 export Capability, ForwardSolve, GPUExecution, SteadyAdjoint, TransientAdjoint, FiniteDiff, NeuralClosure, SteadyResidual, AssembledJacobian
 export capabilities
 export LBM, LBMSolution, solve, sample
 export observe, predict, Prediction, FieldProbe, LineProfile, FieldReduction
+export PIVPlane, PIVOperator, piv_operator, piv_apply, piv_apply_adjoint, piv_misfit
 export residual, adjoint_vjp
 export LBMGeomParams, LBMThermalParams, LBMVEParams, LBMScalarParams, LBMFieldParams
 export ParameterSpace, loss, fit, CalibResult
@@ -119,6 +121,16 @@ include("solve/poisson_mg.jl")
 # methods live in ext/KrakeNNLinearSolveExt.jl and ext/KrakeNNCUDSSExt.jl
 # ([weakdeps] — `using KrakeNN` stays backend-free).
 include("solve/linear_solve_frontend.jl")
+# Krylov branch of the seam (GMRES + ILU(0) on an assembled CSR matrix);
+# CPU methods here, cuSPARSE methods in ext/KrakeNNCUDSSExt.jl.
+include("solve/linear_solve_krylov.jl")
+# P3 of the Krylov branch: aggregation multigrid blocks of the block SIMPLE.
+include("solve/linear_solve_multigrid.jl")
+# Outer block structure (SIMPLE / block triangular) and Schur approximations
+# (SIMPLEC, LSC, PCD, shift) of P2 / P3; exact velocity-block LU.
+include("solve/linear_solve_block_schur.jl")
+# P4 of the Krylov branch: monolithic multigrid with an additive Vanka smoother.
+include("solve/linear_solve_mg_monolithic.jl")
 # NOT included: solve/linear_solve_cuda.jl and methods/inc_ns/cavity_mg_cuda.jl
 # (CUDSS is not a package dependency; they stay manual-load inside GPU jobs.
 #  Package users get the same cuDSS seam via ext/KrakeNNCUDSSExt.jl instead).
@@ -150,6 +162,8 @@ export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!
        fv_index, fv_nunknowns,
        FV_BC_WALL, FV_BC_INLET, FV_BC_OUTLET, FV_BC_PERIODIC,
        FV_CELL_FLUID, FV_CELL_SOLID, FV_CELL_PINNED
+# 3D steady colocated FV residual (plan FV 3D, increment I1)
+export FVSteadyProblem, FVGrid3D, FVSteadyProblem3D, fv_ncells, FVEnergy3D
 export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,
        fv_immersed_circle, fv_immersed_annulus
 # Coloured dual Jacobian + Newton on the steady FV residual (C2)
@@ -173,7 +187,9 @@ export solve_incns_simple, solve_incns_cavity, solve_incns_cavity_mg,
        solve_scalar_transport
 # Linear-solve seam (factorize-once)
 export lin_factorize, lin_solve!, lin_refactorize!, lin_supports_transpose,
-       LinearSolveCache, LinearSolveBackend, CPUBackendTag, CUDABackendTag
+       LinearSolveCache, LinearSolveBackend, CPUBackendTag, CUDABackendTag,
+       KrylovBackendTag, KrylovCSRMatrix, krylov_csr_matrix, lin_krylov_log, lin_krylov_pivot,
+       lin_krylov_blocks, lin_krylov_stationary
 # LinearSolve.jl / cuDSS front-ends (ext-backed; see [weakdeps])
 export PoissonLinearSolve, solve_poisson_direct
 # Elliptic (Poisson) services
@@ -264,6 +280,12 @@ include("ad/gnf3d_adjoint_operator.jl")  # its JVP/VJP kernels, shared solvers, 
 include("methods/inc_ns/fv_thermal_law.jl") # Typed temperature inputs for steady FV viscosity
 include("methods/inc_ns/fv_thermal_adjoint.jl") # Thermal objectives and law-parameter sensitivities
 include("methods/inc_ns/fv_thermal_continuation.jl") # Heating continuation and fold diagnostics
+include("methods/inc_ns/fv_steady_residual_3d.jl") # 3D steady FV residual (KA kernel, generic eltype)
+include("methods/inc_ns/fv_newton_3d.jl") # 3D Jacobian pattern; Newton/assembly shared with 2D
+include("methods/inc_ns/fv_adjoint_3d.jl") # 3D steady adjoint: maps, law capture, wall force
+include("methods/inc_ns/fv_energy_3d.jl") # 3D energy equation (I3): slot 5, Newton, adjoint
+include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (device gather/scatter)
+export FVPIVObjective, fv_objective_gradient!
 export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---

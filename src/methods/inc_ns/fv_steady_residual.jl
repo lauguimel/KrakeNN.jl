@@ -58,7 +58,8 @@ Internal, isbits cell layout: two velocity components, pressure, and `NS`
 scalar slots. Scalars carry identity equations unless a scalar model is active.
 The compile-time slot count changes storage, never physical vector dimensions.
 """
-struct FVFieldLayout{NS}
+abstract type AbstractFVFieldLayout end
+struct FVFieldLayout{NS} <: AbstractFVFieldLayout
     function FVFieldLayout{NS}() where {NS}
         NS isa Int && NS >= 0 || throw(ArgumentError("scalar count must be a nonnegative Int"))
         return new{NS}()
@@ -69,10 +70,10 @@ end
 @inline _fv_velocity_slot(::FVFieldLayout, component) = component
 @inline _fv_pressure_slot(::FVFieldLayout) = 3
 @inline _fv_scalar_slot(::FVFieldLayout, scalar) = 3 + scalar
-@inline _fv_cell_base(layout::FVFieldLayout, cell) = _fv_nfields(layout) * (cell - 1)
-@inline _fv_cell_index(layout::FVFieldLayout, cell, component) =
+@inline _fv_cell_base(layout::AbstractFVFieldLayout, cell) = _fv_nfields(layout) * (cell - 1)
+@inline _fv_cell_index(layout::AbstractFVFieldLayout, cell, component) =
     _fv_cell_base(layout, cell) + component
-@inline _fv_cell_from_index(layout::FVFieldLayout, index) = (index - 1) ÷ _fv_nfields(layout) + 1
+@inline _fv_cell_from_index(layout::AbstractFVFieldLayout, index) = (index - 1) ÷ _fv_nfields(layout) + 1
 
 """
     FVGrid2D{T}
@@ -108,6 +109,16 @@ FVGrid2D(Nx, Ny, h::T, conv::T, bcE, bcW, bcN, bcS) where {T} =
 
 
 """
+    FVSteadyProblem
+
+Abstract supertype of the steady FV problems ([`FVSteadyProblem2D`](@ref),
+[`FVSteadyProblem3D`](@ref)). The Newton solver and the coloured assembly
+read a problem only through `grid`, `fv_nunknowns`, [`fv_ncells`](@ref),
+`_fv_nextra`, `fv_residual!`, `fv_jacobian_pattern` and `fv_adapt`.
+"""
+abstract type FVSteadyProblem end
+
+"""
     FVSteadyProblem2D(grid, tag, nu, bvel, src[, visc, immersed])
 
 Everything the steady FV residual needs besides the state, as device (or host)
@@ -137,7 +148,7 @@ type; the residual is evaluated in the promoted type, so a parameter array of
 Build with [`fv_steady_problem`](@ref); move to a device with
 [`fv_adapt`](@ref).
 """
-struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E,F}
+struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E,F} <: FVSteadyProblem
     grid::G
     tag::TA
     nu::NA
@@ -171,6 +182,15 @@ _fv_adapt_immersed(to, b) = fv_adapt(to, b)
 fv_nunknowns(g::FVGrid2D) = _fv_nfields(g) * g.Nx * g.Ny
 @inline _fv_extra_index(p::FVSteadyProblem2D, k) = fv_nunknowns(p.grid) + k
 fv_nunknowns(p::FVSteadyProblem2D) = _fv_extra_index(p, _fv_npairs(p.immersed) + (p.flowrate !== nothing))
+
+"""
+    fv_ncells(prob) -> Int
+
+Number of grid cells of a steady FV problem (`Nx Ny` in 2D, `Nx Ny Nz` in 3D).
+"""
+fv_ncells(p::FVSteadyProblem2D) = p.grid.Nx * p.grid.Ny
+# Global unknowns appended after the cell unknowns (M3 multipliers, then Fx).
+_fv_nextra(p::FVSteadyProblem) = _fv_npairs(p.immersed) + (p.flowrate !== nothing)
 
 """
     fv_index(grid, i, j, comp) -> Int
