@@ -80,10 +80,24 @@ FV3D_BACKEND=cpu FV3D_NS=4,6 FV3D_EXT_N=8 julia --project benchmarks/fv3d/v4_hea
 ```
 
 `ve_adjoint_step_study.jl` (conformation adjoint, step study of the centred-FD
-gate): prints, for Giesekus alpha and FENE-P L2 on the 1 × 8 × 8 slice, the FD
-of the reconverged objective for h = 1e-2 … 1e-6 at Newton atol 1e-14 and
-1e-15, the error against the adjoint and the Richardson ratio; it confirms the
-G2 constants of `test/analytical/fv3d_conformation_gate_setup.jl` (not run yet).
+gate): prints, for Giesekus alpha, FENE-P L2 and one hidden weight of the
+learned relaxation law on the 1 × 8 × 8 slice, the FD of the reconverged
+objective for h = 1e-2 … 1e-6 at Newton atol 1e-14 and 1e-15, the error
+against the adjoint and the Richardson ratio. The GPU run of 2026-11-16 fixed
+the G2 constants of `test/analytical/fv3d_conformation_gate_setup.jl` (Giesekus
+and FENE-P directions; the learned-law direction was added afterwards).
+
+`ve_transpose_measure.jl` (conformation adjoint, transposed solve at 10 fields
+per cell): on a Giesekus square duct N³ (De 0.1 → 0.3), one fresh solver per
+option (cuDSS, GMRES with ILU(0) through `precond = :auto`, block LSC, Vanka
+multigrid, used as they are), forward and transposed GMRES iterations at
+rtol 1e-6 / rtol_transpose 1e-10 (at most 500 iterations), set-up and solve
+times, true residual |Jᵀλ − g| / |g|, distance to the cuDSS λ, and the
+measured device memory peak of each option (pool high-water mark and device
+memory sampled on a second thread: run with `julia -t 2`). Measurements only;
+the last lines list the options whose transposed solve converges at each N.
+GPU command: `julia -t 2 …/ve_transpose_measure.jl` (`FV3D_NS=16,24,32`
+default, `FV3D_VE_LARGE=1` adds 48; not run yet).
 
 Notes.
 
