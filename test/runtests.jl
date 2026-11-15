@@ -166,6 +166,9 @@ function run_incns_testset()
         # FD, fv_set_params! keeps the coefficients, domain errors, transposed
         # solve, tangent vs adjoint (Giesekus); GPU part opt-in
         include("analytical/incns_fv3d_conformation_adjoint_test.jl")
+        # 3D conformation derivative gate (plan F2): coverage matrix G1-G3 on CPU,
+        # G4 GPU vs CPU (opt-in), GPU N = 24 Giesekus row with KRAKEN_VE_ADJOINT_FULL=1
+        include("analytical/incns_fv3d_conformation_gate_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,

@@ -79,6 +79,12 @@ FV3D_BACKEND=cpu FV3D_NS=4,6 julia --project benchmarks/fv3d/v0p_energy_mms.jl  
 FV3D_BACKEND=cpu FV3D_NS=4,6 FV3D_EXT_N=8 julia --project benchmarks/fv3d/v4_heated_duct.jl  # CPU smoke not recorded (GPU runs below); (a) above 3 % expected at N = 6
 ```
 
+`ve_adjoint_step_study.jl` (conformation adjoint, step study of the centred-FD
+gate): prints, for Giesekus alpha and FENE-P L2 on the 1 × 8 × 8 slice, the FD
+of the reconverged objective for h = 1e-2 … 1e-6 at Newton atol 1e-14 and
+1e-15, the error against the adjoint and the Richardson ratio; it confirms the
+G2 constants of `test/analytical/fv3d_conformation_gate_setup.jl` (not run yet).
+
 Notes.
 
 - Memory: the direct factorisation grows like cells^(4/3) (about 25 GB at 48³,
