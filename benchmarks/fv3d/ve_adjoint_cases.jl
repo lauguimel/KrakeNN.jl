@@ -2,7 +2,7 @@
 # viscoelastic adjoints", step F5). Giesekus (alpha = 0.3, nu_s = nu_p = 1,
 # h = 1/N, imposed mean axial velocity 1, so De = lambda), De continuation
 # 0.1, 0.25, ... up to FV3D_VE_DE (default 0.5) from rest. Parameters
-# theta = (lambda, alpha) through FVRelaxationParameters(:lambda, :alpha), step
+# theta = (lambda, alpha) through FVRelaxationParameters(:lambda, :theta), step
 # scales (lambda, 1). Objective as in the derivative gate (PIV plane + Fx + N1
 # terms, data from the state at theta + 0.1 s).
 #
@@ -63,7 +63,7 @@ const PLANAR_LS = split(get(ENV, "FV3D_VE_PLANAR_LINSOLVE", "direct"), ','; keep
 const DUCT_LS = split(get(ENV, "FV3D_VE_DUCT_LINSOLVE", FV3D_GPU ? "lsc,direct" : "direct"), ','; keepempty = false)
 
 const PNAMES = [:lambda, :alpha]
-pmap() = FVRelaxationParameters(:lambda, :alpha)
+pmap() = FVRelaxationParameters(:lambda, :theta)  # :theta = slot 2 of PolynomialRelaxation = alpha
 theta0() = [DE, VE_ALPHA]
 scales() = [DE, 1.0]
 giesekus(lam, a = VE_ALPHA) = FVConformation3D(; lambda = lam, nu_p = 1.0, alpha = a)
