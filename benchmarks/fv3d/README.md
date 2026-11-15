@@ -110,7 +110,24 @@ periodic array of cylinders between walls, Nz = 1 and Nz = 2. Gates: the
 same state to 1e-12; w, c_xz and c_yz ≤ 1e-13; G1/G2 on Giesekus λ and α.
 3D case: a periodic square duct with a solid constriction, at 24³. Gates:
 G1/G2 on λ and α with block LSC (preconditioner passed explicitly) and with
-cuDSS; it reports adjoint time / Newton time. Not run yet.
+cuDSS; it reports adjoint time / Newton time. Run on 2026-11-16 (PASS; results
+in `docs/src/users/fv-thermal.md`). Since then the planar PIV weights use the
+sampled plane, not the 3D field, and J(Nz = 1) vs J(Nz = 2) ≤ 1e-12 and the
+gradient ≤ 1e-10 are gates (not run again yet).
+
+`ve_calibration.jl` (plan F6, slice 1 × N × N, Giesekus α = 0.4, cuDSS /
+UMFPACK passed explicitly). Parts `FV3D_VE_CAL_PARTS=ident,twin,rheotool`:
+`ident` reports singular values of the sensitivity matrix in
+q = (log λ, log ν_p, log ν_s, α/0.5) and in (log λ, α/0.5), for the data sets
+axial / + secondary / + Fx at each De of `FV3D_VE_CAL_DE` (0.1,1.0), and the
+Fisher standard deviations for 1 % and 5 % noise. `twin` (N = 48) gates
+λ and α recovered to 1e-6 from (2λ, 0.1) without noise, and reports bias,
+dispersion against the Laplace value and 2σ coverage over `FV3D_VE_CAL_DRAWS`
+(10) noisy draws. `rheotool` fits λ and α to RheoTool velocities at
+N = 48, 100, 200 (`FV3D_VE_RHEOTOOL_N`), from the CSV files of
+`ve_rheotool_export.py` (`python -I ve_rheotool_export.py <out_dir> De0.1.npz …`,
+numpy only) in the folder `FV3D_VE_RHEOTOOL_DIR`, with Richardson
+extrapolation when the changes with N are monotone. Not run yet.
 
 Notes.
 

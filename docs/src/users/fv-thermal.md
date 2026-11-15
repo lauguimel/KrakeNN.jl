@@ -570,7 +570,40 @@ cylinders between two walls, made of solid cells, N × N × Nz with z periodic.
 Nz = 1 and Nz = 2 must give the same state to 1e-12, with `w, c_xz, c_yz` below
 1e-13. The second is a periodic square duct N³ with a solid constriction (half
 the side open), at 24³ on the GPU, with block LSC and with cuDSS. The script
-reports the adjoint time divided by the Newton time. Not run yet.
+reports the adjoint time divided by the Newton time. GPU run (2026-11-16), at
+De 0.5: on the 32 × 32 planar case the two states agree to 7e-16 and `w, c_xz,
+c_yz` are exactly 0; G1/G2 pass for both Nz. The objective then differed by
+6e-4 between Nz = 1 and Nz = 2: the benchmark normalised the PIV weights by the
+sum over the whole 3D field, which doubles with Nz = 2. The weights now use the
+sampled plane, and the script also checks that `J` agrees to 1e-12 and the
+gradient to 1e-10 between the two Nz (not run again yet). On the 24³ duct,
+G1/G2 pass with block LSC and with cuDSS. With cuDSS, the two-parameter adjoint
+takes 0.35 s with refactorisation (1.07 × one Newton iteration) and 0.055 s
+with the factors reused. With block LSC at rtol 1e-12, one Newton iteration
+takes 7.8 s and the adjoint 1.18 s.
+
+On the 1 × N × N slice (N = 24, 100, 200), the cuDSS factorisation takes 0.09,
+1.6 and 7.3 s, each solve 1 to 3 ms, with a peak of 0.04, 0.84 and 3.7 GB. The
+transposed solve takes 21, 29 and 32 iterations with Vanka (0.54 s at
+N = 200), 32, 72 and 113 with block LSC (4.6 s), and ILU(0) fails at N ≥ 100.
+On the 32³ rib, one iterative-refinement step (with the assembled `J`) brings
+the true transposed residual of cuDSS from 2.0e-7 to 1.3e-14 (0.014 s).
+
+Identifiability and calibration on the slice (`benchmarks/fv3d/ve_calibration.jl`,
+Giesekus α = 0.4, De 0.1 and 1, direct solver). Observations are the axial and
+secondary velocities at the cell centres of the section, plus `Fx`. The script
+computes three things. First, the singular values of the sensitivity matrix
+with respect to `q = (log λ, log ν_p, log ν_s, α/0.5)`, and with respect to
+`(log λ, α/0.5)` alone. Second, the Fisher standard deviations of λ and α for
+noise of 1 % and 5 % of the largest secondary velocity (and 1 % on `Fx`).
+Third, a twin experiment at N = 48: the data come from KrakeNN at the true
+values, Levenberg–Marquardt starts from (2λ, α = 0.1), and the gate is λ and α
+recovered to 1e-6 without noise; with noise it reports bias, dispersion and
+2σ coverage over 10 draws. `ve_rheotool_export.py` puts the RheoTool duct
+velocities (one instant, t = 30, so not shown to be steady) on a 50 × 50 grid
+of the quarter section. The driver then fits λ and α to them at N = 48, 100
+and 200, and separates the gap to the nominal values from the change with
+the grid. Not run yet.
 
 Limits: wall (zero normal velocity) and periodic sides only; Newtonian
 solvent; no energy equation together with conformation; PTT with `ξ ≠ 0` not
