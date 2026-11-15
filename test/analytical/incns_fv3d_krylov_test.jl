@@ -43,7 +43,8 @@
 #       rule); the 3D energy case (P3L) is checked in incns_fv3d_thermal_test.jl;
 #       with conformation unknowns (10 fields per cell, Giesekus slice 1 x 8 x 8)
 #       the default resolves to Vanka with constant prolongation as well, and its
-#       Newton state equals the direct one.
+#       Newton state equals the direct one; the same 10-field matrix on a planar
+#       grid (Nz = 1) resolves to Vanka too (routing only).
 # Every P1 tag below sets `precond = :ilu0` explicitly: the default of the tag
 # is P4 on 3D FV Jacobians.
 using Test
@@ -805,6 +806,14 @@ end
     Uc = fv_state(pc, zc, zc, zc, zc)
     fv_jacobian!(sc, Uc)
     @test sc.J.nfields == 10
+    # routing only: a planar conformation grid (Nz = 1) resolves to the same
+    # Vanka route; the 4-field flow matrix on Nz = 1 keeps ILU(0) (flat above)
+    planar = KrylovCSRMatrix(sc.J.n, sc.J.rowptr, sc.J.colval, sc.J.nzval, sc.J.border, sc.J.nfields,
+                             sc.J.pslot, sc.J.nlocal, (; dims = (8, 8, 1), solid = sc.J.geom.solid))
+    rp = KrakeNN._krylov_resolve(KrylovBackendTag(), planar)
+    @test rp.precond === :vanka && rp.vanka_prolong === :constant
+    @test KrakeNN._krylov_resolve(KrylovBackendTag(), flat).precond === :ilu0
+    @test KrakeNN._krylov_resolve(KrylovBackendTag(; precond = :ilu0), planar).precond === :ilu0
     cc = lin_factorize(sc.J; backend = KrylovBackendTag())
     @test cc.backend.precond === :vanka && cc.backend.vanka_prolong === :constant
     @test cc.backend.vanka_omega == 0.5

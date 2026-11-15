@@ -83,11 +83,12 @@ apply) on the assembled matrix. Preconditioners, by `precond`:
 
 `precond = :auto` (default) is resolved per matrix by
 [`lin_factorize`](@ref) to the measured setting of each case (block layout
-and grid geometry as set by `fv_newton_solver`, grid with more than one cell
-along z):
+and grid geometry as set by `fv_newton_solver`; 4 and 5 fields per cell need
+a grid with more than one cell along z, 10 fields do not):
 
 - 3D without energy equation (4 fields per cell, pressure in slot 4), and 3D
-  with conformation unknowns (10 fields per cell): Vanka multigrid,
+  with conformation unknowns (10 fields per cell, also on a planar grid with
+  Nz = 1): Vanka multigrid,
   `precond = :vanka` with `vanka_prolong = :constant` (and `vanka_omega`,
   default 0.5), the configuration that passes the D2 gate and runs V5; with
   conformation, the only option measured to converge on both the duct and the
@@ -196,16 +197,20 @@ end
 
 # Tag actually used for the matrix `A` (`precond = :auto` resolved to the
 # measured setting): 3D (geometry with Nz > 1) with 4 fields per cell (flow)
-# or 10 (flow + conformation) → Vanka multigrid with constant prolongation (D2
-# gate, V5; with conformation: benchmarks/fv3d/ve_transpose_measure.jl, where
-# ILU(0) fails from 24³ and from the 100 × 100 slice); 3D with 5 fields
+# or 10 (flow + conformation, any Nz: ILU(0) fails on the slices too, and the
+# Vanka hierarchy treats every axis alike, a one-cell axis included) → Vanka
+# multigrid with constant prolongation (D2 gate, V5; with conformation:
+# benchmarks/fv3d/ve_transpose_measure.jl, where ILU(0) fails from 24³ and
+# from the 100 × 100 slice); 3D with 5 fields
 # (energy) → block LSC with 4 multigrid cycles per block (I3 runs,
 # `fv3d_p3_tag` of benchmarks/fv3d/fv3d_common.jl); otherwise (2D, bare
 # matrices) → ILU(0).
 function _krylov_resolve(tag::KrylovBackendTag, A)
     tag.precond === :auto || return tag
-    is3d = A.nlocal > 0 && A.pslot == 4 && A.geom !== nothing && A.geom.dims[3] > 1
-    is3d && A.nfields in (4, 10) && return _krylov_with(tag; precond = :vanka, vanka_prolong = :constant)
+    layout3d = A.nlocal > 0 && A.pslot == 4 && A.geom !== nothing
+    layout3d && A.nfields == 10 && return _krylov_with(tag; precond = :vanka, vanka_prolong = :constant)
+    is3d = layout3d && A.geom.dims[3] > 1
+    is3d && A.nfields == 4 && return _krylov_with(tag; precond = :vanka, vanka_prolong = :constant)
     is3d && A.nfields == 5 &&
         return _krylov_with(tag; precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4)
     return _krylov_with(tag; precond = :ilu0)

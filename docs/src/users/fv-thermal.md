@@ -265,7 +265,8 @@ The default (`precond = :auto`) picks one from the Jacobian:
 
 - 3D problems without energy equation, with or without conformation
   unknowns: Vanka multigrid with `vanka_prolong = :constant` and
-  `vanka_omega = 0.5`;
+  `vanka_omega = 0.5`. With conformation unknowns this also holds on a planar
+  grid (Nz = 1); without them, a grid with Nz = 1 follows the 2D rule;
 - 3D problems with an energy equation: block LSC with `mg_cycles = 4`;
 - 2D problems: ILU(0), as before.
 
