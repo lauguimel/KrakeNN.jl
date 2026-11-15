@@ -522,8 +522,24 @@ symmetries, the eight-vortex sense of the RheoTool solution (along the diagonals
 from the corners toward the centre, along the wall bisectors toward the walls)
 and, for Oldroyd-B, `N2 = 0` and no secondary flow.
 
+Adjoint and sensitivities: `FVRelaxationParameters(:lambda, :nu_p, :theta,
+:nu_s)` (any non-empty subset, `θ` in that order) maps the relaxation time, the
+polymer viscosity (`G = ν_p/λ` follows both), the free law parameters (default:
+`α` for Giesekus with `b1 = 1` fixed, `ε` for PTT, `L²` for FENE-P; other entries
+through `theta_slots`) and the uniform solvent viscosity. It plugs into
+`fv_steady_adjoint`, `fv_steady_tangent`, `fv_steady_gradient` and
+`fv_set_params!` like the other parameter maps; the coefficient derivatives are
+taken by dual numbers in the conformation residual kernel, on CPU and GPU.
+Values outside the admissible range (`λ, ν_p, ν_s ≤ 0`, `α ∉ [0, 1/2]`, `ε < 0`,
+`L² ≤ 3`) raise `ArgumentError`; they are never clipped. The adjoint and the
+tangent first call `fv_check_conformation_domain(prob, U)`, which raises
+`DomainError` when `c` is not positive definite in some fluid cell or, for
+FENE-P, when `max tr c ≥ L²`; `fv_conformation_domain` returns the smallest
+eigenvalue, the largest trace and the FENE-P margin without throwing.
+
 Limits: wall (zero normal velocity) and periodic sides only; Newtonian
 solvent; no energy equation together with conformation; PTT with `ξ ≠ 0` not
 available; the duct benchmark's damped retry still shifts the momentum rows only
-(`shift_conformation` is not passed there); no adjoint parameter map for the
-relaxation law yet.
+(`shift_conformation` is not passed there); the relaxation-parameter map covers
+the closed-form laws only (a learned relaxation law with device parameters is
+not available).

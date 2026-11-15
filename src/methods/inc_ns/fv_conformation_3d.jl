@@ -31,8 +31,13 @@
 # Pseudo-transient continuation: `fv_newton!(...; dtau0, shift_conformation =
 # true)` adds V/dtau to the diagonal of the six c rows as well as the momentum
 # rows (Jacobian only; the steady residual is unchanged).
+# Adjoint: FVRelaxationParameters (fv_conformation_adjoint_3d.jl) maps lambda,
+# nu_p, the law parameters and the uniform solvent viscosity through the generic
+# parameter-dual path of fv_adjoint.jl; fv_set_params! carries the conformation
+# coefficients (_fv_with_law, fv_adjoint_3d.jl).
 # Not available yet: energy together with conformation, state-dependent solvent
-# viscosity (GNF / law), inlet and outlet sides, adjoint parameter maps.
+# viscosity (GNF / law), inlet and outlet sides, a learned relaxation law whose
+# parameters live in a device array (theta is an isbits tuple here).
 
 """
     FVConformation3D(; lambda, nu_p, alpha = 0, law = PolynomialRelaxation(), theta = nothing)

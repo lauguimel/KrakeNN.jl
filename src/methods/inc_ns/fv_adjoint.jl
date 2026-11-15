@@ -54,7 +54,9 @@ same maps apply: `FVViscosityField` has length `Nx Ny Nz`,
 `FVSideVelocity(prob3d, side)` takes the six sides `:E, :W, :N, :S, :T, :B`
 with `shape = (x, y, z) -> (u, v, w)`, `FVUniformSource(comp)` takes
 `comp = 1..4` (4 = mass), and [`FVLawParameters`](@ref) contracts the law
-pullback over the six faces of each cell.
+pullback over the six faces of each cell. A conformation-active 3D problem
+([`FVConformation3D`](@ref)) takes [`FVRelaxationParameters`](@ref) for the
+relaxation time, the polymer and solvent viscosities and the law parameters.
 
 The built-in maps preserve `prob.visc`. For a GNF problem, the cell field
 `nu` is ignored, so viscosity-field maps have zero derivatives; use
@@ -886,6 +888,10 @@ function fv_nu_coloring(prob::FVSteadyProblem2D)
     return fv_jacobian_coloring(sparse(I, J, trues(length(I)), nc, nc, |))
 end
 
+# State admissibility before an adjoint or tangent (conformation-active 3D
+# problems: positive-definite c, FENE-P bound; fv_conformation_adjoint_3d.jl).
+_fv_check_state_domain(prob, U) = nothing
+
 function _fv_require_adjoint_map(prob, map)
     prob.energy === nothing || throw(ArgumentError(
         "thermal sensitivities require FVLawParameters with FVLawViscosity"))
@@ -1145,6 +1151,7 @@ function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FV
     ws.map isa typeof(params) ||
         throw(ArgumentError("workspace built for $(typeof(ws.map)), called with $(typeof(params))"))
     length(gU) == length(U) || throw(DimensionMismatch("gU must have length $(length(U))"))
+    _fv_check_state_domain(s.prob, U)
     t0 = time_ns()
     finalize ? fv_newton_finalize!(s, U) : _fv_check_factors(s, U)
     _fv_check_transpose(s)
@@ -1237,6 +1244,7 @@ is the directional derivative of `𝒥` — the forward check of the adjoint.
 function fv_steady_tangent(s::FVNewtonSolver, U, θ, δθ; params::FVParameterMap,
                            ws = nothing, finalize::Bool = true)
     _fv_require_adjoint_map(s.prob, params)
+    _fv_check_state_domain(s.prob, U)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
     finalize ? fv_newton_finalize!(s, U) : _fv_check_factors(s, U)
     s.cache === nothing && throw(ArgumentError("the solver has no factorization"))

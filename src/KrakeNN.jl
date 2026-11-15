@@ -170,7 +170,8 @@ export FVConformation3D, AbstractRelaxationLaw, PolynomialRelaxation, relaxation
        LinearPTTRelaxation, ExponentialPTTRelaxation, FENEPRelaxation,
        relaxation_stress, relaxation_stress_linear, relaxation_check,
        relaxation_coefficients, fv_relaxation, fv_upper_convected, fv_conformation_source,
-       fv_conformation_fields, fv_set_conformation, fv_set_conformation!
+       fv_conformation_fields, fv_set_conformation, fv_set_conformation!,
+       FVRelaxationParameters, fv_conformation_domain, fv_check_conformation_domain
 export FVImmersedClosure, FVImmersedBoundary2D, FVImmersedMass, fv_immersed_boundary,
        fv_immersed_circle, fv_immersed_annulus,
        FVImmersedWall, FVProfileWall, FVCircleWall, fv_immersed_walls, fv_immersed_wall_heat
@@ -296,6 +297,7 @@ include("methods/inc_ns/fv_adjoint_3d.jl") # 3D steady adjoint: maps, law captur
 include("methods/inc_ns/fv_energy_3d.jl") # 3D energy equation (I3): slot 5, Newton, adjoint
 include("methods/inc_ns/fv_conformation_law.jl") # relaxation laws + pointwise conformation algebra (CONF-1)
 include("methods/inc_ns/fv_conformation_3d.jl") # 3D steady conformation unknowns + polymer stress (CONF-1)
+include("methods/inc_ns/fv_conformation_adjoint_3d.jl") # relaxation-parameter map + domain checks (F1)
 include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (device gather/scatter)
 include("methods/inc_ns/fv_second_normal_3d.jl") # 3D Reiner-Rivlin stress: Psi2 term in the traction
 export FVReinerRivlinViscosity, FVReinerRivlinParameters
