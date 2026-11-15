@@ -15,7 +15,8 @@
 #   c_yy, c_zz on every layer of Nz = 2, and the body force; (b) w, c_xz, c_yz
 #   <= 1e-13 (absolute) on both; (c) G1 and G2 on alpha and lambda, for each Nz.
 #   If Nz = 1 fails (a), the Nz = 2 rows still run (plan: use Nz = 2 and say so).
-#   Reported only: gradient difference Nz = 1 vs Nz = 2.
+#   (d) J(Nz = 1) vs J(Nz = 2) <= 1e-12 relative, gradient <= 1e-10 relative
+#   (PIV weights are normalised by the sampled plane, not by the 3D field).
 # duct (F5.2): square duct N^3 periodic in x, walls y and z, constriction of
 #   solid cells (x in (3N/8, 5N/8], section outside the central square
 #   (N/4, 3N/4]^2 solid: half the side open). Objective: x-normal stereo PIV
@@ -135,7 +136,9 @@ function planar_objective(p, Ud::Vector{Float64}; to = fv3d_to())
     plane = PIVPlane(; normal = :z, position = 0.5 * g.h, xs, ys)
     op = piv_operator(plane, to(zeros(g.Nx, g.Ny, g.Nz)); h = (g.h, g.h, g.h))
     data = piv_apply(KrakeNN._fv_piv_host_op(op), (u, v, w))
-    mask = (fill(1 / sum(abs2, u), g.Nx, g.Ny), fill(1 / sum(abs2, v), g.Nx, g.Ny))
+    # weights from the sampled plane (not from the 3D field: a 3D sum doubles with
+    # Nz = 2 and would halve the PIV term against Fx and N1)
+    mask = (fill(1 / sum(abs2, data[1]), g.Nx, g.Ny), fill(1 / sum(abs2, data[2]), g.Nx, g.Ny))
     Fs = Ud[KrakeNN._fv_force_index(ph)]
     n1 = ve_n1_functional(ph)
     N1s = fv_objective(n1, Ud, ph)
@@ -226,7 +229,7 @@ function run_planar(lsname)
             r, f, _ = gate_g1g2(label, s, U, obj, linsolve)
             r["t_newton_last_stage"] = t_n; r["newton_iters_last_stage"] = it_n
             out["Nz$Nz"] = r; append!(fails, f)
-            states[Nz] = (KrakeNN._fv_host_problem(s.prob), Vector{Float64}(Array(U)), r["grad"])
+            states[Nz] = (KrakeNN._fv_host_problem(s.prob), Vector{Float64}(Array(U)), r["grad"], r["J"])
             fv3d_release_all!(s)
         catch err
             msg = first(sprint(showerror, err), 300)
@@ -237,7 +240,7 @@ function run_planar(lsname)
         flush(stdout)
     end
     if haskey(states, 1) && haskey(states, 2)
-        (p1, U1, g1), (p2, U2, g2) = states[1], states[2]
+        (p1, U1, g1, J1), (p2, U2, g2, J2) = states[1], states[2]
         rel, zs = layer_compare(p1, U1, p2, U2)
         for (k, v) in sort(collect(rel))
             @printf("   planar %s Nz=1 vs Nz=2 %-5s rel %.2e  %s\n", lsname, k, v, v <= 1e-12 ? "ok" : "FAIL")
@@ -247,9 +250,13 @@ function run_planar(lsname)
             @printf("   planar %s max |%s| (both Nz) %.2e  %s\n", lsname, k, v, v <= 1e-13 ? "ok" : "FAIL")
             v <= 1e-13 || push!(fails, @sprintf("planar %s: |%s| %.2e > 1e-13", lsname, k, v))
         end
+        dJ = abs(J1 - J2) / abs(J1)
+        @printf("   planar %s J Nz=1 vs Nz=2: rel diff %.2e  tol 1e-12  %s\n", lsname, dJ, dJ <= 1e-12 ? "ok" : "FAIL")
+        dJ <= 1e-12 || push!(fails, @sprintf("planar %s: J Nz=1 vs Nz=2 %.2e > 1e-12", lsname, dJ))
         dg = maximum(abs.(g1 .- g2) ./ abs.(g2))
-        @printf("   planar %s gradient Nz=1 vs Nz=2: max rel diff %.2e (reported)\n", lsname, dg)
-        out["same_state"] = rel; out["zero_fields"] = zs; out["grad_reldiff_nz"] = dg
+        @printf("   planar %s gradient Nz=1 vs Nz=2: max rel diff %.2e  tol 1e-10  %s\n", lsname, dg, dg <= 1e-10 ? "ok" : "FAIL")
+        dg <= 1e-10 || push!(fails, @sprintf("planar %s: gradient Nz=1 vs Nz=2 %.2e > 1e-10", lsname, dg))
+        out["same_state"] = rel; out["zero_fields"] = zs; out["J_reldiff_nz"] = dJ; out["grad_reldiff_nz"] = dg
     end
     return out, fails
 end
