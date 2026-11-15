@@ -17,6 +17,9 @@
 # case), imposed mean axial velocity 1, Giesekus alpha = 0.3, nu_s = nu_p = 1,
 # De continuation FV3D_VE_DE (default 0.1,0.2,0.3) from rest. The state is
 # solved once per N with cuDSS (GMRES + block LSC if cuDSS runs out of memory).
+# FV3D_VE_GEOM=slice (plan F3.1): the 1 x N x N slice of the derivative gate
+# instead (ve_slice, x periodic with Nx = 1), N default 24,100,200, same options
+# (no rib); results in <script>_slice_<backend>.toml.
 # Right-hand side g = dJ/dU of the test objective of the derivative gate
 # (stereo PIV plane, Fx and N1 terms, test/analytical/fv3d_conformation_gate_setup.jl)
 # with the data from the state of the previous De step.
@@ -27,8 +30,10 @@
 # Newton tolerance) and two transposed solves at rtol_transpose = 1e-10 (the
 # first includes the lazy set-up of the transposed side), GMRES at most
 # FV3D_VE_MAXITER (500, plan F3.2) iterations, restart 50, non-strict.
-# Reported: iterations and GMRES relative residual (forward, transposed), times,
-# true residual |J^T lambda - g| / |g| (J assembled once per N, host SpMV),
+# Reported: iterations and GMRES relative residual (forward, transposed), times
+# (assembly and factorisation / preconditioner set-up timed separately), true
+# residuals |J x - g| / |g| (forward) and |J^T lambda - g| / |g| (J assembled
+# once per N, host SpMV),
 # |lambda - lambda_cuDSS| / |lambda_cuDSS| (2-norm), and the device memory of
 # the whole option run (build -> last solve), both measured:
 #   pool_peak    high-water mark of the CUDA.jl memory pool (MEMPOOL_ATTR_USED_MEM_HIGH,
@@ -37,6 +42,10 @@
 #                sampled every 2 ms on a second thread (run with julia -t 2;
 #                with one thread only the end of each phase is sampled, said in
 #                the output); includes memory allocated outside the pool (cuDSS).
+# FV3D_VE_REFINE=k (default 0, measurement only): k steps of iterative
+# refinement of the direct transposed solve (r = g - J^T lambda on the host,
+# J^T d = r with the same factors, lambda += d); the true residual after each
+# step is reported and the refined lambda is the reference of the GMRES rows.
 # Measurements only, no gate. F3.2 decision line: options whose transposed solve
 # converges in <= FV3D_VE_MAXITER iterations at each N; none = separate mission.
 #
@@ -44,7 +53,7 @@
 #   FV3D_BACKEND=cpu  FV3D_NS=6 julia --project benchmarks/fv3d/ve_transpose_measure.jl   (smoke: UMFPACK)
 # Options: FV3D_NS (default 16,24,32), FV3D_VE_LARGE=1 (adds 48), FV3D_VE_OPTIONS
 # (default cudss,auto,lsc,vanka), FV3D_VE_DE, FV3D_VE_SOLID, FV3D_VE_MAXITER,
-# FV3D_ETA, FV3D_VE_WARMUP (warm-up size, default 8, 0 = none), FV3D_OUT.
+# FV3D_ETA, FV3D_VE_GEOM, FV3D_VE_REFINE, FV3D_VE_WARMUP (warm-up size, default 8, 0 = none), FV3D_OUT.
 if lowercase(get(ENV, "FV3D_BACKEND", "cuda")) == "cuda"
     using CUDA
     CUDA.functional() || error("CUDA not functional")
@@ -54,7 +63,10 @@ include(joinpath(@__DIR__, "fv3d_common.jl"))
 include(joinpath(@__DIR__, "..", "..", "test", "analytical", "fv3d_conformation_gate_setup.jl"))
 
 const SCRIPT = "ve_transpose_measure"
-const NS = [fv3d_ints("FV3D_NS", "16,24,32"); get(ENV, "FV3D_VE_LARGE", "0") == "1" ? [48] : Int[]]
+const GEOM = Symbol(lowercase(get(ENV, "FV3D_VE_GEOM", "duct")))
+GEOM in (:duct, :slice) || error("FV3D_VE_GEOM must be duct or slice, got $GEOM")
+const NS = GEOM === :slice ? fv3d_ints("FV3D_NS", "24,100,200") :
+           [fv3d_ints("FV3D_NS", "16,24,32"); get(ENV, "FV3D_VE_LARGE", "0") == "1" ? [48] : Int[]]
 const OPTIONS = Symbol.(split(get(ENV, "FV3D_VE_OPTIONS", "cudss,auto,lsc,vanka"), ','; keepempty = false))
 const DES = fv3d_floats("FV3D_VE_DE", "0.1,0.2,0.3")
 length(DES) >= 2 || error("FV3D_VE_DE needs at least two values (the data come from the last but one)")
@@ -63,6 +75,7 @@ const MAXITER = parse(Int, get(ENV, "FV3D_VE_MAXITER", "500"))
 const ETA = parse(Float64, get(ENV, "FV3D_ETA", "1e-6"))
 const ETA_T = 1e-10
 const WARMUP = parse(Int, get(ENV, "FV3D_VE_WARMUP", "8"))
+const REFINE = parse(Int, get(ENV, "FV3D_VE_REFINE", "0"))
 const STATE_NEWTON = (; atol = 1e-11, rtol = 1e-13, maxit = 40)
 
 # ------------------------------------------------------------------ options
@@ -80,53 +93,22 @@ for o in OPTIONS
 end
 
 # ------------------------------------------------------------------ case
-function duct_problem(N, De)
+function case_problem(N, De)
+    conf = FVConformation3D(; lambda = De, nu_p = 1.0, alpha = VE_ALPHA)
+    GEOM === :slice && return ve_slice(conf; N)
     solid = falses(N, N, N)
     SOLID && (solid[(3N ÷ 8 + 1):(5N ÷ 8), 1:max(1, N ÷ 4), :] .= true)
-    conf = FVConformation3D(; lambda = De, nu_p = 1.0, alpha = VE_ALPHA)
     return fv_steady_problem(N, N, N; h = 1 / N, nu = 1.0, bc = VE_BC, conformation = conf,
                              solid = SOLID ? solid : nothing,
                              source = (x, y, z) -> (50.0, 0.0, 0.0, 0.0), u_mean_target = 1.0)
 end
 rest_state(p) = (z = zeros(p.grid.Nx, p.grid.Ny, p.grid.Nz); fv_state(p, z, z, z, z))
 
-# Free every device array and cuDSS object reached from a finished solver (as in
-# i4_krylov_measure.jl), then trim the pool.
-function ve_release!(x, seen = Base.IdSet{Any}(), depth = 0)
-    (depth > 12 || x === nothing || isbits(x) || x isa Module || x isa DataType ||
-     x isa Function || x isa String || x isa Symbol) && return
-    x in seen && return
-    push!(seen, x)
-    if FV3D_GPU && x isa CUDA.CuArray
-        CUDA.unsafe_free!(x)
-        return
-    end
-    if x isa Array
-        isbitstype(eltype(x)) || foreach(e -> ve_release!(e, seen, depth + 1), x)
-        return
-    end
-    for f in fieldnames(typeof(x))
-        isdefined(x, f) && ve_release!(getfield(x, f), seen, depth + 1)
-    end
-    FV3D_GPU && ismutable(x) && parentmodule(typeof(x)) === CUDSS && finalize(x)
-    return
-end
-function ve_release_all!(s)
-    try
-        s === nothing || ve_release!(s)
-    catch err
-        println("NOTE release: ", first(sprint(showerror, err), 200))
-    end
-    GC.gc(true); GC.gc(true)
-    fv3d_free()
-    return nothing
-end
-
 # State at the last De of DES with linear solver `tag`; host data state = the
 # state at the last but one De.
 function solve_state(N, tag)
     to = fv3d_to()
-    p = duct_problem(N, first(DES))
+    p = case_problem(N, first(DES))
     s = fv_newton_solver(p; to, linsolve = tag)
     U = to(rest_state(p))
     Ud = nothing; its = Int[]
@@ -196,14 +178,17 @@ function mem_end!(w::MemWindow)
 end
 
 # ------------------------------------------------------------------ one option
-function run_option(o::Symbol, ph, U, gh)
+function run_option(o::Symbol, ph, U, gh, JT)
     to = fv3d_to(); tag = option_tag(o)
     s = nothing
     w = mem_begin()
     try
         t_build = @elapsed s = fv_newton_solver(ph; to, linsolve = tag)
         mem_mark!(w)
-        t_setup = @elapsed (fv_newton_finalize!(s, U); fv3d_sync())
+        # = fv_newton_finalize!(s, U), its two parts timed separately
+        t_assemble = @elapsed (KrakeNN.fv_jacobian!(s, U); fv3d_sync())
+        t_factor = @elapsed (KrakeNN._fv_factor!(s); fv3d_sync())
+        t_setup = t_assemble + t_factor
         mem_mark!(w)
         isK = tag isa KrylovBackendTag
         b = to(copy(gh)); x = similar(b)
@@ -215,11 +200,33 @@ function run_option(o::Symbol, ph, U, gh)
         mem_mark!(w)
         t_tr = @elapsed (lin_solve!(x, s.cache, b; transpose = true); fv3d_sync())
         lam = Vector{Float64}(Array(x))
+        # optional iterative refinement of the direct transposed solve (measurement
+        # only): r = g - J^T lambda on the host, solve J^T d = r, lambda += d
+        ir = Float64[]; t_ir = 0.0
+        if !isK && REFINE > 0
+            lam_ir = copy(lam)
+            push!(ir, relres(JT, lam_ir, gh))                     # before refinement
+            for _ in 1:REFINE
+                r = gh - JT * lam_ir
+                t_ir += @elapsed begin
+                    copyto!(b, r)
+                    lin_solve!(x, s.cache, b; transpose = true); fv3d_sync()
+                end
+                lam_ir .+= Array(x)
+                push!(ir, relres(JT, lam_ir, gh))
+            end
+            lam = lam_ir
+        end
         mem = mem_end!(w)
         out = Dict{String,Any}("status" => "ok", "t_build" => t_build, "t_setup" => t_setup,
+                               "t_assemble" => t_assemble, "t_factor" => t_factor,
                                "t_forward" => t_fwd, "t_transpose_first" => t_tr1, "t_transpose" => t_tr,
                                "pool_peak_bytes" => mem.pool_peak, "device_peak_bytes" => mem.device_peak,
                                "device_after_bytes" => mem.device_after, "device_sampled" => mem.sampled)
+        if !isempty(ir)
+            out["refine_steps"] = REFINE; out["t_refine"] = t_ir
+            out["true_transpose_relres_refined"] = ir
+        end
         if isK
             lg = lin_krylov_log(s.cache)[i0+1:end]
             fw = lg[findfirst(e -> !e.transpose, lg)]
@@ -232,11 +239,11 @@ function run_option(o::Symbol, ph, U, gh)
         else
             out["precond"] = "direct"
         end
-        ve_release_all!(s); s = nothing
+        fv3d_release_all!(s); s = nothing
         return out, xf, lam
     catch err
         mem = mem_end!(w)
-        ve_release_all!(s); s = nothing
+        fv3d_release_all!(s); s = nothing
         fv3d_isoom(err) || rethrow()
         println("   ", o, ": out of device memory")
         return Dict{String,Any}("status" => "oom", "device_peak_bytes" => mem.device_peak,
@@ -253,7 +260,7 @@ function host_jt(ph, U)
     A = s.J
     JT = SparseMatrixCSC(A.n, A.n, Int.(Array(A.rowptr)), Int.(Array(A.colval)),
                          Vector{Float64}(Array(A.nzval)))
-    ve_release_all!(s)
+    fv3d_release_all!(s)
     return JT
 end
 
@@ -269,7 +276,7 @@ function measure(N; quiet = false)
         s, U, Ud, its = solve_state(N, fv3d_linsolve())
     catch err
         fv3d_isoom(err) || rethrow()
-        ve_release_all!(s)
+        fv3d_release_all!(s)
         println("   N=$N state: cuDSS out of device memory, state with GMRES + block LSC")
         state_solver = "lsc"
         s, U, Ud, its = solve_state(N, krylov_tag(KRYLOV_EXTRA[:lsc]; maxiter = 2000))
@@ -277,18 +284,21 @@ function measure(N; quiet = false)
     ph = KrakeNN._fv_host_problem(s.prob)
     obj, _ = ve_objective(s.prob, Ud; to)
     gh = Vector{Float64}(Array(fv_objective_gradient!(obj, U, s.prob)[2]))
-    ve_release_all!(s); s = nothing; obj = nothing
+    fv3d_release_all!(s); s = nothing; obj = nothing
     JT = host_jt(ph, U)
     n = size(JT, 1)
     res["n"] = n; res["nnz"] = nnz(JT); res["state_solver"] = state_solver
     res["state_newton_iters"] = its
-    quiet || @printf("N=%d  %d^3 cells, %d unknowns, nnz %d, De %s, state by %s (Newton its %s)\n",
-                     N, N, n, nnz(JT), join(DES, "->"), state_solver, join(its, ","))
+    g = ph.grid
+    quiet || @printf("N=%d  %d x %d x %d cells, %d unknowns, nnz %d, De %s, state by %s (Newton its %s)\n",
+                     N, g.Nx, g.Ny, g.Nz, n, nnz(JT), join(DES, "->"), state_solver, join(its, ","))
     lam_ref = nothing; x_ref = nothing
     for o in OPTIONS
-        out, xf, lam = run_option(o, ph, U, gh)
+        out, xf, lam = run_option(o, ph, U, gh, JT)
         if lam !== nothing
+            # lambda after refinement when FV3D_VE_REFINE > 0 (direct option)
             out["true_transpose_relres"] = relres(JT, lam, gh)
+            out["true_forward_relres"] = norm(JT' * xf - gh) / norm(gh)
             if o === :cudss
                 lam_ref, x_ref = lam, xf
             elseif lam_ref !== nothing
@@ -299,7 +309,7 @@ function measure(N; quiet = false)
         res[String(o)] = out
         quiet || print_row(o, out)
     end
-    ve_release_all!(nothing)
+    fv3d_release_all!(nothing)
     return res
 end
 
@@ -312,19 +322,24 @@ function print_row(o, d)
         it(k) = haskey(d, k) ? @sprintf("%4d", d[k]) : "   -"
         rr(k) = haskey(d, k) ? @sprintf("%.1e", d[k]) : "      -"
         cv = haskey(d, "transpose_converged") ? (d["transpose_converged"] ? "yes" : "NO ") : "  -"
-        @printf("   %-6s %-6s fwd it %s rr %s | T it %s rr %s conv %s true %.1e dlam %s | setup %7.3f s  T1 %7.3f s  T %7.3f s | peak dev %s GB pool %s GB%s\n",
-                o, d["precond"], it("forward_iters"), rr("forward_relres"), it("transpose_iters"),
-                rr("transpose_relres"), cv, d["true_transpose_relres"], rr("lambda_reldiff_cudss"),
-                d["t_setup"], d["t_transpose_first"], d["t_transpose"], gb(d["device_peak_bytes"]),
-                gb(d["pool_peak_bytes"]), d["device_sampled"] ? "" : " (end of phases only)")
+        @printf("   %-6s %-6s fwd it %s rr %s true %.1e | T it %s rr %s conv %s true %.1e dlam %s | assemble %7.3f s  factor/setup %7.3f s  T1 %7.3f s  T %7.3f s | peak dev %s GB pool %s GB%s\n",
+                o, d["precond"], it("forward_iters"), rr("forward_relres"), d["true_forward_relres"],
+                it("transpose_iters"), rr("transpose_relres"), cv, d["true_transpose_relres"],
+                rr("lambda_reldiff_cudss"), d["t_assemble"], d["t_factor"], d["t_transpose_first"],
+                d["t_transpose"], gb(d["device_peak_bytes"]), gb(d["pool_peak_bytes"]),
+                d["device_sampled"] ? "" : " (end of phases only)")
+        haskey(d, "true_transpose_relres_refined") &&
+            @printf("          iterative refinement (%d steps, %.3f s): true transposed residual before and after each step %s\n",
+                    d["refine_steps"], d["t_refine"],
+                    join([@sprintf("%.1e", v) for v in d["true_transpose_relres_refined"]], ", "))
     end
     flush(stdout)
 end
 
 function main()
     fv3d_banner(SCRIPT)
-    println("options ", join(OPTIONS, ","), "  N ", join(NS, ","), "  De ", join(DES, "->"),
-            "  solid rib ", SOLID, "  rtol forward ", ETA, "  rtol_transpose ", ETA_T,
+    println("geometry ", GEOM, "  options ", join(OPTIONS, ","), "  N ", join(NS, ","), "  De ", join(DES, "->"),
+            "  solid rib ", SOLID, "  refinement steps (direct) ", REFINE, "  rtol forward ", ETA, "  rtol_transpose ", ETA_T,
             "  GMRES maxiter ", MAXITER)
     FV3D_GPU && Threads.nthreads() == 1 &&
         println("NOTE one thread: device peak sampled at the end of each phase only (run with julia -t 2)")
@@ -332,7 +347,7 @@ function main()
         println("warm-up N=$WARMUP (compilation, not reported)"); flush(stdout)
         measure(WARMUP; quiet = true)
     end
-    data = Dict{String,Any}("options" => String.(OPTIONS), "De" => DES, "solid" => SOLID,
+    data = Dict{String,Any}("geometry" => String(GEOM), "refine" => REFINE, "options" => String.(OPTIONS), "De" => DES, "solid" => SOLID,
                             "rtol" => ETA, "rtol_transpose" => ETA_T, "maxiter" => MAXITER)
     ok = Dict{Int,Vector{Symbol}}()
     for N in NS
@@ -340,7 +355,7 @@ function main()
         data["N$N"] = r
         ok[N] = [o for o in OPTIONS if o !== :cudss && get(r[String(o)], "status", "") == "ok" &&
                  get(r[String(o)], "transpose_converged", false)]
-        fv3d_write(fv3d_out(SCRIPT), data)
+        fv3d_write(fv3d_out(GEOM === :slice ? SCRIPT * "_slice" : SCRIPT), data)
     end
     println("\nF3.2 transposed GMRES converged in <= $MAXITER iterations at rtol_transpose = $ETA_T:")
     for N in NS

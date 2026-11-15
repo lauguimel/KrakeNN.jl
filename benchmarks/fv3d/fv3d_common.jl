@@ -21,6 +21,40 @@ fv3d_sync() = FV3D_GPU && CUDA.synchronize()
 # release solver factorisations kept alive by dead references (GC, then give the pool back)
 FV3D_GPU ? @eval(fv3d_free() = (GC.gc(); CUDA.reclaim(); nothing)) : (fv3d_free() = (GC.gc(); nothing))
 fv3d_isoom(err) = occursin("out of gpu memory", lowercase(sprint(showerror, err))) || err isa OutOfMemoryError
+
+# Free every device array and cuDSS object reached from a finished solver now
+# (same as release! of i4_krylov_measure.jl): CuArrays freed, cuDSS objects
+# (memory outside the CUDA.jl pool) finalized, then GC and pool trimmed. The
+# solver is unusable afterwards. Used by the ve_* scripts.
+function fv3d_release!(x, seen = Base.IdSet{Any}(), depth = 0)
+    (depth > 12 || x === nothing || isbits(x) || x isa Module || x isa DataType ||
+     x isa Function || x isa String || x isa Symbol) && return
+    x in seen && return
+    push!(seen, x)
+    if FV3D_GPU && x isa CUDA.CuArray
+        CUDA.unsafe_free!(x)
+        return
+    end
+    if x isa Array
+        isbitstype(eltype(x)) || foreach(e -> fv3d_release!(e, seen, depth + 1), x)
+        return
+    end
+    for f in fieldnames(typeof(x))
+        isdefined(x, f) && fv3d_release!(getfield(x, f), seen, depth + 1)
+    end
+    FV3D_GPU && ismutable(x) && parentmodule(typeof(x)) === CUDSS && finalize(x)
+    return
+end
+function fv3d_release_all!(s)
+    try
+        s === nothing || fv3d_release!(s)
+    catch err
+        println("NOTE release: ", first(sprint(showerror, err), 200))
+    end
+    GC.gc(true); GC.gc(true)
+    fv3d_free()
+    return nothing
+end
 fv3d_devused() = FV3D_GPU ? Int(CUDA.total_memory() - CUDA.free_memory()) : 0
 
 fv3d_ints(name, default) = parse.(Int, split(get(ENV, name, default), ','; keepempty = false))
