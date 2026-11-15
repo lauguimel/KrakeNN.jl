@@ -162,6 +162,10 @@ function run_incns_testset()
         # 3D conformation tensor (plan CONF-1): pointwise law, Giesekus closed form,
         # default path, coloured = dense, Oldroyd-B Poiseuille, Giesekus Couette
         include("analytical/incns_fv3d_conformation_test.jl")
+        # 3D conformation relaxation-parameter adjoint (plan F1): residual duals vs
+        # FD, fv_set_params! keeps the coefficients, domain errors, transposed
+        # solve, tangent vs adjoint (Giesekus); GPU part opt-in
+        include("analytical/incns_fv3d_conformation_adjoint_test.jl")
         include("analytical/incns_fv_gnf_gpu.jl")
         # C4 steady discrete adjoint on the Newton factors: parameter duals vs
         # dense ForwardDiff, adjoint vs FD (Taylor) and vs tangent, one analysis,
