@@ -591,6 +591,20 @@ N = 200), 32, 72 and 113 with block LSC (4.6 s), and ILU(0) fails at N ≥ 100.
 On the 32³ rib, one iterative-refinement step (with the assembled `J`) brings
 the true transposed residual of cuDSS from 2.0e-7 to 1.3e-14 (0.014 s).
 
+Since then, with a direct backend (UMFPACK on the CPU, cuDSS on the GPU),
+`fv_steady_adjoint` (and so `fv_steady_gradient`) does one such step by
+default. It computes `r = g − Jᵀλ` with the assembled `J`, solves `Jᵀd = r`
+with the same factors and adds `d` to `λ`. It then checks the true residual
+`‖g − Jᵀλ‖ / ‖g‖`. Above 1e-10 it logs a warning, not an error: 1e-10 is the
+accuracy that the transposed-solve test and the tangent/adjoint check G1
+assume. The keyword `refine` (default 1) sets the number of steps, and
+`refine = 0` keeps only the check. The residuals before and after are
+returned as `transpose_relres_initial` and `transpose_relres`. The same step
+and check apply to the forward solve of `fv_steady_tangent`, which is local
+and costs one solve and two sparse products. The Newton solve is not refined,
+because its own iterations correct it. Krylov backends are left unchanged:
+GMRES already iterates on the true residual.
+
 Identifiability and calibration on the slice (`benchmarks/fv3d/ve_calibration.jl`,
 Giesekus α = 0.4, De 0.1 and 1, direct solver). Observations are the axial and
 secondary velocities at the cell centres of the section, plus `Fx`. The script

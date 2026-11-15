@@ -103,7 +103,8 @@ the rib `FV3D_VE_SOLID=1`); results in `docs/src/users/fv-thermal.md`.
 `FV3D_VE_GEOM=slice` measures the 1 × N × N slice instead (N = 24, 100, 200
 by default, plan F3.1: assembly, factorisation and transposed-solve times,
 device peak); `FV3D_VE_REFINE=k` adds k steps of iterative refinement to the
-direct transposed solve (measurement only); both also report the true forward
+direct transposed solve (measurement of the raw `lin_solve!`; the adjoint
+itself, `fv_steady_adjoint`, now does one step by default); both also report the true forward
 residual |J x − g| / |g|.
 
 `ve_adjoint_cases.jl` (conformation adjoint, plan F5). Planar case: a

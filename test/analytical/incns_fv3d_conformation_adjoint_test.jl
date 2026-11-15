@@ -33,6 +33,14 @@
 #       |<grad, dtheta>| + 1e-14 along each parameter and a random direction.
 #       A consistency check only (both share J and dR/dtheta); the centred FD
 #       matrix of F2 comes later.
+#   (f) iterative refinement of the direct solves (adjoint transposed solve and
+#       tangent): with exact factors, refine = 0 reports the same residual before
+#       and after and the default (one step) stays <= 1e-12; with the factors of
+#       a perturbed J (1e-8 relative on every nonzero) and the assembled J
+#       restored, one solve leaves a true residual above the 1e-10 warning
+#       threshold (warning logged), 8 steps bring it <= 1e-12 and lambda / dU
+#       back to the values of the exact factors. CPU, and GPU (cuDSS) when
+#       available.
 #
 # GPU: self-gated like incns_fv_adjoint_gpu.jl (skipped when CUDA/CUDSS are not
 # loadable or CUDA is not functional; KRAKEN_REQUIRE_GPU=1 turns the skip into a
@@ -150,6 +158,47 @@ end
 
 # perturbed copy of a converged state (c != I, nonzero velocity gradient everywhere)
 _ca_perturbed(U; seed = 5) = (Uh = Array(U); Uh .+ 1e-3 .* randn(MersenneTwister(seed), length(Uh)))
+
+# (f) on one backend
+_ca_nzval(J::SparseMatrixCSC) = nonzeros(J)
+_ca_nzval(J) = J.nzVal
+function _ca_refine_check(s, U, to)
+    m = FVRelaxationParameters(:lambda, :theta)
+    θ = [_CA_LAMBDA, _CA_ALPHA]
+    δθ = [1.0, 0.5]
+    n = length(U)
+    gU = to(randn(MersenneTwister(17), n))
+    fv_newton_finalize!(s, U)
+    _, sex = fv_steady_adjoint(s, U, gU; params = m, θ, finalize = false, refine = 0)
+    λex = Array(copy(sex.λ))
+    dUex = Array(fv_steady_tangent(s, U, θ, δθ; params = m, finalize = false, refine = 0))
+    @test sex.transpose_relres_initial == sex.transpose_relres
+    @test sex.transpose_relres <= 1e-10
+    _, s1 = fv_steady_adjoint(s, U, gU; params = m, θ, finalize = false)        # default: one step
+    @test s1.transpose_relres <= 1e-12
+    # factors of a perturbed J, assembled J restored
+    nz = _ca_nzval(s.J); nz0 = copy(nz)
+    nz .*= 1 .+ 1e-8 .* to(randn(MersenneTwister(19), length(nz)))
+    KrakeNN._fv_factor!(s)
+    copyto!(nz, nz0)
+    _, sa = @test_logs (:warn, r"above") match_mode = :any fv_steady_adjoint(s, U, gU; params = m, θ,
+                                                                               finalize = false, refine = 0)
+    λa = Array(copy(sa.λ))
+    _, sb = fv_steady_adjoint(s, U, gU; params = m, θ, finalize = false, refine = 8)
+    λb = Array(copy(sb.λ))
+    dUa = @test_logs (:warn, r"above") match_mode = :any Array(fv_steady_tangent(s, U, θ, δθ; params = m,
+                                                                                   finalize = false, refine = 0))
+    dUb = Array(fv_steady_tangent(s, U, θ, δθ; params = m, finalize = false, refine = 8))
+    @info "iterative refinement" backend = (to === Array ? "CPU" : "GPU") exact = sex.transpose_relres one_step = s1.transpose_relres stale = sa.transpose_relres stale_refined = sb.transpose_relres lambda_err_stale = norm(λa - λex) / norm(λex) lambda_err_refined = norm(λb - λex) / norm(λex) dU_err_stale = norm(dUa - dUex) / norm(dUex) dU_err_refined = norm(dUb - dUex) / norm(dUex)
+    @test sa.transpose_relres > 1e-10
+    @test sb.transpose_relres <= 1e-12
+    @test norm(λb - λex) <= 1e-3 * norm(λa - λex)
+    @test norm(dUb - dUex) <= 1e-3 * norm(dUa - dUex)
+    @test norm(λb - λex) <= 1e-7 * norm(λex)
+    @test norm(dUb - dUex) <= 1e-7 * norm(dUex)
+    fv_newton_finalize!(s, U)                  # consistent factors again
+    return nothing
+end
 
 # (d) on one backend
 function _ca_transpose_check(s, U, to)
@@ -332,7 +381,11 @@ end
         end
     end
 
-    @testset "GPU: (a) dR/dtheta and (d) transposed solve" begin
+    @testset "(f) iterative refinement of the direct solves (CPU)" begin
+        _ca_refine_check(s, U, Array)
+    end
+
+    @testset "GPU: (a) dR/dtheta, (d) transposed solve, (f) refinement" begin
         if !_CA_GPU_OK
             if _CA_REQUIRE_GPU
                 @error "KRAKEN_REQUIRE_GPU=1 but CUDA/CUDSS is not functional"
@@ -351,6 +404,7 @@ end
                 _ca_residual_derivatives("GPU $label", fv_adapt(to, _ca_slice(conf)), Xg, entries)
             end
             _ca_transpose_check(sg, Ug, to)
+            _ca_refine_check(sg, Ug, to)
         end
     end
 end

@@ -1109,9 +1109,44 @@ function _fv_check_transpose(s::FVNewtonSolver)
     return nothing
 end
 
+# ------------------------------------------------------------------ refinement
+# Iterative refinement of a direct solve with the Newton factors (UMFPACK on the
+# CPU, cuDSS on the GPU): with the ASSEMBLED Jacobian `solver.J`,
+#     r = b − op(J) x,  op(J) d = r (same factors),  x += d,
+# `steps` times, op = transpose for the adjoint. Returns the true relative
+# residuals ‖b − op(J) x‖ / ‖b‖ before and after (one extra SpMV each). Measured
+# on a 32³ duct with a rib of solid cells (benchmarks/fv3d/ve_transpose_measure.jl,
+# 10 unknowns per cell): the cuDSS transposed residual went from 2.0e-7 to
+# 1.3e-14 in one step (0.014 s), against 1e-11 to 1e-15 without refinement
+# elsewhere. Krylov caches already iterate on the true residual: no refinement.
+# `r` and `d` are scratch vectors of the device and length of `x`.
+const FV_REFINE_WARN_RELRES = 1e-10
+_fv_direct_cache(cache) = cache.backend isa Union{CPUBackendTag,CUDABackendTag}
+function _fv_refine_direct!(x, s::FVNewtonSolver, b, r, d; transpose::Bool, steps::Int, what::AbstractString)
+    _fv_direct_cache(s.cache) || return (NaN, NaN)
+    A = transpose ? LinearAlgebra.transpose(s.J) : s.J
+    nb = norm(b)
+    nb == 0 && return (0.0, 0.0)
+    resid!() = (mul!(r, A, x); r .= b .- r; norm(r) / nb)       # r = b − op(J) x
+    e0 = resid!()
+    e = e0
+    for _ in 1:steps
+        lin_solve!(d, s.cache, r; transpose)
+        x .+= d
+        e = resid!()
+    end
+    isfinite(e) && e <= FV_REFINE_WARN_RELRES ||
+        @warn("$what: true relative residual $(e) after $(steps) refinement step(s) " *
+              "(before: $(e0)) is above $(FV_REFINE_WARN_RELRES), the accuracy the " *
+              "adjoint gates assume (transposed-solve check and G1); the gradient may be " *
+              "inaccurate", maxlog = 5)
+    return e0, e
+end
+
 """
     fv_steady_adjoint(solver, U, gU; params = FVViscosityField(), θ = nothing,
-                      ws = nothing, finalize = true, law_gradient = :contraction) -> (s, stats)
+                      ws = nothing, finalize = true, law_gradient = :contraction,
+                      refine = 1) -> (s, stats)
 
 Discrete adjoint of the steady FV residual at the converged state `U` (device
 vector of `solver`), for a cotangent `gU = ∂𝒥/∂U` (host or device vector,
@@ -1122,6 +1157,12 @@ including temperature and the global force when active):
    Jacobian at `U` and refactorizes it — numeric only, the symbolic analysis
    of the Newton solve is reused (`solver.n_factorize` does not change);
 2. `Jᵀ λ = gU` with the Newton factors (`lin_solve!(...; transpose = true)`);
+   with a direct backend (UMFPACK, cuDSS), followed by `refine` (default 1)
+   steps of iterative refinement with the assembled `J`
+   (`r = gU − Jᵀλ`, `Jᵀ d = r` with the same factors, `λ += d`). The true
+   residual `‖gU − Jᵀλ‖ / ‖gU‖` is then checked: above 1e-10 (the accuracy the
+   transposed-solve test and the tangent/adjoint check G1 assume) a warning is
+   logged, not an error. `refine = 0` keeps the check only;
 3. `s = −λᵀ ∂R/∂θ` through the residual kernel. [`FVLawParameters`](@ref)
    contracts face and, with energy, cell-heating viscosity cotangents with
    local law pullbacks by default;
@@ -1132,7 +1173,9 @@ Returns `s` — for [`FVViscosityField`](@ref) the per-cell cotangent of ν
 (`Nx × Ny`, on the device of `solver`, zero at solid cells; the FV analogue of
 the `s` of [`gnf_steady_adjoint`](@ref)), otherwise a host vector of length
 `fv_nparams(params)` (`θ` required) — and `stats = (; λ, residual_inf,
-t_finalize, t_solve, t_param)`. `residual_inf = ‖R(U)‖∞` at return: the
+transpose_relres_initial, transpose_relres, t_finalize, t_solve, t_param)`
+(true transposed residuals before and after refinement, `NaN` for Krylov
+backends, whose own log is [`lin_krylov_log`](@ref)). `residual_inf = ‖R(U)‖∞` at return: the
 gradient is that of the discrete problem only if it is at round-off. Any
 explicit dependence of the objective on `θ` must be added by the caller (see
 [`fv_steady_gradient`](@ref)). `ws` ([`fv_adjoint_workspace`](@ref)) is built
@@ -1144,7 +1187,8 @@ thrown on mismatch (shifted factors, other `U`, or `fv_set_params!` since).
 """
 function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FVViscosityField(),
                            θ = nothing, ws = nothing, finalize::Bool = true,
-                           law_gradient = :contraction)
+                           law_gradient = :contraction, refine::Integer = 1)
+    refine >= 0 || throw(ArgumentError("refine must be >= 0"))
     _fv_require_adjoint_map(s.prob, params)
     _fv_check_law_gradient(law_gradient)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
@@ -1158,19 +1202,23 @@ function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FV
     t1 = time_ns()
     copyto!(ws.g, gU)
     lin_solve!(ws.λ, s.cache, ws.g; transpose = true)
+    # scratch: s.R (recomputed below) and ws.r (tangent right-hand side)
+    e0, e1 = _fv_refine_direct!(ws.λ, s, ws.g, s.R, ws.r; transpose = true, steps = Int(refine),
+                                what = "fv_steady_adjoint transposed solve")
     _fv_sync(U)
     t2 = time_ns()
     cot = _fv_param_cotangent!(ws, params, s, U, θ; law_gradient)
     t3 = time_ns()
     fv_residual!(s.R, U, s.prob)
     _, _, rinf = _fv_norms(s.norms, s.R)
-    return cot, (; λ = ws.λ, residual_inf = rinf, t_finalize = (t1 - t0) / 1e9,
+    return cot, (; λ = ws.λ, residual_inf = rinf, transpose_relres_initial = e0,
+                 transpose_relres = e1, t_finalize = (t1 - t0) / 1e9,
                  t_solve = (t2 - t1) / 1e9, t_param = (t3 - t2) / 1e9)
 end
 
 """
     fv_steady_gradient(solver, U, θ, obj; params, ws = nothing, finalize = true,
-                       law_gradient = :contraction)
+                       law_gradient = :contraction, refine = 1)
         -> NamedTuple
 
 Value and gradient of the objective `obj` ([`FVObjective`](@ref)) of the
@@ -1198,7 +1246,8 @@ formula. Wall forces use local face stencils for state and
 viscosity derivatives, and parameter chunks for other maps. The adjoint is
 [`fv_steady_adjoint`](@ref) (one
 refactorization of the Newton Jacobian at `U`, no new symbolic analysis, one
-transposed solve). For [`FVLawParameters`](@ref), `law_gradient = :contraction`
+transposed solve, plus `refine` refinement steps with a direct backend, see
+`fv_steady_adjoint`). For [`FVLawParameters`](@ref), `law_gradient = :contraction`
 uses one traversal seeded at four faces (plus a fifth cell-heating evaluation
 with energy) followed by local law pullbacks;
 `:duals` retains `⌈P/chunk⌉` parameter-dual residual evaluations as a reference.
@@ -1206,14 +1255,14 @@ Other maps keep their parameter/colour dual evaluations. Explicit parameter
 derivatives of wall force and torque objectives still use host parameter duals
 in both modes; the selector changes only the residual cotangent.
 
-Returns `(; J, grad, gU, explicit, s, λ, residual_inf, t_objective,
+Returns `(; J, grad, gU, explicit, s, λ, residual_inf, transpose_relres, t_objective,
 t_finalize, t_solve, t_param, t_explicit, t_total)` with `grad` a host vector
 (`vec` of the field for [`FVViscosityField`](@ref)), `s = −λᵀ ∂R/∂θ` (as from
 `fv_steady_adjoint`) and `explicit = ∂𝒥/∂θ`; times in seconds.
 """
 function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVObjective;
                             params::FVParameterMap, ws = nothing, finalize::Bool = true,
-                            law_gradient = :contraction)
+                            law_gradient = :contraction, refine::Integer = 1)
     _fv_require_adjoint_map(s.prob, params)
     _fv_check_law_gradient(law_gradient)
     t0 = time_ns()
@@ -1221,28 +1270,34 @@ function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVObjective;
     Uh = Vector{Float64}(Array(U))
     J, gU = _fv_objective_grad_u(obj, Uh, hprob)
     t1 = time_ns()
-    cot, st = fv_steady_adjoint(s, U, gU; params, θ, ws, finalize, law_gradient)
+    cot, st = fv_steady_adjoint(s, U, gU; params, θ, ws, finalize, law_gradient, refine)
     t2 = time_ns()
     θh = params isa FVViscosityField ? vec(Array(hprob.nu)) : Vector{Float64}(Array(θ))
     explicit = _fv_objective_grad_theta(obj, params, Uh, hprob, θh)
     grad = vec(Array(cot)) .+ explicit
     t3 = time_ns()
     return (; J, grad, gU, explicit, s = cot, λ = st.λ, residual_inf = st.residual_inf,
+            transpose_relres = st.transpose_relres,
             t_objective = (t1 - t0) / 1e9, t_finalize = st.t_finalize, t_solve = st.t_solve,
             t_param = st.t_param, t_explicit = (t3 - t2) / 1e9, t_total = (t3 - t0) / 1e9)
 end
 
 """
-    fv_steady_tangent(solver, U, θ, δθ; params, ws = nothing, finalize = true) -> dU
+    fv_steady_tangent(solver, U, θ, δθ; params, ws = nothing, finalize = true, refine = 1) -> dU
 
 Forward (tangent-linear) sensitivity of the converged state along the
 parameter direction `δθ`: `J dU = −(∂R/∂θ) δθ`, with one directional dual
 residual evaluation and one solve with the Newton factors. `dU` is a new
 vector on the device of `U`. With `gU = ∂𝒥/∂U`, `gU ⋅ dU + (∂𝒥/∂θ) ⋅ δθ`
 is the directional derivative of `𝒥` — the forward check of the adjoint.
+With a direct backend the solve is followed by `refine` (default 1) steps of
+iterative refinement with the assembled `J`, and its true residual is checked
+as for the transposed solve of [`fv_steady_adjoint`](@ref) (warning above
+1e-10). The Newton solve itself is not refined: its own iterations correct it.
 """
 function fv_steady_tangent(s::FVNewtonSolver, U, θ, δθ; params::FVParameterMap,
-                           ws = nothing, finalize::Bool = true)
+                           ws = nothing, finalize::Bool = true, refine::Integer = 1)
+    refine >= 0 || throw(ArgumentError("refine must be >= 0"))
     _fv_require_adjoint_map(s.prob, params)
     _fv_check_state_domain(s.prob, U)
     ws === nothing && (ws = fv_adjoint_workspace(s, params; chunk = fv_jacobian_chunk(s.asm)))
@@ -1270,6 +1325,10 @@ function fv_steady_tangent(s::FVNewtonSolver, U, θ, δθ; params::FVParameterMa
     KernelAbstractions.synchronize(backend)
     dU = similar(U, Float64)
     lin_solve!(dU, s.cache, ws.r)
+    # scratch: ws.g (adjoint right-hand side, rewritten by each adjoint) and one new vector
+    _fv_direct_cache(s.cache) &&
+        _fv_refine_direct!(dU, s, ws.r, ws.g, similar(dU); transpose = false, steps = Int(refine),
+                           what = "fv_steady_tangent solve")
     dU .*= -1
     return dU
 end

@@ -291,24 +291,26 @@ end
 
 """
     fv_steady_gradient(solver, U, θ, obj::FVPIVObjective; params, ws = nothing,
-                       finalize = true, law_gradient = :contraction) -> NamedTuple
+                       finalize = true, law_gradient = :contraction, refine = 1) -> NamedTuple
 
 Method of [`fv_steady_gradient`](@ref) for the composite PIV objective: the
 state gradient comes from the device path of [`fv_objective_gradient!`](@ref)
 (`gU` in the result is `obj.gU`, on the solver backend), the adjoint and the
 parameter cotangent are those of [`fv_steady_adjoint`](@ref), and `explicit`
 sums the explicit parameter derivatives of the nonlinear terms (zero for PIV
-planes and linear terms). Same return fields as the generic method.
+planes and linear terms). `refine`: iterative-refinement steps of the
+transposed solve, as in [`fv_steady_adjoint`](@ref). Same return fields as the
+generic method.
 """
 function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVPIVObjective;
                             params::FVParameterMap, ws = nothing, finalize::Bool = true,
-                            law_gradient = :contraction)
+                            law_gradient = :contraction, refine::Integer = 1)
     _fv_require_adjoint_map(s.prob, params)
     _fv_check_law_gradient(law_gradient)
     t0 = time_ns()
     val = _fv_piv_value_grad!(obj, U, s.prob)
     t1 = time_ns()
-    cot, st = fv_steady_adjoint(s, U, obj.gU; params, θ, ws, finalize, law_gradient)
+    cot, st = fv_steady_adjoint(s, U, obj.gU; params, θ, ws, finalize, law_gradient, refine)
     t2 = time_ns()
     explicit = zeros(Float64, fv_nparams(params, s.prob))
     if fv_objective_explicit(obj)
@@ -322,6 +324,7 @@ function fv_steady_gradient(s::FVNewtonSolver, U, θ, obj::FVPIVObjective;
     grad = vec(Array(cot)) .+ explicit
     t3 = time_ns()
     return (; J = val.J, grad, gU = obj.gU, explicit, s = cot, λ = st.λ, residual_inf = st.residual_inf,
+            transpose_relres = st.transpose_relres,
             t_objective = (t1 - t0) / 1e9, t_finalize = st.t_finalize, t_solve = st.t_solve,
             t_param = st.t_param, t_explicit = (t3 - t2) / 1e9, t_total = (t3 - t0) / 1e9)
 end
