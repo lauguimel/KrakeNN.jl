@@ -12,6 +12,10 @@
 # values, so lambda reaches both 1/lambda in the relaxation term and G in the
 # polymer stress.
 #
+# Learned laws (relaxation_theta_array) keep theta in an array: the mapped
+# entries are written into one parameter buffer (_FVParamBuffers.aux) of the
+# problem's backend per evaluation.
+#
 # Domains are checked, never clipped: a parameter outside its admissible range
 # or a state whose conformation is not positive definite (FENE-P: tr c >= L2)
 # throws.
@@ -31,7 +35,9 @@ Parameter map of a 3D conformation-active problem
 - `:theta`: the free entries `theta[theta_slots]` of the law parameters. Default
   slots: `(2,)` for [`PolynomialRelaxation`](@ref), i.e. the Giesekus mobility
   `α` with `b1 = 1` fixed (`b1` cannot be separated from `λ` in the relaxation
-  term); every entry otherwise (`ε` of the PTT laws, `L²` of FENE-P);
+  term); every entry otherwise (`ε` of the PTT laws, `L²` of FENE-P, the `7H`
+  weights of [`NeuralRelaxation`](@ref), whose parameters are an array: the
+  mapped ones go through one buffer of the problem's backend);
 - `:nu_s`: the solvent viscosity, uniform in every cell.
 
 Per law: Oldroyd-B `(:lambda, :nu_p, :nu_s)`; Giesekus, PTT and FENE-P add
@@ -124,20 +130,43 @@ function _fv_relaxation_domain(::PolynomialRelaxation, theta)
     return nothing
 end
 
+# host Float64 copy of the law parameters (tuple, or array on any backend)
+_fv_relaxation_base(theta::Tuple) = map(x -> Float64(_fv_real(x)), theta)
+_fv_relaxation_base(theta::AbstractArray) = Float64[_fv_real(x) for x in Array(theta)]
+
+# array parameters (relaxation_theta_array): host vector with the mapped slots from θ
+function _fv_relaxation_theta_vector(base::AbstractVector, o, θ, ::Type{S}) where {S}
+    v = S[S(x) for x in base]
+    if o.theta != 0
+        for (r, q) in enumerate(o.slots)
+            v[q] = S(θ[o.theta + r - 1])
+        end
+    end
+    return v
+end
+
 function _fv_relaxation_check(c::_FVConformationData3D, o, θ)
     v = Float64[_fv_real(x) for x in θ]
     all(isfinite, v) || throw(ArgumentError("relaxation parameters must be finite, got $v"))
     for (k, name) in ((o.lambda, "lambda"), (o.nu_p, "nu_p"), (o.nu_s, "nu_s"))
         k == 0 || v[k] > 0 || throw(ArgumentError("$name must be positive, got $(v[k])"))
     end
-    o.theta == 0 ||
-        _fv_relaxation_domain(c.law, _fv_relaxation_theta(map(x -> Float64(_fv_real(x)), c.theta), o, v, Float64))
+    if o.theta != 0
+        base = _fv_relaxation_base(c.theta)
+        th = c.theta isa AbstractArray ? _fv_relaxation_theta_vector(base, o, v, Float64) :
+             _fv_relaxation_theta(base, o, v, Float64)
+        _fv_relaxation_domain(c.law, th)
+    end
     return nothing
 end
 
-_fv_param_buffers(m::FVRelaxationParameters, prob, ::Type{T}) where {T} =
-    (_fv_relaxation_conformation(prob);
-     _FVParamBuffers(:nu_s in m.which ? similar(prob.nu, T) : nothing, nothing, nothing, nothing))
+# nu_s: one viscosity buffer; mapped array parameters: one parameter buffer
+# (aux) on the problem's backend
+function _fv_param_buffers(m::FVRelaxationParameters, prob, ::Type{T}) where {T}
+    c = _fv_relaxation_conformation(prob)
+    aux = :theta in m.which && c.theta isa AbstractArray ? similar(c.theta, T, length(c.theta)) : nothing
+    return _FVParamBuffers(:nu_s in m.which ? similar(prob.nu, T) : nothing, nothing, nothing, aux)
+end
 
 function _fv_param_problem!(B, m::FVRelaxationParameters, p, θ)
     c = _fv_relaxation_conformation(p)
@@ -150,7 +179,14 @@ function _fv_param_problem!(B, m::FVRelaxationParameters, p, θ)
         S = promote_type(eltype(θ), typeof(c.lambda))
         lambda = o.lambda == 0 ? S(c.lambda) : S(θ[o.lambda])
         nu_p = o.nu_p == 0 ? S(c.nu_p) : S(θ[o.nu_p])
-        theta = _fv_relaxation_theta(c.theta, o, θ, S)
+        theta = if c.theta isa AbstractArray
+            # array parameters: unmapped -> the problem's array (Float64), mapped ->
+            # host vector of S copied into the buffer
+            o.theta == 0 ? c.theta :
+            copyto!(B.aux, _fv_relaxation_theta_vector(_fv_relaxation_base(c.theta), o, θ, S))
+        else
+            _fv_relaxation_theta(c.theta, o, θ, S)
+        end
         # same arithmetic as the lowering (_fv3_lower_conformation): G = nu_p / lambda
         conf = _FVConformationData3D(lambda, nu_p / lambda, nu_p, c.law, theta)
     end

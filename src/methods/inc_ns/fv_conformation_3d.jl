@@ -35,9 +35,11 @@
 # nu_p, the law parameters and the uniform solvent viscosity through the generic
 # parameter-dual path of fv_adjoint.jl; fv_set_params! carries the conformation
 # coefficients (_fv_with_law, fv_adjoint_3d.jl).
+# Learned relaxation law (NeuralRelaxation, fv_conformation_neural.jl): theta
+# is then an array (host or device), indexed in the kernel; closed-form laws keep
+# their isbits tuple.
 # Not available yet: energy together with conformation, state-dependent solvent
-# viscosity (GNF / law), inlet and outlet sides, a learned relaxation law whose
-# parameters live in a device array (theta is an isbits tuple here).
+# viscosity (GNF / law), inlet and outlet sides.
 
 """
     FVConformation3D(; lambda, nu_p, alpha = 0, law = PolynomialRelaxation(), theta = nothing)
@@ -84,7 +86,8 @@ function FVConformation3D(; lambda::Real, nu_p::Real, alpha::Real = 0.0,
         theta = (1.0, float(alpha))
     end
     l, p = promote(float(lambda), float(nu_p))
-    th = Tuple(theta)
+    # closed-form laws: isbits tuple; laws with relaxation_theta_array: host vector
+    th = relaxation_theta_array(law) ? Vector{Float64}(collect(theta)) : Tuple(theta)
     length(th) == relaxation_nparams(law) ||
         throw(DimensionMismatch("theta has $(length(th)) entries, the law takes $(relaxation_nparams(law))"))
     all(x -> x isa Real && isfinite(x), th) || throw(ArgumentError("theta must be finite reals"))
@@ -92,7 +95,9 @@ function FVConformation3D(; lambda::Real, nu_p::Real, alpha::Real = 0.0,
     return FVConformation3D(l, p, law, th)
 end
 
-# Isbits kernel argument (no arrays): G = nu_p / lambda.
+# Kernel argument: G = nu_p / lambda; theta an isbits tuple, or an array (host
+# or device) for laws with relaxation_theta_array (lowered to a device view by
+# the adapt rule below).
 struct _FVConformationData3D{T,L<:AbstractRelaxationLaw,P}
     lambda::T
     G::T
@@ -100,6 +105,14 @@ struct _FVConformationData3D{T,L<:AbstractRelaxationLaw,P}
     law::L
     theta::P
 end
+
+KernelAbstractions.Adapt.adapt_structure(to, c::_FVConformationData3D) =
+    _FVConformationData3D(c.lambda, c.G, c.nu_p, c.law, KernelAbstractions.Adapt.adapt(to, c.theta))
+
+# fv_adapt: copy an array theta with `to` (tuples are kept)
+_fv3_adapt_conformation(to, ::Nothing) = nothing
+_fv3_adapt_conformation(to, c::_FVConformationData3D) =
+    c.theta isa AbstractArray ? _FVConformationData3D(c.lambda, c.G, c.nu_p, c.law, to(c.theta)) : c
 
 # Scalar slots added to the 3D cell layout by the `conformation` keyword.
 _fv3_conformation_nscalars(::Nothing) = 0
@@ -369,6 +382,12 @@ function _fv3_conformation_data(old::_FVConformationData3D, c::FVConformation3D)
     T = typeof(old.lambda)
     lambda, nu_p = T(c.lambda), T(c.nu_p)
     theta = map(T, c.theta)
+    if old.theta isa AbstractArray
+        # same array type as the problem's (host or device), a new array
+        length(theta) == length(old.theta) ||
+            throw(DimensionMismatch("theta has $(length(theta)) entries, the problem's law $(length(old.theta))"))
+        theta = copyto!(similar(old.theta, T, length(theta)), theta)
+    end
     isfinite(lambda) && lambda > 0 && isfinite(nu_p) && nu_p >= 0 && all(isfinite, theta) ||
         throw(ArgumentError("conformation coefficients must remain finite in $T"))
     new = _FVConformationData3D(lambda, nu_p / lambda, nu_p, c.law, theta)

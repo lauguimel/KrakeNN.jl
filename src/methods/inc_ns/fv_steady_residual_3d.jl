@@ -687,7 +687,8 @@ Copy the arrays of `prob` with `to` (e.g. `CuArray`, or `Array` back to host).
 """
 fv_adapt(to, p::FVSteadyProblem3D) =
     FVSteadyProblem3D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
-                      nothing, _fv_adapt_energy(to, p.energy), p.flowrate, p.conformation)
+                      nothing, _fv_adapt_energy(to, p.energy), p.flowrate,
+                      _fv3_adapt_conformation(to, p.conformation))
 
 """
     fv_state(prob::FVSteadyProblem3D, u, v, w, p) -> Vector

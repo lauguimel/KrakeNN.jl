@@ -167,6 +167,7 @@ export FVGrid2D, FVSteadyProblem2D, FVEnergy, fv_energy_solver, fv_energy_solve!
 # 3D steady colocated FV residual (plan FV 3D, increment I1)
 export FVSteadyProblem, FVGrid3D, FVSteadyProblem3D, fv_ncells, FVEnergy3D
 export FVConformation3D, AbstractRelaxationLaw, PolynomialRelaxation, relaxation_nparams,
+       NeuralRelaxation, relaxation_init, relaxation_theta_array,
        LinearPTTRelaxation, ExponentialPTTRelaxation, FENEPRelaxation,
        relaxation_stress, relaxation_stress_linear, relaxation_check,
        relaxation_coefficients, fv_relaxation, fv_upper_convected, fv_conformation_source,
@@ -296,6 +297,7 @@ include("methods/inc_ns/fv_newton_3d.jl") # 3D Jacobian pattern; Newton/assembly
 include("methods/inc_ns/fv_adjoint_3d.jl") # 3D steady adjoint: maps, law capture, wall force
 include("methods/inc_ns/fv_energy_3d.jl") # 3D energy equation (I3): slot 5, Newton, adjoint
 include("methods/inc_ns/fv_conformation_law.jl") # relaxation laws + pointwise conformation algebra (CONF-1)
+include("methods/inc_ns/fv_conformation_neural.jl") # learned relaxation law, array parameters (F4)
 include("methods/inc_ns/fv_conformation_3d.jl") # 3D steady conformation unknowns + polymer stress (CONF-1)
 include("methods/inc_ns/fv_conformation_adjoint_3d.jl") # relaxation-parameter map + domain checks (F1)
 include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (device gather/scatter)

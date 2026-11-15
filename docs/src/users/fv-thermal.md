@@ -538,8 +538,9 @@ FENE-P, when `max tr c ≥ L²`; `fv_conformation_domain` returns the smallest
 eigenvalue, the largest trace and the FENE-P margin without throwing.
 Combinations covered by the derivative gate (test file `incns_fv3d_conformation_gate_test.jl`, square
 duct slice, objective = section PIV + `Fx` + mean `N1/G`): Oldroyd-B, Giesekus,
-linear and exponential PTT, FENE-P with `λ, ν_p, ν_s` and the law parameter, on
-CPU and GPU at 8 × 8, and Giesekus `λ, α` on GPU at 24 × 24; adjoint against
+linear and exponential PTT, FENE-P with `λ, ν_p, ν_s` and the law parameter, the
+learned law (network weights), on CPU and GPU at 8 × 8, and Giesekus `λ, α` and
+one learned-law weight on GPU at 24 × 24; adjoint against
 tangent, centred finite differences and the dual chunk size. For Oldroyd-B in a
 straight duct the velocity and `Fx` do not depend on `λ` (zero derivative,
 checked): only a conformation term in the objective makes `λ` identifiable.
@@ -547,6 +548,15 @@ checked): only a conformation term in the objective makes `λ` identifiable.
 Limits: wall (zero normal velocity) and periodic sides only; Newtonian
 solvent; no energy equation together with conformation; PTT with `ξ ≠ 0` not
 available; the duct benchmark's damped retry still shifts the momentum rows only
-(`shift_conformation` is not passed there); the relaxation-parameter map covers
-the closed-form laws only (a learned relaxation law with device parameters is
-not available).
+(`shift_conformation` is not passed there).
+
+Learned relaxation law: `NeuralRelaxation{H}(; alpha0, scale)` gives
+`(b0, b1, b2) = (0, 1, alpha0) + M(x) − M(0)`, `M` a one-hidden-layer tanh
+network of `x = (I1 − 3, I2 − 3, I3 − 1) / scale` with `H` units and no output
+bias (it would cancel), `7H` parameters stored as an array (host or GPU) rather
+than a tuple. `relaxation_init(law; rng, output_std = 0)` draws the hidden layer
+and sets the output weights to zero, so the law starts as Giesekus with mobility
+`alpha0`; `FVRelaxationParameters(:theta)` maps the weights (or a subset through
+`theta_slots`). The form does not guarantee a positive definite `c`; each state
+is checked by `fv_check_conformation_domain`, so the law is only known to work
+on the states that were tested.
