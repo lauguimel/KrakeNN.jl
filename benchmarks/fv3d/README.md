@@ -97,7 +97,20 @@ measured device memory peak of each option (pool high-water mark and device
 memory sampled on a second thread: run with `julia -t 2`). Measurements only;
 the last lines list the options whose transposed solve converges at each N.
 GPU command: `julia -t 2 …/ve_transpose_measure.jl` (`FV3D_NS=16,24,32`
-default, `FV3D_VE_LARGE=1` adds 48; not run yet).
+default, `FV3D_VE_LARGE=1` adds 48). Run on 2026-11-16 (duct, and duct with
+the rib `FV3D_VE_SOLID=1`); results in `docs/src/users/fv-thermal.md`.
+`FV3D_VE_GEOM=slice` measures the 1 × N × N slice instead (N = 24, 100, 200
+by default, plan F3.1: assembly, factorisation and transposed-solve times,
+device peak); `FV3D_VE_REFINE=k` adds k steps of iterative refinement to the
+direct transposed solve (measurement only); both also report the true forward
+residual |J x − g| / |g|.
+
+`ve_adjoint_cases.jl` (conformation adjoint, plan F5). Planar case: a
+periodic array of cylinders between walls, Nz = 1 and Nz = 2. Gates: the
+same state to 1e-12; w, c_xz and c_yz ≤ 1e-13; G1/G2 on Giesekus λ and α.
+3D case: a periodic square duct with a solid constriction, at 24³. Gates:
+G1/G2 on λ and α with block LSC (preconditioner passed explicitly) and with
+cuDSS; it reports adjoint time / Newton time. Not run yet.
 
 Notes.
 

@@ -545,6 +545,33 @@ tangent, centred finite differences and the dual chunk size. For Oldroyd-B in a
 straight duct the velocity and `Fx` do not depend on `λ` (zero derivative,
 checked): only a conformation term in the objective makes `λ` identifiable.
 
+Transposed solve at 10 unknowns per cell (`benchmarks/fv3d/ve_transpose_measure.jl`,
+Giesekus square duct N³, De 0.1 → 0.3, `rtol_transpose = 1e-10`, GPU, 2026-11-16).
+The direct cuDSS solve needs 1.2, 6.8 and 23 GB at its peak at N = 16, 24, 32 and
+runs out of memory at 48³ on an 80 GB GPU. With a rib of solid cells at 32³ its
+transposed residual is 1.7e-7, against 1e-11 to 1e-15 everywhere else. GMRES with
+the `:auto` preconditioner, which is ILU(0) at 10 fields, does not converge at
+N ≥ 24 (500 iterations). Passing the preconditioner explicitly works:
+
+- block LSC (`precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4`)
+  converges in 44, 65, 115 and 168 transposed iterations (0.5 to 9.5 s) at
+  N = 16, 24, 32, 48;
+- Vanka multigrid (`precond = :vanka`) converges in 70, 119, 137 and 289
+  iterations (0.2 to 8.2 s).
+
+`:auto` is not changed. With conformation unknowns, pass `precond`
+explicitly. The same script, with `FV3D_VE_GEOM=slice`, measures the
+1 × N × N slice. With `FV3D_VE_REFINE=k`, it adds `k` steps of iterative
+refinement to the direct transposed solve.
+
+Planar and 3D cases (`benchmarks/fv3d/ve_adjoint_cases.jl`, Giesekus `λ, α`,
+same gates G1/G2 as the test file). The first case is a periodic array of
+cylinders between two walls, made of solid cells, N × N × Nz with z periodic.
+Nz = 1 and Nz = 2 must give the same state to 1e-12, with `w, c_xz, c_yz` below
+1e-13. The second is a periodic square duct N³ with a solid constriction (half
+the side open), at 24³ on the GPU, with block LSC and with cuDSS. The script
+reports the adjoint time divided by the Newton time. Not run yet.
+
 Limits: wall (zero normal velocity) and periodic sides only; Newtonian
 solvent; no energy equation together with conformation; PTT with `ξ ≠ 0` not
 available; the duct benchmark's damped retry still shifts the momentum rows only
