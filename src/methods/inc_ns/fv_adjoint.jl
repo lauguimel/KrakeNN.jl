@@ -843,8 +843,10 @@ tangent buffers, the dual residual `Rd` and dual parameter arrays
 [`FVLawParameters`](@ref) additionally stores real parameters, face inputs and
 cotangents, tile partial sums and a parameter reduction buffer. Both scalar-law
 gradient modes reuse these buffers without allocating device arrays per call.
+With the cuDSS backend it also holds the pattern of `Jᵀ` used by the
+refinement of the transposed solve.
 """
-struct FVAdjointWorkspace{N,M,V,VD,B,VI,S,PT,LC}
+struct FVAdjointWorkspace{N,M,V,VD,B,VI,S,PT,LC,RT}
     map::M
     λ::V
     g::V
@@ -858,6 +860,7 @@ struct FVAdjointWorkspace{N,M,V,VD,B,VI,S,PT,LC}
     Ph::Matrix{Float64}
     per::Int
     law::LC
+    rt::RT
 end
 
 # Scalar-law maps specialize this after their constitutive adapter is loaded.
@@ -929,9 +932,10 @@ function fv_adjoint_workspace(s::FVNewtonSolver, m::FVParameterMap; chunk::Int =
         Ph = zeros(Float64, chunk, nt)
     end
     law = _fv_law_workspace(s, m)
+    rt = _fv_refine_transpose(s, s.J)
     return FVAdjointWorkspace{chunk,typeof(m),typeof(s.R),typeof(Rd),typeof(buf),
-                              typeof(nucolors),typeof(sfield),typeof(Pt),typeof(law)}(
-        m, vec0(), vec0(), vec0(), Rd, buf, nucolors, ncol, sfield, Pt, Ph, per, law)
+                              typeof(nucolors),typeof(sfield),typeof(Pt),typeof(law),typeof(rt)}(
+        m, vec0(), vec0(), vec0(), Rd, buf, nucolors, ncol, sfield, Pt, Ph, per, law, rt)
 end
 
 _fv_ws_chunk(::FVAdjointWorkspace{N}) where {N} = N
@@ -1120,14 +1124,41 @@ end
 # 1.3e-14 in one step (0.014 s), against 1e-11 to 1e-15 without refinement
 # elsewhere. Krylov caches already iterate on the true residual: no refinement.
 # `r` and `d` are scratch vectors of the device and length of `x`.
+# On the GPU, cuSPARSE SpMV and `norm` allocate device memory on every call, so
+# op(J)·x uses the row kernel of the Krylov backend (on J, or on Jᵀ from `rt`:
+# pattern and `perm`, Jᵀ[q] = J[perm[q]], built once per workspace) and the
+# norms use the fixed partial sums of `_fv_state_sig`. The CPU path is unchanged.
 const FV_REFINE_WARN_RELRES = 1e-10
 _fv_direct_cache(cache) = cache.backend isa Union{CPUBackendTag,CUDABackendTag}
-function _fv_refine_direct!(x, s::FVNewtonSolver, b, r, d; transpose::Bool, steps::Int, what::AbstractString)
+_fv_refine_transpose(s, ::SparseMatrixCSC) = nothing
+function _fv_refine_transpose(s, J)
+    s.linsolve isa CUDABackendTag || return nothing
+    rpt, cvt, perm = _krylov_transpose_pattern(Vector{Int32}(Array(J.rowPtr)),
+                                               Vector{Int32}(Array(J.colVal)), size(J, 1))
+    dev(v) = copyto!(similar(J.colVal, Int32, length(v)), v)
+    return (; rpt = dev(rpt), cvt = dev(cvt), perm = dev(perm), At = similar(J.nzVal))
+end
+_fv_refine_norm(s, J::SparseMatrixCSC, v) = norm(v)
+_fv_refine_norm(s, J, v) = sqrt(_fv_state_sig(s.norms, 0.0, v)[3])
+_fv_refine_mul!(r, J::SparseMatrixCSC, rt, x, transpose) =
+    mul!(r, transpose ? LinearAlgebra.transpose(J) : J, x)
+function _fv_refine_mul!(r, J, rt, x, transpose)
+    transpose && rt === nothing && return mul!(r, LinearAlgebra.transpose(J), x)
+    rp, cv, A = transpose ? (rt.rpt, rt.cvt, rt.At) : (J.rowPtr, J.colVal, J.nzVal)
+    _krylov_spmv_kernel!(KernelAbstractions.get_backend(r), 256)(r, rp, cv, A, x; ndrange = length(r))
+    return r
+end
+function _fv_refine_direct!(x, s::FVNewtonSolver, b, r, d; transpose::Bool, steps::Int,
+                            what::AbstractString, rt = nothing)
     _fv_direct_cache(s.cache) || return (NaN, NaN)
-    A = transpose ? LinearAlgebra.transpose(s.J) : s.J
-    nb = norm(b)
+    J = s.J
+    if transpose && rt !== nothing                               # values of Jᵀ
+        _krylov_take_kernel!(KernelAbstractions.get_backend(rt.At), 256)(rt.At, J.nzVal, rt.perm;
+                                                                        ndrange = length(rt.At))
+    end
+    nb = _fv_refine_norm(s, J, b)
     nb == 0 && return (0.0, 0.0)
-    resid!() = (mul!(r, A, x); r .= b .- r; norm(r) / nb)       # r = b − op(J) x
+    resid!() = (_fv_refine_mul!(r, J, rt, x, transpose); r .= b .- r; _fv_refine_norm(s, J, r) / nb)
     e0 = resid!()
     e = e0
     for _ in 1:steps
@@ -1204,7 +1235,7 @@ function fv_steady_adjoint(s::FVNewtonSolver, U, gU; params::FVParameterMap = FV
     lin_solve!(ws.λ, s.cache, ws.g; transpose = true)
     # scratch: s.R (recomputed below) and ws.r (tangent right-hand side)
     e0, e1 = _fv_refine_direct!(ws.λ, s, ws.g, s.R, ws.r; transpose = true, steps = Int(refine),
-                                what = "fv_steady_adjoint transposed solve")
+                                what = "fv_steady_adjoint transposed solve", rt = ws.rt)
     _fv_sync(U)
     t2 = time_ns()
     cot = _fv_param_cotangent!(ws, params, s, U, θ; law_gradient)
