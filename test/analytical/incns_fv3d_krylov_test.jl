@@ -40,7 +40,10 @@
 #       the default tag (`precond = :auto`) resolves to P4 with constant
 #       prolongation and `vanka_omega = 0.5` on these 3D Jacobians and to P1
 #       on a matrix without layout, without geometry or with Nz = 1 (the 2D
-#       rule); the 3D energy case (P3L) is checked in incns_fv3d_thermal_test.jl.
+#       rule); the 3D energy case (P3L) is checked in incns_fv3d_thermal_test.jl;
+#       with conformation unknowns (10 fields per cell, Giesekus slice 1 x 8 x 8)
+#       the default resolves to Vanka with constant prolongation as well, and its
+#       Newton state equals the direct one.
 # Every P1 tag below sets `precond = :ilu0` explicitly: the default of the tag
 # is P4 on 3D FV Jacobians.
 using Test
@@ -791,6 +794,24 @@ end
     flat = KrylovCSRMatrix(s0.J.n, s0.J.rowptr, s0.J.colval, s0.J.nzval, s0.J.border, s0.J.nfields,
                            s0.J.pslot, s0.J.nlocal, (; dims = (6, 20, 1), solid = s0.J.geom.solid))
     @test lin_factorize(flat; backend = KrylovBackendTag()).backend.precond === :ilu0
+    # conformation unknowns (10 fields per cell): Vanka with constant prolongation
+    # (ILU(0) fails from 24³ and from the 100 × 100 slice, benchmarks/fv3d/ve_transpose_measure.jl)
+    pc = fv_steady_problem(1, 8, 8; h = 1 / 8, nu = 1.0,
+                           bc = (W = :periodic, E = :periodic, S = :wall, N = :wall, B = :wall, T = :wall),
+                           conformation = FVConformation3D(; lambda = 0.1, nu_p = 1.0, alpha = 0.3),
+                           source = (x, y, z) -> (50.0, 0.0, 0.0, 0.0), u_mean_target = 1.0)
+    zc = zeros(1, 8, 8)
+    sc = fv_newton_solver(pc; linsolve = KrylovBackendTag())
+    Uc = fv_state(pc, zc, zc, zc, zc)
+    fv_jacobian!(sc, Uc)
+    @test sc.J.nfields == 10
+    cc = lin_factorize(sc.J; backend = KrylovBackendTag())
+    @test cc.backend.precond === :vanka && cc.backend.vanka_prolong === :constant
+    @test cc.backend.vanka_omega == 0.5
+    UcD = _i4_solve!(fv_newton_solver(pc), fv_state(pc, zc, zc, zc, zc))
+    UcK = _i4_solve!(sc, fv_state(pc, zc, zc, zc, zc))
+    @test sc.cache.backend.precond === :vanka
+    @test norm(UcK - UcD, Inf) <= 1e-9 * norm(UcD, Inf)
     sDd = fv_newton_solver(p)
     fv_jacobian!(sDd, _i4_U0(p))
     cDd = lin_factorize(sDd.J; backend = CPUBackendTag(), spd = false)

@@ -3,11 +3,12 @@
 # (u, v, w, p, 6 conformation components) with the options of the plan's F3
 # table, used as they are (no preconditioner is modified here):
 #   cudss    cuDSS direct, transposed solve of the LU (CUDABackendTag; the reference)
-#   auto     GMRES, KrylovBackendTag(precond = :auto): resolves to ILU(0) at 10 fields
+#   auto     GMRES, KrylovBackendTag(precond = :auto): resolved to ILU(0) at 10 fields
+#            when the measurements were made; resolves to the vanka option since
 #   lsc      GMRES + block upper-triangular LSC (precond = :mg, block = :upper,
 #            schur_approx = :lsc, mg_cycles = 4, as :auto with energy)
 #   vanka    GMRES + coupled Vanka multigrid (precond = :vanka, vanka_prolong =
-#            :constant, as :auto without conformation); the conformation unknowns
+#            :constant, as :auto in 3D without energy); the conformation unknowns
 #            are covered only by the damped Jacobi part of the smoother
 # Earlier forward check (Giesekus duct 4 x 8 x 8, De 0.1 -> 0.3): the three GMRES
 # options converge in the Newton solve, within 1e-14 of the direct solve.

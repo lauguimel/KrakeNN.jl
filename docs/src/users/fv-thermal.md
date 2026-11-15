@@ -263,8 +263,9 @@ inverse of the Jacobian that is cheap to apply; the tag offers five:
 
 The default (`precond = :auto`) picks one from the Jacobian:
 
-- 3D problems without energy equation: Vanka multigrid with
-  `vanka_prolong = :constant` and `vanka_omega = 0.5`;
+- 3D problems without energy equation, with or without conformation
+  unknowns: Vanka multigrid with `vanka_prolong = :constant` and
+  `vanka_omega = 0.5`;
 - 3D problems with an energy equation: block LSC with `mg_cycles = 4`;
 - 2D problems: ILU(0), as before.
 
@@ -550,8 +551,8 @@ Giesekus square duct N³, De 0.1 → 0.3, `rtol_transpose = 1e-10`, GPU, 2026-11
 The direct cuDSS solve needs 1.2, 6.8 and 23 GB at its peak at N = 16, 24, 32 and
 runs out of memory at 48³ on an 80 GB GPU. With a rib of solid cells at 32³ its
 transposed residual is 1.7e-7, against 1e-11 to 1e-15 everywhere else. GMRES with
-the `:auto` preconditioner, which is ILU(0) at 10 fields, does not converge at
-N ≥ 24 (500 iterations). Passing the preconditioner explicitly works:
+the `:auto` preconditioner, which was then ILU(0) at 10 fields, does not converge at
+N ≥ 24 (500 iterations). The other preconditioners converge:
 
 - block LSC (`precond = :mg, block = :upper, schur_approx = :lsc, mg_cycles = 4`)
   converges in 44, 65, 115 and 168 transposed iterations (0.5 to 9.5 s) at
@@ -559,8 +560,9 @@ N ≥ 24 (500 iterations). Passing the preconditioner explicitly works:
 - Vanka multigrid (`precond = :vanka`) converges in 70, 119, 137 and 289
   iterations (0.2 to 8.2 s).
 
-`:auto` is not changed. With conformation unknowns, pass `precond`
-explicitly. The same script, with `FV3D_VE_GEOM=slice`, measures the
+Since these measurements, `:auto` resolves to this Vanka multigrid (constant
+prolongation) when conformation unknowns are present: it converges on the duct
+and on the slice, and it was the fastest on the slice (below). The same script, with `FV3D_VE_GEOM=slice`, measures the
 1 × N × N slice. With `FV3D_VE_REFINE=k`, it adds `k` steps of iterative
 refinement to the direct transposed solve.
 

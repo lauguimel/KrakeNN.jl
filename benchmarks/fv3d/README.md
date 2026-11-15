@@ -89,7 +89,8 @@ and FENE-P directions; the learned-law direction was added afterwards).
 
 `ve_transpose_measure.jl` (conformation adjoint, transposed solve at 10 fields
 per cell): on a Giesekus square duct N³ (De 0.1 → 0.3), one fresh solver per
-option (cuDSS, GMRES with ILU(0) through `precond = :auto`, block LSC, Vanka
+option (cuDSS, GMRES with `precond = :auto`, which was ILU(0) at 10 fields
+when the script was run and is Vanka multigrid since, block LSC, Vanka
 multigrid, used as they are), forward and transposed GMRES iterations at
 rtol 1e-6 / rtol_transpose 1e-10 (at most 500 iterations), set-up and solve
 times, true residual |Jᵀλ − g| / |g|, distance to the cuDSS λ, and the
@@ -270,7 +271,7 @@ CSR on the device of the assembler). The Newton and adjoint API is unchanged:
 `fv_newton_solver(p; to, linsolve = KrylovBackendTag())`. That default tag
 (`precond = :auto`) now resolves to the measured setting of each case: Vanka multigrid
 (below, constant prolongation, `vanka_omega = 0.5`) on a 3D problem without
-energy equation, block LSC (4 multigrid cycles per block) on a 3D problem with
+energy equation (also with conformation unknowns, 10 fields per cell), block LSC (4 multigrid cycles per block) on a 3D problem with
 energy equation, ILU(0) on 2D problems; ILU(0) as described here is
 `precond = :ilu0`. GPU methods
 (cuSPARSE `ilu02!`, triangular solves with the analysis kept between
@@ -459,7 +460,9 @@ at less memory than the direct solve.
   `FV3D_VANKA_OMEGA`, `FV3D_VANKA_PROLONG`): gate D2 passes at 32³, 48³ and 64³ in both cases (flow rate and body force). This
   is the V5 default `FV5_PRECOND=p4` (`FV5_VANKA_OMEGA`, default 0.5).
 - Default: `KrylovBackendTag()` (`precond = :auto`) resolves on 3D problems
-  without energy equation to exactly the configuration measured above, Vanka multigrid
+  without energy equation (with or without conformation unknowns; with them,
+  ILU(0) fails from 24³ in `ve_transpose_measure.jl`) to exactly the
+  configuration measured above, Vanka multigrid
   with `vanka_prolong = :constant` and `vanka_omega = 0.5` (0.7 fails D2 on
   the body-force case). An explicit `precond = :vanka` keeps the tag's own
   prolongation default, trilinear (`vanka_prolong = :linear`), which has not
