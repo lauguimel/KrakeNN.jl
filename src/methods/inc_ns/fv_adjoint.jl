@@ -197,8 +197,15 @@ _fv_param_buffers(::FVProblemMap, prob, ::Type{T}) where {T} =
     _FVParamBuffers(nothing, nothing, nothing, nothing)
 
 _fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc,
-          immersed = p.immersed, energy = p.energy, flowrate = p.flowrate) =
-    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy, flowrate)
+          immersed = p.immersed, energy = p.energy, flowrate = p.flowrate, slip = p.slip) =
+    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy, flowrate, slip)
+
+# Slip walls exist on 2D problems only (fv_slip.jl); a 3D problem has no slip field.
+_fv_slip(p::FVSteadyProblem2D) = p.slip
+_fv_slip(::FVSteadyProblem) = nothing
+# The problem `p` with the state-independent law data of `P` (viscosity model, slip).
+_fv_with_law(p::FVSteadyProblem2D, P) = _fv_with(p; visc = P.visc, slip = P.slip)
+_fv_with_law(p::FVSteadyProblem, P) = _fv_with(p; visc = P.visc)
 
 function _fv_check_nparams(m, prob, θ)
     length(θ) == fv_nparams(m, prob) ||
@@ -306,7 +313,7 @@ function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector
         _fv_copy_surface!(old.surface, new.surface)
         _fv_copy_mass!(_fv_mass(old), _fv_mass(new))
     end
-    s.prob = _fv_with(s.prob; visc = P.visc)
+    s.prob = _fv_with_law(s.prob, P)
     s.fac_sig = (NaN, NaN, NaN)         # factors no longer match the problem
     _fv_sync(s.R)
     return s
@@ -562,22 +569,23 @@ end
     cells = _fv_wall_nu_cells(prob, i, j, d, qcut, closure)
     opposite = nuO === nothing ? (cells[2] > 0 ? prob.nu[cells[2]] : nuP) : nuO
     nu = _FVWallViscosity(prob.nu, cells, promote(nuP, opposite))
+    slip = _fv_bind_slip(prob.slip, nu, visc)
     if f.kind == :residual_flux
-        gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
+        gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure, slip)
         flux = _fv_wall_momentum_flux(U, tag, nu, bvel, g, i, j, d, visc,
-                                      qcut, wvel, closure, gP, _fv_face_pair(prob.immersed))
+                                      qcut, wvel, closure, gP, _fv_face_pair(prob.immersed), slip)
         T = promote_type(eltype(U), eltype(nu), eltype(bvel),
-                         _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed))
+                         _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed), _fv_slip_eltype(prob.slip))
         return flux[f.dir] + zero(T)
     end
     isx = d <= 2
     sx = (d == 1 || d == 3) ? 1 : -1
     pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
-    gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
+    gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure, slip)
     _, _, _, _, pf, _, _, dun, dvn =
-        _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
-    gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure)
-    tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure)
+        _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure, slip)
+    gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure, slip)
+    tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure, slip)
     if f.pressure === :linear
         # Second cell away from the wall; retain the C1 fallback at corners.
         dop = d == 1 ? 2 : d == 2 ? 1 : d == 3 ? 4 : 3
@@ -592,7 +600,7 @@ end
     # the local dual type when only viscosity was seeded. Conversion preserves
     # the signed zero of the Newtonian force.
     T = promote_type(eltype(U), eltype(nu), eltype(bvel),
-                     _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed), _fv_slip_eltype(prob.slip))
     return convert(T, force)
 end
 
@@ -621,7 +629,7 @@ end
 
 function _fv_wall_force_sum(f, U, prob, faces)
     T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel),
-                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed), _fv_slip_eltype(prob.slip))
     F = zero(T)
     qcut, wvel, closure = _fv_immersed_args(prob.immersed)
     for (i, j, d) in faces

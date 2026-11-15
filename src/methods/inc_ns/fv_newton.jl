@@ -123,6 +123,7 @@ function fv_jacobian_pattern(prob::FVSteadyProblem2D)
     end
     _fv_mass_pattern!(I, J, prob)
     _fv_flow_pattern!(I, J, prob)
+    _fv_slip_pattern!(I, J, prob)
     return sparse(I, J, trues(length(I)), n, n, |)
 end
 
@@ -316,7 +317,7 @@ function fv_assemble_jacobian!(nzval, asm::FVJacobianAssembler{N}, U,
         fv_residual!(asm.Rd, asm.Ud, prob; sync = false, mass_rows = false)
         dec!(nzval, asm.nzrow, asm.nzcol, asm.colors, asm.Rd, offset, Val(N), fv_nunknowns(prob.grid); ndrange = asm.nnz)
     end
-    _fv_mass_jacobian!(nzval, asm, prob, backend)
+    _fv_mass_jacobian!(nzval, asm, prob, backend, U)
     _fv_flow_jacobian!(nzval, asm, prob, backend)
     sync && KernelAbstractions.synchronize(backend)
     return nzval
@@ -631,7 +632,7 @@ floor. Pure conduction retains positive unused flow scales with U_floor=1e-12.
 function _fv_energy_scales(prob)
     p = prob.nu isa Array ? prob : fv_adapt(Array, prob)
     g = p.grid; e = p.energy; H = g.Ny * g.h
-    temperatures = [e.boundary[d] for d in 1:4 if e.dirichlet[d]]
+    temperatures = _fv_energy_prescribed_temperatures(e)
     reference_visc = _fv_reference_viscosity(p.visc, minimum(temperatures))
     nu_sum = 0.0; count = 0; force = 0.0
     for j in 1:g.Ny, i in 1:g.Nx
@@ -1082,7 +1083,7 @@ function solve_incns_fv_newton(; problem::FVSteadyProblem2D, U0 = nothing, to = 
     initial = U0 === nothing ? _fv_initial_force!(zeros(Float64, fv_nunknowns(problem)),problem) : Vector{Float64}(U0)
     if U0 === nothing && problem.energy !== nothing && _fv_has_state_temperature(problem.visc)
         e = problem.energy
-        Tw = minimum(e.boundary[d] for d in 1:4 if e.dirichlet[d])
+        Tw = minimum(_fv_energy_prescribed_temperatures(e))
         for cell in eachindex(problem.tag)
             initial[_fv_cell_index(problem.grid,cell,4)] = problem.tag[cell] == FV_CELL_SOLID ? 0.0 : Tw - e.Tref
         end

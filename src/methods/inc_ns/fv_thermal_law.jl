@@ -48,11 +48,12 @@ _fv_shift_viscosity(v::FVLawViscosity, Tref) =
 # Lowering hook: an energy-active problem built with T_ref != 0 shifts the
 # state-temperature inputs of its viscosity. Defined as a more specific
 # constructor so that fv_steady_problem, fv_adapt and _fv_with all pass through it.
-function FVSteadyProblem2D(grid::FVGrid2D, tag, nu, bvel, src, visc, immersed, energy::_FVEnergyData, flowrate)
+function FVSteadyProblem2D(grid::FVGrid2D, tag, nu, bvel, src, visc, immersed, energy::_FVEnergyData, flowrate,
+                           slip = nothing)
     v = _fv_shift_viscosity(visc, energy.Tref)
     return FVSteadyProblem2D{typeof(grid),typeof(tag),typeof(nu),typeof(bvel),typeof(src),
-                             typeof(v),typeof(immersed),typeof(energy),typeof(flowrate)}(
-        grid, tag, nu, bvel, src, v, immersed, energy, flowrate)
+                             typeof(v),typeof(immersed),typeof(energy),typeof(flowrate),typeof(slip)}(
+        grid, tag, nu, bvel, src, v, immersed, energy, flowrate, slip)
 end
 
 @inline _fv_bind_law_input(f, U, g) = f
