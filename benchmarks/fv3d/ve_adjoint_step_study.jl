@@ -4,9 +4,9 @@
 # test/analytical/fv3d_conformation_gate_setup.jl (same slice, states, objective
 # and step scales as test/analytical/incns_fv3d_conformation_gate_test.jl).
 #
-# Directions: Giesekus alpha (De = 1, the stiffest Giesekus row) and FENE-P L2
-# (De = 0.5). The learned-law direction of the plan needs the learned relaxation
-# law of step F4, which does not exist yet: it is skipped and reported as such.
+# Directions: Giesekus alpha (De = 1, the stiffest Giesekus row), FENE-P L2
+# (De = 0.5) and one hidden weight W[1, 1] of the learned relaxation law
+# (NeuralRelaxation{4}, De = 0.5, second point: output weights N(0, 0.05²)).
 #
 # For each direction, adjoint g_k at θ, then for Newton atol in (1e-14, 1e-15) and
 # h in FV3D_STEPS (default 1e-2,...,1e-6), eps = h s_k:
@@ -37,9 +37,21 @@ function study(r::VERow, pname::Symbol; N = NSTUDY)
     to = fv3d_to(); linsolve = fv3d_linsolve()
     s, U = ve_state(r; N, to, linsolve)
     Ud = ve_data_state(r, s, U; to, linsolve)
-    obj, _ = ve_objective(s.prob, Ud; to)
-    m = ve_map(r); θ = ve_theta(r); sk = ve_scales(r)
     k = findfirst(==(pname), ve_names(r))
+    return study_core(r.label, pname, s, U, Ud, ve_map(r), ve_theta(r), ve_scales(r), k; N, to, linsolve)
+end
+
+function study_neural(; N = NSTUDY)
+    to = fv3d_to(); linsolve = fv3d_linsolve()
+    θ = ve_neural_theta(:second)
+    s, U = ve_neural_state(θ; N, to, linsolve)
+    Ud = ve_neural_data(s, U, θ; to, linsolve)
+    return study_core("learned law De=$(VE_NN_DE), second point", :W11, s, U, Ud, ve_neural_map(), θ,
+                      ones(length(θ)), VE_NN_HIDDEN[1]; N, to, linsolve)
+end
+
+function study_core(label, pname, s, U, Ud, m, θ, sk, k; N, to, linsolve)
+    obj, _ = ve_objective(s.prob, Ud; to)
     res = fv_steady_gradient(s, U, θ, obj; params = m)
     g = res.grad[k]; J = res.J
     tol = VE_G2_REL * abs(g) + VE_G2_ABS * J / sk[k]
@@ -50,7 +62,7 @@ function study(r::VERow, pname::Symbol; N = NSTUDY)
     for atol in ATOLS, h in hs
         D[(atol, h)], R[(atol, h)] = ve_fd(sf, m, θ, k, h, sk[k], U, obj; atol, rtol = 0.0)
     end
-    @printf("\n=== %s, parameter %s = %.6g (s_k = %.6g), N = %d, backend %s\n", r.label, pname, θ[k], sk[k], N,
+    @printf("\n=== %s, parameter %s = %.6g (s_k = %.6g), N = %d, backend %s\n", label, pname, θ[k], sk[k], N,
             FV3D_BACKEND)
     @printf("adjoint g_k = %.12e, J = %.6e, G2 tolerance = %.3e (%.2e relative)\n", g, J, tol, tol / abs(g))
     @printf("%8s %8s %20s %10s %8s %10s %10s %5s\n", "atol", "h", "D(h)", "rel", "ratio", "tight", "Newton res", "gate")
@@ -74,11 +86,10 @@ function study(r::VERow, pname::Symbol; N = NSTUDY)
     gate = [h for h in VE_G2_STEPS if abs(D[(ATOLS[1], h)] - g) <= tol]
     println("test steps VE_G2_STEPS = $(VE_G2_STEPS): within the G2 tolerance at atol 1e-14 for h = ",
             isempty(gate) ? "none" : join(string.(gate), ", "))
-    return (; label = r.label, pname, keep, gate)
+    return (; label, pname, keep, gate)
 end
 
-out = [study(ve_giesekus(1.0), :alpha), study(ve_fenep(0.5), :L2)]
-println("\nlearned-law direction: skipped (the learned relaxation law of step F4 is not implemented yet)")
+out = [study(ve_giesekus(1.0), :alpha), study(ve_fenep(0.5), :L2), study_neural()]
 println("\nsummary")
 for o in out
     println("  $(o.label) / $(o.pname): retained h = $(o.keep), test steps passing = $(o.gate)")

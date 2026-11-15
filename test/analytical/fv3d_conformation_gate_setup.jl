@@ -11,10 +11,13 @@ using KrakeNN
 
 # ---------------------------------------------------------------- G2 thresholds
 # Centred FD gate G2: two steps eps = h s_k, min over the steps of
-# |FD - g_k| <= VE_G2_REL |g_k| + VE_G2_ABS |J| / s_k. Set to the plan's target
-# (1e-6 relative); the step study benchmarks/fv3d/ve_adjoint_step_study.jl
-# (Richardson ratio, Newton atol 1e-14 vs 1e-15) confirms the step range and the
-# thresholds, and they are changed here if it does not.
+# |FD - g_k| <= VE_G2_REL |g_k| + VE_G2_ABS |J| / s_k (the plan's target).
+# Step study benchmarks/fv3d/ve_adjoint_step_study.jl, GPU run of 2026-11-16 on
+# the 1 x 8 x 8 slice: Richardson ratio 4.00 for h = 1e-2 ... 1e-5 for Giesekus
+# alpha (De 1) and FENE-P L2 (De 0.5), adjoint vs FD down to 2.3e-11 (alpha) and
+# 1.3e-10 (L2) relative, Newton atol 1e-15 instead of 1e-14 changes nothing; the
+# steps 1e-4 and 1e-5 pass this gate. The learned-law direction was added to the
+# study afterwards (step F4).
 const VE_G2_STEPS = (1e-4, 1e-5)
 const VE_G2_REL = 1e-6
 const VE_G2_ABS = 1e-10
@@ -162,11 +165,54 @@ function ve_J_at(sf, m, θp, U0, obj; atol = VE_NEWTON.atol, rtol = VE_NEWTON.rt
     return ve_J(obj, Up, sf.prob), last(st.inf)
 end
 
-# centred FD of the reconverged objective along parameter k with step h s_k
-function ve_fd(sf, m, θ, k, h, sk, U0, obj; kw...)
-    ε = h * sk
-    e = Float64.(1:length(θ) .== k)
-    Jp, rp = ve_J_at(sf, m, θ .+ ε .* e, U0, obj; kw...)
-    Jm, rm = ve_J_at(sf, m, θ .- ε .* e, U0, obj; kw...)
+# centred FD of the reconverged objective along direction d (or parameter k)
+# with step h s
+function ve_fd(sf, m, θ, d::AbstractVector, h, s, U0, obj; kw...)
+    ε = h * s
+    Jp, rp = ve_J_at(sf, m, θ .+ ε .* d, U0, obj; kw...)
+    Jm, rm = ve_J_at(sf, m, θ .- ε .* d, U0, obj; kw...)
     return (Jp - Jm) / (2ε), max(rp, rm)
+end
+ve_fd(sf, m, θ, k::Integer, h, s, U0, obj; kw...) = ve_fd(sf, m, θ, Float64.(1:length(θ) .== k), h, s, U0, obj; kw...)
+
+# ---------------------------------------------------------------- learned law (F4)
+# NeuralRelaxation{4} around Giesekus alpha0 = 0.3 at De = 0.5, invariants scaled
+# by 10 (I1 - 3 reaches O(10) near the walls); parameters: hidden layer drawn
+# N(0, 1) with seed VE_NN_SEED, output weights zero ("start", the law is then
+# Giesekus exactly) or N(0, 0.05²) with the same seed ("second" point, hidden
+# derivatives visible). Map: all 7H = 28 entries, s = 1.
+const VE_NN_SEED = 21
+const VE_NN_DE = 0.5
+ve_neural_law() = NeuralRelaxation{4}(; alpha0 = VE_ALPHA, scale = 10.0)
+ve_neural_theta(point::Symbol) =
+    relaxation_init(ve_neural_law(); rng = MersenneTwister(VE_NN_SEED),
+                    output_std = point === :start ? 0.0 : 0.05)
+ve_neural_conf(lam, θnet) = FVConformation3D(; lambda = lam, nu_p = 1.0, law = ve_neural_law(), theta = θnet)
+ve_neural_map() = FVRelaxationParameters(:theta)
+# parameter indices: hidden weight W[1, 1], hidden bias b[2], output V[2, 1] (b1), V[3, 2] (b2)
+const VE_NN_H = 4
+const VE_NN_HIDDEN = (1, 3VE_NN_H + 2)
+const VE_NN_OUTPUT = (5VE_NN_H + 1, 6VE_NN_H + 2)
+
+# converged state of the learned law at θnet, from rest by continuation in lambda
+function ve_neural_state(θnet; N = 8, to = Array, linsolve = CPUBackendTag())
+    p = ve_slice(ve_neural_conf(0.1, θnet); N)
+    s = fv_newton_solver(p; to, linsolve)
+    U = to(ve_rest(p))
+    for lam in (0.1, 0.25, VE_NN_DE)
+        fv_set_conformation!(s, ve_neural_conf(lam, θnet))
+        ve_solve!(s, U)
+    end
+    fv_check_conformation_domain(s.prob, U)
+    return s, U
+end
+
+# data at θ* = θnet + 0.1 (every network weight, output weights included)
+function ve_neural_data(s, U, θnet; to = Array, linsolve = CPUBackendTag())
+    sd = fv_newton_solver(KrakeNN._fv_host_problem(s.prob); to, linsolve)
+    fv_set_params!(sd, ve_neural_map(), θnet .+ 0.1)
+    Ud = copy(U)
+    ve_solve!(sd, Ud)
+    fv_check_conformation_domain(sd.prob, Ud)
+    return Array(Ud)
 end
