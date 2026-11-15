@@ -24,6 +24,11 @@ _fv_with(p::FVSteadyProblem3D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.v
 
 _fv_host_problem(p::FVSteadyProblem3D) = p.nu isa Array ? p : fv_adapt(Array, p)
 
+# fv_set_params! keeps the state-independent law data of the mapped problem:
+# viscosity model and conformation coefficients (lambda, nu_p, theta). Copying
+# the viscosity model alone would silently keep the old relaxation coefficients.
+_fv_with_law(p::FVSteadyProblem3D, P) = _fv_with(p; visc = P.visc, conformation = P.conformation)
+
 # fv_set_params! validates the mapped viscosity model against the grid
 _fv_validate_viscosity(v::FVLawViscosity, g::FVGrid3D, nu) = _fv3_validate_viscosity(v, g, nu)
 _fv_validate_viscosity(v::FVGNFViscosity, g::FVGrid3D, nu) = _fv3_validate_viscosity(v, g, nu)
