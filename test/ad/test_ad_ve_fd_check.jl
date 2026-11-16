@@ -13,11 +13,11 @@
 #
 # This file takes the FAST 24x24 cut-cylinder case of that suite, solves the
 # adjoint once (lambda from (I - dG^T) lambda = dJ/dw, with dG^T from Enzyme
-# reverse mode over ad_ve_coupled_step!), and compares, for four design
+# reverse mode over ad_ve_coupled_step!), and compares, for five design
 # directions, the adjoint gradient
 #     dJ/dθ = ∂J/∂θ + lambda' * ∂G/∂θ
 # with a central finite difference of J(θ) where the forward is reconverged at
-# θ ± h to fwd_tol = 2e-15 (h = 1e-4 θ for directions 2-4). The step is checked
+# θ ± h to fwd_tol = 2e-15 (h = 1e-4 θ for directions 2-5). The step is checked
 # by three-point Richardson
 # (h, 2h, 4h): fd_err = |D(h) - D(2h)| / 3 estimates the error of D(h), and
 # fd_ratio = |D(2h) - D(4h)| / |D(h) - D(2h)| is ~4 when truncation dominates
@@ -31,10 +31,13 @@
 #   2  lambda  relaxation time (prefactor nu_p/lambda follows), fixed geometry.
 #   3  Fx      body force (fixed inlet profile), fixed geometry.
 #   4  nu_s    solvent viscosity (TRT rates follow), fixed geometry.
-# For 2-4, ∂G/∂θ and ∂J/∂θ are Enzyme FORWARD mode over the step / QoI with the
+#   5  nu_p    polymer viscosity at fixed lambda (prefactor nu_p/lambda follows,
+#              relaxation time unchanged), fixed geometry. Separates the polymer
+#              viscosity from the relaxation time, which direction 2 moves together.
+# For 2-5, ∂G/∂θ and ∂J/∂θ are Enzyme FORWARD mode over the step / QoI with the
 # parameter as a Duplicated scalar (forward mode is exact in every variant of
 # #41); ∂G/∂θ is additionally cross-checked by a one-step central FD. The only
-# reverse-mode ingredient in all four directions is lambda.
+# reverse-mode ingredient in all five directions is lambda.
 #
 # Output, one machine-readable line per direction:
 #   === ve_fd dir=<k> name=<θ> adj=<v> fd=<v> rel=<v> fd_err=<v> fd_ratio=<v>
@@ -60,19 +63,23 @@ const FWD_TOL = 2e-15
 _fwd_mode() = isdefined(Enzyme, :set_runtime_activity) ?
               Enzyme.set_runtime_activity(Enzyme.Forward) : Enzyme.Forward
 
-# θ -> ADVECoupledParams.  which: 2 = lambda, 3 = Fx_body, 4 = nu_s.
+# θ -> ADVECoupledParams.  which: 2 = lambda, 3 = Fx_body, 4 = nu_s, 5 = nu_p.
+# For which = 2-4 nu_p = c.nu_p, so their parameters are unchanged bit for bit.
 function _params(c, theta, which::Int)
     lambda = which == 2 ? theta : c.Wi
     Fx     = which == 3 ? theta : c.Fx_body
     nu_s   = which == 4 ? theta : c.nu_s
-    pref = c.nu_p / lambda
+    nu_p   = which == 5 ? theta : c.nu_p
+    pref = nu_p / lambda
     s_plus, s_minus = K.ad_ve_trt_rates(nu_s)
     return K.ADVECoupledParams(c.Nx, c.Ny, lambda, 0.05, 4, pref, nu_s,
                                Fx, s_plus, s_minus)
 end
 
-_theta0(c, which) = which == 2 ? c.Wi : which == 3 ? c.Fx_body : c.nu_s
-_name(which) = which == 1 ? "R" : which == 2 ? "lambda" : which == 3 ? "Fx" : "nu_s"
+_theta0(c, which) = which == 2 ? c.Wi : which == 3 ? c.Fx_body :
+                    which == 4 ? c.nu_s : c.nu_p
+_name(which) = which == 1 ? "R" : which == 2 ? "lambda" : which == 3 ? "Fx" :
+               which == 4 ? "nu_s" : "nu_p"
 
 function _build(c)
     p = _params(c, 0.0, 0)          # which=0 -> all base values
@@ -117,7 +124,7 @@ function _transpose_residual(w_star, geom, p)
     return _relerr(dot(v, Ju), dot(Jtv, u))
 end
 
-# --- forward-mode ∂G/∂θ and ∂J/∂θ (directions 2-4) ------------------------------
+# --- forward-mode ∂G/∂θ and ∂J/∂θ (directions 2-5) ------------------------------
 function _step_theta!(out, w, theta, which, g, qw, up, c)
     p = _params(c, theta, which)
     K.ad_ve_coupled_step!(out, w, g, qw, p, up, 1.0, nothing)
@@ -255,8 +262,8 @@ function run()
             _relerr(api.gradient, rich.fd), api.solver.converged, time() - t4)
     flush(stdout)
 
-    # --- directions 2-4: parameters at fixed geometry ----------------------------
-    for which in (2, 3, 4)
+    # --- directions 2-5: parameters at fixed geometry ----------------------------
+    for which in (2, 3, 4, 5)
         t5 = time()
         th = _theta0(c, which)
         dG = _dG_dtheta_fwd(w_star, geom, c, which)
@@ -300,8 +307,10 @@ end # module
 #   slope changes once by 5e-4 relative, ten times the change between its other
 #   neighbours), which the 1e-3 stencil straddles. With fwd_tol 2e-15 and h = 1e-4 θ (stencil within 4e-4 θ):
 #   R rel 1.05e-3; lambda 1.9e-7, Fx 4.1e-6, nu_s 2.4e-5 (gates unchanged).
+#   nu_p at fixed lambda (direction 5) added 2026-11-16; not yet measured, gated
+#   with the same GATE_REL_PARAM as the other parameter directions.
 # The miscompiled reduced construct of #41 gives a 2.3e-2 gradient error or NaN.
-# Directions 2-4 depend on the reverse-mode adjoint only through lambda, so
+# Directions 2-5 depend on the reverse-mode adjoint only through lambda, so
 # their 1e-4 gate (100x the measured error) is the detector; the radius gate
 # 5e-3 (5x) covers the production chain end to end.
 const GATE_REL_R = 5e-3

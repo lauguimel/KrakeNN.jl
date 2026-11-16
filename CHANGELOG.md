@@ -6,6 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Polymer-viscosity direction `nu_p` at fixed relaxation time in the
+  finite-difference cross-check of the 2D viscoelastic (Oldroyd-B) LBM adjoint
+  (`test/ad/test_ad_ve_fd_check.jl`, direction 5): adjoint against a central
+  finite difference of the primal reconverged to `2e-15`, three-point Richardson
+  check, same `1e-4` gate as the other parameter directions. Until now `nu_p` only
+  moved together with `lambda`. Test-only: `nu_p` already enters the CPU copy
+  through the `prefactor` field of `ADVECoupledParams`, independent of `lambda`.
 - Opt-in steady stop rule for `run_cylinder_libb_2d`,
   `run_viscoelastic_fvfd_poiseuille_3d` and the 2D log-FV coupled viscoelastic
   drivers (including `run_viscoelastic_logfv_cylinder_coupled_2d`).
