@@ -3,6 +3,15 @@ using Test, KrakeNN, ForwardDiff, Random, LinearAlgebra
 # DenseNet gates: bitwise/1e-14 equality with TinyMLP on TinyMLP's layout,
 # handwritten pullback vs ForwardDiff (<= 1e-12) on mixed architectures,
 # Dual inputs, zero allocation, load-time guards.
+
+# Allocation probes behind a function barrier. `dn` has one concrete type per
+# architecture, so inside the `for` testset the call is dispatched at run time
+# and, on Julia 1.11, `@allocated` also counts the boxed return value (16 bytes
+# for a Float64, 16 + 8n for an n-tuple): CI run 43848950364. The barrier
+# measures the call itself, as a solver kernel makes it.
+_alloc_value(dn, x, theta) = @allocated law_value(dn, x, theta)
+_alloc_pullback(g, dn, x, theta) = @allocated law_pullback!(g, dn, x, theta, 1.0)
+
 @testset "DenseNet" begin
     @testset "equals TinyMLP" begin
         for (nin, H, L) in ((1, 3, 1), (2, 4, 2), (3, 5, 3))
@@ -51,8 +60,9 @@ using Test, KrakeNN, ForwardDiff, Random, LinearAlgebra
         @test (@inferred law_value(dn, x, theta)) isa Float64
         g = zeros(length(theta))
         @test (@inferred law_pullback!(g, dn, x, theta, 1.0)) isa typeof(x)
-        @test (@allocated law_value(dn, x, theta)) == 0
-        @test (@allocated law_pullback!(g, dn, x, theta, 1.0)) == 0
+        _alloc_value(dn, x, theta); _alloc_pullback(g, dn, x, theta)  # compile
+        @test _alloc_value(dn, x, theta) == 0
+        @test _alloc_pullback(g, dn, x, theta) == 0
     end
 
     @testset "guards" begin
