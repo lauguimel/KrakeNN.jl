@@ -40,6 +40,9 @@
 # in solid cells, which nothing downstream reads). Per field, the max absolute
 # difference divided by the max absolute production value. Gate 1e-13
 # (round-off). No Enzyme: plain CPU tier.
+#
+# A last testset converges the copy at dt = 0.05 and at dt = 1/4 and compares
+# the two steady fixed points (the state the adjoint differentiates).
 
 using Test, KrakeNN
 
@@ -205,6 +208,31 @@ function run()
             nsnap=length(snaps))
 end
 
+
+# --- steady fixed point: FAST dt = 0.05 versus the production substep 1/4 -------
+# The adjoint differentiates the fixed point w* = G(w*), so only the converged
+# state matters. Both copies start from ad_ve_initial_state and reconverge to the
+# fd_check forward tolerance (2e-15 one-step change). The QoI is ad_ve_J_fx, the
+# objective of test_ad_ve_fd_check.jl.
+const FWD_TOL = 2e-15
+
+function run_steady()
+    c = FAST
+    geom = K.ad_ve_build_geom(c.Nx, c.Ny, c.cx, c.cy, c.R;
+                              samples=c.samples, u_mean=c.Fx_body)
+    fluid = .!geom.g.is_solid
+    w0 = K.ad_ve_initial_state(geom.g, c.Nx, c.Ny, 0.05)
+    out = map((0.05, 1.0 / NSUB)) do dt
+        p = _copy_params(c, dt)
+        t = @elapsed fwd = K.ad_ve_forward_solve(w0, geom, p; fwd_tol=FWD_TOL)
+        J = K.ad_ve_J_fx(fwd.w_star, geom.pts, geom.g, p)
+        (; dt, p, fwd, J, fields=_copy_fields(fwd.w_star, p), seconds=t)
+    end
+    fast, prod = out
+    rels = _rels(fast.fields, prod.fields, fluid)
+    J_rel = abs(fast.J - prod.J) / max(abs(prod.J), eps(Float64))
+    return (; fast, prod, rels, J_rel)
+end
 end # module
 
 const VE_STEP_PARITY_GATE = 1e-13
@@ -241,4 +269,33 @@ const VE_STEP_PARITY_GATE = 1e-13
         @test_broken max(r.rels_fast.psixx, r.rels_fast.psixy, r.rels_fast.psiyy) <=
                      VE_STEP_PARITY_GATE
     end
+end
+
+# Steady fixed point of the FAST adjoint setting (dt = 0.05, 4 substeps) versus
+# the production-equivalent setting (dt = 1/4, 4 substeps, bit-identical per step
+# to the production driver, see above). Expected to differ, so @test_broken:
+# the constitutive substep is a Lie splitting (deform C -> A C A^T with
+# A = exp(dt grad u), then relax C - I by exp(-dt/lambda)), and the fixed point of
+# that split map depends on dt. For simple shear, c_xy* = dt gdot e/(1 - e) with
+# e = exp(-dt/lambda), i.e. lambda gdot (1 - dt/(2 lambda) + O(dt^2)): about 5 %
+# below the exact Oldroyd-B value at dt = 0.05 and 25 % at dt = 1/4 (lambda = 0.5).
+# On top of that the copy's polymer time per LBM step (n dt) scales deformation
+# and relaxation against the unit-time psi advection (small here: lambda U / R
+# ~ 2e-5). The stress, hence the polymer force, ux/uy, rho, f and the drag Fx
+# all move with it. Measured gap unknown until run (printed below).
+const VE_STEADY_GATE = 1e-10
+
+@testset "LBM VE copy steady state: FAST dt vs production dt" begin
+    elapsed = @elapsed s = VEStepParity.run_steady()
+    for r in (s.fast, s.prod)
+        @info "VE steady forward dt=$(r.dt)" n_iter=r.fwd.n_iter residual=r.fwd.residual reached_tol=r.fwd.reached_tol J=r.J seconds=r.seconds
+    end
+    @info "VE steady FAST vs production dt" rel=s.rels J_rel=s.J_rel seconds=elapsed
+
+    @test s.fast.fwd.reached_tol
+    @test s.prod.fwd.reached_tol
+    @testset "steady field $(f)" for f in VEStepParity.FIELDS
+        @test_broken getproperty(s.rels, f) <= VE_STEADY_GATE
+    end
+    @test_broken s.J_rel <= VE_STEADY_GATE
 end
