@@ -188,6 +188,14 @@ function run_incns_testset()
         # dual Jacobian, adjoint FD, cell-Peclet check; slip + central on GPU (opt-in)
         include("analytical/incns_fv_convection_central.jl")
         include("analytical/incns_fv_slip_gpu.jl")
+        # Shallow-shelf ice flow (SSA) on the same Newton/adjoint machinery:
+        # 1D stream exact solution, coloured Jacobian vs dense, Newton, learned-drag
+        # adjoint vs FD, and its opt-in GPU/cuDSS contract (self-gated on CUDA)
+        include("analytical/ssa_stream_1d.jl")
+        include("analytical/ssa_jacobian.jl")
+        include("analytical/ssa_newton.jl")
+        include("analytical/ssa_learned_adjoint.jl")
+        include("analytical/ssa_gpu.jl")
         include("analytical/scalar_transport_heated_channel.jl")
         include("analytical/scalar_transport_advection_order.jl")
 
