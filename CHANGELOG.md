@@ -256,6 +256,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   multigrid, and 143 s with Vanka multigrid (peak 5.07 GiB instead of
   6.94 GiB); Vanka multigrid is the V5 default (`FV5_PRECOND=p4`, the value
   name is kept for compatibility).
+- 2D steady FV, die chain (all opt-in; default problems are unchanged):
+  - Energy open boundaries: `:inlet` sides carry a prescribed inflow
+    temperature, `:outlet` sides a zero-gradient outflow, and
+    `FVEnergy(; solid = T_s)` holds voxel-solid faces at one temperature
+    (default `:adiabatic`). Graetz, energy balance, Jacobian and adjoint
+    checks in `test/analytical/incns_fv_energy_open_bc_test.jl`.
+  - Generic immersed walls `fv_immersed_walls(Nx, Ny; walls)` with
+    `FVProfileWall` (piecewise-linear `y = f(x)`) and `FVCircleWall`, same
+    closures and M1/M2/M3 mass treatments as the analytic circles, now also
+    with the energy equation (wall temperature from `solid`, a value or a
+    function `(wall, x, y) -> T`; `fv_immersed_wall_heat` sums the wall
+    fluxes). Tests `incns_fv_immersed_walls_channel.jl`,
+    `incns_fv_immersed_walls_derivatives.jl`.
+  - Wall slip laws `fv_steady_problem(...; slip = FVSlipWalls(law; sides,
+    solid, immersed))`: Navier slip `FVNavierSlip(b)` or any law
+    `s = f(τ_w; θ)` subtyping `FVSlipLaw`, on domain walls, voxel solids and
+    immersed cut faces, solved per face by a local Newton iteration, with
+    exact Jacobian and slip-parameter adjoint (`fv_slip_parameters`,
+    `fv_with_slip_parameters`). Not available with the energy equation;
+    `FVLawParameters` needs `law_gradient = :duals` with slip. Tests
+    `incns_fv_slip_*.jl`.
+  - `fv_steady_problem(...; convection = :central)`: second-order central
+    momentum convection (default `:upwind`, bit-identical to before).
+    Test `incns_fv_convection_central.jl`.
+  - Die prediction driver `benchmarks/fv_thermal/die_predict.jl` (FV flow and
+    temperature in the LBM open die with the Carreau–WLF law or a learned
+    law file), with `die_ib.jl` and `die_learned.jl`; see
+    `docs/src/users/fv-thermal.md`. Not yet run at the paper resolution.
 
 - Network and parametric viscosity laws in the 2D and 3D generalised-Newtonian
   LBM step, with a steady adjoint in 3D. `DenseNet` is an isbits feedforward

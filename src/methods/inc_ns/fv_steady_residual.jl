@@ -14,6 +14,9 @@
 #   momentum   sum_f [ conv * F_f * q_upwind - h * t_f ] + h * sum_f p_f n_f - h^2 s_mom = 0
 #              t_f = nu_f (grad u + grad u^T) . n   (full stress tensor, variable nu)
 #              first-order upwind convection, written branch-free with abs()
+#              (default), or the central face value (convection = :central:
+#              mean of the two cells, the prescribed wall value on domain
+#              walls, the P/ghost mean on immersed cut faces)
 #   continuity sum_f F_f - h^2 s_mass = 0,  F_f = h * u_f . n
 #   face velocity (Rhie-Chow, decision D-RC (ii)):
 #              u_f . n = mean(u) . n - d_f * [ (p_N - p_P)/h - mean(grad p) . n ]
@@ -82,9 +85,12 @@ Isbits description of a uniform `Nx × Ny` grid of spacing `h` and of its
 domain-boundary conditions, passed by value to the residual kernel.
 
 Fields: `Nx`, `Ny`, `h`, `conv` (1 = Navier-Stokes, 0 = Stokes; multiplies the
-convective flux and the convective part of the Rhie-Chow coefficient), and the
+convective flux and the convective part of the Rhie-Chow coefficient), the
 side codes `bcE`, `bcW`, `bcN`, `bcS` (`FV_BC_WALL`, `FV_BC_INLET`,
-`FV_BC_OUTLET`, `FV_BC_PERIODIC`; periodic sides come in pairs).
+`FV_BC_OUTLET`, `FV_BC_PERIODIC`; periodic sides come in pairs), the field
+`layout`, and `convection`, the convected momentum face value
+(`FV_CONV_UPWIND = 0`, first-order upwind, default; `FV_CONV_CENTRAL = 1`,
+second-order central).
 """
 struct FVGrid2D{T,L<:FVFieldLayout}
     Nx::Int
@@ -96,7 +102,13 @@ struct FVGrid2D{T,L<:FVFieldLayout}
     bcN::Int
     bcS::Int
     layout::L
+    convection::Int
 end
+const FV_CONV_UPWIND = 0
+const FV_CONV_CENTRAL = 1
+# The original nine-argument constructor keeps upwind convection.
+FVGrid2D(Nx, Ny, h, conv, bcE, bcW, bcN, bcS, layout::FVFieldLayout) =
+    FVGrid2D(Nx, Ny, h, conv, bcE, bcW, bcN, bcS, layout, FV_CONV_UPWIND)
 # Keep both original eight-argument constructors and their default layout.
 FVGrid2D{T}(Nx, Ny, h, conv, bcE, bcW, bcN, bcS) where {T} =
     FVGrid2D(Int(Nx), Int(Ny), T(h), T(conv), Int(bcE), Int(bcW), Int(bcN), Int(bcS), FVFieldLayout{0}())
@@ -144,11 +156,13 @@ type; the residual is evaluated in the promoted type, so a parameter array of
   activating temperature in the first scalar slot.
 - `flowrate`: `nothing` (prescribed forcing), or lowered mean-x-velocity
   target with one final global force unknown after any immersed multipliers.
+- `slip`: `nothing` (no-slip walls), or lowered [`FVSlipWalls`](@ref): the
+  slip law and the wall faces it applies to (fv_slip.jl).
 
 Build with [`fv_steady_problem`](@ref); move to a device with
 [`fv_adapt`](@ref).
 """
-struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E,F} <: FVSteadyProblem
+struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E,F,S} <: FVSteadyProblem
     grid::G
     tag::TA
     nu::NA
@@ -158,6 +172,7 @@ struct FVSteadyProblem2D{G<:FVGrid2D,TA,NA,BA,SA,V,I,E,F} <: FVSteadyProblem
     immersed::I
     energy::E
     flowrate::F
+    slip::S
 end
 FVSteadyProblem2D(grid, tag, nu, bvel, src) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, FVNewtonianViscosity())
@@ -167,6 +182,8 @@ FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, nothing)
 FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy) =
     FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy, nothing)
+FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy, flowrate) =
+    FVSteadyProblem2D(grid, tag, nu, bvel, src, visc, immersed, energy, flowrate, nothing)
 
 # Arrays are separate kernel arguments: only the scalar closure description
 # crosses the device boundary as a struct. Number types come from signatures.
@@ -290,8 +307,8 @@ Wall data at the nominal Cartesian face: prescribed velocity, upwind ghost,
 pressure, mean velocity, and normal differences. C1 keeps its original
 arithmetic and prescribed inflow value; its geometric q is deliberately ignored.
 """
-@inline function _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
-    z = _fv_array_zero(U) + _fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel)
+@inline function _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure, slip = nothing)
+    z = _fv_slip_promote(_fv_array_zero(U) + _fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel), slip)
     uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)) + z; vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)) + z
     pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout)) + z
     cut = _fv_immersed_face(g, qcut, i, j, d)
@@ -302,12 +319,18 @@ arithmetic and prescribed inflow value; its geometric q is deliberately ignored.
     end
     uw += z; vw += z
     if !cut || closure.ghost == 0
+        if _fv_slip_face(slip, g, i, j, d, cut)
+            uw, vw = _fv_slip_aligned(slip, g, i, j, d, uP, vP, uw, vw)
+        end
         return uw, vw, uw, vw, pP, uw, vw, (uw - uP) * 2 / g.h, (vw - vP) * 2 / g.h
     end
     oi = i - (d == 1) + (d == 2)
     oj = j - (d == 3) + (d == 4)
     @inbounds q = qcut[d, i, j]
     uO = _fv_val(U, g, oi, oj, _fv_velocity_slot(g.layout, 1)); vO = _fv_val(U, g, oi, oj, _fv_velocity_slot(g.layout, 2))
+    if _fv_slip_face(slip, g, i, j, d, cut)
+        uw, vw = _fv_slip_cut(slip, g, i, j, d, q, closure.ghost, uO, vO, uP, vP, uw, vw)
+    end
     uG = _fv_ghost_value(uO, uP, uw, q, closure.ghost)
     vG = _fv_ghost_value(vO, vP, vw, q, closure.ghost)
     pf = closure.pressure == 0 ? pP : pP + (pP - _fv_val(U, g, oi, oj, _fv_pressure_slot(g.layout))) / 2
@@ -321,12 +344,16 @@ Immersed L/Q uses extrapolated given viscosity or the GNF law at the ghost
 normal slope and the nominal-face tangential gradient supplied by
 `_fv_wall_gradient`; C1/domain walls keep the cell values and arithmetic.
 """
-@inline function _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure)
+@inline function _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure, slip = nothing)
     @inbounds nuf = nu[i, j]
-    if _fv_immersed_face(g, qcut, i, j, d) && closure.ghost != 0
+    cut = _fv_immersed_face(g, qcut, i, j, d)
+    if cut && closure.ghost != 0
         oi = i - (d == 1) + (d == 2)
         oj = j - (d == 3) + (d == 4)
         @inbounds nuf = nuf + (nuf - nu[oi, oj]) / 2
+    end
+    if !cut && _fv_slip_face(slip, g, i, j, d, cut)
+        return _fv_slip_aligned_stress(visc, nuf, i, j, d, dun, dvn)
     end
     sx = (d == 1 || d == 3) ? 1 : -1
     if d <= 2
@@ -339,28 +366,30 @@ end
 
 # face values (u, v, p) of the face of cell (i, j) in direction d
 @inline function _fv_face_values(U, tag, bvel, g, i, j, d,
-                                qcut = nothing, wvel = nothing, closure = nothing)
+                                qcut = nothing, wvel = nothing, closure = nothing, slip = nothing)
     uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)); vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)); pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
     kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
-    zb = _fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel)
+    # Slip walls promote the wall branch to the slip-law number type; promote
+    # every branch alike so the face values have one concrete type (GPU).
+    zb = _fv_slip_promote(_fv_array_zero(bvel) + _fv_array_zero(qcut) + _fv_array_zero(wvel), slip)
     if kind == _FV_F_INT
         uN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 1)); vN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 2)); pN = _fv_val(U, g, ii, jj, _fv_pressure_slot(g.layout))
         return (uP + uN) / 2 + zb, (vP + vN) / 2 + zb, (pP + pN) / 2 + zb
     elseif kind == _FV_F_OUTLET
         return uP + zb, vP + zb, zero(pP) + zb
     else
-        _, _, _, _, pf, uf, vf, _, _ = _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
+        _, _, _, _, pf, uf, vf, _, _ = _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure, slip)
         return zero(uP) + uf, zero(vP) + vf, pf
     end
 end
 
 # Green-Gauss cell gradient: (ux, uy, vx, vy, px, py)
 @inline function _fv_cell_grad(U, tag, bvel, g, i, j,
-                              qcut = nothing, wvel = nothing, closure = nothing)
-    ue, ve, pe = _fv_face_values(U, tag, bvel, g, i, j, 1, qcut, wvel, closure)
-    uw, vw, pw = _fv_face_values(U, tag, bvel, g, i, j, 2, qcut, wvel, closure)
-    un, vn, pn = _fv_face_values(U, tag, bvel, g, i, j, 3, qcut, wvel, closure)
-    us, vs, ps = _fv_face_values(U, tag, bvel, g, i, j, 4, qcut, wvel, closure)
+                              qcut = nothing, wvel = nothing, closure = nothing, slip = nothing)
+    ue, ve, pe = _fv_face_values(U, tag, bvel, g, i, j, 1, qcut, wvel, closure, slip)
+    uw, vw, pw = _fv_face_values(U, tag, bvel, g, i, j, 2, qcut, wvel, closure, slip)
+    un, vn, pn = _fv_face_values(U, tag, bvel, g, i, j, 3, qcut, wvel, closure, slip)
+    us, vs, ps = _fv_face_values(U, tag, bvel, g, i, j, 4, qcut, wvel, closure, slip)
     ih = inv(g.h)
     return ((ue - uw) * ih, (un - us) * ih, (ve - vw) * ih, (vn - vs) * ih,
             (pe - pw) * ih, (pn - ps) * ih)
@@ -372,11 +401,11 @@ Tangential velocity gradients at an immersed L/Q nominal face: extrapolate
 quadratic velocity with Q ghosts. Normal and pressure entries are unused by
 the wall stress; keep them unchanged. C1/domain walls return gP bit-for-bit.
 """
-@inline function _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure)
+@inline function _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure, slip = nothing)
     if _fv_immersed_face(g, qcut, i, j, d) && closure.ghost != 0
         oi = i - (d == 1) + (d == 2)
         oj = j - (d == 3) + (d == 4)
-        gO = _fv_cell_grad(U, tag, bvel, g, oi, oj, qcut, wvel, closure)
+        gO = _fv_cell_grad(U, tag, bvel, g, oi, oj, qcut, wvel, closure, slip)
         if d <= 2
             return (gP[1], gP[2] + (gP[2] - gO[2]) / 2,
                     gP[3], gP[4] + (gP[4] - gO[4]) / 2, gP[5], gP[6])
@@ -389,6 +418,12 @@ end
 
 @inline _fv_posp(F) = (F + abs(F)) / 2
 @inline _fv_negp(F) = (F - abs(F)) / 2
+
+# Convected momentum through an interior face of outward mass flux F between
+# the cell value a (inside) and b (neighbour). Upwind keeps its original
+# arithmetic; the branch depends on the grid only.
+@inline _fv_conv_value(g, F, a, b) =
+    g.convection == FV_CONV_CENTRAL ? F * ((a + b) / 2) : _fv_posp(F) * a + _fv_negp(F) * b
 
 """Oriented Rhie--Chow mass flux, shared by flow and scalar transport.
 
@@ -418,18 +453,20 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
 """
 @inline function fv_cell_residual(U, tag, nu, bvel, src, g, i, j,
                                   visc = FVNewtonianViscosity(),
-                                  qcut = nothing, wvel = nothing, closure = nothing, face_pair = nothing)
+                                  qcut = nothing, wvel = nothing, closure = nothing, face_pair = nothing,
+                                  slip = nothing)
     visc = _fv_bind_viscosity(visc, U, g)
+    slip = _fv_bind_slip(slip, nu, visc)
     uP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 1)); vP = _fv_val(U, g, i, j, _fv_velocity_slot(g.layout, 2)); pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
     h = g.h
     @inbounds nuP = nu[i, j]
-    z = zero(uP) + zero(nuP) + zero(eltype(bvel)) + zero(eltype(src)) + _fv_visc_zero(visc) +
-        _fv_array_zero(qcut) + _fv_array_zero(wvel)
+    z = _fv_slip_promote(zero(uP) + zero(nuP) + zero(eltype(bvel)) + zero(eltype(src)) + _fv_visc_zero(visc) +
+        _fv_array_zero(qcut) + _fv_array_zero(wvel), slip)
     @inbounds tP = tag[i, j]
     if tP == FV_CELL_SOLID
         return z + uP, z + vP, z + pP
     end
-    gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
+    gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure, slip)
     Ru = z; Rv = z; Rc = z
     for d in 1:4
         face_visc = _fv_face_viscosity(visc, d)
@@ -438,7 +475,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
         kind, ii, jj = _fv_face_kind(g, tag, i, j, d)
         if kind == _FV_F_INT
             uN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 1)); vN = _fv_val(U, g, ii, jj, _fv_velocity_slot(g.layout, 2)); pN = _fv_val(U, g, ii, jj, _fv_pressure_slot(g.layout))
-            gN = _fv_cell_grad(U, tag, bvel, g, ii, jj, qcut, wvel, closure)
+            gN = _fv_cell_grad(U, tag, bvel, g, ii, jj, qcut, wvel, closure, slip)
             @inbounds nuN = nu[ii, jj]
             dun = (uN - uP) / h
             dvn = (vN - vP) / h
@@ -453,8 +490,8 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
             end
             F = _fv_interior_mass_flux(h, g.conv, uP, vP, pP, uN, vN, pN,
                                        gP, gN, nuf, isx, sx)
-            Ru += g.conv * (_fv_posp(F) * uP + _fv_negp(F) * uN)
-            Rv += g.conv * (_fv_posp(F) * vP + _fv_negp(F) * vN)
+            Ru += g.conv * _fv_conv_value(g, F, uP, uN)
+            Rv += g.conv * _fv_conv_value(g, F, vP, vN)
             if isx
                 tx = 2 * nuf * dun
                 ty = nuf * (dvn + sx * (gP[2] + gN[2]) / 2)
@@ -473,7 +510,7 @@ preserves the uncorrected face flux. No geometry preserves the C1 walls.
             Rc += F
         else
             au, av, tx, ty, pf, F = _fv_wall_flux_components(U, tag, nu, bvel, g, i, j, d,
-                                                            face_visc, qcut, wvel, closure, gP, face_pair)
+                                                            face_visc, qcut, wvel, closure, gP, face_pair, slip)
             Ru += au; Rv += av
             Ru -= h * tx; Rv -= h * ty
             Rc += F
@@ -506,7 +543,7 @@ end
     @inbounds for scalar in 1:_fv_nscalars(g.layout)
         slot = _fv_scalar_slot(g.layout, scalar)
         R[b + slot] = _fv_scalar_residual(energy, energy_source, U, tag, nu, bvel,
-                                         g, i, j, visc, scalar)
+                                         g, i, j, visc, scalar, qcut, wvel, closure, face_pair)
     end
 end
 
@@ -519,6 +556,19 @@ end
                         face_pair, nothing, nothing, i, j)
 end
 
+# Slip walls: a separate launcher keeps the original signature unchanged.
+@kernel function _fv_slip_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
+                                           @Const(bvel), @Const(src), g, visc,
+                                           @Const(qcut), @Const(wvel), closure, @Const(face_pair), slip)
+    i, j = @index(Global, NTuple)
+    ru, rv, rc = fv_cell_residual(U, tag, nu, bvel, src, g, i, j, visc, qcut, wvel, closure,
+                                  face_pair, slip)
+    b = fv_index(g, i, j, 0)
+    @inbounds R[b + _fv_velocity_slot(g.layout, 1)] = ru
+    @inbounds R[b + _fv_velocity_slot(g.layout, 2)] = rv
+    @inbounds R[b + _fv_pressure_slot(g.layout)] = rc
+end
+
 @kernel function _fv_energy_residual_kernel!(R, @Const(U), @Const(tag), @Const(nu),
                                              @Const(bvel), @Const(src), g, visc,
                                              @Const(qcut), @Const(wvel), closure, @Const(face_pair),
@@ -528,6 +578,9 @@ end
                         face_pair, energy, energy_source, i, j)
 end
 
+@inline _fv_scalar_residual(::Nothing, source, U, tag, nu, bvel, g, i, j, visc, scalar,
+                            qcut, wvel, closure, face_pair) =
+    _fv_scalar_residual(nothing, source, U, tag, nu, bvel, g, i, j, visc, scalar)
 @inline _fv_scalar_residual(::Nothing, source, U, tag, nu, bvel, g, i, j, visc, scalar) =
     _fv_val(U, g, i, j, _fv_scalar_slot(g.layout, scalar))
 
@@ -554,7 +607,12 @@ function fv_residual!(R, U, prob::FVSteadyProblem2D; workgroup::Int = 64, sync::
     length(R) == n || throw(DimensionMismatch("length(R) = $(length(R)), expected $n"))
     backend = KernelAbstractions.get_backend(U)
     qcut, wvel, closure = _fv_immersed_args(prob.immersed)
-    if prob.energy === nothing
+    if prob.slip !== nothing
+        prob.energy === nothing || throw(ArgumentError("slip walls do not support the energy equation yet"))
+        _fv_slip_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
+            prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed), prob.slip;
+            ndrange = (g.Nx, g.Ny))
+    elseif prob.energy === nothing
         _fv_residual_kernel!(backend, workgroup)(R, U, prob.tag, prob.nu, prob.bvel,
             prob.src, g, prob.visc, qcut, wvel, closure, _fv_face_pair(prob.immersed);
             ndrange = (g.Nx, g.Ny))
@@ -579,7 +637,7 @@ element type of `U` and of the arrays of `prob`.
 function fv_residual(U, prob::FVSteadyProblem2D)
     T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel), eltype(prob.src),
                      _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed),
-                     _fv_energy_eltype(prob.energy))
+                     _fv_energy_eltype(prob.energy), _fv_slip_eltype(prob.slip))
     R = similar(U, T)
     return fv_residual!(R, U, prob)
 end
@@ -660,6 +718,18 @@ Build the host-side problem of the steady FV residual.
 - `source`: `nothing`, a `(x, y) -> (s_x, s_y, s_mass)` function at cell
   centres, or a length-`3 Nx Ny` vector.
 - `conv`: `true` (Navier-Stokes, default) or `false` (Stokes).
+- `convection`: the convected momentum face value. `:upwind` (default) is
+  first order: its numerical diffusion `h |u·n| / 2` limits the velocity error
+  to O(h) under convection, visible once that error dominates the O(h²)
+  diffusive error (fine grids, fast or slipping walls). `:central` uses the
+  face value itself (cell mean inside, the prescribed value on domain walls,
+  the P/ghost mean on immersed cut faces) and is second order. It is smooth,
+  so the Newton Jacobian (dual numbers) and the adjoint stay exact; it adds
+  no numerical diffusion, so at cell Péclet `|u| h / ν` well above 2 the
+  solution can oscillate between cells (see the high-Péclet check in
+  `test/analytical/incns_fv_convection_central.jl`). Momentum only: the
+  temperature equation has its own `FVEnergy` `scheme` (second-order
+  `:linear_upwind` by default).
 - `T`: element type of the arrays (default `Float64`).
 - `rheology`: `nothing` (default; Newtonian, viscosity `nu`) or a
   generalised-Newtonian law of `src/rheology/models.jl` (`PowerLaw`,
@@ -677,6 +747,9 @@ Build the host-side problem of the steady FV residual.
   pins. Requires periodic x. The uniform x component of `source` becomes the
   initial guess of a final global unknown Fx; y and mass sources stay fixed.
   Use [`fv_flow_force`](@ref) to read the solved force.
+- `slip`: `nothing` (no-slip walls, default) or [`FVSlipWalls`](@ref): a wall
+  slip law and the faces it applies to (domain wall sides, staircase solid
+  faces, immersed cut faces). Not combined with `energy` yet.
 
 Pressure pins are set by [`fv_pressure_pins!`](@ref). Cell centres are at
 `((i - 1/2) h, (j - 1/2) h)`.
@@ -687,15 +760,19 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
                            solid = nothing, source = nothing, conv::Bool = true,
                            T::Type{<:Real} = Float64, rheology = nothing,
                            gnf_eps::Real = 0.0, immersed = nothing, wall_flux = nothing,
-                           viscosity = nothing, energy = nothing, u_mean_target = nothing)
+                           viscosity = nothing, energy = nothing, u_mean_target = nothing,
+                           slip = nothing, convection::Symbol = :upwind)
     Nx = Int(Nx); Ny = Int(Ny)
+    convection in (:upwind, :central) ||
+        throw(ArgumentError("convection must be :upwind or :central, got :$convection"))
     (_fv_bc_code(bc.W) == FV_BC_PERIODIC) == (_fv_bc_code(bc.E) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic W/E sides must be paired"))
     (_fv_bc_code(bc.S) == FV_BC_PERIODIC) == (_fv_bc_code(bc.N) == FV_BC_PERIODIC) ||
         throw(ArgumentError("periodic S/N sides must be paired"))
     layout = energy === nothing ? FVFieldLayout{0}() : FVFieldLayout{1}()
     g = FVGrid2D(Nx, Ny, T(h), conv ? one(T) : zero(T),
-                 _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S), layout)
+                 _fv_bc_code(bc.E), _fv_bc_code(bc.W), _fv_bc_code(bc.N), _fv_bc_code(bc.S), layout,
+                 convection === :central ? FV_CONV_CENTRAL : FV_CONV_UPWIND)
     xc(i) = (i - 0.5) * h
     yc(j) = (j - 0.5) * h
     tag = fill(FV_CELL_FLUID, Nx, Ny)
@@ -768,7 +845,9 @@ function fv_steady_problem(Nx::Integer, Ny::Integer; h::Real = 1 / Ny, nu = 1.0,
     _fv_has_state_temperature(visc) && thermal === nothing &&
         throw(ArgumentError("state-temperature viscosity requires an active energy model"))
     flowrate = _fv_lower_flowrate(u_mean_target, g, tag, srcv, T)
-    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed, thermal, flowrate)
+    slipw = _fv_lower_slip(slip, g, immersed, thermal, visc)
+    immersed = _fv_slip_widen_mass(immersed, slipw, g)
+    return FVSteadyProblem2D(g, tag, nuc, bvel, srcv, visc, immersed, thermal, flowrate, slipw)
 end
 
 """
@@ -779,7 +858,8 @@ or `Array` to come back to the host). The grid is passed through.
 """
 fv_adapt(to, p::FVSteadyProblem2D) =
     FVSteadyProblem2D(p.grid, to(p.tag), to(p.nu), to(p.bvel), to(p.src), _fv_adapt_viscosity(to, p.visc),
-                      _fv_adapt_immersed(to, p.immersed), _fv_adapt_energy(to, p.energy), p.flowrate)
+                      _fv_adapt_immersed(to, p.immersed), _fv_adapt_energy(to, p.energy), p.flowrate,
+                      _fv_adapt_slip(to, p.slip))
 
 """
     fv_state(prob, u, v, p) -> Vector
@@ -831,13 +911,14 @@ function _fv_with_layout(p::FVSteadyProblem2D, layout::FVFieldLayout)
     p.energy === nothing || _fv_nscalars(layout) == 1 ||
         throw(ArgumentError("an active energy equation requires exactly one scalar slot"))
     old = p.grid
-    g = FVGrid2D(old.Nx, old.Ny, old.h, old.conv, old.bcE, old.bcW, old.bcN, old.bcS, layout)
+    g = FVGrid2D(old.Nx, old.Ny, old.h, old.conv, old.bcE, old.bcW, old.bcN, old.bcS, layout,
+                 old.convection)
     src = zeros(eltype(p.src), fv_nunknowns(g))
     for cell in 1:(g.Nx * g.Ny), component in 1:min(_fv_nfields(old), _fv_nfields(g))
         src[_fv_cell_index(g, cell, component)] = p.src[_fv_cell_index(old, cell, component)]
     end
     immersed = _fv_lower_mass(p.immersed, g, p.tag, nothing)
-    return FVSteadyProblem2D(g, p.tag, p.nu, p.bvel, src, p.visc, immersed, p.energy, p.flowrate)
+    return FVSteadyProblem2D(g, p.tag, p.nu, p.bvel, src, p.visc, immersed, p.energy, p.flowrate, p.slip)
 end
 
 # ------------------------------------------------------------------ platform

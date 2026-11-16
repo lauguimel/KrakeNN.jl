@@ -117,6 +117,9 @@ function run_incns_testset()
         include("analytical/incns_fv_newton.jl")
         include("analytical/incns_fv_layout_test.jl")
         include("analytical/incns_fv_energy_test.jl")
+        # open thermal sides: inlet T, zero-gradient outlet, Dirichlet solids;
+        # Graetz vs series, energy balance, Jacobian, adjoint FD (~1 min CPU, estimated)
+        include("analytical/incns_fv_energy_open_bc_test.jl")
         include("analytical/incns_fv_thermal_coupling_test.jl")
         include("analytical/incns_fv_thermal_adjoint_test.jl")
         include("analytical/incns_fv_e5_compare_smoke_test.jl")
@@ -172,6 +175,19 @@ function run_incns_testset()
         include("analytical/incns_fv_immersed_channel.jl") # M3: normalized open-channel mass and drag comparison
         include("analytical/incns_fv_immersed_shape.jl") # M3: discrete shape derivatives and reported continuous limit
         include("analytical/incns_fv_immersed_gpu.jl") # Prepared opt-in CUDA contract
+        # Generic profile walls: inclined channel velocity/temperature orders,
+        # wall heat; circle equivalence, dual Jacobian and law adjoint with energy
+        include("analytical/incns_fv_immersed_walls_channel.jl")
+        include("analytical/incns_fv_immersed_walls_derivatives.jl")
+        # Wall slip laws: Navier/nonlinear/HB channel, inclined immersed channel,
+        # dual Jacobian and slip-parameter adjoint
+        include("analytical/incns_fv_slip_channel.jl")
+        include("analytical/incns_fv_slip_immersed.jl")
+        include("analytical/incns_fv_slip_derivatives.jl")
+        # Optional central momentum convection: default bit-identical, orders,
+        # dual Jacobian, adjoint FD, cell-Peclet check; slip + central on GPU (opt-in)
+        include("analytical/incns_fv_convection_central.jl")
+        include("analytical/incns_fv_slip_gpu.jl")
         # Shallow-shelf ice flow (SSA) on the same Newton/adjoint machinery:
         # 1D stream exact solution, coloured Jacobian vs dense, Newton, learned-drag
         # adjoint vs FD, and its opt-in GPU/cuDSS contract (self-gated on CUDA)

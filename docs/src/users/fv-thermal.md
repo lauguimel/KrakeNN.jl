@@ -27,12 +27,17 @@ same Newton iteration solve all of it at once.
 - Convection uses the continuity (Rhie–Chow) mass flux of each face, with
   second-order linear upwind reconstruction (`scheme = :linear_upwind`, falling
   back to first order where the upstream fluid cell is absent) or plain
-  `:upwind`.
-- Walls carry a prescribed temperature or are `:adiabatic`; faces of solid
-  voxels are adiabatic; periodic sides must keep the `:adiabatic` placeholder.
-  Every connected fluid component must touch a prescribed temperature, else the
-  problem is rejected. Immersed geometry and inlet/outlet boundaries are not
-  supported with energy.
+  `:upwind`. Momentum convection has its own option on
+  `fv_steady_problem`: `convection = :upwind` (first order, default) or
+  `:central` (second order, the face value itself, no numerical diffusion;
+  oscillations possible at cell Péclet well above 2, see
+  `test/analytical/incns_fv_convection_central.jl`).
+- Thermal boundary conditions follow the flow sides (see the next section);
+  every connected fluid component must touch a prescribed temperature (a
+  Dirichlet wall, an inlet or a Dirichlet solid), else the problem is rejected.
+  Immersed walls (`fv_immersed_walls`, `fv_immersed_boundary`)
+  take their wall temperature from `solid` (one value or a function
+  `(wall, x, y) -> T`); `fv_immersed_wall_heat` sums the wall fluxes.
 - Viscosity depends on temperature only when the model asks for it with
   `FVStateTemperature()` in the `fields` tuple of `FVLawViscosity`. Laws are
   scalar laws with inputs `(shear rate, temperature)`: any
@@ -44,6 +49,51 @@ same Newton iteration solve all of it at once.
   uniform force `Fx` becomes one more unknown, constrained so that the mean
   x-velocity over fluid cells equals `U`; it requires periodic x sides.
   `fv_flow_force(prob, U)` reads the solved force.
+
+### Thermal boundary conditions
+
+`FVEnergy(left, right, bottom, top, solid)` sets the temperature of the W, E, S
+and N sides and of the voxel-solid faces. `alpha` is the diffusivity, `h` the
+cell size, `T_P` the cell temperature, and `F` the outward volume flux of the
+face (`h` times the normal velocity). A Dirichlet face uses the half-cell
+gradient `2 alpha (T_P - T_b)`: the value is imposed on the face, half a cell
+from the cell centre.
+
+| Side | Allowed values | Face terms of the thermal row | Backing test |
+|---|---|---|---|
+| `:wall` | finite `T_w` or `:adiabatic` | upwind convection of the prescribed wall velocity (zero for no-slip), plus `2 alpha (T_P - T_w)` if `T_w` is set | `incns_fv_energy_test.jl` (conduction, Couette/Poiseuille heating, Nahme in `incns_fv_thermal_coupling_test.jl`) |
+| `:inlet` | finite `T_in` (required) | `F T_in` for inflow (`T_P` if the face reverses) `+ 2 alpha (T_P - T_in)`; `F` from the prescribed inlet velocity | `incns_fv_energy_open_bc_test.jl`: row formulas, Graetz, energy balance |
+| `:outlet` | `:adiabatic` placeholder (required) | `F T_P` in either direction, no diffusive flux (zero normal gradient); `F = h u_P` (or `h v_P`), the continuity outlet flux | same file: row formulas, constant-temperature identity with reversed faces, Graetz, energy balance |
+| `:periodic` | `:adiabatic` placeholder | periodic transport | `incns_fv_energy_test.jl` |
+| `solid` | finite `T_s` or `:adiabatic` (default) | `2 alpha (T_P - T_s)` on every solid face, no convection (solid faces are no-slip) | `incns_fv_energy_open_bc_test.jl`: row formulas, energy balance, Jacobian, adjoint |
+
+These are the conditions of the LBM open-die driver (`run_gnf_open_steady`,
+branch `feat/gnf-open-steady`): its inlet is a Dirichlet face carried by the
+inlet flux, its outlet is zero-gradient outflow, its walls and solid faces are
+Dirichlet half a cell from the fluid centre. One temperature serves every
+solid face; a per-cell solid temperature field is not supported.
+
+The new terms depend only on the cell's own `(u, v, T)`, so the Jacobian
+pattern is unchanged and the coloured-dual Jacobian and the thermal adjoint
+carry them without extra code. `incns_fv_energy_open_bc_test.jl` checks, on
+CPU in Float64:
+
+- every thermal row against the formulas above written out by hand, with
+  prescribed face velocities (difference at most 1e-13);
+- the Graetz problem (parabolic inlet at `T = 1`, walls at `T = 0`, 384 × 64
+  cells, `Pe = U G / alpha = 200`): local Nusselt number within 2 % of the
+  30-mode parallel-plate series for `x` from `G` to `5G`, once with exact face
+  velocities and once with the coupled Stokes Newton solve; the same gate and
+  series as test O2 of the LBM driver;
+- a global energy balance at convergence (inflow enthalpy and conduction,
+  outflow enthalpy, wall and solid heat, viscous heating) summing to at most
+  1e-9 of its largest term, and inflow equal to outflow to 1e-10;
+- the constant-temperature identity (thermal row = `T` times the continuity
+  row) with reversed outlet faces;
+- coloured against dense dual Jacobian and central finite differences for
+  Newtonian, GNF, prescribed-field law and temperature-dependent GNF models;
+- the thermal adjoint (E5 and learned laws) against central finite differences
+  of full re-solves, with the T4 thresholds.
 
 ### Why the unknown is `theta = T - T_ref`
 
@@ -348,6 +398,19 @@ A smoke test on a small synthetic cell (CPU, a few seconds) is
 `test/analytical/incns_fv_e5_compare_smoke_test.jl`. The real grids need a GPU:
 stage 3 at 600x200 has 480 000 unknowns and 13 million Jacobian entries.
 
+### Die prediction
+
+`benchmarks/fv_thermal/die_predict.jl` solves flow and temperature in the
+tapered die of the LBM open-die driver (same voxel mask, inlet profile,
+dimensionless groups and boundary temperatures, `h = 1`) with a given law: by
+default the Carreau–WLF law of that driver through `FVGNFViscosity`, or any FV
+viscosity model returned by `die_viscosity(c)` in a file named by
+`KRAKEN_DIE_LAW_FILE` (for instance a learned law in `FVLawViscosity`). It
+writes `summary.toml` (Δp, `Δp / dp_scale`, mass and energy balances,
+mixing-cup outlet temperature, Newton statistics) and the fields on the LBM
+cells; with `KRAKEN_DIE_TRUTH` it also compares them with the LBM fields. See
+`benchmarks/fv_thermal/README.md`. Not yet run at the paper resolution.
+
 ## Known limits
 
 - Two grids only (300x100 and 600x200). Two points do not establish a
@@ -356,8 +419,11 @@ stage 3 at 600x200 has 480 000 unknowns and 13 million Jacobian entries.
 - Float64 only. Float32 is not validated.
 - Steady only; no transient energy equation, and no differentiation of the
   continuation path.
-- 2D, walls and periodic sides, voxel solids. Immersed boundaries and
-  inlet/outlet are rejected with energy.
+- Inlet/outlet thermal sides, Dirichlet solids and immersed walls with energy
+  are 2D only; the 3D energy equation (`FVEnergy3D`) takes wall and periodic
+  sides only. A per-cell solid temperature is not supported. With
+  `face_velocity`, an outlet reads the wrap slot (`uf[Nx, j]`, `vf[i, Ny]`),
+  so two opposite outlets are rejected.
 - The round-off floor gate accepts a residual up to a multiple of the rounding
   error; it certifies that the residual is at the precision of the sum, not that
   the iterate is closer to the exact discrete solution than that.
