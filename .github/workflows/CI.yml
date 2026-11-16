@@ -142,3 +142,33 @@ jobs:
           KRAKEN_ONLY: ad/gnf_adjoint_enzyme_test.jl
         with:
           check_bounds: auto
+      # Network-law tests. runtests.jl includes them inside the KRAKEN_SKIP_AD
+      # block, next to the calibration twins, so the bulk step above never runs
+      # them, and they had no step of their own. law_closure and dense_net do
+      # not use Enzyme: bounds checks on, as in the bulk step. onnx_law needs
+      # ProtoBuf (weakdep, listed in test/Project.toml for this reason).
+      # outlet_fd_check (#118) is Enzyme-driven: bounds checks auto, as above.
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: platform/law_closure_test.jl
+        with:
+          check_bounds: 'yes'
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: platform/dense_net_test.jl
+        with:
+          check_bounds: 'yes'
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: platform/onnx_law_test.jl
+        with:
+          check_bounds: 'yes'
+      - uses: julia-actions/julia-runtest@v1
+        if: github.event.inputs.only == ''
+        env:
+          KRAKEN_ONLY: ad/test_ad_outlet_fd_check.jl
+        with:
+          check_bounds: auto
