@@ -162,10 +162,9 @@ result.gradient
 ## Validation
 
 The standalone adjoint `dJ/dR` matches a central finite difference of the
-converged forward to **0.63%** (measured with the earlier polymer step of 4 substeps
-of `dt = 0.05`, which production does not run; to be re-measured with the production
-step. Under the 1% target; re-measured on 2026-10-12 after
-the TRT Guo forcing fix, #67, it was 0.42% before). The finite-difference
+converged forward to **0.62%** (measured on 2026-11-16 with the production polymer
+step, 20 substeps of `dt = 1/20` per LBM step; the earlier test case, 4 substeps of
+`dt = 0.05`, is not a production setting and gave 0.63%. Under the 1% target). The finite-difference
 reference rebuilds the matched geometry at `R ± h`, reconverges each forward
 tightly, and central-differences the inline polymeric drag at the perturbed
 converged states; it also asserts the cut-link topology (cut count and solid
@@ -176,13 +175,13 @@ count) is unchanged across `±h`.
 | C0 | one-step coupled VJP on the stacked `(f, psi)` state | Enzyme VJP matches the discrete step |
 | C1 | steady fixed-point adjoint on the coupled VE map | adjoint solve and finite-difference derivative agree |
 | C2 | per-channel `lambda^T (dG/dR)` against frozen-solid finite difference | analytic geometry seed validated through the operator |
-| C3 | confined-cylinder `d(Cd_polymer)/dR` | central finite difference agreement to `0.63%` |
+| C3 | confined-cylinder `d(Cd_polymer)/dR` | central finite difference agreement to `0.62%` |
 
 The single most important practical caveat is the forward tolerance. The net
 `d(Cd_polymer)/dR` is a **catastrophic cancellation** between the
 explicit geometry partial and the implicit state response. The forward must
 reconverge to `fwd_tol=1e-13`; a looser `1e-11` patience floor poisons the
-finite-difference reference, blowing the agreement out to **53.3%**. The tight
+finite-difference reference, blowing the agreement out to **68%** (53% with the earlier test case). The tight
 floor is therefore the default in `ad_ve_forward_solve` and in the API.
 
 The validated envelope is `Wi <= 1` and `beta >= 0.5`. As with the Newtonian
@@ -195,12 +194,14 @@ cannot differentiate KrakeNN's LBM/FVFD cut-link operator with respect to `R`.
 
 - Only CPU Float64 is supported on the AD path. The GPU production path remains
   the path for forward simulations; this is the separate differentiable path,
-  kept bit-exact per step and guarded by the anti-drift check.
+  kept bit-exact per step (checked step by step and up to the steady state against
+  the production driver in `test/ad/test_ad_ve_step_parity.jl`) and guarded by the
+  anti-drift check.
 - The validated pair is `qoi=:polymer_drag, wrt=:radius`. Any other pair throws
   `ArgumentError`.
 - `using Enzyme` is required before calling the API.
 - The forward must reach `fwd_tol=1e-13`. A looser floor silently poisons the
-  finite-difference cross-check (53.3% at `1e-11`) even when the adjoint itself
+  finite-difference cross-check (68% at `1e-11`) even when the adjoint itself
   is correct.
 - The derivative is a smooth-piece cut-link / cut-cell derivative; avoid radius
   values where a cut link or cut cell enters or leaves the mask when comparing to

@@ -310,12 +310,13 @@ end # module
 #   slope changes once by 5e-4 relative, ten times the change between its other
 #   neighbours), which the 1e-3 stencil straddles. With fwd_tol 2e-15 and h = 1e-4 θ (stencil within 4e-4 θ):
 #   R rel 1.05e-3; lambda 1.9e-7, Fx 4.1e-6, nu_s 2.4e-5 (gates unchanged).
-#   nu_p at fixed lambda (direction 5) added 2026-11-16; not yet measured, gated
-#   with the same GATE_REL_PARAM as the other parameter directions.
-#   FAST case moved to the production polymer step (20 substeps of dt 1/20;
-#   it was 4 substeps of dt 0.05, 0.2 polymer time per LBM step, which no
-#   production setting runs and whose steady drag differs by 23 %). All
-#   values above were measured on the old case; re-measure. Gates unchanged.
+#   nu_p at fixed lambda (direction 5) added 2026-11-16, old case: rel 1.3e-7.
+#   FAST case moved to the production polymer step, 20 substeps of dt 1/20
+#   (it was 4 substeps of dt 0.05, 0.2 polymer time per LBM step, which no
+#   production setting runs; J0 moves by 0.11 %). Measured 2026-11-16, x86_64
+#   Linux, Julia 1.12.5, Enzyme 0.13.218, --check-bounds=auto:
+#   R rel 1.02e-3; lambda 8.3e-7, Fx 8.8e-7, nu_s 3.5e-7, nu_p 3.1e-8
+#   (gates unchanged).
 # The miscompiled reduced construct of #41 gives a 2.3e-2 gradient error or NaN.
 # Directions 2-5 depend on the reverse-mode adjoint only through lambda, so
 # their 1e-4 gate (100x the measured error) is the detector; the radius gate

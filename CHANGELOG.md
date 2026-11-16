@@ -347,7 +347,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   downstream of obstacles; backflow through it is not supported (#126).
 
 ### Fixed
-- The polymer step of the 2D viscoelastic LBM adjoint CPU copy now follows the production rule, `n_substeps` substeps of `dt = 1/n_substeps` (new `ad_ve_coupled_params`; the steady sensitivity API defaults to 20 substeps and throws on any other `dt`); the earlier test case, 0.2 polymer time per LBM step (4 substeps of `dt = 0.05`), cannot be run by production and had a different steady state (23 % in the drag objective). `test/ad/test_ad_ve_step_parity.jl` now compares the copy with production per step and at steady state as strict tests.
+- The polymer step of the 2D viscoelastic LBM adjoint CPU copy now follows the production rule, `n_substeps` substeps of `dt = 1/n_substeps` (new `ad_ve_coupled_params`; the steady sensitivity API defaults to 20 substeps and throws on any other `dt`); the earlier test case, 0.2 polymer time per LBM step (4 substeps of `dt = 0.05`), cannot be run by production; its drag objective is 0.11 % from production with 20 substeps of `dt = 1/20`, and 23 % from production with 4 substeps of `dt = 1/4` (the steady state of the deform-then-relax split depends on the substep). `test/ad/test_ad_ve_step_parity.jl` now compares the copy with production per step and at steady state as strict tests.
 - `run_gnf_duct_obstacle_3d` stops with `converged = false` at the first
   convergence check where the velocity change is not finite, instead of
   running to `max_steps` after a divergence.
