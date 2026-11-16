@@ -306,6 +306,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `benchmarks/lbm3d_law` and `test/analytical` (#138).
 
 ### Changed
+- The 3D D3Q19 generalised-Newtonian step (`fused_trt_gnf_libb_guo_field_step_3d!`
+  and the periodic step behind `run_gnf3d_periodic_steady`) uses the lean
+  collision variant by default (same results: equality with the previous variant at relative
+  tolerance 1e-12 in Float64 and 1e-4 in Float32, tested); the previous one stays
+  available with `variant = :reference`. On CUDA the step kernel is compiled
+  with a register cap and workgroup chosen per element type (Float64: 128
+  registers, workgroup (32, 4, 2); Float32: 96 registers, automatic workgroup);
+  CPU and Metal are unchanged.
+- The periodic 3D generalised-Newtonian setup used by the adjoint
+  (`run_gnf3d_periodic_steady`) is built on the backend with whole-array
+  operations instead of host loops (about 21 min at 256³ before the first step
+  previously); the result is bitwise identical (tested on CPU and CUDA, Float64
+  and Float32).
 - The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl`.
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
   declares `SteadyResidual`; the other drivers declare `ForwardSolve` only, and
@@ -340,6 +353,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   downstream of obstacles; backflow through it is not supported (#126).
 
 ### Fixed
+- `gnf_convert_closure` rebuilds `DenseNet`, `TinyMLP`, `LearnedViscosity` and
+  `ClassicalLaw` closures with their parameters in the target float type, so the
+  GPU kernels receive plain values instead of capturing host arrays (test
+  `test/rheology/gnf_convert_closure_test.jl`, CPU and CUDA).
 - `run_gnf_duct_obstacle_3d` stops with `converged = false` at the first
   convergence check where the velocity change is not finite, instead of
   running to `max_steps` after a divergence.
