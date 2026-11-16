@@ -6,6 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Shallow-shelf / shallow-stream approximation (SSA) of glacier ice flow,
+  `src/methods/ssa/ssa.jl`: steady 2D depth-averaged velocity on a cell-centred
+  finite-volume grid with Glen's law, solved by Newton with the coloured dual
+  Jacobian of the FV machinery (`ssa_problem`, `ssa_newton_solver`,
+  `ssa_newton!`, `ssa_newton_continuation!` over a decreasing strain-rate
+  regularisation, `ssa_solve`). Basal sliding is either Weertman
+  (`SSAWeertman`) or learned (`SSALearnedDrag`: a `TinyMLP` of sliding speed and
+  effective pressure, positive through softplus). `ssa_theta_gradient` returns
+  the gradient of a velocity misfit with respect to the sliding-law weights from
+  one transposed solve. Units are m, yr, kPa throughout. CPU and CUDA (cuDSS);
+  tests `test/analytical/ssa_*.jl` (ice stream against the 1D analytical
+  solution, Jacobian against a dense ForwardDiff Jacobian, Newton, adjoint
+  against finite differences, CPU/GPU parity).
+  Benchmark scripts for Pine Island Glacier in `benchmarks/ssa_glacier/`
+  (input data downloaded separately, not in the repository).
 - Opt-in steady stop rule for `run_cylinder_libb_2d`,
   `run_viscoelastic_fvfd_poiseuille_3d` and the 2D log-FV coupled viscoelastic
   drivers (including `run_viscoelastic_logfv_cylinder_coupled_2d`).
