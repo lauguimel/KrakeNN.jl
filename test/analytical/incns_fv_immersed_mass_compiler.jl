@@ -32,6 +32,21 @@ end
             end
         end
         push!(covered, :_fv_mass_residual_kernel!)
+        # Immersed slip walls launch a separate pair-residual kernel.
+        ps = fv_steady_problem(12, 12; h=1.0, immersed=ib, wall_flux=0.0,
+            slip=FVSlipWalls(FVNavierSlip(0.04); immersed=true))
+        bs, ms = ps.immersed, ps.immersed.mass
+        ns = fv_nunknowns(ps)
+        for chunk in (1, 4)
+            D = ForwardDiff.Dual{KrakeNN.FVParamTag,Float64,chunk}
+            @testset "$closure slip chunk=$chunk state" begin
+                args = (zeros(D, ns), D.(fill(0.1, ns)), ps.bvel, ps.grid, bs.qcut, bs.wvel,
+                    bs.closure, ms.faceptr, ms.faces, ms.Q, ms.A, ps.nu, ps.visc, ps.slip)
+                @test isempty(_fvc4_kernel_issues(KrakeNN._fv_slip_mass_residual_kernel!,
+                    args, length(ms.Q)))
+            end
+        end
+        push!(covered, :_fv_slip_mass_residual_kernel!)
         s = fv_newton_solver(p)
         args = (s.nzval, s.asm.nzrow, s.asm.nzcol, fv_nunknowns(g),
                 m.rowptr, m.rowcol, m.rowval)

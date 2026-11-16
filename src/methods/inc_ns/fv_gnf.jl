@@ -140,7 +140,8 @@ function fv_with_gnf_parameters(p::_FVGNFProblem,
     T = promote_type(eltype(θ), typeof(eps))
     newlaw = typeof(law).name.wrapper(ntuple(k -> T(θ[k]), np)..., law.thermal)
     return FVSteadyProblem2D(p.grid, p.tag, p.nu, p.bvel, p.src,
-                            FVGNFViscosity(newlaw, T(eps); warn = false), p.immersed, p.energy, p.flowrate)
+                            FVGNFViscosity(newlaw, T(eps); warn = false), p.immersed, p.energy, p.flowrate,
+                            p.slip)
 end
 
 # ------------------------------------------------------------------ pattern

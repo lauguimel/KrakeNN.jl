@@ -150,7 +150,9 @@ Args:
     u_init: uniform initial x-velocity in fluid cells (default 0).
     tol_ss, check_every: stop when, over the last `check_every` steps, the
         maximum change of any velocity component on the fluid cells is at most
-        `tol_ss` times the maximum speed. Defaults 1e-10 and 100.
+        `tol_ss` times the maximum speed. Defaults 1e-10 and 100. The run also
+        stops (`converged = false`) at the first check where that change is
+        not finite (divergence).
     h, dt: physical cell size [m] and time step [s] attached to the lattice
         (default 1, i.e. lattice units); they only set `scaling`/`physical`.
     backend, FT: KernelAbstractions backend and floating-point type.
@@ -197,6 +199,8 @@ function run_gnf_duct_obstacle_3d(; rheology, Nx::Int, Ny::Int, Nz::Int, F::Real
             change = maximum(map((a, b) -> maximum(abs, a .- b), comps, previous))
             scale = maximum(map(a -> maximum(abs, a), comps))
             change_rel = scale > 0 ? change / scale : change
+            # stop on divergence (a NaN never passes the test below)
+            isfinite(change) && isfinite(scale) || (converged = false; break)
             converged = change <= FT(tol_ss) * scale
             converged && break
             foreach((p, a) -> copyto!(p, a), previous, comps)

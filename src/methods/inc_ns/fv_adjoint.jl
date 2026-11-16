@@ -49,6 +49,13 @@ duals. Built-in maps:
 - [`FVProblemMap`](@ref)`(f, nparams)`: any `f(prob, θ) -> FVSteadyProblem2D`
   generic in the element type of `θ` (the plug-in point for law parameters).
 
+In 3D ([`FVSteadyProblem3D`](@ref), src/methods/inc_ns/fv_adjoint_3d.jl) the
+same maps apply: `FVViscosityField` has length `Nx Ny Nz`,
+`FVSideVelocity(prob3d, side)` takes the six sides `:E, :W, :N, :S, :T, :B`
+with `shape = (x, y, z) -> (u, v, w)`, `FVUniformSource(comp)` takes
+`comp = 1..4` (4 = mass), and [`FVLawParameters`](@ref) contracts the law
+pullback over the six faces of each cell.
+
 The built-in maps preserve `prob.visc`. For a GNF problem, the cell field
 `nu` is ignored, so viscosity-field maps have zero derivatives; use
 `FVProblemMap(fv_with_gnf_parameters, length(fv_gnf_parameters(prob)))` to
@@ -84,10 +91,10 @@ keep the velocities of the problem the map is applied to. `shape` is a
 `(x, y) -> (u, v)` function at the face centres; default: unit tangential
 velocity (`(1, 0)` on `:N`/`:S`, `(0, 1)` on `:E`/`:W`), i.e. a lid speed.
 """
-struct FVSideVelocity <: FVParameterMap
+struct FVSideVelocity{A<:Array{Float64}} <: FVParameterMap
     side::Int
-    keep::Array{Float64,3}     # 0 on the side, 1 elsewhere (2 × L × 4)
-    shape::Array{Float64,3}    # shape on the side, 0 elsewhere
+    keep::A     # 0 on the side, 1 elsewhere (2 × L × 4 in 2D, 3 × L × L × 6 in 3D)
+    shape::A    # shape on the side, 0 elsewhere
 end
 
 function FVSideVelocity(prob::FVSteadyProblem2D, side::Symbol; shape = nothing)
@@ -114,13 +121,23 @@ end
 
 `θ = [s]`: the volumetric source of equation `comp` (1 = x momentum, i.e. a
 body force per unit mass; 2 = y momentum; 3 = mass) is `s` in every cell.
+For a 3D problem ([`FVSteadyProblem3D`](@ref)): 1, 2, 3 = x, y, z momentum,
+4 = mass.
 """
 struct FVUniformSource <: FVParameterMap
     comp::Int
     function FVUniformSource(comp::Integer)
-        1 <= comp <= 3 || throw(ArgumentError("comp must be 1, 2 or 3"))
+        1 <= comp <= 4 || throw(ArgumentError("comp must be 1, 2, 3 or 4 (4: 3D mass only)"))
         return new(Int(comp))
     end
+end
+
+# number of flow equations per cell (momentum components + mass)
+_fv_nflow(p::FVSteadyProblem2D) = 3
+function _fv_check_source_comp(m::FVUniformSource, prob)
+    m.comp <= _fv_nflow(prob) ||
+        throw(ArgumentError("FVUniformSource($(m.comp)): this problem has $(_fv_nflow(prob)) flow equations"))
+    return nothing
 end
 
 """
@@ -143,7 +160,7 @@ end
 Length of the parameter vector `θ` of `map` for the problem `prob`.
 """
 fv_nparams(::FVUniformViscosity, prob) = 1
-fv_nparams(::FVViscosityField, prob) = prob.grid.Nx * prob.grid.Ny
+fv_nparams(::FVViscosityField, prob) = fv_ncells(prob)
 fv_nparams(::FVSideVelocity, prob) = 1
 fv_nparams(::FVUniformSource, prob) = 1
 fv_nparams(m::FVProblemMap, prob) = m.nparams
@@ -173,14 +190,22 @@ _fv_param_buffers(::Union{FVUniformViscosity,FVViscosityField}, prob, ::Type{T})
     _FVParamBuffers(similar(prob.nu, T), nothing, nothing, nothing)
 _fv_param_buffers(m::FVSideVelocity, prob, ::Type{T}) where {T} =
     _FVParamBuffers(nothing, similar(prob.bvel, T), nothing, _fv_map_aux(m, prob))
-_fv_param_buffers(::FVUniformSource, prob, ::Type{T}) where {T} =
-    _FVParamBuffers(nothing, nothing, similar(prob.src, T), nothing)
+_fv_param_buffers(m::FVUniformSource, prob, ::Type{T}) where {T} =
+    (_fv_check_source_comp(m, prob);
+     _FVParamBuffers(nothing, nothing, similar(prob.src, T), nothing))
 _fv_param_buffers(::FVProblemMap, prob, ::Type{T}) where {T} =
     _FVParamBuffers(nothing, nothing, nothing, nothing)
 
 _fv_with(p::FVSteadyProblem2D; nu = p.nu, bvel = p.bvel, src = p.src, visc = p.visc,
-          immersed = p.immersed, energy = p.energy, flowrate = p.flowrate) =
-    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy, flowrate)
+          immersed = p.immersed, energy = p.energy, flowrate = p.flowrate, slip = p.slip) =
+    FVSteadyProblem2D(p.grid, p.tag, nu, bvel, src, visc, immersed, energy, flowrate, slip)
+
+# Slip walls exist on 2D problems only (fv_slip.jl); a 3D problem has no slip field.
+_fv_slip(p::FVSteadyProblem2D) = p.slip
+_fv_slip(::FVSteadyProblem) = nothing
+# The problem `p` with the state-independent law data of `P` (viscosity model, slip).
+_fv_with_law(p::FVSteadyProblem2D, P) = _fv_with(p; visc = P.visc, slip = P.slip)
+_fv_with_law(p::FVSteadyProblem, P) = _fv_with(p; visc = P.visc)
 
 function _fv_check_nparams(m, prob, θ)
     length(θ) == fv_nparams(m, prob) ||
@@ -230,7 +255,7 @@ The problem `prob` with the parameters `θ` of `map` substituted (arrays on the
 backend of `prob`, element type promoted with `eltype(θ)`; duals allowed).
 Allocating; the adjoint uses preallocated buffers instead.
 """
-function fv_param_problem(m::FVParameterMap, prob::FVSteadyProblem2D, θ::AbstractVector)
+function fv_param_problem(m::FVParameterMap, prob::FVSteadyProblem, θ::AbstractVector)
     _fv_check_nparams(m, prob, θ)
     T = promote_type(eltype(θ), Float64)
     return _fv_param_problem!(_fv_param_buffers(m, prob, T), m, prob, θ)
@@ -288,7 +313,7 @@ function fv_set_params!(s::FVNewtonSolver, m::FVParameterMap, θ::AbstractVector
         _fv_copy_surface!(old.surface, new.surface)
         _fv_copy_mass!(_fv_mass(old), _fv_mass(new))
     end
-    s.prob = _fv_with(s.prob; visc = P.visc)
+    s.prob = _fv_with_law(s.prob, P)
     s.fac_sig = (NaN, NaN, NaN)         # factors no longer match the problem
     _fv_sync(s.R)
     return s
@@ -455,6 +480,11 @@ depends explicitly on the viscosity law and on the wall velocities.
 `region = :solid` takes the faces between fluid cells and solid cells;
 `region = :E, :W, :N, :S` the wall/inlet faces of that domain side.
 
+3D ([`FVSteadyProblem3D`](@ref)): `dir = 1, 2, 3`, regions also `:T, :B`,
+`kind = :legacy` and `wall = 0` only; the force is per face area
+`h² (p_f n − ν_w (∇u + ∇uᵀ)·n)` (no unit depth) with the same wall-stress
+hooks as the 3D residual.
+
 `pressure = :cell` uses the residual's wall pressure (`p_f = p_P` in C1);
 `pressure = :linear`
 extrapolates linearly from the two cells normal to the wall,
@@ -475,8 +505,9 @@ struct FVWallForce <: FVWallObjective
     wall::Int
     function FVWallForce(dir::Integer; region::Symbol = :solid, pressure::Symbol = :cell,
                          kind::Symbol = :legacy, wall::Integer = 0)
-        dir in (1, 2) || throw(ArgumentError("dir must be 1 (x) or 2 (y)"))
-        region in (:solid, :E, :W, :N, :S) || throw(ArgumentError("region must be :solid, :E, :W, :N or :S"))
+        dir in (1, 2, 3) || throw(ArgumentError("dir must be 1 (x), 2 (y) or 3 (z, 3D only)"))
+        region in (:solid, :E, :W, :N, :S, :T, :B) ||
+            throw(ArgumentError("region must be :solid, :E, :W, :N, :S (or :T, :B in 3D)"))
         pressure in (:cell, :linear) || throw(ArgumentError("pressure must be :cell or :linear"))
         kind in (:legacy, :residual_flux, :surface) || throw(ArgumentError("unknown wall objective kind $kind"))
         kind != :legacy && pressure != :cell && throw(ArgumentError("pressure override is only available for the legacy objective"))
@@ -538,22 +569,23 @@ end
     cells = _fv_wall_nu_cells(prob, i, j, d, qcut, closure)
     opposite = nuO === nothing ? (cells[2] > 0 ? prob.nu[cells[2]] : nuP) : nuO
     nu = _FVWallViscosity(prob.nu, cells, promote(nuP, opposite))
+    slip = _fv_bind_slip(prob.slip, nu, visc)
     if f.kind == :residual_flux
-        gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
+        gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure, slip)
         flux = _fv_wall_momentum_flux(U, tag, nu, bvel, g, i, j, d, visc,
-                                      qcut, wvel, closure, gP, _fv_face_pair(prob.immersed))
+                                      qcut, wvel, closure, gP, _fv_face_pair(prob.immersed), slip)
         T = promote_type(eltype(U), eltype(nu), eltype(bvel),
-                         _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed))
+                         _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed), _fv_slip_eltype(prob.slip))
         return flux[f.dir] + zero(T)
     end
     isx = d <= 2
     sx = (d == 1 || d == 3) ? 1 : -1
     pP = _fv_val(U, g, i, j, _fv_pressure_slot(g.layout))
-    gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure)
+    gP = _fv_cell_grad(U, tag, bvel, g, i, j, qcut, wvel, closure, slip)
     _, _, _, _, pf, _, _, dun, dvn =
-        _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure)
-    gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure)
-    tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure)
+        _fv_wall_data(U, bvel, g, i, j, d, qcut, wvel, closure, slip)
+    gF = _fv_wall_gradient(U, tag, bvel, g, i, j, d, gP, qcut, wvel, closure, slip)
+    tx, ty = _fv_wall_stress(nu, visc, g, i, j, d, gF, dun, dvn, qcut, closure, slip)
     if f.pressure === :linear
         # Second cell away from the wall; retain the C1 fallback at corners.
         dop = d == 1 ? 2 : d == 2 ? 1 : d == 3 ? 4 : 3
@@ -568,12 +600,14 @@ end
     # the local dual type when only viscosity was seeded. Conversion preserves
     # the signed zero of the Newtonian force.
     T = promote_type(eltype(U), eltype(nu), eltype(bvel),
-                     _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(visc), _fv_immersed_eltype(prob.immersed), _fv_slip_eltype(prob.slip))
     return convert(T, force)
 end
 
 function _fv_wall_faces(f::FVWallObjective, prob)
     g = prob.grid; tag = prob.tag
+    f isa FVWallForce && (f.dir == 3 || f.region in (:T, :B)) &&
+        throw(ArgumentError("dir = 3 and regions :T/:B are 3D only"))
     (f.kind == :surface || f.wall > 0) && _fv_surface_data(prob)
     faces = NTuple{3,Int}[]
     # A domain-side objective only reads that side; solid faces can be anywhere.
@@ -595,7 +629,7 @@ end
 
 function _fv_wall_force_sum(f, U, prob, faces)
     T = promote_type(eltype(U), eltype(prob.nu), eltype(prob.bvel),
-                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed))
+                     _fv_visc_eltype(prob.visc), _fv_immersed_eltype(prob.immersed), _fv_slip_eltype(prob.slip))
     F = zero(T)
     qcut, wvel, closure = _fv_immersed_args(prob.immersed)
     for (i, j, d) in faces
@@ -743,7 +777,7 @@ end
 function _fv_objective_grad_theta(obj::FVObjective, ::FVViscosityField, Uh, hprob, θ;
                                   chunk::Int = 8)
     g = hprob.grid
-    gθ = zeros(Float64, g.Nx * g.Ny)
+    gθ = zeros(Float64, fv_ncells(hprob))
     fv_objective_explicit(obj) || return gθ
     cells = unique!([_fv_cell_from_index(g, k) for k in fv_objective_support(obj, hprob) if k <= fv_nunknowns(g)])
     D = ForwardDiff.Dual{_FVObjTag,Float64,chunk}
@@ -976,6 +1010,10 @@ end
     end
 end
 
+_fv_nu_gather!(backend, ws, prob::FVSteadyProblem2D, off, ::Val{N}) where {N} =
+    _fv_nu_gather_kernel!(backend, 64)(ws.s, ws.λ, ws.Rd, prob.tag, ws.nucolors, prob.grid, off,
+                                       Val(N); ndrange = (prob.grid.Nx, prob.grid.Ny))
+
 # ------------------------------------------------------------------ ∂R/∂θ products
 function _fv_check_law_gradient(mode)
     mode in (:contraction, :duals) ||
@@ -1026,12 +1064,11 @@ function _fv_param_cotangent_duals!(ws::FVAdjointWorkspace{N}, ::FVViscosityFiel
     θ === nothing || _fv_check_nparams(FVViscosityField(), prob, θ)
     backend = KernelAbstractions.get_backend(U)
     seed! = _fv_nu_seed_kernel!(backend, 256)
-    gather! = _fv_nu_gather_kernel!(backend, 64)
     pd = _fv_with(prob; nu = ws.buf.nu)
     for off in 0:N:(ws.nncolors - 1)
         seed!(ws.buf.nu, prob.nu, ws.nucolors, off, Val(N); ndrange = length(prob.nu))
         fv_residual!(ws.Rd, U, pd; sync = false)
-        gather!(ws.s, ws.λ, ws.Rd, prob.tag, ws.nucolors, g, off, Val(N); ndrange = (g.Nx, g.Ny))
+        _fv_nu_gather!(backend, ws, prob, off, Val(N))
     end
     KernelAbstractions.synchronize(backend)
     return ws.s

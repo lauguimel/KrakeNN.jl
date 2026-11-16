@@ -20,6 +20,10 @@ Scripts for the steady FV energy equation, its thermal coupling and its adjoint
   `m` against the LBM gradient `dm/dtheta` (8 law parameters), and central finite
   differences on `eta0` and `beta`. It ends with a `[thresholds]` table.
 
+- `die_predict.jl` predicts flow and temperature in the tapered extrusion die
+  of the LBM open-die driver (branch `feat/gnf-open-steady`) with the steady
+  FV Newton solver and a given law, on the same cells as the LBM truth.
+
 ## Running `e5_compare.jl`
 
 Input: an export directory of the LBM case with `case.toml`, the binary fields
@@ -74,3 +78,48 @@ pass.
 
 `test/analytical/incns_fv_e5_compare_smoke_test.jl` runs the three stages and the
 thresholds logic on a small synthetic cell on CPU (a few seconds).
+
+## Running `die_predict.jl`
+
+Geometry and data are those of `run_gnf_open_steady`: inlet gap `G` cells
+(`H = G/2`, length `Nx = 7H`), linear taper 2H → H/2 from 1.5H to 4.5H (or
+`tanh`), Poiseuille inlet of mean `U = Re nu_ref / H` at `theta_in`, walls and
+die voxels at `theta_wall`, outlet at `p = 0` with zero normal gradients,
+`alpha` and `sigma` from `Pe` and `Na` as in `gnf_open_thermal_groups`. The
+solve is a `sigma = 0` Newton solve (retried with pseudo-transient
+continuation `dtau0 = 1` if it fails), then a heating ladder up to the nominal
+`sigma` with step halving.
+
+| Variable | Values | Default |
+|---|---|---|
+| `KRAKEN_DIE_BACKEND` | `cpu`, `cuda` (needs CUDA.jl and CUDSS.jl) | `cpu` |
+| `KRAKEN_DIE_G` | even inlet gap in cells | `64` |
+| `KRAKEN_DIE_PROFILE` | `linear`, `tanh` | `linear` |
+| `KRAKEN_DIE_PE`, `KRAKEN_DIE_NA`, `KRAKEN_DIE_RE`, `KRAKEN_DIE_NUREF` | groups | `30`, `0.05`, `0.02`, `0.3` |
+| `KRAKEN_DIE_THETA_IN`, `KRAKEN_DIE_THETA_WALL` | temperatures | `1.0`, `0.0` |
+| `KRAKEN_DIE_EPS` | shear-rate regularisation of the GNF law | `0.0` |
+| `KRAKEN_DIE_LAW_FILE` | Julia file defining `die_viscosity(c)` | Carreau–WLF law of the truth |
+| `KRAKEN_DIE_DTAU0` | pseudo-transient start | none, then `1.0` |
+| `KRAKEN_DIE_TRUTH` | directory with `ux.bin`, `uy.bin`, `theta.bin` (Nx × Ny Float64), `truth.toml` (`dp`, `mass_in`) | none |
+| `KRAKEN_DIE_OUT` | output directory | `tmp/die_predict/G<G>_<profile>_<backend>` |
+
+```sh
+KRAKEN_DIE_BACKEND=cuda julia --project=. benchmarks/fv_thermal/die_predict.jl
+```
+
+Outputs: `summary.toml` (case, Newton record per heating step, `dp`,
+`dp_tilde = dp / dp_scale`, mass in/out, mixing-cup outlet `theta`, energy
+balance terms and relative imbalance, timings, GPU memory, optional
+comparison) and `ux.bin`, `uy.bin`, `p.bin`, `theta.bin`, `is_solid.bin` (raw
+Float64, Nx × Ny, column-major, the layout of the LBM `r.ux`, `r.theta`) and
+`fields.csv`. `dp` is the difference of the mean pressure over the fluid cells
+of columns 1 and Nx, the same columns as the LBM `dp`. A smoke run (G = 8, CPU)
+is in `test/analytical/incns_fv_energy_open_bc_test.jl`.
+
+Known differences with the LBM truth: the LBM outlet imposes a density and
+zero transverse velocity on the outlet nodes, the FV outlet imposes `p = 0` on
+the face and zero normal gradient of `u` and `v`; the LBM inlet node sits at
+`x = 1/2`, the FV inlet face at `x = 0`; the LBM temperature is advected by
+projected node velocities, the FV temperature by the Rhie–Chow flux; the FV
+viscosity is evaluated on faces (face temperature = mean of the two cells),
+the LBM viscosity on nodes.
