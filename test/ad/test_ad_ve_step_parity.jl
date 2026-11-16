@@ -19,7 +19,7 @@
 #
 # Production settings forced to the copy's model:
 #   Oldroyd-B, bsd_fraction = 0 (the copy has no both-sides-diffusion term and
-#   uses nu_lbm = nu_s), polymer_substeps = 4, embedded_geometry = :circle with
+#   uses nu_lbm = nu_s), polymer_substeps = 20, embedded_geometry = :circle with
 #   16 samples (the copy's circle builder), embedded_gradient / embedded_advection
 #   / embedded_force = true (wall-gradient correction, west face = inlet profile,
 #   embedded div tau with cell-fraction rescale), advection_scheme =
@@ -30,19 +30,21 @@
 #
 # Constitutive time step. Production fixes the substep to dt_poly = 1/n
 # (one LBM step of polymer time, split in n substeps); it has no dt keyword.
-# The FAST case of the adjoint tests uses dt = 0.05 with 4 substeps, i.e. 0.2
-# of polymer time per LBM step, which no production setting reproduces. The
-# matched comparison therefore uses the copy with dt = 1/4 and 4 substeps. A
-# second testset runs the copy with the FAST setting (dt = 0.05) against the
-# same production run and records the psi gap as @test_broken.
+# The copy follows the same rule: ad_ve_coupled_params takes n_substeps and sets
+# dt = 1/n. The FAST case of the adjoint tests is 20 substeps of dt = 0.05
+# (1.0/20 and the literal 0.05 are the same Float64). It used to be 4 substeps
+# of dt = 0.05 (0.2 polymer time per LBM step), which production cannot run;
+# that case had a different steady state (23 % in the drag objective). The
+# "unreachable pair" testset below pins that the helper cannot express it.
 #
 # Comparison: fluid cells only (the copy writes rest populations and zero psi
 # in solid cells, which nothing downstream reads). Per field, the max absolute
 # difference divided by the max absolute production value. Gate 1e-13
 # (round-off). No Enzyme: plain CPU tier.
 #
-# A last testset converges the copy at dt = 0.05 and at dt = 1/4 and compares
-# the two steady fixed points (the state the adjoint differentiates).
+# A last testset converges the copy to its steady fixed point (the state the
+# adjoint differentiates), runs production for the same number of steps, and
+# compares the two.
 
 using Test, KrakeNN
 
@@ -53,17 +55,14 @@ const K = KrakeNN
 
 # FAST 24x24 cut cylinder of test_ad_ve_fd_check.jl / test_ad_ve_sensitivity.jl.
 const FAST = (; Nx=24, Ny=24, cx=12.35, cy=11.65, R=5.13,
-              Wi=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16)
+              Wi=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16,
+              n_substeps=20)
 const NSTEPS = 10
-const NSUB = 4
 
-function _copy_params(c, dt)
-    lambda = c.Wi
-    pref = c.nu_p / lambda
-    s_plus, s_minus = K.ad_ve_trt_rates(c.nu_s)
-    return K.ADVECoupledParams(c.Nx, c.Ny, lambda, dt, NSUB, pref, c.nu_s,
-                               c.Fx_body, s_plus, s_minus)
-end
+_copy_params(c) = K.ad_ve_coupled_params(; Nx=c.Nx, Ny=c.Ny, lambda=c.Wi,
+                                         n_substeps=c.n_substeps,
+                                         prefactor=c.nu_p / c.Wi, nu_lbm=c.nu_s,
+                                         Fx_body=c.Fx_body)
 
 # Production geometry carrying exactly the copy's q_wall and LBM mask
 # (node frame cx - 0.5, cy - 0.5), with inlet and outlet open on 1:Ny.
@@ -80,9 +79,12 @@ function _prod_geometry(c, q_wall, is_solid)
     )
 end
 
-function _run_production(c, geom_h)
+# Production run of `nsteps` steps; records the fields after every step, or only
+# after the last one when `last_only`.
+function _run_production(c, geom_h; nsteps=NSTEPS, last_only=false)
     snaps = NamedTuple[]
     cb = function (step, fl)
+        last_only && step != nsteps && return nothing
         push!(snaps, (; step, f=copy(Array(fl.f_out)),
                       rho=copy(Array(fl.rho)), ux=copy(Array(fl.ux)), uy=copy(Array(fl.uy)),
                       psixx=copy(Array(fl.psixx)), psixy=copy(Array(fl.psixy)),
@@ -96,7 +98,7 @@ function _run_production(c, geom_h)
         shear_length=c.Ny,
         nu_s=c.nu_s, nu_p=c.nu_p, lambda=c.Wi, polymer_model=:oldroydb,
         u_mean=c.Fx_body, Fx_body=c.Fx_body, bsd_fraction=0.0,
-        polymer_substeps=NSUB, max_steps=NSTEPS,
+        polymer_substeps=c.n_substeps, max_steps=nsteps,
         embedded_gradient=true, embedded_advection=true, embedded_force=true,
         embedded_drag=false, embedded_geometry=:circle,
         embedded_circle_samples=c.samples,
@@ -186,8 +188,8 @@ function run()
 
     res, snaps = _run_production(c, geom_h)
 
-    # matched copy: dt = 1/NSUB, the production substep
-    p = _copy_params(c, 1.0 / NSUB)
+    # copy with the FAST setting: 20 substeps of dt = 1/20, the production rule
+    p = _copy_params(c)
     w = copy(w0)
     rels = NamedTuple[]
     for k in 1:NSTEPS
@@ -197,23 +199,19 @@ function run()
         push!(rels, _rels(_copy_fields(w, p), snaps[k], fluid))
     end
 
-    # FAST-case copy setting: dt = 0.05 with 4 substeps, one step
-    p_fast = _copy_params(c, 0.05)
-    w_fast = zeros(Float64, length(w0))
-    K.ad_ve_coupled_step!(w_fast, copy(w0), geom.g, geom.q_wall, p_fast,
-                          geom.u_profile, 1.0, nothing)
-    rels_fast = _rels(_copy_fields(w_fast, p_fast), snaps[1], fluid)
-
-    return (; res, snaps, rels, rels_fast, geo_diff, cut_equal, profile_equal,
+    return (; res, p, snaps, rels, geo_diff, cut_equal, profile_equal,
             nsnap=length(snaps))
 end
 
 
-# --- steady fixed point: FAST dt = 0.05 versus the production substep 1/4 -------
-# The adjoint differentiates the fixed point w* = G(w*), so only the converged
-# state matters. Both copies start from ad_ve_initial_state and reconverge to the
-# fd_check forward tolerance (2e-15 one-step change). The QoI is ad_ve_J_fx, the
-# objective of test_ad_ve_fd_check.jl.
+# --- steady fixed point -----------------------------------------------------
+# The adjoint differentiates the fixed point w* = G(w*), so the converged state
+# is what matters. (a) The copy is converged from the driver's initial state to
+# the fd_check forward tolerance (2e-15 one-step change) in k steps; production
+# is run for the same k steps and compared (same map, same start: round-off).
+# (b) The copy is also converged from ad_ve_initial_state, the start used by
+# test_ad_ve_fd_check.jl; both converged states must be the same fixed point,
+# fields and the QoI ad_ve_J_fx, to well below the gate.
 const FWD_TOL = 2e-15
 
 function run_steady()
@@ -221,17 +219,25 @@ function run_steady()
     geom = K.ad_ve_build_geom(c.Nx, c.Ny, c.cx, c.cy, c.R;
                               samples=c.samples, u_mean=c.Fx_body)
     fluid = .!geom.g.is_solid
-    w0 = K.ad_ve_initial_state(geom.g, c.Nx, c.Ny, 0.05)
-    out = map((0.05, 1.0 / NSUB)) do dt
-        p = _copy_params(c, dt)
-        t = @elapsed fwd = K.ad_ve_forward_solve(w0, geom, p; fwd_tol=FWD_TOL)
-        J = K.ad_ve_J_fx(fwd.w_star, geom.pts, geom.g, p)
-        (; dt, p, fwd, J, fields=_copy_fields(fwd.w_star, p), seconds=t)
-    end
-    fast, prod = out
-    rels = _rels(fast.fields, prod.fields, fluid)
-    J_rel = abs(fast.J - prod.J) / max(abs(prod.J), eps(Float64))
-    return (; fast, prod, rels, J_rel)
+    geom_h = _prod_geometry(c, geom.q_wall, geom.g.is_solid)
+    p = _copy_params(c)
+    w_drv, _ = _initial_state(c, geom.g.is_solid, geom.u_profile)
+    w_fd = K.ad_ve_initial_state(geom.g, c.Nx, c.Ny, 0.05)   # u0 = 0.05, as in fd_check
+    t_drv = @elapsed fwd_drv = K.ad_ve_forward_solve(w_drv, geom, p; fwd_tol=FWD_TOL)
+    t_fd = @elapsed fwd_fd = K.ad_ve_forward_solve(w_fd, geom, p; fwd_tol=FWD_TOL)
+    k = fwd_drv.n_iter
+    t_prod = @elapsed prod_out = _run_production(c, geom_h; nsteps=k, last_only=true)
+    snaps = prod_out[2]
+    fields_drv = _copy_fields(fwd_drv.w_star, p)
+    fields_fd = _copy_fields(fwd_fd.w_star, p)
+    rels_prod = _rels(fields_drv, snaps[end], fluid)
+    rels_start = _rels(fields_fd, fields_drv, fluid)
+    J_drv = K.ad_ve_J_fx(fwd_drv.w_star, geom.pts, geom.g, p)
+    J_fd = K.ad_ve_J_fx(fwd_fd.w_star, geom.pts, geom.g, p)
+    J_rel = abs(J_fd - J_drv) / max(abs(J_drv), eps(Float64))
+    return (; fwd_drv, fwd_fd, k, nsnap=length(snaps), last_step=snaps[end].step,
+            rels_prod, rels_start, J_drv, J_fd, J_rel,
+            seconds=(; copy_drv=t_drv, copy_fd=t_fd, production=t_prod))
 end
 end # module
 
@@ -243,11 +249,11 @@ const VE_STEP_PARITY_GATE = 1e-13
     for (k, rel) in enumerate(r.rels)
         @info "VE step parity step $(k)" rel=rel
     end
-    @info "VE step parity FAST dt=0.05 (step 1)" rel=r.rels_fast
 
     @testset "same inputs" begin
         @test r.nsnap == VEStepParity.NSTEPS
-        @test r.res.polymer_substeps == VEStepParity.NSUB
+        @test r.res.polymer_substeps == VEStepParity.FAST.n_substeps
+        @test r.p.dt == 1.0 / VEStepParity.FAST.n_substeps
         @test r.profile_equal
         @test r.cut_equal
         @test r.geo_diff <= VE_STEP_PARITY_GATE
@@ -261,41 +267,51 @@ const VE_STEP_PARITY_GATE = 1e-13
         @test maximum(getproperty(rel, s) for rel in r.rels) <= VE_STEP_PARITY_GATE
     end
 
-    # Known by construction: production integrates one unit of polymer time
-    # per LBM step (dt_poly = 1/substeps); the FAST adjoint case integrates 0.2
-    # (dt = 0.05, 4 substeps). The log-conformation after one step must differ;
-    # the size of the gap is unknown until run (printed above).
-    @testset "FAST dt = 0.05 setting is not a production setting" begin
-        @test_broken max(r.rels_fast.psixx, r.rels_fast.psixy, r.rels_fast.psiyy) <=
-                     VE_STEP_PARITY_GATE
+    # The earlier FAST case, 4 substeps of dt = 0.05 (0.2 polymer time per LBM
+    # step), cannot be run by production (dt_poly = 1/n, no dt keyword) and had
+    # a different steady state. The helper has no dt keyword, so it cannot build
+    # that pair; the positional constructor still can, and the predicate flags it.
+    @testset "unreachable pair is not expressible through the helper" begin
+        c = VEStepParity.FAST
+        kw = (; Nx=c.Nx, Ny=c.Ny, lambda=c.Wi, prefactor=c.nu_p / c.Wi,
+              nu_lbm=c.nu_s, Fx_body=c.Fx_body)
+        @test_throws MethodError KrakeNN.ad_ve_coupled_params(; kw..., n_substeps=4, dt=0.05)
+        @test KrakeNN.ad_ve_coupled_params(; kw..., n_substeps=4).dt == 0.25
+        @test KrakeNN.ad_ve_production_reachable(KrakeNN.ad_ve_coupled_params(; kw..., n_substeps=4))
+        @test KrakeNN.ad_ve_production_reachable(r.p)
+        sp, sm = KrakeNN.ad_ve_trt_rates(c.nu_s)
+        old = KrakeNN.ADVECoupledParams(c.Nx, c.Ny, c.Wi, 0.05, 4, c.nu_p / c.Wi,
+                                        c.nu_s, c.Fx_body, sp, sm)
+        @test !KrakeNN.ad_ve_production_reachable(old)
+        @test_throws ArgumentError KrakeNN.ad_ve_coupled_params(; kw..., n_substeps=0)
     end
 end
 
-# Steady fixed point of the FAST adjoint setting (dt = 0.05, 4 substeps) versus
-# the production-equivalent setting (dt = 1/4, 4 substeps, bit-identical per step
-# to the production driver, see above). Expected to differ, so @test_broken:
-# the constitutive substep is a Lie splitting (deform C -> A C A^T with
-# A = exp(dt grad u), then relax C - I by exp(-dt/lambda)), and the fixed point of
-# that split map depends on dt. For simple shear, c_xy* = dt gdot e/(1 - e) with
-# e = exp(-dt/lambda), i.e. lambda gdot (1 - dt/(2 lambda) + O(dt^2)): about 5 %
-# below the exact Oldroyd-B value at dt = 0.05 and 25 % at dt = 1/4 (lambda = 0.5).
-# On top of that the copy's polymer time per LBM step (n dt) scales deformation
-# and relaxation against the unit-time psi advection (small here: lambda U / R
-# ~ 2e-5). The stress, hence the polymer force, ux/uy, rho, f and the drag Fx
-# all move with it. Measured gap unknown until run (printed below).
+# Steady fixed point. (a) copy vs production after the same k steps from the same
+# start: bit-exact per step above, so round-off accumulated over k steps; gate
+# 1e-10 (not 1e-13: k is several thousand steps). (b) two starts, same fixed
+# point: the gap is bounded by the convergence tolerance divided by the
+# contraction gap of the map, well below 1e-10 for FWD_TOL = 2e-15 (reasoned,
+# not measured).
 const VE_STEADY_GATE = 1e-10
 
-@testset "LBM VE copy steady state: FAST dt vs production dt" begin
+@testset "LBM VE copy steady state vs production" begin
     elapsed = @elapsed s = VEStepParity.run_steady()
-    for r in (s.fast, s.prod)
-        @info "VE steady forward dt=$(r.dt)" n_iter=r.fwd.n_iter residual=r.fwd.residual reached_tol=r.fwd.reached_tol J=r.J seconds=r.seconds
+    for (name, f) in (("driver start", s.fwd_drv), ("fd_check start", s.fwd_fd))
+        @info "VE steady forward ($(name))" n_iter=f.n_iter residual=f.residual reached_tol=f.reached_tol
     end
-    @info "VE steady FAST vs production dt" rel=s.rels J_rel=s.J_rel seconds=elapsed
+    @info "VE steady copy vs production after k steps" k=s.k rel=s.rels_prod
+    @info "VE steady fd_check start vs driver start" rel=s.rels_start J_drv=s.J_drv J_fd=s.J_fd J_rel=s.J_rel seconds=s.seconds total=elapsed
 
-    @test s.fast.fwd.reached_tol
-    @test s.prod.fwd.reached_tol
-    @testset "steady field $(f)" for f in VEStepParity.FIELDS
-        @test_broken getproperty(s.rels, f) <= VE_STEADY_GATE
+    @test s.fwd_drv.reached_tol
+    @test s.fwd_fd.reached_tol
+    @test s.nsnap == 1
+    @test s.last_step == s.k
+    @testset "steady field $(f), copy vs production" for f in VEStepParity.FIELDS
+        @test getproperty(s.rels_prod, f) <= VE_STEADY_GATE
     end
-    @test_broken s.J_rel <= VE_STEADY_GATE
+    @testset "steady field $(f), two starts" for f in VEStepParity.FIELDS
+        @test getproperty(s.rels_start, f) <= VE_STEADY_GATE
+    end
+    @test s.J_rel <= VE_STEADY_GATE
 end

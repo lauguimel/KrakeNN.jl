@@ -110,6 +110,9 @@ result.fd_check.relerr # populated only when fd_check=true
 `Wi` sets the relaxation time (`lambda = Wi`); the polymer stress prefactor is
 `nu_p/Wi`. The solvent viscosity `nu_s` sets the TRT relaxation rates and
 `Fx_body` is the frozen driving body force (used as the inlet mean by default).
+The polymer update follows the production coupled driver: `n_substeps`
+(default 20) substeps of `dt = 1/n_substeps`, one polymer time unit per LBM
+step; any other `dt` throws.
 The forward reconverges to `fwd_tol=1e-13`; do not loosen this floor (see
 Validation).
 
@@ -159,7 +162,9 @@ result.gradient
 ## Validation
 
 The standalone adjoint `dJ/dR` matches a central finite difference of the
-converged forward to **0.63%** (under the 1% target; re-measured on 2026-10-12 after
+converged forward to **0.63%** (measured with the earlier polymer step of 4 substeps
+of `dt = 0.05`, which production does not run; to be re-measured with the production
+step. Under the 1% target; re-measured on 2026-10-12 after
 the TRT Guo forcing fix, #67, it was 0.42% before). The finite-difference
 reference rebuilds the matched geometry at `R ± h`, reconverges each forward
 tightly, and central-differences the inline polymeric drag at the perturbed

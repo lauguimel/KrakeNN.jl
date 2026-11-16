@@ -67,7 +67,9 @@ For `qoi=:polymer_drag`, pass `Nx, Ny, radius, cx, cy, Wi, beta`, the
 polymer viscosity (`ν_p`/`nu_p`) and solvent viscosity (`ν_s`/`nu_s`),
 and `Fx_body`, with `wrt=:radius` and optional `n_substeps, dt, samples,
 u_mean, ρ_out, fwd_tol, max_steps, patience, gmres_tol, adjoint_tol,
-bc, fd_check, fd_h`. The QoI is the polymeric x-drag `Fx`. The forward
+bc, fd_check, fd_h`. The polymer step follows the production driver:
+`n_substeps` (default 20) substeps of `dt = 1/n_substeps`; a `dt` other than
+that value throws. The QoI is the polymeric x-drag `Fx`. The forward
 reconverges to `fwd_tol=1e-13` (mandatory: the net `d(Fx)/dR` is a ~20x
 catastrophic cancellation that a looser floor poisons). For `bc=:open`
 (cylinder west-velocity / east-pressure ZouHe) the adjoint is the
@@ -326,8 +328,8 @@ function _steady_polymer_drag_sensitivity(; Nx::Int, Ny::Int, radius::Real,
                                             ν_s=nothing, nu_s=nothing,
                                             Fx_body::Real,
                                             u_mean::Union{Nothing,Real}=nothing,
-                                            n_substeps::Int=4,
-                                            dt::Real=0.05,
+                                            n_substeps::Int=20,
+                                            dt::Union{Nothing,Real}=nothing,
                                             samples::Int=16,
                                             ρ_out::Real=1.0,
                                             rho_out::Union{Nothing,Real}=nothing,
@@ -351,6 +353,10 @@ function _steady_polymer_drag_sensitivity(; Nx::Int, Ny::Int, radius::Real,
     bc in (:open, :closed, :periodic) ||
         throw(ArgumentError("unsupported bc=$(bc); supported bc values are :open, :closed and :periodic"))
 
+    # Production rule: one polymer time unit per LBM step, dt = 1/n_substeps.
+    # `dt` is accepted only when it states that same value.
+    dt === nothing || Float64(dt) == 1.0 / n_substeps ||
+        throw(ArgumentError("dt=$(dt) is not reachable in production: the coupled driver uses dt = 1/n_substeps = $(1.0 / n_substeps)"))
     nu_p_f = _ad_ve_pick(ν_p, nu_p, "polymer viscosity `ν_p`/`nu_p`")
     nu_s_f = _ad_ve_pick(ν_s, nu_s, "solvent viscosity `ν_s`/`nu_s`")
     R = Float64(radius)
@@ -364,8 +370,8 @@ function _steady_polymer_drag_sensitivity(; Nx::Int, Ny::Int, radius::Real,
     lambda = Float64(Wi)
     prefactor = nu_p_f / lambda
     s_plus, s_minus = ad_ve_trt_rates(nu_s_f)
-    p = ADVECoupledParams(Nx, Ny, lambda, Float64(dt), n_substeps, prefactor,
-                          nu_s_f, Fx, s_plus, s_minus)
+    p = ad_ve_coupled_params(; Nx, Ny, lambda, n_substeps, prefactor,
+                             nu_lbm=nu_s_f, Fx_body=Fx, s_plus, s_minus)
 
     geom = ad_ve_build_geom(Nx, Ny, Float64(cx), Float64(cy), R;
                             samples=samples, u_mean=um)

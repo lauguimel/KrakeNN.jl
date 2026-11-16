@@ -53,8 +53,11 @@ const K = KrakeNN
 
 _relerr(a, b) = abs(a - b) / max(abs(b), eps(Float64))
 
+# n_substeps = 20: polymer substeps of dt = 1/20 = 0.05, the production rule
+# (one polymer time unit per LBM step, see ad_ve_coupled_params).
 const FAST = (; Nx=24, Ny=24, cx=12.35, cy=11.65, R=5.13,
-              Wi=0.5, beta=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16)
+              Wi=0.5, beta=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16,
+              n_substeps=20)
 
 # Forward tolerance (one-step relative change). 2e-15 sits about 4x above the
 # round-off floor of this case (~5e-16); see the gate note at the end of the file.
@@ -71,9 +74,9 @@ function _params(c, theta, which::Int)
     nu_s   = which == 4 ? theta : c.nu_s
     nu_p   = which == 5 ? theta : c.nu_p
     pref = nu_p / lambda
-    s_plus, s_minus = K.ad_ve_trt_rates(nu_s)
-    return K.ADVECoupledParams(c.Nx, c.Ny, lambda, 0.05, 4, pref, nu_s,
-                               Fx, s_plus, s_minus)
+    return K.ad_ve_coupled_params(; Nx=c.Nx, Ny=c.Ny, lambda,
+                                  n_substeps=c.n_substeps, prefactor=pref,
+                                  nu_lbm=nu_s, Fx_body=Fx)
 end
 
 _theta0(c, which) = which == 2 ? c.Wi : which == 3 ? c.Fx_body :
@@ -309,6 +312,10 @@ end # module
 #   R rel 1.05e-3; lambda 1.9e-7, Fx 4.1e-6, nu_s 2.4e-5 (gates unchanged).
 #   nu_p at fixed lambda (direction 5) added 2026-11-16; not yet measured, gated
 #   with the same GATE_REL_PARAM as the other parameter directions.
+#   FAST case moved to the production polymer step (20 substeps of dt 1/20;
+#   it was 4 substeps of dt 0.05, 0.2 polymer time per LBM step, which no
+#   production setting runs and whose steady drag differs by 23 %). All
+#   values above were measured on the old case; re-measure. Gates unchanged.
 # The miscompiled reduced construct of #41 gives a 2.3e-2 gradient error or NaN.
 # Directions 2-5 depend on the reverse-mode adjoint only through lambda, so
 # their 1e-4 gate (100x the measured error) is the detector; the radius gate

@@ -39,17 +39,21 @@ end
 # --- shared case parameters -------------------------------------------------
 # Fast off-lattice (no q_w=0.5 kinks) cut cylinder for C0/C1/C2; converges to
 # 1e-13 in ~7k iters (~3s CPU-F64). The full C3 case is the 32×32 below.
+# n_substeps = 20 polymer substeps of dt = 1/20: the production rule (one
+# polymer time unit per LBM step), also the steady_shape_sensitivity default.
 const FAST = (; Nx=24, Ny=24, cx=12.35, cy=11.65, R=5.13,
-              Wi=0.5, beta=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16)
+              Wi=0.5, beta=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16,
+              n_substeps=20)
 const FULL = (; Nx=32, Ny=32, cx=16.350, cy=15.650, R=8.130,
-              Wi=0.5, beta=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16)
+              Wi=0.5, beta=0.5, nu_p=0.02, nu_s=0.08, Fx_body=2e-4, samples=16,
+              n_substeps=20)
 
 function _build(c)
     lambda = c.Wi
     pref = c.nu_p / lambda
-    s_plus, s_minus = K.ad_ve_trt_rates(c.nu_s)
-    p = K.ADVECoupledParams(c.Nx, c.Ny, lambda, 0.05, 4, pref, c.nu_s,
-                            c.Fx_body, s_plus, s_minus)
+    p = K.ad_ve_coupled_params(; Nx=c.Nx, Ny=c.Ny, lambda,
+                               n_substeps=c.n_substeps, prefactor=pref,
+                               nu_lbm=c.nu_s, Fx_body=c.Fx_body)
     geom = K.ad_ve_build_geom(c.Nx, c.Ny, c.cx, c.cy, c.R;
                               samples=c.samples, u_mean=c.Fx_body)
     return p, geom

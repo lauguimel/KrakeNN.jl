@@ -108,9 +108,8 @@ end
 function _ve_outlet_parity(; nsteps=50)
     Nx, Ny = 24, 24
     lambda = 0.5; nu_p = 0.02; nu_s = 0.08; Fx = 2e-4
-    s_plus, s_minus = K.ad_ve_trt_rates(nu_s)
-    p = K.ADVECoupledParams(Nx, Ny, lambda, 0.05, 4, nu_p / lambda, nu_s, Fx,
-                            s_plus, s_minus)
+    p = K.ad_ve_coupled_params(; Nx, Ny, lambda, n_substeps=20,
+                               prefactor=nu_p / lambda, nu_lbm=nu_s, Fx_body=Fx)
     geom = K.ad_ve_build_geom(Nx, Ny, 12.35, 11.65, 5.13; samples=16, u_mean=Fx)
     w = K.ad_ve_initial_state(geom.g, Nx, Ny, 0.05)
     w_out = similar(w)

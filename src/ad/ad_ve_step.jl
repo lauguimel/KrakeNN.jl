@@ -50,6 +50,38 @@ struct ADVECoupledParams
     s_minus::Float64
 end
 
+"""
+    ad_ve_coupled_params(; Nx, Ny, lambda, n_substeps, prefactor, nu_lbm, Fx_body,
+                         s_plus, s_minus) -> ADVECoupledParams
+
+Build the copy's parameters with the production polymer time step: the driver
+(`_run_viscoelastic_logfv_step_channel_coupled_2d`) advances one polymer time
+unit per LBM step in `n_substeps` substeps of `dt = 1/n_substeps`, and has no
+other dt. This helper takes no `dt`, so it cannot build a (dt, n_substeps) pair
+that production cannot run. `s_plus`/`s_minus` default to `ad_ve_trt_rates(nu_lbm)`.
+Prefer it to the positional constructor, which accepts any pair.
+"""
+function ad_ve_coupled_params(; Nx::Integer, Ny::Integer, lambda::Real,
+                              n_substeps::Integer, prefactor::Real, nu_lbm::Real,
+                              Fx_body::Real, s_plus=nothing, s_minus=nothing)
+    n_substeps >= 1 || throw(ArgumentError("n_substeps must be >= 1"))
+    sp, sm = ad_ve_trt_rates(Float64(nu_lbm))
+    sp = s_plus === nothing ? sp : Float64(s_plus)
+    sm = s_minus === nothing ? sm : Float64(s_minus)
+    return ADVECoupledParams(Int(Nx), Int(Ny), Float64(lambda),
+                             1.0 / Float64(n_substeps), Int(n_substeps),
+                             Float64(prefactor), Float64(nu_lbm), Float64(Fx_body),
+                             sp, sm)
+end
+
+"""
+    ad_ve_production_reachable(p::ADVECoupledParams) -> Bool
+
+True when `p.dt == 1/p.n_substeps`, the only polymer time step the production
+coupled driver runs (bit for bit, as built by the driver: `one(T)/T(n)`).
+"""
+ad_ve_production_reachable(p::ADVECoupledParams) = p.dt == 1.0 / Float64(p.n_substeps)
+
 @inline ad_ve_n(p::ADVECoupledParams) = p.Nx * p.Ny
 
 """

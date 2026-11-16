@@ -153,7 +153,9 @@ end
 function _guo_ratio_ad_2d(nu; Fb=1e-2)
     Nx, Ny = 24, 16
     sp, sm = KrakeNN.ad_ve_trt_rates(nu)
-    p = KrakeNN.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4, 0.04, nu, Fb, sp, sm)
+    p = KrakeNN.ad_ve_coupled_params(; Nx, Ny, lambda=0.5, n_substeps=20,
+                                     prefactor=0.04, nu_lbm=nu, Fx_body=Fb,
+                                     s_plus=sp, s_minus=sm)
     geom = KrakeNN.ad_ve_build_geom(Nx, Ny, 5.35, 8.15, 1.6; samples=8, u_mean=0.0)
     n = Nx * Ny
     w_in = zeros(Float64, 12n)
@@ -475,6 +477,10 @@ end
     geom = KrakeNN.ad_ve_build_geom(Nx, Ny, 5.35, 8.15, 1.6; samples=8, u_mean=0.0)
     w_in = _guo_ad_state(Nx, Ny, MersenneTwister(20261008))
     Fb = 4e-3
+    # Positional constructor kept on purpose: this testset checks the collision
+    # brick, not the polymer step, and its force-size preconditions below were
+    # set with this (dt, n) pair. It is not a production polymer setting
+    # (see ad_ve_coupled_params); it does not need to be.
     adp(sp, sm) = KrakeNN.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4, 0.08, 0.1, Fb, sp, sm)
     probes = ((12, 4), (15, 12), (19, 7), (10, 13))
     for (i, j) in probes, di in -1:1, dj in -1:1

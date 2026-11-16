@@ -65,9 +65,9 @@ using Random
 
     @testset "LBMVEParams construction" begin
         Nx, Ny = 12, 12
-        s_plus, s_minus = KrakeNN.ad_ve_trt_rates(0.08)
-        p_ve = KrakeNN.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4, 0.04, 0.08,
-                                        2e-4, s_plus, s_minus)
+        p_ve = KrakeNN.ad_ve_coupled_params(; Nx, Ny, lambda=0.5, n_substeps=20,
+                                           prefactor=0.04, nu_lbm=0.08,
+                                           Fx_body=2e-4)
         geom = KrakeNN.ad_ve_build_geom(Nx, Ny, 6.35, 5.65, 2.5;
                                        samples=8, u_mean=2e-4)
         p = LBMVEParams(geom.g, geom.q_wall, geom.u_profile, p_ve)
@@ -185,10 +185,9 @@ if Base.get_extension(KrakeNN, :KrakeNNADExt) !== nothing
 
         @testset "VE VJP parity" begin
             Nx, Ny = 24, 24
-            s_plus, s_minus = KrakeNN.ad_ve_trt_rates(0.08)
-            p_ve = KrakeNN.ADVECoupledParams(Nx, Ny, 0.5, 0.05, 4,
-                                            0.02/0.5, 0.08, 2e-4,
-                                            s_plus, s_minus)
+            p_ve = KrakeNN.ad_ve_coupled_params(; Nx, Ny, lambda=0.5,
+                                               n_substeps=20, prefactor=0.02/0.5,
+                                               nu_lbm=0.08, Fx_body=2e-4)
             geom = KrakeNN.ad_ve_build_geom(Nx, Ny, 12.35, 11.65, 5.13;
                                            samples=16, u_mean=2e-4)
             w0 = KrakeNN.ad_ve_initial_state(geom.g, Nx, Ny, 0.05)
