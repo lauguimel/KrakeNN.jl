@@ -1,0 +1,189 @@
+#!/bin/bash -l
+#PBS -N kraken_pf3d
+#PBS -l select=1:ncpus=8:ngpus=1:mem=96GB:gpu_id=A100
+#PBS -l walltime=00:45:00
+#PBS -j oe
+#PBS -m n
+# Step C0 of .orchestrator/3d-kernel-plan.md: registers, spills, occupancy, launch
+# configuration and Nsight Compute sections of the 3D D3Q19 GNF step, on ONE FULL GPU.
+# The project code is given on the qsub line (-P), never in this file.
+# A100: qsub -P UXJFSK0637 -l select=1:ncpus=8:ngpus=1:mem=96GB:gpu_id=A100:host=gpu0n009 -l walltime=00:45:00 -v WORKDIR=$HOME/kraken_perf3d_int,KRAKEN_PF_COPY_GBPS=1383 profile3d.pbs
+# H100: qsub -P UXJFSK0637 -l select=1:ncpus=8:ngpus=1:mem=96GB:gpu_id=H100 -l walltime=00:45:00 -v WORKDIR=$HOME/kraken_perf3d_int,KRAKEN_PF_COPY_GBPS=3029 profile3d.pbs
+# Settings through -v: WORKDIR (default ~/kraken_perf3d_int, source synced at $WORKDIR/src),
+# WALL_S (walltime in s, default 2700), JULIA_BIN, NCU_MODULE (default CUDA/12.8.0),
+# SKIP_NCU=1, KRAKEN_PF_* (profile3d.jl header).
+# Sweep C1/C6/N1 (no ncu): -v ...,SKIP_NCU=1,KRAKEN_PF_SETUP_N=none,KRAKEN_PF_VARIANTS=reference/lean,
+#   KRAKEN_PF_WG=auto/256x1x1/128x2x1/64x4x1/32x4x2/32x8x1,KRAKEN_PF_MAXREGS=0/128/96,
+#   KRAKEN_PF_ROWS=cy_f64/net_f64/cyv_f64/netv_f64/cy_f32/net_f32/netv_f32
+#   (lists use '/' because qsub -v splits on ',').
+# Order: plain run (registers/spills/timing/SETUP_TIME), then ncu on the step kernel of every
+# row, then ncu on the 6 ghost-wrap broadcasts of f_out of row cy_f64. Each ncu run has a
+# timeout so the job ends before the walltime. No background job, no bare `wait`.
+set -o pipefail
+W=${WORKDIR:-$HOME/kraken_perf3d_int}
+SRC=$W/src
+PF=$SRC/benchmarks/profile3d
+cd "$W" || exit 2
+LOGDIR=$W/logs
+RES=$W/results
+mkdir -p "$LOGDIR" "$RES"
+TAG=${PBS_JOBID%%.*}
+TAG=${TAG:-manual}
+WALL_S=${WALL_S:-2700}
+
+HOSTNAME_S=$(hostname -s)
+echo "kraken_pf3d job ${PBS_JOBID:-none} on $HOSTNAME_S, start $(date -Is)"
+case "$HOSTNAME_S" in
+    gpu0n001*) echo "refusing gpu0n001: cuInit fails on that node"; exit 4 ;;
+esac
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || exit 1
+nvidia-smi -L
+if nvidia-smi -L | grep -q "MIG" || [[ "${CUDA_VISIBLE_DEVICES:-}" == MIG* ]]; then
+    echo "MIG slice detected: a profile of a slice does not describe a full GPU"
+    exit 5
+fi
+
+# Julia binary called directly: the juliaup launcher would look for its own
+# configuration under the private depot set below.
+if [ -z "${JULIA_BIN:-}" ]; then
+    JULIA_BIN=$(ls -d "$HOME"/.julia/juliaup/julia-1.11*/bin/julia 2>/dev/null | sort -V | tail -n 1)
+fi
+if [ -z "$JULIA_BIN" ] || [ ! -x "$JULIA_BIN" ]; then
+    echo "no Julia 1.11 binary under ~/.julia/juliaup; pass -v JULIA_BIN=/path/to/bin/julia"
+    exit 6
+fi
+echo "julia binary: $JULIA_BIN"
+
+export JULIA_DEPOT_PATH=$W/depot
+export JULIA_CUDA_USE_COMPAT=false
+export JULIA_PKG_OFFLINE=true
+export JULIA_PKG_PRECOMPILE_AUTO=0
+export JULIA_NUM_THREADS=1
+export JULIA_NUM_PRECOMPILE_TASKS=${NCPUS:-8}
+
+[ -f "$PF/profile3d.jl" ] || { echo "missing $PF/profile3d.jl: sync the source to $SRC first"; exit 2; }
+
+# The environment is normally ready (env/ develops $SRC, with CUDA and KrakeNN).
+# If its Manifest is missing, build it here, inside the job (never on a login node).
+if [ ! -f env/Manifest.toml ]; then
+    if ! mkdir "$W/setup.lock" 2>/dev/null; then
+        echo "setup.lock exists: another job is building env/ (or a failed setup left it); resubmit later"
+        exit 7
+    fi
+    mkdir -p env
+    if [ ! -f env/Project.toml ]; then
+        cat > env/Project.toml <<'TOML'
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+KrakeNN = "b9c8ae56-6711-4442-a2ee-93cdf3c40864"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[compat]
+CUDA = "6"
+TOML
+    fi
+    SRC_DIR=$SRC JULIA_PKG_OFFLINE=false "$JULIA_BIN" --startup-file=no --project=env -e '
+using Pkg
+Pkg.develop(path=ENV["SRC_DIR"])
+Pkg.instantiate()
+Pkg.precompile()
+using CUDA, KrakeNN
+println("Julia ", VERSION, ", CUDA.jl ", pkgversion(CUDA), ", KrakeNN ", pkgversion(KrakeNN))
+CUDA.versioninfo()
+'  2>&1 | tee "$LOGDIR/pf_setup_$TAG.txt"
+    SETUP_STATUS=${PIPESTATUS[0]}
+    rmdir "$W/setup.lock"
+    [ "$SETUP_STATUS" -eq 0 ] || { echo "setup failed ($SETUP_STATUS)"; exit 3; }
+fi
+
+export KRAKEN_PF_OUT=$RES
+export KRAKEN_PF_TAG=$TAG
+remaining() { echo $(( WALL_S - SECONDS - 120 )); }
+
+# 1. Plain run: registers, spills, occupancy, launch configuration, MLUPS, SETUP_TIME.
+echo "== plain run $(date -Is)"
+"$JULIA_BIN" --startup-file=no --project=env "$PF/profile3d.jl" 2>&1 | tee "$LOGDIR/pf_plain_$TAG.txt"
+STATUS=${PIPESTATUS[0]}
+echo "plain run exit status $STATUS"
+grep '^PF ' "$LOGDIR/pf_plain_$TAG.txt" > "$RES/pf_plain_$TAG.txt"
+
+if [ "${SKIP_NCU:-0}" = 1 ]; then
+    echo "SKIP_NCU=1: no ncu run"; echo "kraken_pf3d end $(date -Is)"; exit "$STATUS"
+fi
+
+# 2. Nsight Compute. ncu path taken from the module, then the module is unloaded so that its
+#    LD_LIBRARY_PATH does not reach the CUDA.jl runtime (ncu ships its own libraries).
+module load "${NCU_MODULE:-CUDA/12.8.0}" || echo "module load ${NCU_MODULE:-CUDA/12.8.0} failed"
+NCU=$(command -v ncu || true)
+module unload "${NCU_MODULE:-CUDA/12.8.0}" 2>/dev/null || true
+if [ -z "$NCU" ]; then
+    echo "ncu not found after module load: profile limited to the plain run"
+    echo "kraken_pf3d end $(date -Is)"; exit "$STATUS"
+fi
+"$NCU" --version
+
+ROWS=${KRAKEN_PF_ROWS:-cy_f64,net_f64,cy_f32,net_f32}
+SECTIONS="--section LaunchStats --section Occupancy --section MemoryWorkloadAnalysis --section SpeedOfLight --section ComputeWorkloadAnalysis"
+METRICS="--metrics dram__bytes_read.sum,dram__bytes_write.sum,lts__t_bytes.sum,l1tex__t_bytes.sum,smsp__warps_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread"
+
+# run_ncu <name> <rows> <kernel regex> <launch count> <nvtx-include args...>
+run_ncu() {
+    local name=$1 rows=$2 kregex=$3 count=$4
+    shift 4
+    local left
+    left=$(remaining)
+    if [ "$left" -lt 300 ]; then
+        echo "ncu $name skipped: $left s left before the walltime margin"
+        return 1
+    fi
+    local rep=$RES/ncu_${name}_$TAG
+    echo "== ncu $name $(date -Is), timeout ${left} s"
+    KRAKEN_PF_MODE=ncu KRAKEN_PF_ROWS=$rows KRAKEN_PF_SETUP_N=none JULIA_CUDA_MEMORY_POOL=none \
+        timeout "$left" "$NCU" --nvtx "$@" --kernel-name "regex:$kregex" --launch-count "$count" \
+        $SECTIONS $METRICS -f -o "$rep" \
+        "$JULIA_BIN" --startup-file=no --project=env "$PF/profile3d.jl" 2>&1 | tee "$LOGDIR/pf_ncu_${name}_$TAG.txt"
+    local st=${PIPESTATUS[0]}
+    echo "ncu $name exit status $st"
+    if grep -q "ERR_NVGPUCTRPERM" "$LOGDIR/pf_ncu_${name}_$TAG.txt"; then
+        echo "NCU_PERMISSION_DENIED (ERR_NVGPUCTRPERM): no performance counters for users on this node"
+        return 2
+    fi
+    if [ -f "$rep.ncu-rep" ]; then
+        "$NCU" --import "$rep.ncu-rep" --page details --csv > "$rep.details.csv" 2>&1
+        "$NCU" --import "$rep.ncu-rep" --page details > "$rep.details.txt" 2>&1
+        "$NCU" --import "$rep.ncu-rep" --page raw --csv > "$rep.raw.csv" 2>&1
+        echo "ncu $name report: $rep.ncu-rep, $(grep -c 'lbm_gen_kernel\|broadcast' "$rep.details.csv") csv lines naming a kernel"
+    else
+        echo "ncu $name: no report written"
+        return 3
+    fi
+    return 0
+}
+
+# 2a. Step kernel, 3 launches per row (one per step of the NVTX range), all rows in one run.
+INCLUDES=()
+NROWS=0
+for r in $(echo "$ROWS" | tr ",/" "  "); do
+    INCLUDES+=(--nvtx-include "$r/")
+    NROWS=$((NROWS + 1))
+done
+run_ncu steps "$ROWS" lbm_gen_kernel $((3 * NROWS)) "${INCLUDES[@]}"
+NCU_STATUS=$?
+# Fallback if several --nvtx-include did not combine as an OR (report without kernels):
+# one run per row.
+if [ "$NCU_STATUS" -eq 0 ] && ! grep -q "lbm_gen_kernel" "$RES/ncu_steps_$TAG.details.csv"; then
+    echo "ncu steps: no step kernel in the report; one ncu run per row"
+    for r in $(echo "$ROWS" | tr ",/" "  "); do
+        run_ncu "step_$r" "$r" lbm_gen_kernel 3 --nvtx-include "$r/" || break
+    done
+fi
+
+# 2b. Ghost wrap: the 6 broadcasts on f_out of the first step in the cy_f64 range
+#     (axis 1 lo/hi = strided planes, axis 2, axis 3 = contiguous planes).
+if [ "$NCU_STATUS" -ne 2 ]; then
+    run_ncu wrap cy_f64 broadcast 6 --nvtx-include "cy_f64/"
+fi
+
+echo "kraken_pf3d end $(date -Is), plain run exit status $STATUS"
+exit "$STATUS"

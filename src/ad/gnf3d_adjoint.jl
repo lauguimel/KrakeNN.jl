@@ -193,60 +193,77 @@ _gnf3d_force3(F::Real) = (Float64(F), 0.0, 0.0)
 _gnf3d_force3(F::Tuple) = (length(F) == 3 || throw(ArgumentError("F must be (Fx, Fy, Fz)"));
                            (Float64(F[1]), Float64(F[2]), Float64(F[3])))
 
+# Padded periodic lattice built on `backend` with whole-array broadcasts (no
+# per-cell host loop, no 4D host array). Bit-identical to the former host loop
+# (kept as `_g3s_setup_reference` in test/ad/gnf3d_setup_equality_test.jl):
+# the only arithmetic done per cell is `inv`, `/`, `+`, `-` in the same order
+# (no multiply-add, so no FMA contraction on the device); the equilibria,
+# sp0/sm0 and the f_init/tau_init conversions to FT are evaluated on the host.
 function _gnf3d_periodic_setup(is_solid::AbstractArray{Bool,3}, closure, F, nu_init, Λ,
-                               f_init, tau_init, backend, FT)
+                               f_init, tau_init, backend, ::Type{FT}) where {FT}
     nx, ny, nz = size(is_solid)
     dims = (nx + 2, ny + 2, nz + 2)
+    I = (2:nx+1, 2:ny+1, 2:nz+1)
     Fx, Fy, Fz = _gnf3d_force3(F)
     model = _gnf3d_rheology(FT, closure)
+    KA = KernelAbstractions
+    dev(a) = _gnf_backend_copy_3d(backend, a)
+    # Periodic image of the mask on the padded lattice (ghost i = 1 <- nx, nx+2 <- 1).
+    pad(n) = [n; 1:n; 1]
     solid_r = Array{Bool}(is_solid)
-    solid_p = [solid_r[mod1(i - 1, nx), mod1(j - 1, ny), mod1(k - 1, nz)]
-               for i in 1:dims[1], j in 1:dims[2], k in 1:dims[3]]
-    q_wall = zeros(FT, dims..., 19)
-    for k in 2:nz+1, j in 2:ny+1, i in 2:nx+1
-        solid_p[i, j, k] && continue
-        for q in 2:19
-            solid_p[i + _G3_CX[q], j + _G3_CY[q], k + _G3_CZ[q]] && (q_wall[i, j, k, q] = FT(0.5))
-        end
+    solid_d = dev(solid_r[pad(nx), pad(ny), pad(nz)])
+    solid_i = view(solid_d, I...)
+    # q_wall = 1/2 on every link from an interior fluid node to a solid one, 0 elsewhere.
+    q_wall = KA.zeros(backend, FT, dims..., 19)
+    half = FT(0.5)
+    for q in 2:19
+        cq = (_G3_CX[q], _G3_CY[q], _G3_CZ[q])
+        nb = view(solid_d, ntuple(d -> I[d] .+ cq[d], 3)...)
+        view(q_wall, I..., q) .= ifelse.(.!solid_i .& nb, half, zero(FT))
     end
+    # Relaxation rates: uniform start, τ⁺ from tau_init at interior fluid nodes.
     sp0 = inv(FT(3) * FT(nu_init) + FT(0.5))
     sm0 = inv(FT(Λ) / (FT(3) * FT(nu_init)) + FT(0.5))
-    sp = fill(sp0, dims); sm = fill(sm0, dims)
-    f = zeros(FT, dims..., 19)
-    fh = f_init === nothing ? nothing : Array(f_init)
-    th = tau_init === nothing ? nothing : Array(tau_init)
-    for k in 2:nz+1, j in 2:ny+1, i in 2:nx+1
-        ir, jr, kr = i - 1, j - 1, k - 1
-        solid = solid_p[i, j, k]
+    sp = KA.allocate(backend, FT, dims...); fill!(sp, sp0)
+    sm = KA.allocate(backend, FT, dims...); fill!(sm, sm0)
+    if tau_init !== nothing
+        τ = dev(reshape(Array{FT}(Array(tau_init)), nx, ny, nz))
+        Λf = FT(Λ)
+        view(sp, I...) .= ifelse.(solid_i, sp0, inv.(τ))
+        view(sm, I...) .= ifelse.(solid_i, sm0, inv.(Λf ./ (τ .- half) .+ half))
+    end
+    # Populations: f_init, else rest equilibrium (solid) / shifted by −F/2 (fluid).
+    f_in = KA.zeros(backend, FT, dims..., 19)
+    if f_init !== nothing
+        view(f_in, I..., :) .= dev(reshape(Array{FT}(Array(f_init)), nx, ny, nz, 19))
+    else
+        eq_s = ntuple(q -> equilibrium(D3Q19(), one(FT), zero(FT), zero(FT), zero(FT), q), 19)
+        eq_f = ntuple(q -> equilibrium(D3Q19(), one(FT), FT(-Fx / 2), FT(-Fy / 2),
+                                       FT(-Fz / 2), q), 19)
         for q in 1:19
-            f[i, j, k, q] = fh !== nothing ? FT(fh[ir, jr, kr, q]) :
-                solid ? equilibrium(D3Q19(), one(FT), zero(FT), zero(FT), zero(FT), q) :
-                        equilibrium(D3Q19(), one(FT), FT(-Fx / 2), FT(-Fy / 2), FT(-Fz / 2), q)
-        end
-        if !solid && th !== nothing
-            τ = FT(th[ir, jr, kr])
-            sp[i, j, k] = inv(τ)
-            sm[i, j, k] = inv(FT(Λ) / (τ - FT(0.5)) + FT(0.5))
+            view(f_in, I..., q) .= ifelse.(solid_i, eq_s[q], eq_f[q])
         end
     end
     axes3 = (1, 2, 3)
-    for a in (f, sp, sm)
+    for a in (f_in, sp, sm)
         _wrap_gnf_periodic_3d!(a, axes3)
     end
-    force = ntuple(d -> FT.((d == 1 ? Fx : d == 2 ? Fy : Fz) .* .!solid_p), 3)
-    dev(a) = _gnf_backend_copy_3d(backend, a)
-    f_in = dev(f)
-    return (; f_in, f_out=similar(f_in), rho=dev(ones(FT, dims)), ux=dev(zeros(FT, dims)),
-            uy=dev(zeros(FT, dims)), uz=dev(zeros(FT, dims)), is_solid=dev(solid_p),
-            q_wall=dev(q_wall), uw=dev(zeros(FT, dims..., 19)), Fx=dev(force[1]),
-            Fy=dev(force[2]), Fz=dev(force[3]), sp=dev(sp), sm=dev(sm), dims, nx, ny, nz,
-            model, Λ=FT(Λ), F=(Fx, Fy, Fz), axes3)
+    # Fx * !solid as the former host expression: FT(Fx) * false = copysign(0, Fx).
+    force = map(c -> FT(c) .* .!solid_d, (Fx, Fy, Fz))
+    return (; f_in, f_out=similar(f_in), rho=KA.ones(backend, FT, dims...),
+            ux=KA.zeros(backend, FT, dims...), uy=KA.zeros(backend, FT, dims...),
+            uz=KA.zeros(backend, FT, dims...), is_solid=solid_d, q_wall,
+            uw=KA.zeros(backend, FT, dims..., 19), Fx=force[1], Fy=force[2], Fz=force[3],
+            sp, sm, dims, nx, ny, nz, model, Λ=FT(Λ), F=(Fx, Fy, Fz), axes3)
 end
 
-function _gnf3d_periodic_step!(s, f_out, f_in)
+# `workgroupsize`, `variant`, `maxregs`: launch/code-generation options of the step
+# kernel (defaults = production, see fused_trt_gnf_libb_guo_field_step_3d!).
+function _gnf3d_periodic_step!(s, f_out, f_in; workgroupsize=:auto, variant::Symbol=:lean,
+                               maxregs=:auto)
     fused_trt_gnf_libb_guo_field_step_3d!(f_out, f_in, s.rho, s.ux, s.uy, s.uz, s.is_solid,
         s.q_wall, s.uw, s.uw, s.uw, s.Fx, s.Fy, s.Fz, s.sp, s.sm,
-        s.dims[1], s.dims[2], s.dims[3], s.model; Λ=s.Λ)
+        s.dims[1], s.dims[2], s.dims[3], s.model; Λ=s.Λ, workgroupsize, variant, maxregs)
     for a in (f_out, s.sp, s.sm)
         _wrap_gnf_periodic_3d!(a, s.axes3)
     end

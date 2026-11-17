@@ -29,6 +29,7 @@ ProtoBuf = "3349acd9-ac6a-5e09-bcdb-63829b23a429"
 
 [extensions]
 KrakeNNADExt = "Enzyme"
+KrakeNNCUDAExt = "CUDA"
 KrakeNNCUDSSExt = "CUDSS"
 KrakeNNLinearSolveExt = "LinearSolve"
 KrakeNNMakieExt = "CairoMakie"
