@@ -1,8 +1,9 @@
 name: Documentation
 on:
+  # v0.7.0 does not deploy its site: the site that goes online next ships
+  # with v0.8. No release-branch or tag trigger on this line.
   push:
-    branches: [main, dev/v0.3-campaign, 'release/**']
-    tags: ['v*']
+    branches: [main, dev/v0.3-campaign]
   pull_request:
     branches: [main, dev/platform, dev/v0.3-campaign]
   workflow_dispatch:
