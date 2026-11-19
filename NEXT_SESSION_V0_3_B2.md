@@ -78,7 +78,7 @@ cellules** pour le cylindre Re=100 (Williamson 1996, Schäfer-Turek 2D-2) :
 ```bash
 cd ~/Documents/Recherche/Kraken.jl
 ./hpc/sync_to_aqua.sh         # rsync branche slbm-paper
-ssh maitreje@aqua.qut.edu.au
+ssh <user>@aqua.qut.edu.au
 cd Kraken.jl && qsub hpc/wp_mesh_6_focus_aqua.pbs
 ```
 

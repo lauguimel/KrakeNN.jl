@@ -44,11 +44,11 @@ then pass `--hardware-id=<your_key>` to `run_all.jl`.
 
 ```bash
 # From your laptop
-scp hpc/aqua_perf_h100.pbs maitreje@aqua.qut.edu.au:~/Kraken.jl/hpc/
-ssh maitreje@aqua.qut.edu.au 'cd ~/Kraken.jl && qsub hpc/aqua_perf_h100.pbs'
+scp hpc/aqua_perf_h100.pbs <user>@aqua.qut.edu.au:~/Kraken.jl/hpc/
+ssh <user>@aqua.qut.edu.au 'cd ~/Kraken.jl && qsub hpc/aqua_perf_h100.pbs'
 
 # After the job finishes, pull the CSV back
-scp 'maitreje@aqua.qut.edu.au:~/Kraken.jl/benchmarks/results/*.csv' benchmarks/results/
+scp '<user>@aqua.qut.edu.au:~/Kraken.jl/benchmarks/results/*.csv' benchmarks/results/
 ```
 
 ## Scripts

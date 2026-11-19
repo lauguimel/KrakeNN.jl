@@ -9,7 +9,7 @@
 # gnf3d_parity.jl and gnf3d_channel_order.jl (they also call the 3D step).
 # Same environment as profile3d.pbs ($WORKDIR/env develops $WORKDIR/src); run profile3d.pbs
 # once first if env/Manifest.toml is missing (this script does not build it).
-# H100: qsub -P UXJFSK0637 -l select=1:ncpus=8:ngpus=1:mem=64GB:gpu_id=H100 -l walltime=01:00:00 -v WORKDIR=$HOME/kraken_perf3d_int tests3d.pbs
+# H100: qsub -P <project> -l select=1:ncpus=8:ngpus=1:mem=64GB:gpu_id=H100 -l walltime=01:00:00 -v WORKDIR=$HOME/kraken_perf3d_int tests3d.pbs
 # Settings through -v: WORKDIR, JULIA_BIN, T3D_FILES (space-free list separated by '/', paths
 # relative to $WORKDIR/src/test; default the seven files below).
 set -o pipefail

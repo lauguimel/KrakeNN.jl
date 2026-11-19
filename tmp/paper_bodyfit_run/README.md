@@ -360,8 +360,8 @@ julia --project=. tmp/paper_bodyfit_run/paper_cylinder2d_convergence_compare.jl
 julia --project=. tmp/paper_bodyfit_run/paper_make_ogrid_msh.jl
 julia --project=. -e 'using KrakeNN; res = run_simulation("tmp/paper_bodyfit_run/krk/cylinder_ogrid_msh_drag.krk"); @show res.Cd res.Cl res.D_eff'
 KRK_KRK_MSH_STEPS=20 KRK_KRK_MSH_TAG=local_smoke julia --project=. tmp/paper_bodyfit_run/paper_krk_msh_drag.jl
-ssh aqua 'cd /home/maitreje/Kraken.jl && qsub tmp/paper_bodyfit_run/pbs/paper_krk_msh_drag_h100.pbs'
-ssh aqua 'cd /home/maitreje/Kraken.jl && qsub tmp/paper_bodyfit_run/pbs/paper_cylinder2d_convergence_h100.pbs'
+ssh aqua 'cd $HOME/Kraken.jl && qsub tmp/paper_bodyfit_run/pbs/paper_krk_msh_drag_h100.pbs'
+ssh aqua 'cd $HOME/Kraken.jl && qsub tmp/paper_bodyfit_run/pbs/paper_cylinder2d_convergence_h100.pbs'
 julia --project=. -e 'ENV["KRK_PAPER_BACKEND"]="metal"; ENV["KRK_PAPER_FT"]="Float32"; include("tmp/paper_bodyfit_run/paper_gmsh_interpolation_bench.jl"); main()'
 julia --project=. -e 'ENV["KRK_PAPER_BACKEND"]="metal"; ENV["KRK_PAPER_FT"]="Float32"; include("tmp/paper_bodyfit_run/paper_compute_tradeoff.jl"); main()'
 julia --project=. -e 'ENV["KRK_PAPER_BACKEND"]="metal"; ENV["KRK_PAPER_FT"]="Float32"; ENV["KRK_PAPER_INTERP"]="bilinear,biquadratic,quartic"; ENV["KRK_PAPER_DEPARTURE"]="q1_newton"; ENV["KRK_PAPER_SKIP_PLOTS"]="1"; include("tmp/paper_bodyfit_run/paper_gmsh_slbm_one_step.jl"); main()'

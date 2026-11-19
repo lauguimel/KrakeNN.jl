@@ -7,8 +7,8 @@
 # Step C0 of .orchestrator/3d-kernel-plan.md: registers, spills, occupancy, launch
 # configuration and Nsight Compute sections of the 3D D3Q19 GNF step, on ONE FULL GPU.
 # The project code is given on the qsub line (-P), never in this file.
-# A100: qsub -P UXJFSK0637 -l select=1:ncpus=8:ngpus=1:mem=96GB:gpu_id=A100:host=gpu0n009 -l walltime=00:45:00 -v WORKDIR=$HOME/kraken_perf3d_int,KRAKEN_PF_COPY_GBPS=1383 profile3d.pbs
-# H100: qsub -P UXJFSK0637 -l select=1:ncpus=8:ngpus=1:mem=96GB:gpu_id=H100 -l walltime=00:45:00 -v WORKDIR=$HOME/kraken_perf3d_int,KRAKEN_PF_COPY_GBPS=3029 profile3d.pbs
+# A100: qsub -P <project> -l select=1:ncpus=8:ngpus=1:mem=96GB:gpu_id=A100:host=gpu0n009 -l walltime=00:45:00 -v WORKDIR=$HOME/kraken_perf3d_int,KRAKEN_PF_COPY_GBPS=1383 profile3d.pbs
+# H100: qsub -P <project> -l select=1:ncpus=8:ngpus=1:mem=96GB:gpu_id=H100 -l walltime=00:45:00 -v WORKDIR=$HOME/kraken_perf3d_int,KRAKEN_PF_COPY_GBPS=3029 profile3d.pbs
 # Settings through -v: WORKDIR (default ~/kraken_perf3d_int, source synced at $WORKDIR/src),
 # WALL_S (walltime in s, default 2700), JULIA_BIN, NCU_MODULE (default CUDA/12.8.0),
 # SKIP_NCU=1, KRAKEN_PF_* (profile3d.jl header).

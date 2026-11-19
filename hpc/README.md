@@ -19,7 +19,7 @@ hpc/sync_to_aqua.sh --apply   # actually transfer
 
 # 2. Submit a job
 ssh aqua 'cd ~/Kraken.jl && qsub hpc/aqua_perf_h100.pbs'
-ssh aqua 'qstat -u maitreje'   # check queue status
+ssh aqua 'qstat -u <user>'   # check queue status
 
 # 3. Wait for the job to finish (PBS sends an email if -m abe is set)
 

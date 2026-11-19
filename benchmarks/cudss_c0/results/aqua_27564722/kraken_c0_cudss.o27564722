@@ -1568,37 +1568,3 @@ CPU time         : 00:17:40
 Wall time        : 00:15:35
 Mem usage        : 4519972kb
 
---- Job Runtime Information at 2026-11-04T02:38:33.178744---
-id               : 27564722.aqua
-Job_Name         : kraken_c0_cudss
-Job_Owner        : <user>@aquarius04.ib0.hpc.qut.edu.au
-resources_used   : cput=00:17:40,mem=4519972kb,walltime=00:15:35,ncpus=8,cpupercent=151,vmem=99866384kb,cpus="2,3,4,5,6,7,8,9",ngpus=0,gpu_usage="gpu0n009(cuda.2.usagePerc=12.7%, cuda.2.memUsagePerc=5.0%)"
-job_state        : 5
-queue            : gpu_batch_exec
-server           : aqua
-devices          : /dev/nvidia0
-Checkpoint       : u
-Error_Path       : aquarius04.ib0.hpc.qut.edu.au:~/kraken_c0/kraken_c0_cudss.e27564722
-exec_host2       : gpu0n009.ib0.hpc.qut.edu.au:15002/2*8
-exec_vnode       : (gpu0n009[0]:ncpus=8:ngpus=1:mem=67108864kb:nfpgas=0)
-Join_Path        : oe
-Keep_Files       : n
-mtime            : 2026-11-04T02:22:51
-Output_Path      : aquarius04.ib0.hpc.qut.edu.au:~/kraken_c0/kraken_c0_cudss.o27564722
-Resource_List    : mem=64gb,walltime=02:00:00,ncpus=8,place=free
-schedselect      : 1:ncpus=8:ngpus=1:mem=64GB:gpu_id=A100:host=gpu0n009:nfpgas=0:cpu_id=any:qlist=gpu_batch_exec
-stime            : 2026-11-04T02:22:49
-session_id       : 1716118
-substate         : 50
-Variable_List    : PBS_O_HOME=~,PBS_O_LANG=en_US.UTF-8,PBS_O_LOGNAME=<user>,PBS_O_PATH=~/.juliaup/bin:~/bin:~/.local/bin:~/bin:/opt/clmgr/sbin:/opt/clmgr/bin:/opt/sgi/sbin:/opt/sgi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/c3/bin:/opt/pbs/bin:/sbin:/bin,PBS_O_SHELL=/bin/bash,PBS_O_INTERACTIVE_AUTH_METHOD=resvport,PBS_O_HOST=aquarius04.ib0.hpc.qut.edu.au,PBS_O_WORKDIR=~/kraken_c0,PBS_O_SYSTEM=Linux,PBS_O_QUEUE=gpu_batch
-euser            : <user>
-egroup           : default
-hashname         : 27564722.aqua
-run_count        : 1
-job_kill_delay   : 10
-Exit_status      : 0
-project          : <RPID>
-run_version      : 1
-Submit_Host      : aquarius04.ib0.hpc.qut.edu.au
-Submit_arguments : -P <RPID> -l select=1:ncpus=8:ngpus=1:mem=64GB:gpu_id=A100:host=gpu0n009 -l walltime=02:00:00 src_c0/benchmarks/cudss_c0/c0_cudss.pbs 
-ctime            : 2026-11-04T02:22:44

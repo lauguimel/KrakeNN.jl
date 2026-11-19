@@ -12,8 +12,8 @@ KRK_AMR_D_PATCH_STRATEGY=interface_buffered
 Precompiling packages...
   23214.0 ms  ✓ Kraken
   1 dependency successfully precompiled in 61 seconds. 205 already precompiled.
-wrote /mnt/hpccs01/home/maitreje/Kraken.jl/benchmarks/results/amr_d_publication_raw_2d_aqua_D_pub_20260505_long.csv
-wrote /mnt/hpccs01/home/maitreje/Kraken.jl/benchmarks/results/amr_d_publication_summary_2d_aqua_D_pub_20260505_long.csv
+wrote $HOME/Kraken.jl/benchmarks/results/amr_d_publication_raw_2d_aqua_D_pub_20260505_long.csv
+wrote $HOME/Kraken.jl/benchmarks/results/amr_d_publication_summary_2d_aqua_D_pub_20260505_long.csv
 patch_strategy=interface_buffered
 square   cartesian_coarse scale=1 ux=5.045423e-04 uy=-1.188580e-17 Cd=NaN drift=9.521e-14 elapsed=1.388s
 square   leaf_oracle      scale=1 ux=2.504412e-03 uy=1.807265e-17 Cd=NaN drift=2.420e-13 elapsed=0.584s
@@ -36,10 +36,10 @@ cylinder amr_route_native scale=4 ux=3.768842e-02 uy=0.000000e+00 Cd=2.604073e+0
 ========================================
 End: Tue May  5 01:32:01 PM AEST 2026
 Results:
--rw-r--r-- 1 maitreje default 2.6K May  5 13:32 benchmarks/results/amr_d_publication_raw_2d_aqua_D_pub_20260505_long.csv
--rw-r--r-- 1 maitreje default 1.7K May  5 13:22 benchmarks/results/amr_d_publication_raw_2d_local_D_pub_canary_20260505.csv
--rw-r--r-- 1 maitreje default 3.9K May  5 13:32 benchmarks/results/amr_d_publication_summary_2d_aqua_D_pub_20260505_long.csv
--rw-r--r-- 1 maitreje default 2.6K May  5 13:22 benchmarks/results/amr_d_publication_summary_2d_local_D_pub_canary_20260505.csv
+-rw-r--r-- 1 <user> <group> 2.6K May  5 13:32 benchmarks/results/amr_d_publication_raw_2d_aqua_D_pub_20260505_long.csv
+-rw-r--r-- 1 <user> <group> 1.7K May  5 13:22 benchmarks/results/amr_d_publication_raw_2d_local_D_pub_canary_20260505.csv
+-rw-r--r-- 1 <user> <group> 3.9K May  5 13:32 benchmarks/results/amr_d_publication_summary_2d_aqua_D_pub_20260505_long.csv
+-rw-r--r-- 1 <user> <group> 2.6K May  5 13:22 benchmarks/results/amr_d_publication_summary_2d_local_D_pub_canary_20260505.csv
 ========================================
 
 PBS Job 20812821.aqua
@@ -47,48 +47,3 @@ CPU time         : 00:05:00
 Wall time        : 00:06:22
 Mem usage        : 737076kb
 
---- Job Runtime Information at 2026-05-05T13:32:01.852648---
-id               : 20812821.aqua
-Job_Name         : kraken_amrD_pub2d
-Job_Owner        : maitreje@aquarius02.ib0.hpc.qut.edu.au
-resources_used   : cput=00:05:00,mem=737076kb,walltime=00:06:22,ncpus=4,cpupercent=59,vmem=5047288kb,cpus="22,25,86,87",ngpus=0
-job_state        : 5
-queue            : cpu_batch_exec
-server           : aqua
-Checkpoint       : u
-Error_Path       : aquarius02.ib0.hpc.qut.edu.au:/mnt/hpccs01/home/maitreje/Kraken.jl/kraken_amrD_pub2d.e20812821
-exec_host2       : cpu1n018.ib0.hpc.qut.edu.au:15002/4*4
-exec_vnode       : (cpu1n018[0]:ncpus=4:mem=32gb:ngpus=0:nfpgas=0)
-Join_Path        : oe
-Keep_Files       : n
-mtime            : 2026-05-05T13:25:41
-Output_Path      : aquarius02.ib0.hpc.qut.edu.au:/mnt/hpccs01/home/maitreje/Kraken.jl/kraken_amrD_pub2d.o20812821
-Resource_List    : mem=32gb,walltime=06:00:00,ncpus=4,place=free
-schedselect      : 1:ncpus=4:mem=32GB:ngpus=0:nfpgas=0:cpu_id=any:qlist=cpu_batch_exec
-stime            : 2026-05-05T13:25:38
-session_id       : 3781337
-substate         : 50
-Variable_List    : PBS_O_HOME=/home/maitreje,PBS_O_LANG=en_US.UTF-8,PBS_O_LOGNAME=maitreje,PBS_O_PATH=/home/maitreje/.juliaup/bin:/home/maitreje/bin:/home/maitreje/.local/bin:/home/maitreje/bin:/opt/clmgr/sbin:/opt/clmgr/bin:/opt/sgi/sbin:/opt/sgi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/c3/bin:/opt/pbs/bin:/sbin:/bin,PBS_O_SHELL=/bin/bash,PBS_O_INTERACTIVE_AUTH_METHOD=resvport,PBS_O_HOST=aquarius02.ib0.hpc.qut.edu.au,PBS_O_WORKDIR=/mnt/hpccs01/home/maitreje/Kraken.jl,PBS_O_SYSTEM=Linux,KRK_AMR_D_STEP_EXPONENT=1,KRK_AMR_TAG=aqua_D_pub_20260505_long,KRK_AMR_D_SCALES=1\,2\,4,KRK_AMR_D_PATCH_STRATEGY=interface_buffered,KRK_AMR_D_AVG_WINDOW=600,KRK_AMR_D_BASE_STEPS=2400,SHELL=/bin/bash,LANGUAGE=en_US.UTF-8,FPATH=/usr/share/lmod/lmod/init/ksh_funcs,LMOD_DIR=/usr/share/lmod/lmod/libexec,PWD=/mnt/hpccs01/home/maitreje/Kraken.jl,LOGNAME=maitreje,XDG_SESSION_TYPE=tty,MODULESHOME=/usr/share/Modules,MANPATH=/usr/share/lmod/lmod/share/man::/opt/c3/man:/opt/pbs/share/man:/opt/clmgr/man:/opt/sgi/share/man:/opt/clmgr/share/man:/opt/clmgr/lib/cm-cli/man,MOTD_SHOWN=pam,HOME=/home/maitreje,LANG=en_US.UTF-8,USE_PCM_DB=2,LMOD_SETTARG_FULL_SUPPORT=no,MIG_PARTED_CONFIG_FILE=/etc/nvidia-mig-manager/config.yaml,LMOD_VERSION=8.7.65,SSH_CONNECTION=172.19.39.119 57761 131.181.68.102 22,MIG_PARTED_CHECKPOINT_FILE=/var/lib/nvidia-mig-manager/checkpoint.json,MODULEPATH_ROOT=/usr/share/modulefiles,C3_RSH=ssh -oConnectTimeout=10 -oForwardX11=no,XDG_SESSION_CLASS=user,LMOD_PKG=/usr/share/lmod/lmod,MIG_PARTED_HOOKS_FILE=/etc/nvidia-mig-manager/hooks.yaml,LESSOPEN=||/usr/bin/lesspipe.sh %s,USER=maitreje,LMOD_ROOT=/usr/share/lmod,SHLVL=0,BASH_ENV=/usr/share/lmod/lmod/init/bash,LMOD_sys=Linux,XDG_SESSION_ID=183823,LC_CTYPE=C.UTF-8,XDG_RUNTIME_DIR=/run/user/439583,S_COLORS=auto,SSH_CLIENT=172.19.39.119 57761 22,DEBUGINFOD_IMA_CERT_PATH=/etc/keys/ima:,which_declare=declare -f,XDG_DATA_DIRS=/home/maitreje/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share,PATH=/home/maitreje/.juliaup/bin:/home/maitreje/bin:/home/maitreje/.local/bin:/home/maitreje/bin:/opt/clmgr/sbin:/opt/clmgr/bin:/opt/sgi/sbin:/opt/sgi/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/c3/bin:/opt/pbs/bin:/sbin:/bin,MODULEPATH=/etc/scl/modulefiles:/etc/modulefiles:/usr/share/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core:/mnt/weka/pkg/rhel96/AuthenticAMD-25/modules/all/Core:/pkg/shpc/modules,DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/439583/bus,LMOD_CMD=/usr/share/lmod/lmod/libexec/lmod,OSCAR_HOME=/opt/oscar,OLDPWD=/mnt/hpccs01/home/maitreje,BASH_FUNC_ml%%=() {  eval \"$($LMOD_DIR/ml_cmd \"$@\")\";},BASH_FUNC_which%%=() {  ( alias; eval ${which_declare} ) | /usr/bin/which --tty-only --read-alias --read-functions --show-tilde --show-dot $@;},BASH_FUNC_module%%=() {  if [ -z \"${LMOD_SH_DBG_ON+x}\" ]; then
- case \"$-\" in
- *v*x*)
- __lmod_sh_dbg=\'vx\'
- ;; *v*)
- __lmod_sh_dbg=\'v\'
- ;; *x*)
- __lmod_sh_dbg=\'x\'
- ;; esac; fi; if [ -n \"${__lmod_sh_dbg:-}\" ]; then
- set +$__lmod_sh_dbg; echo \"Shell debugging temporarily silenced: export LMOD_SH_DBG_ON=1 for Lmod\'s output\" 1>&2; fi; eval \"$($LMOD_CMD shell \"$@\")\" && eval \"$(${LMOD_SETTARG_CMD:-:} -s sh)\"; __lmod_my_status=$?; if [ -n \"${__lmod_sh_dbg:-}\" ]; then
- echo \"Shell debugging restarted\" 1>&2; set -$__lmod_sh_dbg; fi; unset __lmod_sh_dbg; return $__lmod_my_status;},BASH_FUNC_scl%%=() {  if [ \"$1\" = \"load\" -o \"$1\" = \"unload\" ]; then
- eval \"module $@\"; else
- /usr/bin/scl \"$@\"; fi;},_=/opt/pbs/bin/qsub,PBS_O_QUEUE=cpu_batch
-euser            : maitreje
-egroup           : default
-hashname         : 20812821.aqua
-run_count        : 1
-job_kill_delay   : 10
-Exit_status      : 0
-project          : _pbs_project_default
-run_version      : 1
-Submit_Host      : aquarius02.ib0.hpc.qut.edu.au
-Submit_arguments : hpc/amr_d_publication_table_2d_aqua.pbs
-ctime            : 2026-05-05T13:25:36

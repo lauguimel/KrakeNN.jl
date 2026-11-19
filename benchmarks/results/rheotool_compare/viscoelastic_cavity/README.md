@@ -173,7 +173,7 @@ rsync -az --include='/[0-9]*/' --include='/[0-9]*/U.gz' --include='/[0-9]*/tau.g
       --include='/kinEner.txt' --include='/log.*' --include='/run_done' \
       --include='/system/' --include='/system/controlDict' --include='/system/blockMeshDict' \
       --include='/constant/' --include='/constant/constitutiveProperties' --exclude='*' \
-      maitreje@aqua.qut.edu.au:kraken-rheotool/cavity_ve_wi1/<TAG>/ "$ARCHIVE/rheotool_runs/<TAG>/"
+      <user>@aqua.qut.edu.au:kraken-rheotool/cavity_ve_wi1/<TAG>/ "$ARCHIVE/rheotool_runs/<TAG>/"
 python bench/rheotool/cavity_ve_wi1/extract_cavity.py "$ARCHIVE/rheotool_runs/<TAG>" <N> "$ARCHIVE/rheotool_csv/<TAG>"
 python bench/rheotool/cavity_ve_wi1/build_tables.py "$ARCHIVE/rheotool_csv" --energy-spacing 0.008
 ```

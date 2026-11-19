@@ -110,7 +110,7 @@ ssh -o ConnectTimeout=15 aqua \
   "cd ~/Kraken.jl && \
    qsub bench/viscoelastic_logfv/run_cyl_m41_newt_halfway_a100.pbs && \
    qsub bench/viscoelastic_logfv/run_cyl_m41_newt_curved_bc_a100.pbs && \
-   qstat -u maitreje | tail -10"
+   qstat -u <user> | tail -10"
 
 # Step 3: capture job IDs (M41_HALFWAY_JOB and M41_CURVED_JOB)
 # Step 4: poll until F
