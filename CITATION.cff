@@ -18,8 +18,8 @@ authors:
 repository-code: "https://github.com/lauguimel/KrakeNN.jl"
 url: "https://lauguimel.github.io/KrakeNN.jl/stable/"
 license: MIT
-version: 0.6.0
-date-released: "2026-11-04"
+version: 0.7.0
+date-released: "2026-11-19"
 keywords:
   - lattice Boltzmann
   - computational fluid dynamics

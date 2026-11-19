@@ -1,9 +1,11 @@
 # Changelog
 
-All notable changes to Kraken.jl will be documented in this file.
+All notable changes to KrakeNN.jl will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
+
+## [0.7.0] — 2026-11-19
 
 ### Added
 - Shallow-shelf / shallow-stream approximation (SSA) of glacier ice flow,
@@ -20,7 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   solution, Jacobian against a dense ForwardDiff Jacobian, Newton, adjoint
   against finite differences, CPU/GPU parity).
   Benchmark scripts for Pine Island Glacier in `benchmarks/ssa_glacier/`
-  (input data downloaded separately, not in the repository).
+  (input data downloaded separately, not in the repository) (#145).
 - Opt-in steady stop rule for `run_cylinder_libb_2d`,
   `run_viscoelastic_fvfd_poiseuille_3d` and the 2D log-FV coupled viscoelastic
   drivers (including `run_viscoelastic_logfv_cylinder_coupled_2d`).
@@ -55,7 +57,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   CSC (UMFPACK) or CSR (cuDSS) matrix values. Linear solves go through the
   linear-solve seam: one `lin_factorize` (symbolic analysis), then
   `lin_refactorize!` and in-place `lin_solve!` at every iteration. Armijo line
-  search; optional pseudo-transient continuation (`dtau0`).
+  search; optional pseudo-transient continuation (`dtau0`) (#127).
   `fv_newton_finalize!` leaves the factors of the unshifted Jacobian at the
   solution, for a later adjoint solve. Checked on CPU: the assembled Jacobian
   equals the dense Jacobian on four configurations (cavity, masked channel,
@@ -113,7 +115,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   0 device bytes in the hot loop). Power-law cavity n = 0.5 from rest: 256² in
   13 iterations and 3.3 s, 512² in 32 iterations and 20.3 s, 1024² in 22
   iterations and 83 s (first factorization 31.6 s, refactorization 2.4 s,
-  23 GiB with the factors resident).
+  23 GiB with the factors resident) (#128).
 - Steady discrete adjoint on the FV Newton solver (step C4 of the FV Newton
   roadmap), `src/methods/inc_ns/fv_adjoint.jl`. `fv_steady_gradient(solver, U,
   θ, objective; params)` re-assembles the unshifted Jacobian at the converged
@@ -145,7 +147,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   Wall-closure study in `benchmarks/fv_c4/`: drag, pressure drop and their
   gradients converge at order ≈ 1.4 whether ν is constant or variable;
   `FVWallForce(...; pressure = :linear)` is the recommended drag objective
-  (the default stays `:cell`, the residual's own wall pressure).
+  (the default stays `:cell`, the residual's own wall pressure) (#130).
 - Immersed curved walls in the steady FV residual, Newton and adjoint (step C5
   of the FV Newton roadmap), `src/methods/inc_ns/fv_immersed*.jl`. Analytic cut
   geometry (`fv_immersed_circle`, `fv_immersed_annulus`,
@@ -168,7 +170,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   Known limits, documented in `benchmarks/fv_c5/README.md`: the pressure drop
   across a cylinder in a channel is not monotone in h on the tested grids, and
   the surface-integral torque derivative converges more slowly than the
-  residual-flux one.
+  residual-flux one (#131).
 - Scalar laws and a learned viscosity in the steady FV Newton solver (branch
   `feat/learned-law`): `AbstractScalarLaw` (`law_value`, hand-written
   `law_pullback!`, allocation-free) with `ClassicalLaw` for the existing GNF
@@ -180,7 +182,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   by default with one face-cotangent contraction instead of parameter duals
   (CPU 64x64, 248 parameters: 1.46 s to 67 ms; both paths agree to 1e-13,
   central differences to 4e-7). `ClassicalLaw` reproduces `FVGNFViscosity`.
-  H100 run recorded in `benchmarks/fv_law/`.
+  H100 run recorded in `benchmarks/fv_law/` (#134).
 - Steady thermal coupling on the colocated FV Newton solver (branch
   `feat/fv-thermal`): `FVEnergy` adds a temperature equation (linear-upwind
   convection on the Rhie–Chow flux, diffusion, viscous heating `2 sigma nu S:S`,
@@ -198,11 +200,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   +1.4 %, `dm/dtheta` norm difference 2.4 % (worst component 4.5 %, 8 of 8
   signs), adjoint vs finite differences 2.7e-6; at 300x100 +3.1 %, +3.3 %,
   6.0 % (worst 10.7 %). Two grids only, Float64 only, no transient. See
-  `docs/src/users/fv-thermal.md`.
+  `docs/src/users/fv-thermal.md` (#135).
 - Plane PIV observation operator for 3D fields: `PIVPlane`, `piv_operator`,
   `piv_apply`, its exact adjoint `piv_apply_adjoint` and `piv_misfit` (in-plane
   or stereo samples, Gaussian light-sheet thickness, interrogation window),
-  tested in `test/analytical/plane_piv_3d.jl`.
+  tested in `test/analytical/plane_piv_3d.jl` (#141).
 - 3D steady colocated FV solver `FVGrid3D`, `FVSteadyProblem3D` through
   `fv_steady_problem(Nx, Ny, Nz; ...)`, the 3D residual (same KernelAbstractions
   kernel on CPU and GPU, generic element type, six sides that are walls with a
@@ -217,7 +219,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   z-uniform 3D residual equal to the 2D one, coloured equal to dense Jacobian,
   MMS, adjoint against centred finite differences
   (`test/analytical/incns_fv3d_test.jl`, `incns_fv3d_adjoint_test.jl`); GPU
-  scripts in `benchmarks/fv3d/`.
+  scripts in `benchmarks/fv3d/` (#141).
 - Krylov branch of the linear-solve seam, `KrylovBackendTag` (restarted GMRES on
   an assembled `KrylovCSRMatrix`, forward and transposed solves, CPU and CUDA
   through `ext/KrakeNNCUDSSExt.jl`), selected by `fv_newton_solver(p; linsolve =
@@ -253,14 +255,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   default is reliable up to Re ≈ 250 (208 GMRES iterations); beyond, Newton
   or GMRES fail (measured at Re ≈ 415); block LSC at Re ≈ 250 was
   not measured to the end. Tested against the direct branch in
-  `test/analytical/incns_fv3d_krylov_test.jl`.
+  `test/analytical/incns_fv3d_krylov_test.jl` (#141).
 - 3D energy equation `FVEnergy3D` (`fv_steady_problem(Nx, Ny, Nz; energy)`):
   temperature as the fifth cell unknown, viscous heating, temperature-dependent
   laws, heating continuation, round-off floor gate and the law adjoint through
   the temperature, as in 2D. GPU (H100): V0' energy MMS second order for
   conduction, V4 heated duct θ relative L2 1.09e-3 at N = 48 with the Krylov
   branch (peak 4.2 GB), V0' energy to 64³ (peak 4.7 GB). Tested in
-  `test/analytical/incns_fv3d_thermal_test.jl`.
+  `test/analytical/incns_fv3d_thermal_test.jl` (#141).
 - V5 benchmark, law recovery from plane PIV in 3D (`benchmarks/fv3d/v5*`): LBM
   truth on a 96 × 48 × 48 duct with an off-centre obstacle and a Carreau–Yasuda
   law, three noisy PIV planes plus flow rate, Carreau and TinyMLP fits through
@@ -270,8 +272,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   takes 402 s with block LSC instead of 1201 s with block SIMPLE and
   multigrid, and 143 s with Vanka multigrid (peak 5.07 GiB instead of
   6.94 GiB); Vanka multigrid is the V5 default (`FV5_PRECOND=p4`, the value
-  name is kept for compatibility).
-- 2D steady FV, die chain (all opt-in; default problems are unchanged):
+  name is kept for compatibility) (#141).
+- 2D steady FV, die chain (all opt-in; default problems are unchanged) (#142):
   - Energy open boundaries: `:inlet` sides carry a prescribed inflow
     temperature, `:outlet` sides a zero-gradient outflow, and
     `FVEnergy(; solid = T_s)` holds voxel-solid faces at one temperature
@@ -298,8 +300,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   - Die prediction driver `benchmarks/fv_thermal/die_predict.jl` (FV flow and
     temperature in the LBM open die with the Carreau–WLF law or a learned
     law file), with `die_ib.jl` and `die_learned.jl`; see
-    `docs/src/users/fv-thermal.md`. Not yet run at the paper resolution.
-
+    `docs/src/users/fv-thermal.md`.
+- Steady 2D colocated finite-volume residual of the incompressible Navier–Stokes
+  (or Stokes) equations, `fv_residual!(R, U, prob)`, written as one
+  KernelAbstractions kernel that runs unchanged on CPU and GPU and is generic in
+  the element type (Float64, Float32, ForwardDiff duals in the state or in the
+  parameter arrays). It is step C1 of the FV Newton roadmap: the residual that
+  the coming Newton solve (Jacobian by coloured duals) and discrete adjoint will
+  differentiate. Discretisation: first-order upwind convection on Rhie–Chow face
+  fluxes with `d_f = h²/(4ν_f + |ū_f|h)`, full viscous stress tensor with a cell
+  viscosity field, body/mass sources, wall / inlet / outlet / periodic sides,
+  solid mask, one pressure pin per closed fluid pocket (`fv_pressure_pins!`).
+  Problems are built with `fv_steady_problem` and moved to a device with
+  `fv_adapt`. `SteadyResidual` is declared by `IncNS(:fv_newton)`
+  (`residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`); this is the residual of the
+  coupled FV discretisation, not of the SIMPLE drivers. Checked on CPU against the
+  J0 prototype (identical residuals on 11 configurations), exact discrete
+  solutions (R = 0), manufactured solutions with variable viscosity (velocity
+  order 2 for Stokes; the pressure is first order in the wall cells), duals
+  against finite differences, and the SIMPLE cavity (centreline difference
+  1.2e-3 at 32², Re = 100). On an A100 (Aqua job 27617685) the GPU residual
+  matches the CPU one (1.8e-17 relative at 1024² in Float64, within the 1e-14
+  test bound in Dual{4} on three cases), allocates 0
+  bytes per call, and takes 0.43 ms at 1024² in Float64 (2.4 ms in Dual{4}).
+  No Newton solver yet at that step: nothing user-facing solved with it (#125).
 - Network and parametric viscosity laws in the 2D and 3D generalised-Newtonian
   LBM step, with a steady adjoint in 3D. `DenseNet` is an isbits feedforward
   network law with per-layer widths and activations (it reproduces `TinyMLP` on
@@ -328,16 +352,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   available with `variant = :reference`. On CUDA the step kernel is compiled
   with a register cap and workgroup chosen per element type (Float64: 128
   registers, workgroup (32, 4, 2); Float32: 96 registers, automatic workgroup);
-  CPU and Metal are unchanged.
+  the CPU path is unchanged (#146).
 - The periodic 3D generalised-Newtonian setup used by the adjoint
   (`run_gnf3d_periodic_steady`) is built on the backend with whole-array
   operations instead of host loops (about 21 min at 256³ before the first step
   previously); the result is bitwise identical (tested on CPU and CUDA, Float64
-  and Float32).
-- The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl`.
+  and Float32) (#146).
+- The package is renamed `KrakeNN` (module, `using KrakeNN`, extension modules `KrakeNN*Ext`); the UUID is unchanged, so existing environments only need `Kraken` replaced by `KrakeNN` in their code. The repository moved to `github.com/lauguimel/KrakeNN.jl` and the documentation to `lauguimel.github.io/KrakeNN.jl` (#132, #133).
 - `capabilities(::IncNS)` is now driver-dependent: only `IncNS(:fv_newton)`
   declares `SteadyResidual`; the other drivers declare `ForwardSolve` only, and
-  `residual(prob, IncNS(:simple), U)` raises an `ArgumentError`.
+  `residual(prob, IncNS(:simple), U)` raises an `ArgumentError` (#127).
 - Compat widened to `CUDA = "5, 6"` and `CUDSS = "0.3, 0.4, 0.5, 0.6, 1"`
   (CUDSS.jl 1.0 requires CUDA.jl 6). Existing CUDA.jl 5 environments keep
   resolving; a fresh environment now resolves to CUDA.jl 6. LinearSolve.jl does
@@ -366,15 +390,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   populations from the neighbour after its wall treatment and collision,
   including wall-adjacent end rows. Place the new outlet several diameters
   downstream of obstacles; backflow through it is not supported (#126).
+- The full CI job now runs `law_closure_test`, `dense_net_test`, `onnx_law_test`
+  and `test_ad_outlet_fd_check`, which no CI run executed before; ProtoBuf is added
+  to the test environment (#144).
+- The `beta <= 0.1` note of the viscoelastic cylinder tutorial is updated after
+  #121 (#139).
 
 ### Fixed
 - `gnf_convert_closure` rebuilds `DenseNet`, `TinyMLP`, `LearnedViscosity` and
   `ClassicalLaw` closures with their parameters in the target float type, so the
   GPU kernels receive plain values instead of capturing host arrays (test
-  `test/rheology/gnf_convert_closure_test.jl`, CPU and CUDA).
+  `test/rheology/gnf_convert_closure_test.jl`, CPU and CUDA) (#146).
 - `run_gnf_duct_obstacle_3d` stops with `converged = false` at the first
   convergence check where the velocity change is not finite, instead of
-  running to `max_steps` after a divergence.
+  running to `max_steps` after a divergence (#141).
 - Parabolic inlets now deliver the nominal flow rate between half-way walls. The
   profile of `run_cylinder_libb_2d`, `parabolic_face_profile_2d`,
   `run_sphere_libb_3d`, `run_conformation_sphere_libb_3d` and the AD cylinder and
@@ -543,29 +572,6 @@ own that went through these paths with a nonzero force and `ν ≠ √3/12` shou
   `benchmarks/validation/natconv_gnf/results/`; the code that ran is kept reachable
   by the tag `archive/gnf-thermal-turan-gpu`. No 3D, no grid refinement. See
   `docs/src/users/benchmarks/gnf-natural-convection.md`.
-- Steady 2D colocated finite-volume residual of the incompressible Navier–Stokes
-  (or Stokes) equations, `fv_residual!(R, U, prob)`, written as one
-  KernelAbstractions kernel that runs unchanged on CPU and GPU and is generic in
-  the element type (Float64, Float32, ForwardDiff duals in the state or in the
-  parameter arrays). It is step C1 of the FV Newton roadmap: the residual that
-  the coming Newton solve (Jacobian by coloured duals) and discrete adjoint will
-  differentiate. Discretisation: first-order upwind convection on Rhie–Chow face
-  fluxes with `d_f = h²/(4ν_f + |ū_f|h)`, full viscous stress tensor with a cell
-  viscosity field, body/mass sources, wall / inlet / outlet / periodic sides,
-  solid mask, one pressure pin per closed fluid pocket (`fv_pressure_pins!`).
-  Problems are built with `fv_steady_problem` and moved to a device with
-  `fv_adapt`. `SteadyResidual` is declared by `IncNS(:fv_newton)`
-  (`residual(prob::FVSteadyProblem2D, IncNS(:fv_newton), U)`); this is the residual of the
-  coupled FV discretisation, not of the SIMPLE drivers. Checked on CPU against the
-  J0 prototype (identical residuals on 11 configurations), exact discrete
-  solutions (R = 0), manufactured solutions with variable viscosity (velocity
-  order 2 for Stokes; the pressure is first order in the wall cells), duals
-  against finite differences, and the SIMPLE cavity (centreline difference
-  1.2e-3 at 32², Re = 100). On an A100 (Aqua job 27617685) the GPU residual
-  matches the CPU one (1.8e-17 relative at 1024² in Float64, within the 1e-14
-  test bound in Dual{4} on three cases), allocates 0
-  bytes per call, and takes 0.43 ms at 1024² in Float64 (2.4 ms in Dual{4}).
-  No Newton solver yet: nothing user-facing solves with it.
 
 ### Changed
 - Docs: grid refinement (patch and conservative AMR) is now documented as under development and is no longer listed as a supported feature (#103).

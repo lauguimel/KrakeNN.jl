@@ -124,7 +124,7 @@ If you use KrakeNN in academic work, please cite:
   title   = {KrakeNN: a GPU-portable Lattice Boltzmann framework in Julia},
   year    = {2026},
   url     = {https://github.com/lauguimel/KrakeNN.jl},
-  version = {0.6.0},
+  version = {0.7.0},
 }
 ```
 
