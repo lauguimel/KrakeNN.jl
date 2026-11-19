@@ -291,12 +291,6 @@ include("methods/inc_ns/fv_adjoint_3d.jl") # 3D steady adjoint: maps, law captur
 include("methods/inc_ns/fv_energy_3d.jl") # 3D energy equation (I3): slot 5, Newton, adjoint
 include("methods/inc_ns/fv_piv_objective.jl") # composite plane-PIV objective (device gather/scatter)
 export FVPIVObjective, fv_objective_gradient!
-include("methods/ssa/ssa.jl") # 2D shallow-shelf/stream approximation: Newton + learned sliding law + adjoint
-export SSAProblem2D, SSAWeertman, SSALearnedDrag, SSANewtonSolver, SSA_RHOG, ssa_problem,
-       ssa_adapt, ssa_with, ssa_residual!, ssa_residual, ssa_jacobian_pattern,
-       ssa_assemble_jacobian!, ssa_newton_solver, ssa_jacobian!, ssa_newton!,
-       ssa_newton_continuation!, ssa_solve, ssa_initial_state, ssa_fields, ssa_nunknowns,
-       ssa_theta_gradient, ssa_misfit, ssa_set_theta!, ssa_drag
 export fv_mean_temperature, fv_temperature_l2, fv_flow_force_objective
 
 # --- Curvilinear (body-fitted) mesh — v0.2 SLBM path ---
